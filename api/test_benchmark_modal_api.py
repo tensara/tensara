@@ -1,7 +1,8 @@
 import requests
 
-# Example solution code (vector addition)
-solution_code = """
+def test_benchmark():
+    # Example solution code (vector addition)
+    solution_code = """
 #pragma once
 #include <cuda_runtime.h>
 
@@ -19,19 +20,22 @@ void solution(float* d_input1, float* d_input2, float* d_output, size_t n) {
 }
 """
 
-# Send solution to API
-response = requests.post(
-    "https://YOUR_MODAL_APP_URL/benchmark_solution",
-    json={"solution_code": solution_code}
-)
+    # Send solution to API
+    response = requests.post(
+        "https://YOUR_MODAL_APP_URL/benchmark_solution",  # Replace with your Modal app URL
+        json={"solution_code": solution_code}
+    )
 
-# Print results
-if response.status_code == 200:
-    results = response.json()
-    print("Benchmark Results:")
-    print(results["benchmark_results"])
-    if results["errors"]:
-        print("\nErrors/Warnings:")
-        print(results["errors"])
-else:
-    print("Error:", response.json()["detail"])
+    # Print results
+    if response.status_code == 200:
+        results = response.json()
+        print("Benchmark Results:")
+        print(results["benchmark_results"])
+        if results["errors"]:
+            print("\nErrors/Warnings:")
+            print(results["errors"])
+    else:
+        print("Error:", response.json()["detail"])
+
+if __name__ == "__main__":
+    test_benchmark()
