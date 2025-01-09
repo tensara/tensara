@@ -19,11 +19,10 @@ void solution(float* d_input1, float* d_input2, float* d_output, size_t n) {
     vector_add<<<num_blocks, block_size>>>(d_input1, d_input2, d_output, n);
 }
 """
-
     # Send solution to API
     response = requests.post(
-        "https://YOUR_MODAL_APP_URL/benchmark_solution",  # Replace with your Modal app URL
-        json={"solution_code": solution_code}
+        "https://someshkar--cudaforces-benchmark-solution.modal.run",
+        json={"code": solution_code}  # Changed from "solution_code" to "code" to match API expectation
     )
 
     # Print results
@@ -31,11 +30,11 @@ void solution(float* d_input1, float* d_input2, float* d_output, size_t n) {
         results = response.json()
         print("Benchmark Results:")
         print(results["benchmark_results"])
-        if results["errors"]:
+        if results.get("errors"):
             print("\nErrors/Warnings:")
             print(results["errors"])
     else:
-        print("Error:", response.json()["detail"])
+        print("Error:", response.json())
 
 if __name__ == "__main__":
     test_benchmark()

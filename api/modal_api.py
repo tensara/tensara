@@ -1,38 +1,34 @@
 import modal
-from modal import Image, Stub, web_endpoint
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+import tempfile
+import os
+from pathlib import Path
 
-# Define request model
-class SolutionRequest(BaseModel):
-    solution_code: str
-
-# Define the Modal stub
-stub = Stub("cuda-benchmark")
-
-# Create a GPU image with CUDA tools
-cuda_image = (
-    Image.debian_slim()
-    .apt_install(["nvidia-cuda-toolkit", "build-essential"])
+# Create image with required dependencies
+image = (
+    modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
+    .apt_install([
+        "build-essential",
+        "make"
+    ])
     .pip_install(["fastapi", "uvicorn"])
 )
 
-# FastAPI app
-app = FastAPI(title="CUDA Benchmark API")
+# Create Modal app with the image
+app = modal.App("cudaforces", image=image)
 
-@stub.function(gpu="any", image=cuda_image)
+@app.function(gpu="any")
 @modal.web_endpoint(method="POST")
-async def benchmark_solution(request: SolutionRequest):
+def benchmark_solution(item: dict):
     """
     Accepts CUDA solution code and runs benchmarks
-    Returns benchmark results including runtime and correctness
+    Expected input format: {"code": "your CUDA code here"}
     """
     try:
         # Create temporary directory for compilation
         with tempfile.TemporaryDirectory() as tmpdir:
             # Write solution code
             solution_path = Path(tmpdir) / "solution.cuh"
-            solution_path.write_text(request.solution_code)
+            solution_path.write_text(item["code"])
             
             # Write benchmark code
             benchmark_path = Path(tmpdir) / "benchmark.cu"
@@ -188,7 +184,7 @@ all: $(TARGET)
             os.chdir(tmpdir)
             compile_result = os.system("make")
             if compile_result != 0:
-                raise HTTPException(status_code=400, detail="Compilation failed")
+                return {"error": "Compilation failed"}
             
             # Run benchmark and capture output
             import subprocess
@@ -196,14 +192,9 @@ all: $(TARGET)
             
             return {
                 "status": "success",
-                "compile_status": "success",
                 "benchmark_results": result.stdout,
                 "errors": result.stderr if result.stderr else None
             }
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Entry point for Modal
-if __name__ == "__main__":
-    stub.serve()
+        return {"error": str(e)}
