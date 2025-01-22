@@ -12,28 +12,28 @@ private:
     size_t num_runs;
 
 public:
-    BenchmarkRunner(size_t n, size_t runs = 100) 
+    BenchmarkRunner(size_t n, size_t runs = 100)
         : size(n), num_runs(runs) {
         // Create CUDA events
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
-        
+
         // Allocate device memory
         cudaMalloc(&d_input1, size * sizeof(float));
         cudaMalloc(&d_input2, size * sizeof(float));
         cudaMalloc(&d_output, size * sizeof(float));
-        
+
         // Allocate host memory
         h_input1 = new float[size];
         h_input2 = new float[size];
         h_output = new float[size];
-        
+
         // Initialize input data
         for (size_t i = 0; i < size; i++) {
             h_input1[i] = static_cast<float>(i);
             h_input2[i] = static_cast<float>(i * 2);
         }
-        
+
         // Copy data to device
         cudaMemcpy(d_input1, h_input1, size * sizeof(float), cudaMemcpyHostToDevice);
         cudaMemcpy(d_input2, h_input2, size * sizeof(float), cudaMemcpyHostToDevice);
@@ -54,7 +54,7 @@ public:
     bool verify_result() {
         // Copy result back to host
         cudaMemcpy(h_output, d_output, size * sizeof(float), cudaMemcpyDeviceToHost);
-        
+
         // Verify first few and last few elements
         for (size_t i = 0; i < std::min(size_t(5), size); i++) {
             float expected = h_input1[i] + h_input2[i];
@@ -106,7 +106,7 @@ public:
         // Calculate and print results
         float avg_ms = total_ms / num_runs;
         float gb_per_sec = (size * 3 * sizeof(float)) / (avg_ms * 1e-3) / 1e9;  // 2 reads + 1 write
-        
+
         std::cout << "\nBenchmark Results for size " << size << ":\n";
         std::cout << "----------------------------------------\n";
         std::cout << "Correctness: " << (correct ? "PASSED" : "FAILED") << "\n";
@@ -121,11 +121,11 @@ public:
 int main(int argc, char** argv) {
     // Test different sizes
     std::vector<size_t> sizes = {1<<20, 1<<22, 1<<24, 1<<26};
-    
+
     for (size_t size : sizes) {
         BenchmarkRunner runner(size);
         runner.run_benchmark();
     }
-    
+
     return 0;
 }
