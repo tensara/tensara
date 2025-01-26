@@ -85,8 +85,6 @@ model Problem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  mdPath String @unique
-
   submissions Submission[]
   testCases   TestCase[]
   User        User?        @relation(fields: [userId], references: [id])
