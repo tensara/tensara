@@ -80,9 +80,7 @@ model Problem {
   slug        String     @unique
   description String?
   difficulty  Difficulty
-
-  author   User   @relation(fields: [authorId], references: [id])
-  authorId String
+  author      String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -91,8 +89,10 @@ model Problem {
 
   submissions Submission[]
   testCases   TestCase[]
+  User        User?        @relation(fields: [userId], references: [id])
+  userId      String?
 
-  @@index([authorId])
+  @@index([author])
   @@index([difficulty])
   @@index([slug])
 }
