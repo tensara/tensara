@@ -11,7 +11,7 @@ export function Providers({ children }: { children: ReactNode }) {
       enableSystem={false}
       disableTransitionOnChange
     >
-      <ChakraProvider value={system}>{children}</ChakraProvider>
+      <ChakraProvider theme={system}>{children}</ChakraProvider>
     </ThemeProvider>
   );
 }

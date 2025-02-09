@@ -8,25 +8,21 @@ generator client {
 }
 
 model User {
-  id String @id @default(cuid())
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  refreshToken  String?   @unique
+  lastLogin     DateTime?
 
-  name  String?
-  email String? @unique
-  image String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  refreshToken String?   @unique
-  lastLogin    DateTime?
-
-  // Authentication
-  accounts Account[]
-
-  // Content
+  accounts     Account[]
   problems     Problem[]
   submissions  Submission[]
   RevokedToken RevokedToken[]
+  Session      Session[]
 
   @@index([email])
   @@index([createdAt])
@@ -34,22 +30,33 @@ model User {
 }
 
 model Account {
-  id                String   @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?  @db.Text
-  access_token      String?  @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?  @db.Text
-  session_state     String?
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt         DateTime @default(now())
+  id                       String   @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?  @db.Text
+  access_token             String?  @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?  @db.Text
+  session_state            String?
+  refresh_token_expires_in Int?
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt                DateTime @default(now())
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
@@ -96,7 +103,9 @@ model Problem {
 }
 
 model Submission {
-  id   String @id @default(cuid())
+  id String @id @default(cuid())
+
+  name String @db.Text
   code String @db.Text
 
   problem   Problem @relation(fields: [problemId], references: [id])

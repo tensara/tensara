@@ -1,43 +1,74 @@
-import { createSystem, defaultConfig, defineRecipe } from "@chakra-ui/react";
+import { extendTheme } from "@chakra-ui/react";
 
-export const system = createSystem(defaultConfig, {
-  theme: {
-    tokens: {
-      fonts: {
-        body: { value: "Gotham, sans-serif" }, // Fixed font name and syntax
-      },
-      colors: {
-        brand: {
-          50: { value: "#011518" },
-          100: { value: "#022227" },
-          400: { value: "#04424B" },
-          600: { value: "#4FD1C5" },
-          700: { value: "#DAB785" },
-        },
+export const system = extendTheme({
+  styles: {
+    global: {
+      body: {
+        bg: "#0A1628",
+        color: "white",
       },
     },
-    semanticTokens: {
-      colors: {
-        "chakra-body-bg": { value: "{colors.brand.50}" }, // Fixed reference syntax
-        "chakra-body-text": { value: "white" },
-      },
+  },
+  colors: {
+    brand: {
+      primary: "#1DB954",
+      secondary: "#1A2C42",
+      dark: "#0A1628",
+      sidebar: "#162A46",
     },
-    recipes: {
-      button: defineRecipe({
-        base: {
-          borderRadius: "md",
-          fontWeight: "medium",
-        },
-      }),
-      input: defineRecipe({
-        base: {
-          bg: "brand.100",
+    gray: {
+      700: "#2D3748",
+      800: "#1A2C42",
+      900: "#0A1628",
+    },
+  },
+  components: {
+    Button: {
+      baseStyle: {
+        fontWeight: "medium",
+        borderRadius: "full",
+      },
+      variants: {
+        solid: {
+          bg: "brand.primary",
           color: "white",
-          _placeholder: {
-            color: "brand.400", // Fixed placeholder syntax
+          _hover: {
+            bg: "brand.primary",
+            opacity: 0.9,
           },
         },
-      }),
+        ghost: {
+          color: "whiteAlpha.900",
+          _hover: {
+            bg: "whiteAlpha.200",
+          },
+        },
+      },
+    },
+    Input: {
+      variants: {
+        filled: {
+          field: {
+            bg: "whiteAlpha.200",
+            borderRadius: "full",
+            _hover: {
+              bg: "whiteAlpha.300",
+            },
+            _focus: {
+              bg: "whiteAlpha.300",
+              borderColor: "brand.primary",
+            },
+          },
+        },
+      },
+      defaultProps: {
+        variant: "filled",
+      },
+    },
+    Container: {
+      baseStyle: {
+        maxW: "8xl",
+      },
     },
   },
 });
