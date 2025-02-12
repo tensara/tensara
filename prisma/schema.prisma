@@ -103,23 +103,24 @@ model Problem {
 }
 
 model Submission {
-  id String @id @default(cuid())
-
-  name String @db.Text
-  code String @db.Text
-
-  problem   Problem @relation(fields: [problemId], references: [id])
-  problemId String
-
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
+  id          String   @id @default(cuid())
+  code        String   @db.Text
+  language    String
+  status      String?
+  runtime     Int?
+  memory      Int?
+  passedTests Int?
+  totalTests  Int?
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  problem     Problem  @relation(fields: [problemId], references: [id])
+  problemId   String
+  createdAt   DateTime @default(now())
 
   benchmarks BenchmarkResult[]
 
-  createdAt DateTime         @default(now())
-  status    SubmissionStatus
-  callId    String?
-  isPublic  Boolean          @default(false)
+  callId   String?
+  isPublic Boolean @default(false)
 
   @@index([userId])
   @@index([problemId])
