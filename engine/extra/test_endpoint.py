@@ -5,7 +5,7 @@ def test_benchmark():
         solution_code = f.read()
     
     response = requests.post(
-        "https://sarthakmangla29--cudaforces-benchmark-solution.modal.run",
+        "https://labs-asterisk--tensara-benchmark.modal.run",
         json={"code": solution_code} 
     )
 

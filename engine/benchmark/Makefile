@@ -1,10 +1,8 @@
 NVCC = nvcc
-NVCC_FLAGS = -arch=sm_75 
+NVCC_FLAGS = -O3 -Xptxas -O3 -arch=sm_75
 
-# Output binary name
 TARGET = benchmark
 
-# Source files
 SRC = benchmark.cu
 HEADERS = solution.cuh
 

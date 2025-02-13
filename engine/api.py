@@ -3,7 +3,6 @@ import tempfile
 import os
 from pathlib import Path
 
-# Create image with required dependencies
 stub_dir = Path(__file__).parent
 
 image = (
@@ -13,20 +12,15 @@ image = (
         "make"
     ])
     .pip_install(["fastapi", "uvicorn"])
-    .copy_local_file(stub_dir / "benchmark.cu", "/root/benchmark.cu")
-    .copy_local_file(stub_dir / "Makefile", "/root/Makefile")
+    .add_local_file(stub_dir / "benchmark/benchmark.cu", "/root/benchmark.cu")
+    .add_local_file(stub_dir / "benchmark/Makefile", "/root/Makefile")
 )
 
-# Create Modal app with the image
-app = modal.App("cudaforces", image=image)
+app = modal.App("tensara", image=image)
 
-@app.function(gpu="any")
+@app.function(gpu="A100-80GB")
 @modal.web_endpoint(method="POST")
-def benchmark_solution(item: dict):
-    """
-    Accepts CUDA solution code and runs benchmarks
-    Expected input format: {"code": "your CUDA code here"}
-    """
+def benchmark(item: dict):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             solution_path = Path(tmpdir) / "solution.cuh"
@@ -50,3 +44,4 @@ def benchmark_solution(item: dict):
             
     except Exception as e:
         return {"error": str(e)}
+
