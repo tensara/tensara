@@ -12,11 +12,6 @@ def test_benchmark():
     if response.status_code == 200:
         results = response.json()
         print(results)
-        print("Benchmark Results:")
-        print(results["benchmark_results"])
-        if results.get("errors"):
-            print("\nErrors/Warnings:")
-            print(results["errors"])
     else:
         print("Error:", response.json())
 

@@ -21,7 +21,7 @@ public:
         size_t input_buffers,
         size_t output_buffers,
         size_t element_count,
-        size_t runs = 100
+        size_t runs = 10
     ) : num_inputs(input_buffers),
         num_outputs(output_buffers),
         size(element_count),
@@ -66,8 +66,6 @@ public:
     
     void run_benchmark(KernelLauncher kernel_launcher) {
         float total_ms = 0.0f;
-        float min_ms = 1e9;
-        float max_ms = 0.0f;
 
         kernel_launcher(d_inputs, d_outputs, size);
         cudaDeviceSynchronize();
@@ -81,22 +79,11 @@ public:
             float ms = 0.0f;
             cudaEventElapsedTime(&ms, start, stop);
             total_ms += ms;
-            min_ms = std::min(min_ms, ms);
-            max_ms = std::max(max_ms, ms);
         }
 
         float avg_ms = total_ms / num_runs;
-        float bytes_per_elem = sizeof(T) * (num_inputs + num_outputs);
-        float gb_per_sec = (size * bytes_per_elem) / (avg_ms * 1e-3) / 1e9;
-
-        std::cout << "\nBenchmark Results for size " << size << ":\n";
-        std::cout << "----------------------------------------\n";
-        std::cout << "Average Runtime: " << avg_ms << " ms\n";
-        std::cout << "Min Runtime: " << min_ms << " ms\n";
-        std::cout << "Max Runtime: " << max_ms << " ms\n";
-        std::cout << "Memory Bandwidth: " << gb_per_sec << " GB/s\n";
-        std::cout << "Throughput: " << (size / (avg_ms * 1e-3)) / 1e9 
-                 << " billion elements/second\n";
+        
+        std::cout << avg_ms;
     }
 };
 

@@ -18,7 +18,7 @@ image = (
 
 app = modal.App("tensara", image=image)
 
-@app.function(gpu="A100-80GB")
+@app.function(gpu="T4")
 @modal.web_endpoint(method="POST")
 def benchmark(item: dict):
     try:
@@ -36,11 +36,17 @@ def benchmark(item: dict):
             import subprocess
             result = subprocess.run(["./benchmark"], capture_output=True, text=True)
             
-            return {
-                "status": "success",
-                "benchmark_results": result.stdout,
-                "errors": result.stderr if result.stderr else None
-            }
+            if result.stderr:
+                return {"error": "Runtime error", "details": result.stderr}
+            
+            try:
+                avg_runtime = float(result.stdout.strip())
+                return {
+                    "status": "success",
+                    "average_runtime_ms": avg_runtime
+                }
+            except ValueError:
+                return {"error": "Failed to parse benchmark output", "details": result.stdout}
             
     except Exception as e:
         return {"error": str(e)}
