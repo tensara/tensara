@@ -1,5 +1,5 @@
 NVCC = nvcc
-NVCC_FLAGS = -O3 -arch=sm_75  # Change sm_75 to match your GPU architecture
+NVCC_FLAGS = -arch=sm_75 
 
 # Output binary name
 TARGET = benchmark

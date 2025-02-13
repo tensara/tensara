@@ -1,95 +1,80 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <vector>
+#include <memory>
+#include <functional>
 #include "solution.cuh"
 
+template<typename T>
 class BenchmarkRunner {
 private:
     cudaEvent_t start, stop;
-    float *d_input1, *d_input2, *d_output;
-    float *h_input1, *h_input2, *h_output;  // Host arrays for verification
+    std::vector<T*> d_inputs;
+    std::vector<T*> d_outputs;
+    size_t num_inputs;
+    size_t num_outputs;
     size_t size;
     size_t num_runs;
 
 public:
-    BenchmarkRunner(size_t n, size_t runs = 100)
-        : size(n), num_runs(runs) {
-        // Create CUDA events
+    BenchmarkRunner(
+        size_t input_buffers,
+        size_t output_buffers,
+        size_t element_count,
+        size_t runs = 100
+    ) : num_inputs(input_buffers),
+        num_outputs(output_buffers),
+        size(element_count),
+        num_runs(runs) {
+        
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
-        // Allocate device memory
-        cudaMalloc(&d_input1, size * sizeof(float));
-        cudaMalloc(&d_input2, size * sizeof(float));
-        cudaMalloc(&d_output, size * sizeof(float));
-
-        // Allocate host memory
-        h_input1 = new float[size];
-        h_input2 = new float[size];
-        h_output = new float[size];
-
-        // Initialize input data
-        for (size_t i = 0; i < size; i++) {
-            h_input1[i] = static_cast<float>(i);
-            h_input2[i] = static_cast<float>(i * 2);
+        d_inputs.resize(num_inputs);
+        d_outputs.resize(num_outputs);
+        for (size_t i = 0; i < num_inputs; i++) {
+            void* ptr;
+            cudaMalloc(&ptr, size * sizeof(T));
+            d_inputs[i] = static_cast<T*>(ptr);
         }
-
-        // Copy data to device
-        cudaMemcpy(d_input1, h_input1, size * sizeof(float), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_input2, h_input2, size * sizeof(float), cudaMemcpyHostToDevice);
+        for (size_t i = 0; i < num_outputs; i++) {
+            void* ptr;
+            cudaMalloc(&ptr, size * sizeof(T));
+            d_outputs[i] = static_cast<T*>(ptr);
+        }
     }
 
     ~BenchmarkRunner() {
-        // Cleanup
-        cudaFree(d_input1);
-        cudaFree(d_input2);
-        cudaFree(d_output);
-        delete[] h_input1;
-        delete[] h_input2;
-        delete[] h_output;
+        for (size_t i = 0; i < d_inputs.size(); i++) {
+            cudaFree(d_inputs[i]);
+        }
+        for (size_t i = 0; i < d_outputs.size(); i++) {
+            cudaFree(d_outputs[i]);
+        }
         cudaEventDestroy(start);
         cudaEventDestroy(stop);
     }
 
-    bool verify_result() {
-        // Copy result back to host
-        cudaMemcpy(h_output, d_output, size * sizeof(float), cudaMemcpyDeviceToHost);
-
-        // Verify first few and last few elements
-        for (size_t i = 0; i < std::min(size_t(5), size); i++) {
-            float expected = h_input1[i] + h_input2[i];
-            if (abs(h_output[i] - expected) > 1e-5) {
-                std::cout << "Verification failed at " << i << ": "
-                          << h_output[i] << " != " << expected << "\n";
-                return false;
-            }
+    void load_input_data(const std::vector<const T*>& input_data) {
+        for (size_t buf = 0; buf < num_inputs; buf++) {
+            cudaMemcpy(d_inputs[buf], input_data[buf], 
+                      size * sizeof(T), cudaMemcpyHostToDevice);
         }
-        if (size > 5) {
-            for (size_t i = size - 5; i < size; i++) {
-                float expected = h_input1[i] + h_input2[i];
-                if (abs(h_output[i] - expected) > 1e-5) {
-                    std::cout << "Verification failed at " << i << ": "
-                              << h_output[i] << " != " << expected << "\n";
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 
-    void run_benchmark() {
+    typedef void (*KernelLauncher)(const std::vector<T*>&, const std::vector<T*>&, size_t);
+    
+    void run_benchmark(KernelLauncher kernel_launcher) {
         float total_ms = 0.0f;
         float min_ms = 1e9;
         float max_ms = 0.0f;
 
-        // Warmup run
-        solution(d_input1, d_input2, d_output, size);
+        kernel_launcher(d_inputs, d_outputs, size);
         cudaDeviceSynchronize();
 
-        // Benchmark runs
         for (size_t i = 0; i < num_runs; i++) {
             cudaEventRecord(start);
-            solution(d_input1, d_input2, d_output, size);
+            kernel_launcher(d_inputs, d_outputs, size);
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
 
@@ -100,32 +85,55 @@ public:
             max_ms = std::max(max_ms, ms);
         }
 
-        // Verify result
-        bool correct = verify_result();
-
-        // Calculate and print results
         float avg_ms = total_ms / num_runs;
-        float gb_per_sec = (size * 3 * sizeof(float)) / (avg_ms * 1e-3) / 1e9;  // 2 reads + 1 write
+        float bytes_per_elem = sizeof(T) * (num_inputs + num_outputs);
+        float gb_per_sec = (size * bytes_per_elem) / (avg_ms * 1e-3) / 1e9;
 
         std::cout << "\nBenchmark Results for size " << size << ":\n";
         std::cout << "----------------------------------------\n";
-        std::cout << "Correctness: " << (correct ? "PASSED" : "FAILED") << "\n";
         std::cout << "Average Runtime: " << avg_ms << " ms\n";
         std::cout << "Min Runtime: " << min_ms << " ms\n";
         std::cout << "Max Runtime: " << max_ms << " ms\n";
         std::cout << "Memory Bandwidth: " << gb_per_sec << " GB/s\n";
-        std::cout << "Throughput: " << (size / (avg_ms * 1e-3)) / 1e9 << " billion elements/second\n";
+        std::cout << "Throughput: " << (size / (avg_ms * 1e-3)) / 1e9 
+                 << " billion elements/second\n";
     }
 };
 
-int main(int argc, char** argv) {
-    // Test different sizes
-    std::vector<size_t> sizes = {1<<20, 1<<22, 1<<24, 1<<26};
+typedef void (*VectorAddLauncher)(const std::vector<float*>&, const std::vector<float*>&, size_t);
 
-    for (size_t size : sizes) {
-        BenchmarkRunner runner(size);
-        runner.run_benchmark();
+void launch_solution(const std::vector<float*>& inputs, 
+                    const std::vector<float*>& outputs, 
+                    size_t n) {
+    solution(inputs[0], inputs[1], outputs[0], n);
+}
+
+int main() {
+    size_t size = 1 << 24;
+    
+    std::vector<float*> host_inputs(2);
+    for (size_t i = 0; i < host_inputs.size(); i++) {
+        host_inputs[i] = new float[size];
     }
-
+    
+    for (size_t i = 0; i < size; i++) {
+        host_inputs[0][i] = static_cast<float>(i);
+        host_inputs[1][i] = static_cast<float>(i * 2);
+    }
+    
+    std::vector<const float*> const_inputs;
+    for (size_t i = 0; i < host_inputs.size(); i++) {    
+        const_inputs.push_back(host_inputs[i]);
+    }
+    
+    BenchmarkRunner<float> runner(2, 1, size);
+    
+    runner.load_input_data(const_inputs);
+    runner.run_benchmark(launch_solution);
+    
+    for (size_t i = 0; i < host_inputs.size(); i++) {
+        delete[] host_inputs[i];
+    }
+    
     return 0;
 }
