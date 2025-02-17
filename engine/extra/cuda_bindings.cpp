@@ -1,8 +1,9 @@
 #include <torch/extension.h>
-#include "solution.cuh"
+#include <cuda_runtime.h>
 
-void cuda_vector_add(torch::Tensor input1, torch::Tensor input2, torch::Tensor output) {
-    // Ensure inputs are on GPU and are float32
+extern "C" void solution(float* d_input1, float* d_input2, float* d_output, size_t n);
+
+void cuda_solution(torch::Tensor input1, torch::Tensor input2, torch::Tensor output) {
     TORCH_CHECK(input1.device().is_cuda(), "input1 must be a CUDA tensor");
     TORCH_CHECK(input2.device().is_cuda(), "input2 must be a CUDA tensor");
     TORCH_CHECK(output.device().is_cuda(), "output must be a CUDA tensor");
@@ -13,7 +14,6 @@ void cuda_vector_add(torch::Tensor input1, torch::Tensor input2, torch::Tensor o
     
     const size_t n = input1.numel();
     
-    // Call your existing solution function
     solution(
         input1.data_ptr<float>(),
         input2.data_ptr<float>(),
@@ -22,8 +22,8 @@ void cuda_vector_add(torch::Tensor input1, torch::Tensor input2, torch::Tensor o
     );
 }
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+PYBIND11_MODULE(cuda_solution, m) {
     m.doc() = "CUDA vector addition with PyTorch"; 
-    m.def("vector_add", &cuda_vector_add, "CUDA vector addition",
+    m.def("cuda_solution", &cuda_solution, "CUDA vector addition",
           py::arg("input1"), py::arg("input2"), py::arg("output"));
 } 
