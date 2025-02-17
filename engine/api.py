@@ -4,21 +4,22 @@ import os
 from pathlib import Path
 
 stub_dir = Path(__file__).parent
-
 image = (
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .apt_install([
         "build-essential",
         "make",
-        "python3-dev",
-        "python3-pip"
+        "python3-dev", 
+        "python3-pip",
+        "g++"
     ])
     .pip_install([
-        "fastapi", 
-        "uvicorn",
+        "fastapi",
+        "uvicorn", 
         "torch",
-        "ninja"  # Required for PyTorch CUDA extensions
+        "ninja"
     ])
+    .env({"CXX": "g++"})
     .add_local_file(stub_dir / "benchmark/benchmark.cu", "/root/benchmark.cu")
     .add_local_file(stub_dir / "benchmark/Makefile", "/root/Makefile")
     .add_local_file(stub_dir / "checker/setup.py", "/root/checker_setup.py")
@@ -76,7 +77,8 @@ def checker(item: dict):
             cuda_bindings.write_text(item["cuda_bindings"])
             reference_py.write_text(item["reference_py"])
             
-            os.system(f"cp {stub_dir}/checker/setup.py {stub_dir}/checker/test.py " + tmpdir)
+            os.system(f"cp /root/checker_setup.py {str(tmpdir_path / 'setup.py')}")
+            os.system(f"cp /root/checker_test.py {str(tmpdir_path / 'test.py')}")
             
             os.chdir(tmpdir)
             build_result = os.system("python3 setup.py build_ext --inplace 2>&1")
