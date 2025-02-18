@@ -1,6 +1,0 @@
-{
-  "kernel_name": "vector_add",
-  "block_size": 256,
-  "grid_size": "(n + block_size - 1) / block_size",
-  "arguments": ["a", "b", "c", "n"]
-}

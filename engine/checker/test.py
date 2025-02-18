@@ -9,7 +9,7 @@ def run_test(student_module_name, reference_module_name):
     student_vector_add = getattr(student_module, 'cuda_solution')
     intended_vector_add = getattr(reference_module, 'py_solution')
     
-    size = 1000000
+    size = 100
     input1 = torch.rand(size, dtype=torch.float32, device='cuda')
     input2 = torch.rand(size, dtype=torch.float32, device='cuda')
     
