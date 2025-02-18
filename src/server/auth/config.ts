@@ -1,8 +1,6 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { type DefaultSession, type NextAuthConfig } from "next-auth";
-import DiscordProvider from "next-auth/providers/discord";
+import { type NextAuthOptions } from "next-auth";
 import GithubProvider from "next-auth/providers/github";
-
 import { db } from "~/server/db";
 
 /**
@@ -32,8 +30,8 @@ declare module "next-auth" {
  * @see https://next-auth.js.org/configuration/options
  */
 export const authConfig = {
+  adapter: PrismaAdapter(db),
   providers: [
-    // DiscordProvider,
     GithubProvider({
       clientId: process.env.AUTH_GITHUB_ID,
       clientSecret: process.env.AUTH_GITHUB_SECRET,
@@ -48,7 +46,6 @@ export const authConfig = {
      * @see https://next-auth.js.org/providers/github
      */
   ],
-  adapter: PrismaAdapter(db),
   session: {
     strategy: "database",
   },
@@ -62,4 +59,4 @@ export const authConfig = {
       },
     }),
   },
-} satisfies NextAuthConfig;
+} satisfies NextAuthOptions;

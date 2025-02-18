@@ -35,7 +35,7 @@ export const problemsRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.problem.findUnique({
+      const problem = await ctx.db.problem.findUnique({
         where: { slug: input.slug },
         include: {
           testCases: {
@@ -48,6 +48,17 @@ export const problemsRouter = createTRPCRouter({
           },
         },
       });
+
+      if (!problem) return null;
+
+      return {
+        ...problem,
+        testCases: problem.testCases.map((tc) => ({
+          ...tc,
+          input: JSON.stringify(tc.input),
+          expected: JSON.stringify(tc.expected),
+        })),
+      };
     }),
 
   // Submit solution
