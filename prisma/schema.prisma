@@ -89,6 +89,10 @@ model Problem {
   difficulty  Difficulty
   author      String
 
+  starterCode String?    @db.Text
+  bindings    String?    @db.Text
+  reference   String?    @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -111,13 +115,16 @@ model Submission {
   memory      Int?
   passedTests Int?
   totalTests  Int?
+  logs        String?  @db.Text
+  gpuType     String?
+  timeMs      Float?
+  memoryMB    Float?
+  verified    Boolean  @default(false)
   user        User     @relation(fields: [userId], references: [id])
   userId      String
   problem     Problem  @relation(fields: [problemId], references: [id])
   problemId   String
   createdAt   DateTime @default(now())
-
-  benchmarks BenchmarkResult[]
 
   callId   String?
   isPublic Boolean @default(false)
@@ -138,22 +145,6 @@ model TestCase {
   isHidden Boolean @default(true)
 
   @@index([problemId])
-}
-
-model BenchmarkResult {
-  id String @id @default(cuid())
-
-  submission   Submission @relation(fields: [submissionId], references: [id])
-  submissionId String
-
-  gpuType  String
-  timeMs   Float
-  memoryMB Float
-  logs     String? @db.Text
-  verified Boolean @default(false)
-
-  @@index([submissionId])
-  @@index([gpuType])
 }
 
 enum Difficulty {

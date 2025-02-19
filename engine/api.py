@@ -83,7 +83,11 @@ def checker(item: dict):
             os.chdir(tmpdir)
             build_result = os.system("python3 setup.py build_ext --inplace 2>&1")
             if build_result != 0:
-                return {"error": "Compilation failed", "details": os.popen("python3 setup.py build_ext --inplace 2>&1").read()}
+                return {
+                    "passed": False,
+                    "passed_tests": 0,
+                    "total_tests": 0
+                }
             
             import subprocess
             result = subprocess.run(
@@ -93,13 +97,22 @@ def checker(item: dict):
             )
             
             if result.returncode != 0:
-                return {"error": "Test failed", "details": result.stderr or result.stdout}
+                return {
+                    "passed": False,
+                    "passed_tests": 0,
+                    "total_tests": 1
+                }
             
             return {
-                "status": "success",
-                "message": result.stdout.strip()
+                "passed": True,
+                "passed_tests": 1,
+                "total_tests": 1
             }
             
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "passed": False,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
 

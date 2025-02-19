@@ -9,6 +9,19 @@ const prisma = new PrismaClient();
 const getProblemsDir = () => path.join(process.cwd(), 'problems');
 const getProblemPath = (slug: string) => path.join(getProblemsDir(), slug, 'problem.md');
 const getTestsDir = (slug: string) => path.join(getProblemsDir(), slug, 'tests');
+const getStarterPath = (slug: string) => path.join(getProblemsDir(), slug, 'starter.cu');
+const getBindingsPath = (slug: string) => path.join(getProblemsDir(), slug, 'bindings.cpp');
+const getReferencePath = (slug: string) => path.join(getProblemsDir(), slug, 'reference.py');
+
+// Helper to safely read file contents
+const safeReadFile = (path: string): string | null => {
+  try {
+    return existsSync(path) ? readFileSync(path, 'utf8') : null;
+  } catch (error) {
+    console.warn(`Warning: Could not read file at ${path}`);
+    return null;
+  }
+};
 
 async function main() {
   const problemsDir = getProblemsDir();
@@ -29,21 +42,32 @@ async function main() {
       throw new Error(`Problem ${slug} is missing required frontmatter: ${missingFields.join(', ')}`);
     }
 
-    // Upsert problem in database (without mdPath)
+    // Read additional files
+    const starterCode = safeReadFile(getStarterPath(slug));
+    const bindings = safeReadFile(getBindingsPath(slug));
+    const reference = safeReadFile(getReferencePath(slug));
+
+    // Upsert problem in database
     const problem = await prisma.problem.upsert({
       where: { slug },
       update: {
         title: frontmatter.title,
         description: content,
         difficulty: frontmatter.difficulty,
-        author: frontmatter.author
+        author: frontmatter.author,
+        starterCode: starterCode,
+        bindings: bindings,
+        reference: reference,
       },
       create: {
         slug,
         title: frontmatter.title,
         description: content,
         difficulty: frontmatter.difficulty,
-        author: frontmatter.author
+        author: frontmatter.author,
+        starterCode: starterCode,
+        bindings: bindings,
+        reference: reference,
       }
     });
 
@@ -71,6 +95,9 @@ async function main() {
         });
       }
       console.log(`Synced problem: ${slug} with ${testFiles.length} test cases`);
+      console.log(`  - Starter code: ${starterCode ? '✓' : '✗'}`);
+      console.log(`  - Bindings: ${bindings ? '✓' : '✗'}`);
+      console.log(`  - Reference: ${reference ? '✓' : '✗'}`);
     } else {
       console.log(`Synced problem: ${slug} (no test cases found)`);
     }

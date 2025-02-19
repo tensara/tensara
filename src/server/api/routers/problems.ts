@@ -35,7 +35,7 @@ export const problemsRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
-      const problem = await ctx.db.problem.findUnique({
+      const problem = await ctx.db.problem.findUniqueOrThrow({
         where: { slug: input.slug },
         include: {
           testCases: {
@@ -67,48 +67,133 @@ export const problemsRouter = createTRPCRouter({
       z.object({
         problemSlug: z.string(),
         code: z.string(),
-        language: z.enum(["python", "javascript", "typescript"]),
+        language: z.enum(["cpp", "cuda", "python", "javascript", "typescript"]),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const problem = await ctx.db.problem.findUniqueOrThrow({
+      const problem = await (ctx.db.problem.findUniqueOrThrow({
         where: { slug: input.problemSlug },
-      });
+        include: {
+          testCases: true
+        }
+      }) as Promise<any>);
 
+      // Create initial submission record
       const submission = await ctx.db.submission.create({
         data: {
           code: input.code,
           language: input.language,
           userId: ctx.session.user.id,
           problemId: problem.id,
+          status: "PENDING",
         },
       });
 
-      // 2. Simulate code evaluation
-      await new Promise((resolve) => setTimeout(resolve, EVAL_DELAY_MS));
+      try {
+        // First call Modal checker endpoint
+        console.log("problem bindings", problem.bindings);
+        console.log("problem reference", problem.reference);
+        console.log("input code", input.code);
 
-      // 3. Generate dummy metrics
-      const metrics = {
-        status: "SUCCESS",
-        runtime: Math.floor(Math.random() * 500) + 100, // 100-600ms
-        memory: Math.floor(Math.random() * 50) + 20, // 20-70MB
-        passedTests: Math.floor(Math.random() * 3) + 8, // 8-10 tests
-        totalTests: 10,
-      };
+        // Update submission to indicate checker is running
+        await ctx.db.submission.update({
+          where: { id: submission.id },
+          data: {
+            status: "CHECKING",
+          },
+        });
 
-      // 4. Update submission with results
-      const updatedSubmission = await ctx.db.submission.update({
-        where: { id: submission.id },
-        data: {
-          status: metrics.status,
-          runtime: metrics.runtime,
-          memory: metrics.memory,
-          passedTests: metrics.passedTests,
-          totalTests: metrics.totalTests,
-        },
-      });
+        const checkerResponse = await fetch("https://labs-asterisk--tensara-checker.modal.run", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            solution_cu: input.code,
+            cuda_bindings: problem.bindings,
+            reference_py: problem.reference,
+          }),
+        });
 
-      return updatedSubmission;
+        if (!checkerResponse.ok) {
+          throw new Error(`Checker API returned ${checkerResponse.status}`);
+        }
+
+        const checkerResult = await checkerResponse.json();
+        console.log("CHECKER RESULT");
+        console.log(checkerResult);
+        
+        if (!checkerResult.passed) {
+          const wrongAnswerSubmission = await ctx.db.submission.update({
+            where: { id: submission.id },
+            data: {
+              status: "WRONG_ANSWER",
+              passedTests: checkerResult.passed_tests || 0,
+              totalTests: checkerResult.total_tests || 0,
+            },
+          });
+          return wrongAnswerSubmission;
+        }
+
+        // Update submission to indicate benchmarking is starting
+        await ctx.db.submission.update({
+          where: { id: submission.id },
+          data: {
+            status: "BENCHMARKING",
+            passedTests: checkerResult.total_tests,
+            totalTests: checkerResult.total_tests,
+          },
+        });
+
+        // If we get here, solution is correct - run benchmark
+        const benchmarkResponse = await fetch("https://labs-asterisk--tensara-benchmark.modal.run", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            code: input.code,
+          }),
+        });
+
+        if (!benchmarkResponse.ok) {
+          throw new Error(`Benchmark API returned ${benchmarkResponse.status}`);
+        }
+
+        const benchmarkResult = await benchmarkResponse.json();
+        console.log("BENCHMARK RESULT");
+        console.log(benchmarkResult);
+
+        // Update submission with successful results
+        const updatedSubmission = await ctx.db.submission.update({
+          where: { id: submission.id },
+          data: {
+            status: "ACCEPTED",
+            runtime: Math.round(benchmarkResult.average_runtime_ms),
+            memory: 0,
+            passedTests: checkerResult.total_tests,
+            totalTests: checkerResult.total_tests,
+          },
+        });
+
+        return updatedSubmission;
+      } catch (error) {
+        // Update submission with error status
+        const failedSubmission = await ctx.db.submission.update({
+          where: { id: submission.id },
+          data: {
+            status: "ERROR",
+            passedTests: 0,
+            totalTests: 0,
+          },
+        });
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR", 
+          message: "Failed to evaluate submission",
+          cause: error,
+        });
+      }
     }),
 
   // Get submission history for a problem
@@ -161,6 +246,24 @@ export const problemsRouter = createTRPCRouter({
 
     return stats;
   }),
+
+  // Get submission status
+  getSubmissionStatus: protectedProcedure
+    .input(z.object({ submissionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const submission = await ctx.db.submission.findUnique({
+        where: { id: input.submissionId },
+      });
+
+      if (!submission) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Submission not found",
+        });
+      }
+
+      return submission;
+    }),
 
   // Add this to your existing problemsRouter
   benchmarkGPU: protectedProcedure
