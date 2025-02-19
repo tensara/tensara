@@ -53,15 +53,6 @@ export default function ProblemPage() {
   } | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
 
-  const submissionStatusQuery = api.problems.getSubmissionStatus.useQuery(
-    { submissionId: submissionId! },
-    { 
-      enabled: !!submissionId,
-      refetchInterval: 1000,
-      refetchIntervalInBackground: true,
-    }
-  );
-
   const submissionsQuery = api.problems.getSubmissions.useQuery(
     { problemSlug: slug as string, limit: 10 },
     { enabled: !!slug }
@@ -97,37 +88,57 @@ export default function ProblemPage() {
   }, [problem]);
 
   useEffect(() => {
-    const data = submissionStatusQuery.data;
-    if (data) {
+    if (!submissionId) return;
+
+    const eventSource = new EventSource(
+      `/api/submissions/${submissionId}/status`
+    );
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
       setSubmissionStatus({
         status: data.status,
         runtime: data.runtime,
         memory: data.memory,
         passedTests: data.passedTests,
         totalTests: data.totalTests,
-        stage: data.status === "CHECKING" 
-          ? "CHECKING"
-          : data.status === "BENCHMARKING" 
-          ? "BENCHMARKING" 
-          : "COMPLETED",
-        message: data.status === "CHECKING"
-          ? "Running test cases..."
-          : data.status === "BENCHMARKING"
-          ? "Running performance benchmark..."
-          : null
+        stage:
+          data.status === "CHECKING"
+            ? "CHECKING"
+            : data.status === "BENCHMARKING"
+            ? "BENCHMARKING"
+            : "COMPLETED",
+        message:
+          data.status === "CHECKING"
+            ? "Running test cases..."
+            : data.status === "BENCHMARKING"
+            ? "Running performance benchmark..."
+            : null,
       });
 
       if (
-        data.status === "COMPLETED" || 
-        data.status === "ERROR" || 
-        data.status === "WRONG_ANSWER"
+        data.status === "ACCEPTED" ||
+        data.status === "ERROR" ||
+        data.status === "WRONG_ANSWER" ||
+        data.status === "TIMEOUT"
       ) {
+        eventSource.close();
         setSubmissionId(null);
         setIsSubmitting(false);
         submissionsQuery.refetch();
       }
-    }
-  }, [submissionStatusQuery.data]);
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      setSubmissionId(null);
+      setIsSubmitting(false);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [submissionId]);
 
   const submitMutation = api.problems.submit.useMutation({
     onSuccess: (data) => {
@@ -251,7 +262,13 @@ export default function ProblemPage() {
 
         {/* Code Editor and Submission */}
         <VStack w="50%" h="100%" spacing={4}>
-          <Box w="100%" h="calc(100% - 300px)" bg="gray.800" borderRadius="xl" overflow="hidden">
+          <Box
+            w="100%"
+            h="calc(100% - 300px)"
+            bg="gray.800"
+            borderRadius="xl"
+            overflow="hidden"
+          >
             <Editor
               height="100%"
               defaultLanguage="cpp"
@@ -273,8 +290,22 @@ export default function ProblemPage() {
           <Box w="100%" bg="gray.800" borderRadius="xl" overflow="hidden">
             <Tabs variant="enclosed" colorScheme="blue">
               <TabList bg="gray.900" px={4} pt={2}>
-                <Tab _selected={{ bg: "gray.800", borderBottomColor: "transparent" }}>Submit</Tab>
-                <Tab _selected={{ bg: "gray.800", borderBottomColor: "transparent" }}>Submissions</Tab>
+                <Tab
+                  _selected={{
+                    bg: "gray.800",
+                    borderBottomColor: "transparent",
+                  }}
+                >
+                  Submit
+                </Tab>
+                <Tab
+                  _selected={{
+                    bg: "gray.800",
+                    borderBottomColor: "transparent",
+                  }}
+                >
+                  Submissions
+                </Tab>
               </TabList>
 
               <TabPanels>
@@ -312,7 +343,12 @@ export default function ProblemPage() {
                       </AlertTitle>
                       <AlertDescription>
                         <VStack align="start" spacing={2}>
-                          <Box p={3} bg="blackAlpha.300" borderRadius="md" w="100%">
+                          <Box
+                            p={3}
+                            bg="blackAlpha.300"
+                            borderRadius="md"
+                            w="100%"
+                          >
                             {submissionStatus.stage && (
                               <Text fontWeight="bold" mb={2}>
                                 Current Stage: {submissionStatus.stage}
@@ -325,14 +361,21 @@ export default function ProblemPage() {
                             )}
                             {submissionStatus.passedTests !== null && (
                               <Text fontWeight="bold" mb={2}>
-                                Passed Tests: {submissionStatus.passedTests} / {submissionStatus.totalTests ?? "N/A"}
+                                Passed Tests: {submissionStatus.passedTests} /{" "}
+                                {submissionStatus.totalTests ?? "N/A"}
                               </Text>
                             )}
                             {submissionStatus.runtime && (
-                              <Text>Execution Time: {submissionStatus.runtime.toFixed(2)}ms</Text>
+                              <Text>
+                                Execution Time:{" "}
+                                {submissionStatus.runtime.toFixed(2)}ms
+                              </Text>
                             )}
                             {submissionStatus.memory && (
-                              <Text>Memory Usage: {submissionStatus.memory.toFixed(2)}MB</Text>
+                              <Text>
+                                Memory Usage:{" "}
+                                {submissionStatus.memory.toFixed(2)}MB
+                              </Text>
                             )}
                           </Box>
                         </VStack>
@@ -363,29 +406,45 @@ export default function ProblemPage() {
                           </Tr>
                         </Thead>
                         <Tbody>
-                          {submissionsQuery.data?.submissions.map((submission) => (
-                            <Tr key={submission.id}>
-                              <Td>
-                                <Badge
-                                  colorScheme={
-                                    submission.status === "ACCEPTED"
-                                      ? "green"
-                                      : submission.status === "PENDING"
-                                      ? "yellow"
-                                      : "red"
-                                  }
-                                >
-                                  {submission.status}
-                                </Badge>
-                              </Td>
-                              <Td>{submission.runtime ? `${submission.runtime}ms` : "-"}</Td>
-                              <Td>{submission.memory ? `${submission.memory}MB` : "-"}</Td>
-                              <Td>{submission.passedTests ? `${submission.passedTests} / ${submission.totalTests}` : "-"}</Td>
-                              <Td>
-                                {new Date(submission.createdAt).toLocaleString()}
-                              </Td>
-                            </Tr>
-                          ))}
+                          {submissionsQuery.data?.submissions.map(
+                            (submission) => (
+                              <Tr key={submission.id}>
+                                <Td>
+                                  <Badge
+                                    colorScheme={
+                                      submission.status === "ACCEPTED"
+                                        ? "green"
+                                        : submission.status === "PENDING"
+                                        ? "yellow"
+                                        : "red"
+                                    }
+                                  >
+                                    {submission.status}
+                                  </Badge>
+                                </Td>
+                                <Td>
+                                  {submission.runtime
+                                    ? `${submission.runtime}ms`
+                                    : "-"}
+                                </Td>
+                                <Td>
+                                  {submission.memory
+                                    ? `${submission.memory}MB`
+                                    : "-"}
+                                </Td>
+                                <Td>
+                                  {submission.passedTests
+                                    ? `${submission.passedTests} / ${submission.totalTests}`
+                                    : "-"}
+                                </Td>
+                                <Td>
+                                  {new Date(
+                                    submission.createdAt
+                                  ).toLocaleString()}
+                                </Td>
+                              </Tr>
+                            )
+                          )}
                         </Tbody>
                       </Table>
                     </Box>

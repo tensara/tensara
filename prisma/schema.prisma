@@ -89,9 +89,9 @@ model Problem {
   difficulty  Difficulty
   author      String
 
-  starterCode String?    @db.Text
-  bindings    String?    @db.Text
-  reference   String?    @db.Text
+  starterCode String  @default("")
+  bindings    String? @db.Text
+  reference   String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -156,8 +156,10 @@ enum Difficulty {
 
 enum SubmissionStatus {
   PENDING
-  RUNNING
-  COMPLETED
-  FAILED
+  CHECKING
+  BENCHMARKING
+  ACCEPTED
+  ERROR
+  WRONG_ANSWER
   TIMEOUT
 }
