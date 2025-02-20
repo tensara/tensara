@@ -3,7 +3,9 @@
 #include <vector>
 #include <memory>
 #include <functional>
-#include "solution.cuh"
+#include <iomanip>
+#include "test_cases.hpp"
+#include "problem_test.hpp"
 
 template<typename T>
 class BenchmarkRunner {
@@ -17,15 +19,11 @@ private:
     size_t num_runs;
 
 public:
-    BenchmarkRunner(
-        size_t input_buffers,
-        size_t output_buffers,
-        size_t element_count,
-        size_t runs = 10
-    ) : num_inputs(input_buffers),
-        num_outputs(output_buffers),
-        size(element_count),
-        num_runs(runs) {
+    BenchmarkRunner(const TestCase<T>& test_case, size_t runs = 10) 
+        : num_inputs(test_case.get_num_inputs()),
+          num_outputs(test_case.get_num_outputs()),
+          size(test_case.get_size()),
+          num_runs(runs) {
         
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
@@ -42,6 +40,9 @@ public:
             cudaMalloc(&ptr, size * sizeof(T));
             d_outputs[i] = static_cast<T*>(ptr);
         }
+
+        // Load the test case data immediately
+        load_input_data(test_case.get_inputs());
     }
 
     ~BenchmarkRunner() {
@@ -55,6 +56,7 @@ public:
         cudaEventDestroy(stop);
     }
 
+private:
     void load_input_data(const std::vector<const T*>& input_data) {
         for (size_t buf = 0; buf < num_inputs; buf++) {
             cudaMemcpy(d_inputs[buf], input_data[buf], 
@@ -62,9 +64,10 @@ public:
         }
     }
 
+public:
     typedef void (*KernelLauncher)(const std::vector<T*>&, const std::vector<T*>&, size_t);
     
-    void run_benchmark(KernelLauncher kernel_launcher) {
+    float run_benchmark(KernelLauncher kernel_launcher) {
         float total_ms = 0.0f;
 
         kernel_launcher(d_inputs, d_outputs, size);
@@ -81,45 +84,23 @@ public:
             total_ms += ms;
         }
 
-        float avg_ms = total_ms / num_runs;
-        
-        std::cout << avg_ms;
+        return total_ms / num_runs;
     }
 };
 
-typedef void (*VectorAddLauncher)(const std::vector<float*>&, const std::vector<float*>&, size_t);
-
-void launch_solution(const std::vector<float*>& inputs, 
-                    const std::vector<float*>& outputs, 
-                    size_t n) {
-    solution(inputs[0], inputs[1], outputs[0], n);
-}
-
 int main() {
-    size_t size = 1 << 24;
+    auto test_cases = create_test_cases();
     
-    std::vector<float*> host_inputs(2);
-    for (size_t i = 0; i < host_inputs.size(); i++) {
-        host_inputs[i] = new float[size];
-    }
+    std::cout << std::fixed << std::setprecision(3);
+    std::cout << "Running benchmarks..." << std::endl;
+    std::cout << "Size\t\tTime (ms)" << std::endl;
+    std::cout << "------------------------" << std::endl;
     
-    for (size_t i = 0; i < size; i++) {
-        host_inputs[0][i] = static_cast<float>(i);
-        host_inputs[1][i] = static_cast<float>(i * 2);
-    }
-    
-    std::vector<const float*> const_inputs;
-    for (size_t i = 0; i < host_inputs.size(); i++) {    
-        const_inputs.push_back(host_inputs[i]);
-    }
-    
-    BenchmarkRunner<float> runner(2, 1, size);
-    
-    runner.load_input_data(const_inputs);
-    runner.run_benchmark(launch_solution);
-    
-    for (size_t i = 0; i < host_inputs.size(); i++) {
-        delete[] host_inputs[i];
+    for (auto test_case : test_cases) {
+        BenchmarkRunner<float> runner(*test_case);
+        float avg_ms = runner.run_benchmark(launch_kernel);
+        std::cout << test_case->get_size() << "\t\t" << avg_ms << std::endl;
+        delete test_case;
     }
     
     return 0;
