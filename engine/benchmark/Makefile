@@ -3,13 +3,12 @@ NVCC_FLAGS = -O3 -Xptxas -O3 -arch=sm_75
 
 TARGET = benchmark
 
-SRC = benchmark.cu
-HEADERS = solution.cuh test_cases.hpp problem_test.hpp
+HEADERS = core.hpp tests.hpp solution.cuh
 
-$(TARGET): $(SRC) $(HEADERS)
-	$(NVCC) $(NVCC_FLAGS) $(SRC) -o $(TARGET)
+$(TARGET): benchmark.cu $(HEADERS)
+	$(NVCC) $(NVCC_FLAGS) $< -o $@
 
-.PHONY: clean run
+.PHONY: clean run all
 
 clean:
 	rm -f $(TARGET)
