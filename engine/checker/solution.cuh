@@ -3,7 +3,7 @@
 __global__ void vector_add(const float* input1, const float* input2, float* output, size_t n) {
     const size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < n) {
-        output[idx] = input1[idx] + input2[idx];
+        output[idx] = input1[idx] + input2[idx] + 1;
     }
 }
 
