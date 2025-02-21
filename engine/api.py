@@ -21,9 +21,12 @@ image = (
     ])
     .env({"CXX": "g++"})
     .add_local_file(stub_dir / "benchmark/benchmark.cu", "/root/benchmark.cu")
+    .add_local_file(stub_dir / "benchmark/core.hpp", "/root/core.hpp")
     .add_local_file(stub_dir / "benchmark/Makefile", "/root/Makefile")
-    .add_local_file(stub_dir / "checker/setup.py", "/root/checker_setup.py")
-    .add_local_file(stub_dir / "checker/test.py", "/root/checker_test.py")
+    .add_local_file(stub_dir / "checker/checker.cu", "/root/checker.cu")
+    .add_local_file(stub_dir / "checker/core.hpp", "/root/checker/core.hpp")
+    .add_local_file(stub_dir / "checker/tests.hpp", "/root/checker/tests.hpp")
+    .add_local_file(stub_dir / "checker/Makefile", "/root/checker/Makefile")
 )
 
 app = modal.App("tensara", image=image)
@@ -34,9 +37,12 @@ def benchmark(item: dict):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             solution_path = Path(tmpdir) / "solution.cuh"
-            solution_path.write_text(item["code"])
+            solution_path.write_text(item["solution_code"])
             
-            os.system("cp /root/benchmark.cu /root/Makefile " + tmpdir)            
+            tests_path = Path(tmpdir) / "tests.hpp"
+            tests_path.write_text(item["tests_code"])
+            
+            os.system("cp /root/benchmark.cu /root/core.hpp /root/Makefile " + tmpdir)            
 
             os.chdir(tmpdir)
             compile_result = os.system("make 2>&1")
@@ -50,13 +56,26 @@ def benchmark(item: dict):
                 return {"error": "Runtime error", "details": result.stderr}
             
             try:
-                avg_runtime = float(result.stdout.strip())
+                lines = result.stdout.strip().split('\n')
+                test_results = []
+                
+                for line in lines[:-1]:
+                    test_id, runtime_ms, gflops = line.split(',')
+                    test_results.append({
+                        "test_id": int(test_id),
+                        "runtime_ms": float(runtime_ms),
+                        "gflops": float(gflops)
+                    })
+                
+                avg_gflops = float(lines[-1])
+                
                 return {
                     "status": "success",
-                    "average_runtime_ms": avg_runtime
+                    "test_results": test_results,
+                    "average_gflops": avg_gflops
                 }
-            except ValueError:
-                return {"error": "Failed to parse benchmark output", "details": result.stdout}
+            except Exception as e:
+                return {"error": "Failed to parse benchmark output", "details": str(e)}
             
     except Exception as e:
         return {"error": str(e)}
@@ -69,50 +88,63 @@ def checker(item: dict):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
             
-            solution_cu = tmpdir_path / "solution.cu"
-            cuda_bindings = tmpdir_path / "cuda_bindings.cpp"
-            reference_py = tmpdir_path / "reference.py"
+            checker_dir = tmpdir_path / "checker"
+            checker_dir.mkdir()
+            os.system(f"cp /root/checker/core.hpp /root/checker/Makefile {str(checker_dir)}")
             
-            solution_cu.write_text(item["solution_cu"])
-            cuda_bindings.write_text(item["cuda_bindings"])
-            reference_py.write_text(item["reference_py"])
+            solution_path = checker_dir / "solution.cuh"
+            solution_path.write_text(item["solution_code"])
             
-            os.system(f"cp /root/checker_setup.py {str(tmpdir_path / 'setup.py')}")
-            os.system(f"cp /root/checker_test.py {str(tmpdir_path / 'test.py')}")
+            tests_path = checker_dir / "tests.hpp"
+            tests_path.write_text(item["tests_code"])
             
-            os.chdir(tmpdir)
-            build_result = os.system("python3 setup.py build_ext --inplace 2>&1")
-            if build_result != 0:
+            reference_path = checker_dir / "reference.cu"
+            reference_path.write_text(item["reference_code"])
+            
+            os.system(f"cp /root/checker.cu {str(checker_dir)}")
+            
+            os.chdir(checker_dir)
+            compile_result = os.system("make 2>&1")
+            if compile_result != 0:
                 return {
                     "passed": False,
-                    "passed_tests": 0,
-                    "total_tests": 0
+                    "error": "Compilation failed",
+                    "details": os.popen("make 2>&1").read(),
+                    "test_results": []
                 }
             
             import subprocess
-            result = subprocess.run(
-                ["python3", "test.py", "cuda_solution", "reference"], 
-                capture_output=True, 
-                text=True
-            )
+            result = subprocess.run(["./checker"], capture_output=True, text=True)
             
-            if result.returncode != 0:
+            if result.stderr:
                 return {
                     "passed": False,
-                    "passed_tests": 0,
-                    "total_tests": 1
+                    "error": "Runtime error",
+                    "details": result.stderr,
+                    "test_results": []
                 }
             
+            lines = result.stdout.strip().split('\n')
+            test_results = []
+            
+            for line in lines[:-1]:
+                test_id, status = line.split(',')
+                test_results.append({
+                    "test_id": int(test_id),
+                    "status": status.strip()
+                })
+            
+            overall_status = lines[-1].strip()
+            
             return {
-                "passed": True,
-                "passed_tests": 1,
-                "total_tests": 1
+                "passed": overall_status == "PASSED",
+                "test_results": test_results
             }
             
     except Exception as e:
         return {
             "passed": False,
-            "passed_tests": 0,
-            "total_tests": 0
+            "error": str(e),
+            "test_results": []
         }
 
