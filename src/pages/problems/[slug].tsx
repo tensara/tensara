@@ -26,6 +26,10 @@ import {
   Th,
   Td,
   Badge,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatGroup,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { Layout } from "~/components/layout";
@@ -36,34 +40,59 @@ import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import Editor from "@monaco-editor/react";
 
+type BenchmarkTestResult = {
+  test_id: number;
+  runtime_ms: number;
+  gflops: number;
+};
+
+type SubmissionStatus = {
+  status: string | null;
+  runtime: number | null;
+  gflops: number | null;
+  passedTests: number | null;
+  totalTests: number | null;
+  stage: "CHECKING" | "BENCHMARKING" | "COMPLETED" | null;
+  message: string | null;
+  errorMessage?: string;
+  errorDetails?: string;
+  benchmarkResults?: BenchmarkTestResult[];
+};
+
+type Submission = {
+  id: string;
+  status: string | null;
+  runtime: number | null;
+  gflops: number | null;
+  passedTests: number | null;
+  totalTests: number | null;
+  createdAt: Date;
+  problem: {
+    title: string;
+    slug: string;
+  };
+};
+
 export default function ProblemPage() {
   const router = useRouter();
   const { slug } = router.query;
   const toast = useToast();
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionStatus, setSubmissionStatus] = useState<{
-    status: string | null;
-    runtime: number | null;
-    memory: number | null;
-    passedTests: number | null;
-    totalTests: number | null;
-    stage: "CHECKING" | "BENCHMARKING" | "COMPLETED" | null;
-    message: string | null;
-  } | null>(null);
+  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
     { problemSlug: slug as string, limit: 10 },
     { enabled: !!slug }
-  );
+  ) as { data?: { submissions: Submission[]; nextCursor: string | null }; isLoading: boolean; refetch: () => void };
 
   const handleSubmit = () => {
     setIsSubmitting(true);
     setSubmissionStatus({
       status: "PENDING",
       runtime: null,
-      memory: null,
+      gflops: null,
       passedTests: null,
       totalTests: null,
       stage: "CHECKING",
@@ -99,7 +128,7 @@ export default function ProblemPage() {
       setSubmissionStatus({
         status: data.status,
         runtime: data.runtime,
-        memory: data.memory,
+        gflops: data.gflops,
         passedTests: data.passedTests,
         totalTests: data.totalTests,
         stage:
@@ -114,6 +143,9 @@ export default function ProblemPage() {
             : data.status === "BENCHMARKING"
             ? "Running performance benchmark..."
             : null,
+        errorMessage: data.errorMessage,
+        errorDetails: data.errorDetails,
+        benchmarkResults: data.benchmarkResults,
       });
 
       if (
@@ -233,31 +265,6 @@ export default function ProblemPage() {
             </ReactMarkdown>
           </Box>
 
-          <Heading size="md" mb={4}>
-            Example Test Cases
-          </Heading>
-          <VStack spacing={4} align="stretch">
-            {problem.testCases.map((testCase) => (
-              <Box key={testCase.id} p={4} bg="gray.800" borderRadius="md">
-                <Text color="gray.300" mb={2}>
-                  <Text as="span" fontWeight="bold" color="gray.200">
-                    Input:{" "}
-                  </Text>
-                  <Code bg="gray.700" px={2}>
-                    {testCase.input}
-                  </Code>
-                </Text>
-                <Text color="gray.300">
-                  <Text as="span" fontWeight="bold" color="gray.200">
-                    Expected:{" "}
-                  </Text>
-                  <Code bg="gray.700" px={2}>
-                    {testCase.expected}
-                  </Code>
-                </Text>
-              </Box>
-            ))}
-          </VStack>
         </Box>
 
         {/* Code Editor and Submission */}
@@ -341,8 +348,8 @@ export default function ProblemPage() {
                       <AlertTitle mb={2}>
                         Status: {submissionStatus.status}
                       </AlertTitle>
-                      <AlertDescription>
-                        <VStack align="start" spacing={2}>
+                      <AlertDescription w="100%">
+                        <VStack align="start" spacing={2} w="100%">
                           <Box
                             p={3}
                             bg="blackAlpha.300"
@@ -365,17 +372,73 @@ export default function ProblemPage() {
                                 {submissionStatus.totalTests ?? "N/A"}
                               </Text>
                             )}
-                            {submissionStatus.runtime && (
-                              <Text>
-                                Execution Time:{" "}
-                                {submissionStatus.runtime.toFixed(2)}ms
-                              </Text>
+
+                            {submissionStatus.status === "ACCEPTED" && (
+                              <StatGroup mt={4}>
+                                {submissionStatus.runtime && (
+                                  <Stat>
+                                    <StatLabel>Runtime</StatLabel>
+                                    <StatNumber>
+                                      {submissionStatus.runtime.toFixed(2)}ms
+                                    </StatNumber>
+                                  </Stat>
+                                )}
+                                {submissionStatus.gflops && (
+                                  <Stat>
+                                    <StatLabel>Performance</StatLabel>
+                                    <StatNumber>
+                                      {submissionStatus.gflops.toFixed(2)} GFLOPS
+                                    </StatNumber>
+                                  </Stat>
+                                )}
+                              </StatGroup>
                             )}
-                            {submissionStatus.memory && (
-                              <Text>
-                                Memory Usage:{" "}
-                                {submissionStatus.memory.toFixed(2)}MB
-                              </Text>
+
+                            {submissionStatus.errorMessage && (
+                              <Box mt={4}>
+                                <Text color="red.300" fontWeight="bold">
+                                  Error: {submissionStatus.errorMessage}
+                                </Text>
+                                {submissionStatus.errorDetails && (
+                                  <Code
+                                    display="block"
+                                    whiteSpace="pre-wrap"
+                                    p={2}
+                                    mt={2}
+                                    bg="red.900"
+                                    color="red.100"
+                                    borderRadius="md"
+                                  >
+                                    {submissionStatus.errorDetails}
+                                  </Code>
+                                )}
+                              </Box>
+                            )}
+
+                            {submissionStatus.benchmarkResults && submissionStatus.benchmarkResults.length > 0 && (
+                              <Box mt={4}>
+                                <Text fontWeight="bold" mb={2}>
+                                  Benchmark Results
+                                </Text>
+                                <Table size="sm" variant="simple">
+                                  <Thead>
+                                    <Tr>
+                                      <Th>Test</Th>
+                                      <Th>Runtime (ms)</Th>
+                                      <Th>GFLOPS</Th>
+                                    </Tr>
+                                  </Thead>
+                                  <Tbody>
+                                    {submissionStatus.benchmarkResults.map((result) => (
+                                      <Tr key={result.test_id}>
+                                        <Td>Test {result.test_id}</Td>
+                                        <Td>{result.runtime_ms.toFixed(2)}</Td>
+                                        <Td>{result.gflops.toFixed(2)}</Td>
+                                      </Tr>
+                                    ))}
+                                  </Tbody>
+                                </Table>
+                              </Box>
                             )}
                           </Box>
                         </VStack>
@@ -400,7 +463,7 @@ export default function ProblemPage() {
                           <Tr>
                             <Th>Status</Th>
                             <Th>Runtime</Th>
-                            <Th>Memory</Th>
+                            <Th>GFLOPS</Th>
                             <Th>Passed Tests</Th>
                             <Th>Submitted</Th>
                           </Tr>
@@ -414,7 +477,9 @@ export default function ProblemPage() {
                                     colorScheme={
                                       submission.status === "ACCEPTED"
                                         ? "green"
-                                        : submission.status === "PENDING"
+                                        : submission.status === "PENDING" ||
+                                          submission.status === "CHECKING" ||
+                                          submission.status === "BENCHMARKING"
                                         ? "yellow"
                                         : "red"
                                     }
@@ -424,12 +489,12 @@ export default function ProblemPage() {
                                 </Td>
                                 <Td>
                                   {submission.runtime
-                                    ? `${submission.runtime}ms`
+                                    ? `${submission.runtime.toFixed(2)}ms`
                                     : "-"}
                                 </Td>
                                 <Td>
-                                  {submission.memory
-                                    ? `${submission.memory}MB`
+                                  {submission.gflops
+                                    ? `${submission.gflops.toFixed(2)} GFLOPS`
                                     : "-"}
                                 </Td>
                                 <Td>

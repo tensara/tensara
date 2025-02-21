@@ -90,14 +90,13 @@ model Problem {
   author      String
 
   starterCode String  @default("")
-  bindings    String? @db.Text
+  tests       String? @db.Text
   reference   String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   submissions Submission[]
-  testCases   TestCase[]
   User        User?        @relation(fields: [userId], references: [id])
   userId      String?
 
@@ -110,8 +109,8 @@ model Submission {
   id          String   @id @default(cuid())
   code        String   @db.Text
   language    String
-  status      String?
-  runtime     Int?
+  status      String?  // Can be: PENDING, CHECKING, BENCHMARKING, ACCEPTED, ERROR, WRONG_ANSWER, TIMEOUT
+  runtime     Float?
   memory      Int?
   passedTests Int?
   totalTests  Int?
@@ -120,6 +119,12 @@ model Submission {
   timeMs      Float?
   memoryMB    Float?
   verified    Boolean  @default(false)
+  
+  gflops           Float?
+  errorMessage     String?
+  errorDetails     String?  @db.Text
+  benchmarkResults Json?
+  
   user        User     @relation(fields: [userId], references: [id])
   userId      String
   problem     Problem  @relation(fields: [problemId], references: [id])
@@ -134,32 +139,9 @@ model Submission {
   @@index([createdAt])
 }
 
-model TestCase {
-  id String @id @default(cuid())
-
-  problem   Problem @relation(fields: [problemId], references: [id])
-  problemId String
-
-  input    Json    @db.JsonB
-  expected Json    @db.JsonB
-  isHidden Boolean @default(true)
-
-  @@index([problemId])
-}
-
 enum Difficulty {
   EASY
   MEDIUM
   HARD
   EXPERT
-}
-
-enum SubmissionStatus {
-  PENDING
-  CHECKING
-  BENCHMARKING
-  ACCEPTED
-  ERROR
-  WRONG_ANSWER
-  TIMEOUT
 }
