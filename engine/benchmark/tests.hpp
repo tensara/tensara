@@ -32,8 +32,8 @@ public:
 };
 
 template<typename T>
-void launch_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, size_t n) {
-    solution(inputs[0], inputs[1], outputs[0], n);
+void launch_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, const std::vector<size_t>& sizes) {
+    solution(inputs[0], inputs[1], outputs[0], sizes[0]);
 }
 
 std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {

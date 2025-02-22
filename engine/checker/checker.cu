@@ -18,8 +18,8 @@ bool check_results(float* output1, float* output2, size_t size, float tolerance 
 }
 
 template<typename T>
-void launch_reference_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, size_t n) {
-    reference_solution(inputs[0], inputs[1], outputs[0], n);
+void launch_reference_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, const std::vector<size_t>& sizes) {
+    reference_solution(inputs[0], inputs[1], outputs[0], sizes[0], sizes[1], sizes[2]);
 }
 
 template<typename T>
@@ -54,8 +54,9 @@ bool run_test(TestCase<T>& test_case) {
         cudaMalloc(&d_reference_outputs[i], output_shapes[i]->size() * sizeof(T));
     }
     
-    launch_kernel(d_inputs, d_outputs, test_case.problem_size());
-    launch_reference_kernel(d_inputs, d_reference_outputs, test_case.problem_size());
+    std::vector<size_t> sizes = test_case.get_sizes();
+    launch_kernel(d_inputs, d_outputs, sizes);
+    launch_reference_kernel(d_inputs, d_reference_outputs, sizes);
     
     for (size_t i = 0; i < output_shapes.size(); i++) {
         cudaMemcpy(h_outputs[i], d_outputs[i], output_shapes[i]->size() * sizeof(T), cudaMemcpyDeviceToHost);

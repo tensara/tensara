@@ -67,19 +67,19 @@ public:
     }
 
 public:
-    typedef void (*KernelLauncher)(const std::vector<T*>&, const std::vector<T*>&, size_t);
+    typedef void (*KernelLauncher)(const std::vector<T*>&, const std::vector<T*>&, const std::vector<size_t>&);
     
     std::pair<size_t, float> run_benchmark(KernelLauncher kernel_launcher, const TestCase<T>& test_case) {
         float total_ms = 0.0f;
         size_t flops = test_case.calculate_flops();
-        size_t problem_size = test_case.problem_size();
+        std::vector<size_t> sizes = test_case.get_sizes();
 
-        kernel_launcher(d_inputs, d_outputs, problem_size);
+        kernel_launcher(d_inputs, d_outputs, sizes);
         cudaDeviceSynchronize();
 
         for (size_t i = 0; i < num_runs; i++) {
             cudaEventRecord(start);
-            kernel_launcher(d_inputs, d_outputs, problem_size);
+            kernel_launcher(d_inputs, d_outputs, sizes);
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
 
