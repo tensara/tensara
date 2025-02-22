@@ -5,8 +5,8 @@
 #include <math.h>
 #include "tests.hpp"
 #include "core.hpp"
-
-extern "C" void reference_solution(float* d_input1, float* d_input2, float* d_output, size_t n);
+#include "solution.cu"
+#include "reference.cu"
 
 bool check_results(float* output1, float* output2, size_t size, float tolerance = 1e-5) {
     for (size_t i = 0; i < size; i++) {
@@ -15,11 +15,6 @@ bool check_results(float* output1, float* output2, size_t size, float tolerance 
         }
     }
     return true;
-}
-
-template<typename T>
-void launch_reference_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, const std::vector<size_t>& sizes) {
-    reference_solution(inputs[0], inputs[1], outputs[0], sizes[0]);
 }
 
 template<typename T>
@@ -55,8 +50,8 @@ bool run_test(TestCase<T>& test_case) {
     }
     
     std::vector<size_t> sizes = test_case.get_sizes();
-    launch_kernel(d_inputs, d_outputs, sizes);
-    launch_reference_kernel(d_inputs, d_reference_outputs, sizes);
+    test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void*>(solution));
+    test_case.launch_kernel(d_inputs, d_reference_outputs, sizes, reinterpret_cast<void*>(reference_solution));
     
     for (size_t i = 0; i < output_shapes.size(); i++) {
         cudaMemcpy(h_outputs[i], d_outputs[i], output_shapes[i]->size() * sizeof(T), cudaMemcpyDeviceToHost);

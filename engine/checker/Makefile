@@ -2,9 +2,9 @@ NVCC = nvcc
 NVCCFLAGS = -O3
 
 TARGET = checker
-HEADERS = core.hpp tests.hpp solution.cuh
+HEADERS = core.hpp tests.hpp
 
-SRCS = checker.cu reference.cu
+SRCS = checker.cu
 
 $(TARGET): $(SRCS) $(HEADERS)
 	$(NVCC) $(NVCCFLAGS) $(SRCS) -o $(TARGET)
