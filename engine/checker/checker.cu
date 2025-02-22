@@ -19,7 +19,7 @@ bool check_results(float* output1, float* output2, size_t size, float tolerance 
 
 template<typename T>
 void launch_reference_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, const std::vector<size_t>& sizes) {
-    reference_solution(inputs[0], inputs[1], outputs[0], sizes[0], sizes[1], sizes[2]);
+    reference_solution(inputs[0], inputs[1], outputs[0], sizes[0]);
 }
 
 template<typename T>
