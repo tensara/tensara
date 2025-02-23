@@ -68,7 +68,7 @@ def test_checker():
         print("Error:", response.json())
 
 if __name__ == "__main__":
-    # test_benchmark()
-    test_checker()
+    test_benchmark()
+    # test_checker()
 
 

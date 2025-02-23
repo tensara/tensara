@@ -1,5 +1,5 @@
 #include "core.hpp"
-#include "solution.cuh"
+#include "solution.cu"
 
 template<typename T>
 class VectorAddTest: public TestCase<T> {

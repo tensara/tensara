@@ -36,7 +36,7 @@ app = modal.App("tensara", image=image)
 def benchmark(item: dict):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            solution_path = Path(tmpdir) / "solution.cuh"
+            solution_path = Path(tmpdir) / "solution.cu"
             solution_path.write_text(item["solution_code"])
             
             tests_path = Path(tmpdir) / "tests.hpp"
@@ -92,7 +92,7 @@ def checker(item: dict):
             checker_dir.mkdir()
             os.system(f"cp /root/checker/core.hpp /root/checker/Makefile {str(checker_dir)}")
             
-            solution_path = checker_dir / "solution.cuh"
+            solution_path = checker_dir / "solution.cu"
             solution_path.write_text(item["solution_code"])
             
             tests_path = checker_dir / "tests.hpp"
