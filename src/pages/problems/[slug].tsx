@@ -234,6 +234,11 @@ export default function ProblemPage() {
                     onClick={() => setSubmissionStatus({ status: "SUBMISSIONS", runtime: null, gflops: null, passedTests: null, totalTests: null, message: null })}
                     leftIcon={<TimeIcon />}
                     borderRadius="full"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white"
+                    }}
                   >
                     My Submissions
                   </Button>}
@@ -244,6 +249,12 @@ export default function ProblemPage() {
                       setSubmissionStatus(null);
                     }}
                     leftIcon={<Icon as={FiArrowLeft} />}
+                    borderRadius="full"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white"
+                    }}
                   >
                     Back to Problem
                   </Button>
@@ -365,6 +376,11 @@ export default function ProblemPage() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setIsTestCaseTableOpen(!isTestCaseTableOpen);
+                              }}
+                              color="gray.300"
+                              _hover={{
+                                bg: "whiteAlpha.50",
+                                color: "white"
                               }}
                             />
                           </HStack>
@@ -499,15 +515,38 @@ export default function ProblemPage() {
                 <Heading size="lg">
                   {problem.title}
                 </Heading>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSubmissionStatus({ status: "SUBMISSIONS", runtime: null, gflops: null, passedTests: null, totalTests: null, message: null })}
-                  leftIcon={<TimeIcon />}
-                  borderRadius="full"
-                >
-                  My Submissions
-                </Button>
+                <HStack>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSubmissionStatus({ status: "SUBMISSIONS", runtime: null, gflops: null, passedTests: null, totalTests: null, message: null })}
+                    leftIcon={<TimeIcon />}
+                    borderRadius="full"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white"
+                    }}
+                  >
+                    My Submissions
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      window.location.href = "/problems";
+                    }}
+                    leftIcon={<Icon as={FiArrowLeft} />}
+                    borderRadius="full"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white"
+                    }}
+                  >
+                    Back to Problems
+                  </Button>
+                </HStack>
               </HStack>
               <Text color="gray.400" mb={6}>
                 Difficulty: {problem.difficulty}
@@ -623,11 +662,11 @@ export default function ProblemPage() {
                 fontWeight="semibold"
                 px={8}
                 _hover={{
-                  bg: "rgba(34, 197, 94, 0.15)",
+                  bg: "rgba(34, 197, 94, 0.2)",
                   transform: "translateY(-1px)",
                 }}
                 _active={{
-                  bg: "rgba(34, 197, 94, 0.2)",
+                  bg: "rgba(34, 197, 94, 0.25)",
                 }}
                 transition="all 0.2s"
               >

@@ -4,29 +4,29 @@ export const system = extendTheme({
   styles: {
     global: {
       body: {
-        bg: "#0A1628",
+        bg: "#0F172A",
         color: "white",
       },
     },
   },
   colors: {
     brand: {
-      primary: "#1DB954",
-      secondary: "#1A2C42",
-      dark: "#0A1628",
-      sidebar: "#162A46",
+      primary: "#10B981",
+      secondary: "#1E293B",
+      dark: "#0F172A",
+      navbar: "#065F46",
     },
     gray: {
-      700: "#2D3748",
-      800: "#1A2C42",
-      900: "#0A1628",
+      700: "#334155",
+      800: "#1E293B",
+      900: "#0F172A",
     },
   },
   components: {
     Button: {
       baseStyle: {
         fontWeight: "medium",
-        borderRadius: "full",
+        borderRadius: "lg",
       },
       variants: {
         solid: {
@@ -49,13 +49,13 @@ export const system = extendTheme({
       variants: {
         filled: {
           field: {
-            bg: "whiteAlpha.200",
-            borderRadius: "full",
+            bg: "whiteAlpha.100",
+            borderRadius: "lg",
             _hover: {
-              bg: "whiteAlpha.300",
+              bg: "whiteAlpha.200",
             },
             _focus: {
-              bg: "whiteAlpha.300",
+              bg: "whiteAlpha.200",
               borderColor: "brand.primary",
             },
           },

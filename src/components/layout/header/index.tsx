@@ -1,65 +1,117 @@
 import {
   Box,
-  Button,
-  Container,
   Flex,
   HStack,
   Text,
-  useColorModeValue,
-  Input,
-  Icon,
   Image,
+  Button,
+  Icon,
 } from "@chakra-ui/react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
-import { FiBell, FiTarget } from "react-icons/fi";
+import { useRouter } from "next/router";
+import { FiCode, FiList, FiBookOpen, FiLogOut, FiGithub } from "react-icons/fi";
 
 export function Header() {
   const { data: session } = useSession();
+  const router = useRouter();
+
+  const navItems = [
+    { label: "Problems", href: "/problems", icon: FiCode },
+    { label: "Submissions", href: "/submissions", icon: FiList },
+    { label: "Blog", href: "/blog", icon: FiBookOpen },
+  ];
+
+  const isActivePath = (path: string) => {
+    if (path === "/problems") {
+      return router.pathname === "/problems" || router.pathname.startsWith("/problems/");
+    }
+    return router.pathname === path;
+  };
+
+  const handleSignIn = () => {
+    signIn("github", { callbackUrl: router.asPath });
+  };
+
+  const handleSignOut = () => {
+    signOut({ callbackUrl: "/" });
+  };
 
   return (
-    <Box bg="brand.primary" h="full" borderRadius="2xl">
-      <Flex
-        h="full"
-        px={6}
-        alignItems="center"
-        justifyContent="space-between"
-        gap={8}
-      >
+    <Box bg="brand.navbar" h="full" borderRadius="xl" px={6} py={4}>
+      <Flex h="full" alignItems="center" justifyContent="space-between">
         <HStack spacing={8}>
-          <Link href="/" passHref>
-            <HStack spacing={2}>
-              <Icon as={FiTarget} boxSize={6} color="white" />
-              <Text fontSize="xl" fontWeight="bold" color="white">
-                tensara
+          <Link href="/" passHref legacyBehavior>
+            <Text as="a" fontSize="xl" fontWeight="bold" color="white" _hover={{ textDecoration: "none" }}>
+              tensara
+            </Text>
+          </Link>
+
+          <HStack spacing={1}>
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href} passHref legacyBehavior>
+                <Button
+                  as="a"
+                  variant="ghost"
+                  px={4}
+                  py={2}
+                  color="white"
+                  bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
+                  _hover={{
+                    textDecoration: "none",
+                    bg: "whiteAlpha.100",
+                  }}
+                  leftIcon={<Icon as={item.icon} boxSize={5} />}
+                >
+                  {item.label}
+                </Button>
+              </Link>
+            ))}
+          </HStack>
+        </HStack>
+
+        {session ? (
+          <HStack spacing={4}>
+            <HStack spacing={3}>
+              <Image
+                src={session.user?.image || ""}
+                alt="Profile"
+                w={8}
+                h={8}
+                rounded="full"
+                border="2px"
+                borderColor="white"
+              />
+              <Text color="white" fontSize="sm">
+                {session.user?.name}
               </Text>
             </HStack>
-          </Link>
-        </HStack>
-
-        <Box flex={1} maxW="800px">
-          <Input
-            placeholder="Find a problem"
-            bg="whiteAlpha.300"
-            _placeholder={{ color: "whiteAlpha.700" }}
-            size="lg"
-          />
-        </Box>
-
-        <HStack spacing={4}>
-          <Icon as={FiBell} boxSize={5} color="white" cursor="pointer" />
-          {session?.user?.image && (
-            <Image
-              src={session.user.image}
-              alt="Profile"
-              w={8}
-              h={8}
-              rounded="full"
-              border="2px"
-              borderColor="white"
-            />
-          )}
-        </HStack>
+            <Button
+              variant="ghost"
+              size="sm"
+              color="white"
+              onClick={handleSignOut}
+              leftIcon={<Icon as={FiLogOut} boxSize={4} />}
+              _hover={{
+                bg: "whiteAlpha.200",
+              }}
+            >
+              Sign out
+            </Button>
+          </HStack>
+        ) : (
+          <Button
+            variant="ghost"
+            color="white"
+            onClick={handleSignIn}
+            leftIcon={<Icon as={FiGithub} boxSize={5} />}
+            _hover={{
+              bg: "whiteAlpha.200",
+            }}
+          >
+            Sign in with GitHub
+          </Button>
+        )}
       </Flex>
     </Box>
   );

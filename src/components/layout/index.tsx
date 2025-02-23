@@ -1,8 +1,7 @@
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
 import Head from "next/head";
-import { Box, Grid } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { Header } from "./header";
-import { Sidebar } from "./sidebar";
 
 interface LayoutProps {
   title?: string;
@@ -15,8 +14,6 @@ export function Layout({
   children,
   ogDescription = "Competitive programming platform",
 }: LayoutProps) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
   return (
     <>
       <Head>
@@ -25,30 +22,22 @@ export function Layout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <Box minH="100vh" bg="gray.900" p={4}>
-        <Grid
-          templateAreas={`
-            "header header"
-            "sidebar main"
-          `}
-          gridTemplateRows={"72px 1fr"}
-          gridTemplateColumns={`${isSidebarCollapsed ? "80px" : "280px"} 1fr`}
-          gap={4}
-          h="calc(100vh - 32px)"
-          transition="all 0.2s"
-        >
-          <Box gridArea="header">
-            <Header />
-          </Box>
-
-          <Box gridArea="sidebar" transition="all 0.2s">
-            <Sidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
-          </Box>
-
-          <Box gridArea="main" bg="brand.secondary" borderRadius="2xl" p={6}>
+      <Box h="100vh" bg="gray.900" display="flex" flexDirection="column">
+        <Box px={4} py={4}>
+          <Header />
+        </Box>
+        
+        <Box flex="1" px={4} pb={4} overflow="hidden">
+          <Box 
+            bg="brand.secondary" 
+            borderRadius="xl" 
+            h="100%"
+            p={6}
+            overflow="auto"
+          >
             {children}
           </Box>
-        </Grid>
+        </Box>
       </Box>
     </>
   );
