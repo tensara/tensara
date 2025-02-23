@@ -7,6 +7,7 @@
 #include <utility>
 #include "core.hpp"
 #include "tests.hpp"
+#include "solution.cu"
 
 template<typename T>
 class BenchmarkRunner {
@@ -69,17 +70,17 @@ public:
 public:
     typedef void (*KernelLauncher)(const std::vector<T*>&, const std::vector<T*>&, const std::vector<size_t>&);
     
-    std::pair<size_t, float> run_benchmark(KernelLauncher kernel_launcher, const TestCase<T>& test_case) {
+    std::pair<size_t, float> run_benchmark(TestCase<T>& test_case) {
         float total_ms = 0.0f;
         size_t flops = test_case.calculate_flops();
         std::vector<size_t> sizes = test_case.get_sizes();
 
-        kernel_launcher(d_inputs, d_outputs, sizes);
+        test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void*>(solution));
         cudaDeviceSynchronize();
 
         for (size_t i = 0; i < num_runs; i++) {
             cudaEventRecord(start);
-            kernel_launcher(d_inputs, d_outputs, sizes);
+            test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void*>(solution));
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
 
@@ -93,16 +94,15 @@ public:
 };
 
 template<typename T>
-void run_benchmarks(const std::vector<std::unique_ptr<TestCase<T>>>& test_cases,
-                   typename BenchmarkRunner<T>::KernelLauncher kernel_launcher) {
+void run_benchmarks(const std::vector<std::unique_ptr<TestCase<T>>>& test_cases) {
     std::cout << std::fixed << std::setprecision(9);
     
     double total_gflops = 0.0;
-    int curr_testcase = 0;
+    int curr_testcase = 1;
     
     for (const auto& test_case : test_cases) {
         BenchmarkRunner<T> runner(*test_case);
-        std::pair<size_t, float> benchmark_result = runner.run_benchmark(kernel_launcher, *test_case);
+        std::pair<size_t, float> benchmark_result = runner.run_benchmark(*test_case);
         size_t flops = benchmark_result.first;
         float avg_ms = benchmark_result.second;
         
@@ -118,6 +118,6 @@ void run_benchmarks(const std::vector<std::unique_ptr<TestCase<T>>>& test_cases,
 
 int main() {
     auto test_cases = create_test_cases();
-    run_benchmarks(test_cases, launch_kernel<float>);
+    run_benchmarks(test_cases);
     return 0;
 }

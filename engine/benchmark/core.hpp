@@ -42,6 +42,8 @@ public:
     size_t problem_size() const { return problem_size_; }
 
     virtual std::vector<size_t> get_sizes() const { return {problem_size_}; }
+    virtual void launch_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, 
+                             const std::vector<size_t>& sizes, void* kernel_func) = 0;
 
     virtual size_t calculate_flops() const = 0;
     virtual void prepare_data(T** host_inputs, T** host_outputs) = 0;

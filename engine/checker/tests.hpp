@@ -63,12 +63,10 @@ public:
 std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
     std::vector<std::unique_ptr<TestCase<float>>> test_cases;
     
-    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(512, 512, 512));
-    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(1024, 1024, 1024));
-    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(512, 256, 128));
-    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(1024, 512, 256));
-    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(2048, 512, 1024));
-    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(2048, 1024, 1024));
-    
+    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(4092, 4092, 4092));
+    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(8192, 4092, 8192));
+    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(4092, 8192, 4092));
+    test_cases.push_back(std::make_unique<MatrixMultiplyTest<float>>(8192, 8192, 8192));
+
     return test_cases;
 }
