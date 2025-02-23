@@ -27,13 +27,11 @@ type BenchmarkErrorResponse = {
 type BenchmarkResponse = BenchmarkSuccessResponse | BenchmarkErrorResponse;
 
 const SubmissionStatus = {
-  PENDING: "PENDING",
   CHECKING: "CHECKING",
   BENCHMARKING: "BENCHMARKING",
   ACCEPTED: "ACCEPTED",
-  ERROR: "ERROR",
   WRONG_ANSWER: "WRONG_ANSWER",
-  TIMEOUT: "TIMEOUT",
+  ERROR: "ERROR",
 } as const;
 
 type SubmissionStatus = typeof SubmissionStatus[keyof typeof SubmissionStatus];
@@ -133,7 +131,7 @@ export const problemsRouter = createTRPCRouter({
           language: input.language,
           userId: ctx.session.user.id,
           problemId: problem.id,
-          status: SubmissionStatus.PENDING,
+          status: SubmissionStatus.CHECKING,
         },
       });
 

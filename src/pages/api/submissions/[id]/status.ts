@@ -1,6 +1,8 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { db } from "~/server/db";
 
+const FINAL_STATUSES = ["ACCEPTED", "ERROR", "WRONG_ANSWER"] as const;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -22,6 +24,17 @@ export default async function handler(
     // Initial check
     const initialSubmission = await db.submission.findUnique({
       where: { id: id as string },
+      select: {
+        id: true,
+        status: true,
+        runtime: true,
+        gflops: true,
+        passedTests: true,
+        totalTests: true,
+        errorMessage: true,
+        errorDetails: true,
+        benchmarkResults: true,
+      },
     });
 
     if (!initialSubmission) {
@@ -37,6 +50,17 @@ export default async function handler(
       try {
         const submission = await db.submission.findUnique({
           where: { id: id as string },
+          select: {
+            id: true,
+            status: true,
+            runtime: true,
+            gflops: true,
+            passedTests: true,
+            totalTests: true,
+            errorMessage: true,
+            errorDetails: true,
+            benchmarkResults: true,
+          },
         });
 
         if (!submission) {
@@ -45,14 +69,11 @@ export default async function handler(
           return;
         }
 
+        // Send update
         res.write(`data: ${JSON.stringify(submission)}\n\n`);
 
-        if (
-          submission.status &&
-          ["ACCEPTED", "ERROR", "WRONG_ANSWER", "TIMEOUT"].includes(
-            submission.status
-          )
-        ) {
+        // Check if we've reached a final status
+        if (submission.status && FINAL_STATUSES.includes(submission.status as any)) {
           clearInterval(interval);
           res.end();
         }

@@ -110,7 +110,9 @@ def checker(item: dict):
                     "passed": False,
                     "error": "Compilation failed",
                     "details": os.popen("make 2>&1").read(),
-                    "test_results": []
+                    "test_results": [],
+                    "passed_tests": 0,
+                    "total_tests": 0
                 }
             
             import subprocess
@@ -121,11 +123,14 @@ def checker(item: dict):
                     "passed": False,
                     "error": "Runtime error",
                     "details": result.stderr,
-                    "test_results": []
+                    "test_results": [],
+                    "passed_tests": 0, 
+                    "total_tests": 0
                 }
             
             lines = result.stdout.strip().split('\n')
             test_results = []
+            passed_tests = 0
             
             for line in lines[:-1]:
                 test_id, status = line.split(',')
@@ -133,12 +138,17 @@ def checker(item: dict):
                     "test_id": int(test_id),
                     "status": status.strip()
                 })
+                if status.strip() == "PASSED":
+                    passed_tests += 1
             
             overall_status = lines[-1].strip()
+            total_tests = len(test_results)
             
             return {
                 "passed": overall_status == "PASSED",
-                "test_results": test_results
+                "test_results": test_results,
+                "passed_tests": passed_tests,
+                "total_tests": total_tests
             }
             
     except Exception as e:
