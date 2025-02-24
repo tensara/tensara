@@ -277,7 +277,7 @@ export default function ProblemPage() {
                     submissionsQuery.data?.submissions.map((submission) => (
                       <Link
                         key={submission.id}
-                        href={`/submission/${submission.id}`}
+                        href={`/submissions/${submission.id}`}
                         style={{ textDecoration: 'none' }}
                       >
                         <Box
