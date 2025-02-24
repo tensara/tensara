@@ -5,7 +5,6 @@ import {
   Heading,
   Text,
   VStack,
-  HStack,
   Icon,
   Image,
   SimpleGrid,
@@ -13,6 +12,7 @@ import {
 import { Layout } from "~/components/layout";
 import { FiCpu, FiAward, FiUsers, FiCode } from "react-icons/fi";
 import { useSession, signIn } from "next-auth/react";
+import { type IconType } from "react-icons";
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -109,7 +109,7 @@ function FeatureCard({
   title,
   description,
 }: {
-  icon: any;
+  icon: IconType;
   title: string;
   description: string;
 }) {
