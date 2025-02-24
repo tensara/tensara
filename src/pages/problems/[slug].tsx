@@ -10,15 +10,6 @@ import {
   VStack,
   Button,
   useToast,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Tabs,
-  TabList,
-  TabPanels,
-  TabPanel,
-  Tab,
   Table,
   Thead,
   Tbody,
@@ -26,17 +17,13 @@ import {
   Th,
   Td,
   Badge,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatGroup,
   SimpleGrid,
   Collapse,
   IconButton,
   Select,
   Link,
 } from "@chakra-ui/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Layout } from "~/components/layout";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -105,7 +92,7 @@ export default function ProblemPage() {
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [hasSetInitialCode, setHasSetInitialCode] = useState(false);
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] = useState(false);
-  const [splitRatio, setSplitRatio] = useState(35); // Initial left panel width percentage
+  const [splitRatio, setSplitRatio] = useState(35);
   const [isDragging, setIsDragging] = useState(false);
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
@@ -127,7 +114,7 @@ export default function ProblemPage() {
       totalTests: null,
       message: "Running test cases...",
     });
-    
+
     createSubmissionMutation.mutate({
       problemSlug: slug as string,
       code,
@@ -170,25 +157,40 @@ export default function ProblemPage() {
       };
 
       // Log all raw events for debugging
-      const rawEventListener = (e: MessageEvent) => {
+      const rawEventListener = (e: MessageEvent<string>) => {
         console.log("[sse] Raw event received:", {
           data: e.data,
           lastEventId: e.lastEventId,
           origin: e.origin,
-          type: e.type
+          type: e.type,
         });
       };
-      eventSource.addEventListener('message', rawEventListener);
+      eventSource.addEventListener("message", rawEventListener);
+
+      type SSESubmissionData = {
+        id: string;
+        status: SubmissionStatus["status"];
+        runtime: number | null;
+        gflops: number | null;
+        passedTests: number | null;
+        totalTests: number | null;
+        errorMessage?: string;
+        errorDetails?: string;
+        benchmarkResults?: BenchmarkTestResult[];
+      };
 
       eventSource.onmessage = (event) => {
         try {
           console.log("[sse] Message received:", event.data);
-          const data = JSON.parse(event.data);
+          if (typeof event.data !== "string") {
+            throw new Error("Expected event.data to be a string");
+          }
+          const data = JSON.parse(event.data) as SSESubmissionData;
           console.log("[sse] Parsed data:", data);
 
-          setSubmissionStatus(prevStatus => {
+          setSubmissionStatus(() => {
             return {
-              status: data.status as SubmissionStatus["status"],
+              status: data.status,
               runtime: data.runtime,
               gflops: data.gflops,
               passedTests: data.passedTests,
@@ -208,14 +210,22 @@ export default function ProblemPage() {
           });
 
           if (["ACCEPTED", "ERROR", "WRONG_ANSWER"].includes(data.status)) {
-            console.log("[sse] Final status reached, closing connection:", data.status);
+            console.log(
+              "[sse] Final status reached, closing connection:",
+              data.status
+            );
             eventSource.close();
             setSubmissionId(null);
             setIsSubmitting(false);
             submissionsQuery.refetch();
           }
         } catch (error) {
-          console.error("[sse] Error parsing data:", error, "Raw data:", event.data);
+          console.error(
+            "[sse] Error parsing data:",
+            error,
+            "Raw data:",
+            event.data
+          );
         }
       };
 
@@ -224,13 +234,21 @@ export default function ProblemPage() {
         eventSource.close();
 
         // If we haven't exceeded max retries and the submission is still in progress
-        if (retryCount < maxRetries && submissionStatus?.status !== "ACCEPTED" && 
-            submissionStatus?.status !== "ERROR" && submissionStatus?.status !== "WRONG_ANSWER") {
+        if (
+          retryCount < maxRetries &&
+          submissionStatus?.status !== "ACCEPTED" &&
+          submissionStatus?.status !== "ERROR" &&
+          submissionStatus?.status !== "WRONG_ANSWER"
+        ) {
           retryCount++;
-          console.log(`[sse] Retrying connection (${retryCount}/${maxRetries})...`);
+          console.log(
+            `[sse] Retrying connection (${retryCount}/${maxRetries})...`
+          );
           retryTimeout = setTimeout(setupEventSource, 1000 * retryCount); // Exponential backoff
         } else {
-          console.log("[sse] Max retries exceeded or submission complete, giving up");
+          console.log(
+            "[sse] Max retries exceeded or submission complete, giving up"
+          );
           setSubmissionId(null);
           setIsSubmitting(false);
           toast({
@@ -253,7 +271,7 @@ export default function ProblemPage() {
       eventSource.close();
       if (retryTimeout) clearTimeout(retryTimeout);
     };
-  }, [submissionId, toast, submissionsQuery]);
+  }, [submissionId, toast, submissionsQuery, submissionStatus]);
 
   const createSubmissionMutation = api.problems.createSubmission.useMutation({
     onSuccess: (data) => {
@@ -289,44 +307,46 @@ export default function ProblemPage() {
     },
   });
 
-  // Add drag handling functions
-  const handleMouseDown = () => {
+  // Move these handlers to useCallback
+  const handleMouseDown = useCallback(() => {
     setIsDragging(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
-  };
+  }, []);
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
-
-    const container = document.getElementById("split-container");
-    if (!container) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const newRatio =
-      ((e.clientX - containerRect.left) / containerRect.width) * 100;
-
-    // Adjust max ratio to 55% to ensure submit button stays visible
-    const clampedRatio = Math.min(Math.max(newRatio, 35), 55);
-    setSplitRatio(clampedRatio);
-  };
-
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     document.body.style.cursor = "default";
     document.body.style.userSelect = "auto";
-  };
+  }, []);
 
   useEffect(() => {
     if (isDragging) {
+      // Move handleMouseMove inside useEffect
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isDragging) return;
+
+        const container = document.getElementById("split-container");
+        if (!container) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const newRatio =
+          ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+        // Adjust max ratio to 55% to ensure submit button stays visible
+        const clampedRatio = Math.min(Math.max(newRatio, 35), 55);
+        setSplitRatio(clampedRatio);
+      };
+
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
+
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
     }
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging]);
+  }, [isDragging, handleMouseUp]);
 
   if (isLoading) {
     return (
@@ -553,7 +573,7 @@ export default function ProblemPage() {
                   </Box>
 
                   {submissionStatus.passedTests !== null &&
-                    submissionStatus.status !== "WRONG_ANSWER" && 
+                    submissionStatus.status !== "WRONG_ANSWER" &&
                     submissionStatus.status !== "BENCHMARKING" && (
                       <Box
                         bg="whiteAlpha.50"
@@ -645,7 +665,7 @@ export default function ProblemPage() {
                                 </Thead>
                                 <Tbody>
                                   {submissionStatus.benchmarkResults?.map(
-                                    (result, index) => (
+                                    (result) => (
                                       <Tr
                                         key={result.test_id}
                                         _hover={{ bg: "whiteAlpha.100" }}
@@ -696,7 +716,7 @@ export default function ProblemPage() {
                                       (_, i) => {
                                         const testId =
                                           (submissionStatus.benchmarkResults
-                                            ?.length || 0) +
+                                            ?.length ?? 0) +
                                           i +
                                           1;
                                         return (
@@ -776,7 +796,7 @@ export default function ProblemPage() {
                         fontSize="sm"
                         fontFamily="mono"
                       >
-                        {submissionStatus.errorDetails ||
+                        {submissionStatus.errorDetails ??
                           submissionStatus.errorMessage}
                       </Code>
                     </Box>

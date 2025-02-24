@@ -10,7 +10,6 @@ import {
   Spinner,
   Icon,
   Badge,
-  Divider,
   Link as ChakraLink,
 } from "@chakra-ui/react";
 import { CheckIcon, WarningIcon, TimeIcon } from "@chakra-ui/icons";
@@ -30,10 +29,11 @@ const SubmissionPage: NextPage = () => {
   const { id } = router.query;
   const [code, setCode] = useState("");
 
-  const { data: submission, isLoading } = api.problems.getSubmissionStatus.useQuery(
-    { submissionId: id as string },
-    { enabled: !!id }
-  );
+  const { data: submission, isLoading } =
+    api.problems.getSubmissionStatus.useQuery(
+      { submissionId: id as string },
+      { enabled: !!id }
+    );
 
   useEffect(() => {
     if (submission?.code) {
@@ -44,7 +44,12 @@ const SubmissionPage: NextPage = () => {
   if (isLoading) {
     return (
       <Layout title="Loading...">
-        <Box display="flex" justifyContent="center" alignItems="center" h="100vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="100vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -89,17 +94,21 @@ const SubmissionPage: NextPage = () => {
       case "BENCHMARKING":
         return "Benchmarking";
       default:
-        return status || "Unknown";
+        return status ?? "Unknown";
     }
   };
 
   return (
-    <Layout title={`Submission ${id}`}>
+    <Layout title={`Submission ${id as string}`}>
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <VStack spacing={6} align="stretch">
           {/* Problem Link */}
           <Box>
-            <ChakraLink as={Link} href={`/problems/${submission.problem.slug}`} color="blue.400">
+            <ChakraLink
+              as={Link}
+              href={`/problems/${submission.problem.slug}`}
+              color="blue.400"
+            >
               ← Back to {submission.problem.title}
             </ChakraLink>
           </Box>
@@ -112,7 +121,8 @@ const SubmissionPage: NextPage = () => {
                   as={
                     submission.status === "ACCEPTED"
                       ? CheckIcon
-                      : submission.status === "WRONG_ANSWER" || submission.status === "ERROR"
+                      : submission.status === "WRONG_ANSWER" ||
+                        submission.status === "ERROR"
                       ? WarningIcon
                       : TimeIcon
                   }
@@ -122,7 +132,10 @@ const SubmissionPage: NextPage = () => {
                 <Text fontSize="xl" fontWeight="bold">
                   {formatStatus(submission.status)}
                 </Text>
-                <Badge colorScheme={getStatusColor(submission.status)} fontSize="sm">
+                <Badge
+                  colorScheme={getStatusColor(submission.status)}
+                  fontSize="sm"
+                >
                   {submission.language}
                 </Badge>
               </HStack>
@@ -149,16 +162,17 @@ const SubmissionPage: NextPage = () => {
                     </Text>
                   </Box>
                 )}
-                {submission.passedTests !== null && submission.totalTests !== null && (
-                  <Box>
-                    <Text color="whiteAlpha.700" fontSize="sm">
-                      Test Cases
-                    </Text>
-                    <Text fontSize="lg" fontWeight="semibold">
-                      {submission.passedTests}/{submission.totalTests} passed
-                    </Text>
-                  </Box>
-                )}
+                {submission.passedTests !== null &&
+                  submission.totalTests !== null && (
+                    <Box>
+                      <Text color="whiteAlpha.700" fontSize="sm">
+                        Test Cases
+                      </Text>
+                      <Text fontSize="lg" fontWeight="semibold">
+                        {submission.passedTests}/{submission.totalTests} passed
+                      </Text>
+                    </Box>
+                  )}
               </HStack>
 
               {/* Error Message */}
@@ -190,30 +204,70 @@ const SubmissionPage: NextPage = () => {
                     Benchmark Results
                   </Text>
                   <Box overflowX="auto">
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <table
+                      style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
                       <thead>
                         <tr>
-                          <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.16)" }}>
+                          <th
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid rgba(255,255,255,0.16)",
+                            }}
+                          >
                             Test Case
                           </th>
-                          <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.16)" }}>
+                          <th
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid rgba(255,255,255,0.16)",
+                            }}
+                          >
                             Runtime (ms)
                           </th>
-                          <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.16)" }}>
+                          <th
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid rgba(255,255,255,0.16)",
+                            }}
+                          >
                             GFLOPS
                           </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {(submission.benchmarkResults as BenchmarkTestResult[]).map((result, index) => (
+                        {(
+                          submission.benchmarkResults as BenchmarkTestResult[]
+                        ).map((result, index) => (
                           <tr key={index}>
-                            <td style={{ padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.16)" }}>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom:
+                                  "1px solid rgba(255,255,255,0.16)",
+                              }}
+                            >
                               {result.name}
                             </td>
-                            <td style={{ padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.16)" }}>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom:
+                                  "1px solid rgba(255,255,255,0.16)",
+                              }}
+                            >
                               {result.runtime_ms.toFixed(2)}
                             </td>
-                            <td style={{ padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.16)" }}>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom:
+                                  "1px solid rgba(255,255,255,0.16)",
+                              }}
+                            >
                               {result.gflops.toFixed(2)}
                             </td>
                           </tr>

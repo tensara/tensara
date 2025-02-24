@@ -15,7 +15,6 @@ import {
   Input,
   IconButton,
   Tooltip,
-  Flex,
   Spinner,
 } from "@chakra-ui/react";
 import { useState } from "react";
@@ -45,7 +44,8 @@ const SubmissionsPage: NextPage = () => {
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
-  const { data: submissions, isLoading } = api.submissions.getAllSubmissions.useQuery();
+  const { data: submissions, isLoading } =
+    api.submissions.getAllSubmissions.useQuery();
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -75,7 +75,7 @@ const SubmissionsPage: NextPage = () => {
       case "BENCHMARKING":
         return "Benchmarking";
       default:
-        return status || "Unknown";
+        return status ?? "Unknown";
     }
   };
 
@@ -90,23 +90,31 @@ const SubmissionsPage: NextPage = () => {
 
   const filteredAndSortedSubmissions = submissions
     ?.filter((submission: SubmissionWithProblem) => {
-      const matchesStatus = statusFilter === "all" || submission.status === statusFilter;
-      const matchesSearch = searchQuery === "" || 
-        submission.problem.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" || submission.status === statusFilter;
+      const matchesSearch =
+        searchQuery === "" ||
+        submission.problem.title
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
       return matchesStatus && matchesSearch;
     })
     .sort((a: SubmissionWithProblem, b: SubmissionWithProblem) => {
       const order = sortOrder === "asc" ? 1 : -1;
       switch (sortField) {
         case "createdAt":
-          return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * order;
+          return (
+            (new Date(a.createdAt).getTime() -
+              new Date(b.createdAt).getTime()) *
+            order
+          );
         case "status":
-          return (a.status || "").localeCompare(b.status || "") * order;
+          return (a.status ?? "").localeCompare(b.status ?? "") * order;
         case "problem":
           return a.problem.title.localeCompare(b.problem.title) * order;
         case "performance":
-          const aPerf = a.gflops || 0;
-          const bPerf = b.gflops || 0;
+          const aPerf = a.gflops ?? 0;
+          const bPerf = b.gflops ?? 0;
           return (aPerf - bPerf) * order;
         default:
           return 0;
@@ -116,7 +124,12 @@ const SubmissionsPage: NextPage = () => {
   if (isLoading) {
     return (
       <Layout title="Submissions">
-        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="50vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -161,26 +174,52 @@ const SubmissionsPage: NextPage = () => {
             <Thead>
               <Tr>
                 <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                  <HStack spacing={2} cursor="pointer" onClick={() => handleSort("problem")}>
+                  <HStack
+                    spacing={2}
+                    cursor="pointer"
+                    onClick={() => handleSort("problem")}
+                  >
                     <Text>Problem</Text>
                     {sortField === "problem" && (
                       <IconButton
-                        aria-label={`Sort ${sortOrder === "asc" ? "descending" : "ascending"}`}
-                        icon={sortOrder === "asc" ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                        aria-label={`Sort ${
+                          sortOrder === "asc" ? "descending" : "ascending"
+                        }`}
+                        icon={
+                          sortOrder === "asc" ? (
+                            <ChevronUpIcon />
+                          ) : (
+                            <ChevronDownIcon />
+                          )
+                        }
                         size="xs"
                         variant="ghost"
                       />
                     )}
                   </HStack>
                 </Th>
-                <Th borderBottom="1px solid" borderColor="whiteAlpha.200">User</Th>
                 <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                  <HStack spacing={2} cursor="pointer" onClick={() => handleSort("status")}>
+                  User
+                </Th>
+                <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                  <HStack
+                    spacing={2}
+                    cursor="pointer"
+                    onClick={() => handleSort("status")}
+                  >
                     <Text>Status</Text>
                     {sortField === "status" && (
                       <IconButton
-                        aria-label={`Sort ${sortOrder === "asc" ? "descending" : "ascending"}`}
-                        icon={sortOrder === "asc" ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                        aria-label={`Sort ${
+                          sortOrder === "asc" ? "descending" : "ascending"
+                        }`}
+                        icon={
+                          sortOrder === "asc" ? (
+                            <ChevronUpIcon />
+                          ) : (
+                            <ChevronDownIcon />
+                          )
+                        }
                         size="xs"
                         variant="ghost"
                       />
@@ -188,12 +227,24 @@ const SubmissionsPage: NextPage = () => {
                   </HStack>
                 </Th>
                 <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                  <HStack spacing={2} cursor="pointer" onClick={() => handleSort("performance")}>
+                  <HStack
+                    spacing={2}
+                    cursor="pointer"
+                    onClick={() => handleSort("performance")}
+                  >
                     <Text>Performance</Text>
                     {sortField === "performance" && (
                       <IconButton
-                        aria-label={`Sort ${sortOrder === "asc" ? "descending" : "ascending"}`}
-                        icon={sortOrder === "asc" ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                        aria-label={`Sort ${
+                          sortOrder === "asc" ? "descending" : "ascending"
+                        }`}
+                        icon={
+                          sortOrder === "asc" ? (
+                            <ChevronUpIcon />
+                          ) : (
+                            <ChevronDownIcon />
+                          )
+                        }
                         size="xs"
                         variant="ghost"
                       />
@@ -201,12 +252,24 @@ const SubmissionsPage: NextPage = () => {
                   </HStack>
                 </Th>
                 <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                  <HStack spacing={2} cursor="pointer" onClick={() => handleSort("createdAt")}>
+                  <HStack
+                    spacing={2}
+                    cursor="pointer"
+                    onClick={() => handleSort("createdAt")}
+                  >
                     <Text>Submitted</Text>
                     {sortField === "createdAt" && (
                       <IconButton
-                        aria-label={`Sort ${sortOrder === "asc" ? "descending" : "ascending"}`}
-                        icon={sortOrder === "asc" ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                        aria-label={`Sort ${
+                          sortOrder === "asc" ? "descending" : "ascending"
+                        }`}
+                        icon={
+                          sortOrder === "asc" ? (
+                            <ChevronUpIcon />
+                          ) : (
+                            <ChevronDownIcon />
+                          )
+                        }
                         size="xs"
                         variant="ghost"
                       />
@@ -217,7 +280,7 @@ const SubmissionsPage: NextPage = () => {
             </Thead>
             <Tbody>
               {filteredAndSortedSubmissions?.map((submission) => (
-                <Tr 
+                <Tr
                   key={submission.id}
                   _hover={{ bg: "whiteAlpha.50" }}
                   transition="background-color 0.2s"
@@ -234,11 +297,14 @@ const SubmissionsPage: NextPage = () => {
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <HStack spacing={2}>
-                      <Text>{submission.user.name || "Anonymous"}</Text>
+                      <Text>{submission.user.name ?? "Anonymous"}</Text>
                     </HStack>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    <ChakraLink as={Link} href={`/submissions/${submission.id}`}>
+                    <ChakraLink
+                      as={Link}
+                      href={`/submissions/${submission.id}`}
+                    >
                       <Badge colorScheme={getStatusColor(submission.status)}>
                         {formatStatus(submission.status)}
                       </Badge>
@@ -246,7 +312,9 @@ const SubmissionsPage: NextPage = () => {
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     {submission.status === "ACCEPTED" ? (
-                      <Tooltip label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}>
+                      <Tooltip
+                        label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}
+                      >
                         <Text fontWeight="medium">
                           {submission.gflops?.toFixed(2)} GFLOPS
                         </Text>
@@ -256,8 +324,13 @@ const SubmissionsPage: NextPage = () => {
                     )}
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    <Tooltip label={new Date(submission.createdAt).toLocaleString()}>
-                      <Text>{formatDistanceToNow(new Date(submission.createdAt))} ago</Text>
+                    <Tooltip
+                      label={new Date(submission.createdAt).toLocaleString()}
+                    >
+                      <Text>
+                        {formatDistanceToNow(new Date(submission.createdAt))}{" "}
+                        ago
+                      </Text>
                     </Tooltip>
                   </Td>
                 </Tr>

@@ -40,7 +40,8 @@ const LeaderboardPage: NextPage = () => {
   const router = useRouter();
   const { slug } = router.query;
 
-  const { data: submissions, isLoading } = api.submissions.getAllSubmissions.useQuery();
+  const { data: submissions, isLoading } =
+    api.submissions.getAllSubmissions.useQuery();
 
   // Filter submissions for the current problem
   const problemSubmissions = submissions?.filter(
@@ -50,22 +51,23 @@ const LeaderboardPage: NextPage = () => {
   // Process submissions to get the best submission per user
   const getBestSubmissions = (submissions: LeaderboardEntry[] | undefined) => {
     if (!submissions) return [];
-    
+
     const userBestMap = new Map<string, LeaderboardEntry>();
-    
+
     submissions.forEach((submission) => {
       if (submission.status !== "ACCEPTED" || !submission.gflops) return;
-      
-      const userId = submission.user.name || "Anonymous";
+
+      const userId = submission.user.name ?? "Anonymous";
       const currentBest = userBestMap.get(userId);
-      
-      if (!currentBest || (submission.gflops > currentBest.gflops!)) {
+
+      if (!currentBest || submission.gflops > currentBest.gflops!) {
         userBestMap.set(userId, submission);
       }
     });
-    
-    return Array.from(userBestMap.values())
-      .sort((a, b) => (b.gflops || 0) - (a.gflops || 0));
+
+    return Array.from(userBestMap.values()).sort(
+      (a, b) => (b.gflops ?? 0) - (a.gflops ?? 0)
+    );
   };
 
   const leaderboardEntries = getBestSubmissions(problemSubmissions);
@@ -73,7 +75,12 @@ const LeaderboardPage: NextPage = () => {
   if (isLoading) {
     return (
       <Layout title="Leaderboard">
-        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="50vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -94,26 +101,30 @@ const LeaderboardPage: NextPage = () => {
     <Layout title={`Leaderboard - ${submissions[0]?.problem.title}`}>
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
-          <Heading size="lg">
-            Leaderboard
-          </Heading>
-          <Heading size="md">
-            {submissions[0]?.problem.title}
-          </Heading>
+          <Heading size="lg">Leaderboard</Heading>
+          <Heading size="md">{submissions[0]?.problem.title}</Heading>
 
           <Box overflowX="auto">
             <Table variant="unstyled">
               <Thead>
                 <Tr>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">Rank</Th>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">User</Th>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">Performance</Th>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">Submitted</Th>
+                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                    Rank
+                  </Th>
+                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                    User
+                  </Th>
+                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                    Performance
+                  </Th>
+                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                    Submitted
+                  </Th>
                 </Tr>
               </Thead>
               <Tbody>
                 {leaderboardEntries.map((entry, index) => (
-                  <Tr 
+                  <Tr
                     key={entry.id}
                     _hover={{ bg: "whiteAlpha.50" }}
                     transition="background-color 0.2s"
@@ -131,12 +142,14 @@ const LeaderboardPage: NextPage = () => {
                     </Td>
                     <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                       <Text fontWeight={index < 3 ? "bold" : "normal"}>
-                        {entry.user.name || "Anonymous"}
+                        {entry.user.name ?? "Anonymous"}
                       </Text>
                     </Td>
                     <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                       <ChakraLink as={Link} href={`/submissions/${entry.id}`}>
-                        <Tooltip label={`Runtime: ${entry.runtime?.toFixed(2)} ms`}>
+                        <Tooltip
+                          label={`Runtime: ${entry.runtime?.toFixed(2)} ms`}
+                        >
                           <Text fontWeight="medium">
                             {entry.gflops?.toFixed(2)} GFLOPS
                           </Text>
@@ -144,8 +157,12 @@ const LeaderboardPage: NextPage = () => {
                       </ChakraLink>
                     </Td>
                     <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                      <Tooltip label={new Date(entry.createdAt).toLocaleString()}>
-                        <Text>{formatDistanceToNow(new Date(entry.createdAt))} ago</Text>
+                      <Tooltip
+                        label={new Date(entry.createdAt).toLocaleString()}
+                      >
+                        <Text>
+                          {formatDistanceToNow(new Date(entry.createdAt))} ago
+                        </Text>
                       </Tooltip>
                     </Td>
                   </Tr>

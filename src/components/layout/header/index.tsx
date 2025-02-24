@@ -25,11 +25,11 @@ export function Header() {
   };
 
   const handleSignIn = () => {
-    signIn("github", { callbackUrl: router.asPath });
+    signIn("github", { callbackUrl: router.asPath }).catch(console.error);
   };
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: "/" });
+    signOut({ callbackUrl: "/" }).catch(console.error);
   };
 
   return (
@@ -77,7 +77,7 @@ export function Header() {
           <HStack spacing={4}>
             <HStack spacing={3}>
               <Image
-                src={session.user?.image || ""}
+                src={session.user?.image ?? ""}
                 alt="Profile"
                 w={8}
                 h={8}
@@ -120,30 +120,30 @@ export function Header() {
   );
 }
 
-function NavLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link href={href} passHref>
-      <Text
-        px={2}
-        py={1}
-        rounded="md"
-        color="gray.300"
-        _hover={{
-          textDecoration: "none",
-          bg: "gray.700",
-          color: "white",
-        }}
-        fontSize="sm"
-        fontWeight="medium"
-      >
-        {children}
-      </Text>
-    </Link>
-  );
-}
+// function NavLink({
+//   href,
+//   children,
+// }: {
+//   href: string;
+//   children: React.ReactNode;
+// }) {
+//   return (
+//     <Link href={href} passHref>
+//       <Text
+//         px={2}
+//         py={1}
+//         rounded="md"
+//         color="gray.300"
+//         _hover={{
+//           textDecoration: "none",
+//           bg: "gray.700",
+//           color: "white",
+//         }}
+//         fontSize="sm"
+//         fontWeight="medium"
+//       >
+//         {children}
+//       </Text>
+//     </Link>
+//   );
+// }

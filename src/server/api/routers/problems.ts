@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { Prisma } from "@prisma/client";
 
-// Simulated evaluation delay
-const EVAL_DELAY_MS = 1500;
+// // Simulated evaluation delay
+// const EVAL_DELAY_MS = 1500;
 
 // Add these types at the top of the file
 type BenchmarkTestResult = {
@@ -34,7 +33,8 @@ const SubmissionStatus = {
   ERROR: "ERROR",
 } as const;
 
-type SubmissionStatus = typeof SubmissionStatus[keyof typeof SubmissionStatus];
+type SubmissionStatus =
+  (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
 
 // Add response types
 type SubmissionErrorResponse = {
@@ -56,7 +56,7 @@ type SubmissionSuccessResponse = {
   benchmarkResults: BenchmarkTestResult[];
 };
 
-type SubmissionResponse = SubmissionErrorResponse | SubmissionSuccessResponse;
+// type SubmissionResponse = SubmissionErrorResponse | SubmissionSuccessResponse;
 
 // Add types for database submission
 type SubmissionWithCustomFields = {
@@ -69,6 +69,36 @@ type SubmissionWithCustomFields = {
   benchmarkResults: BenchmarkTestResult[] | null;
   errorMessage?: string;
   errorDetails?: string;
+};
+
+// Add this type definition near the other types at the top
+const CheckerResultSchema = z.object({
+  passed: z.boolean(),
+  passed_tests: z.number().optional(),
+  total_tests: z.number().optional(),
+  error: z.string().optional(),
+  details: z.string().optional(),
+  test_results: z.array(z.unknown()).optional(),
+});
+
+// type CheckerResult = z.infer<typeof CheckerResultSchema>;
+
+// Add this type for the submission update data
+type SubmissionUpdateData = {
+  status: SubmissionStatus;
+  passedTests: number;
+  totalTests: number;
+  errorMessage: string;
+  errorDetails: string;
+};
+
+type SuccessSubmissionUpdateData = {
+  status: SubmissionStatus;
+  runtime: number;
+  gflops: number;
+  passedTests: number;
+  totalTests: number;
+  benchmarkResults: BenchmarkTestResult[];
 };
 
 export const problemsRouter = createTRPCRouter({
@@ -108,7 +138,7 @@ export const problemsRouter = createTRPCRouter({
       if (!problem) return null;
 
       return {
-        ...problem
+        ...problem,
       };
     }),
 
@@ -122,7 +152,7 @@ export const problemsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const problem = await ctx.db.problem.findUniqueOrThrow({
-        where: { slug: input.problemSlug }
+        where: { slug: input.problemSlug },
       });
 
       const submission = await ctx.db.submission.create({
@@ -164,44 +194,62 @@ export const problemsRouter = createTRPCRouter({
           },
         });
 
-        const checkerResponse = await fetch("https://labs-asterisk--tensara-checker.modal.run", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            solution_code: submission.code,
-            tests_code: submission.problem.tests,
-            reference_code: submission.problem.reference,
-          }),
-        });
+        const checkerResponse = await fetch(
+          "https://labs-asterisk--tensara-checker.modal.run",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              solution_code: submission.code,
+              tests_code: submission.problem.tests,
+              reference_code: submission.problem.reference,
+            }),
+          }
+        );
 
         if (!checkerResponse.ok) {
-          throw new Error(`Checker API returned ${checkerResponse.status}`);
+          const errorStatus: number = checkerResponse.status;
+          const errorText: string = await checkerResponse.text();
+          throw new Error(`Checker API returned ${errorStatus}: ${errorText}`);
         }
 
-        const checkerResult = await checkerResponse.json();
+        const rawCheckerResult: unknown = await checkerResponse.json();
+        const checkerResult = CheckerResultSchema.safeParse(rawCheckerResult);
+
+        if (!checkerResult.success) {
+          throw new Error(
+            `Invalid checker response: ${checkerResult.error.message}`
+          );
+        }
+
         console.log("CHECKER RESULT");
-        console.log(checkerResult);
-        
-        if (!checkerResult.passed) {
-          const wrongAnswerSubmission = await ctx.db.submission.update({
+        console.log(checkerResult.data);
+
+        if (!checkerResult.data.passed) {
+          const updateData: SubmissionUpdateData = {
+            status: SubmissionStatus.WRONG_ANSWER,
+            passedTests: checkerResult.data.passed_tests ?? 0,
+            totalTests: checkerResult.data.total_tests ?? 0,
+            errorMessage:
+              checkerResult.data.error ?? "Solution produced incorrect results",
+            errorDetails:
+              checkerResult.data.details ??
+              JSON.stringify(checkerResult.data.test_results ?? []),
+          };
+
+          const wrongAnswerSubmission = (await ctx.db.submission.update({
             where: { id: submission.id },
-            data: {
-              status: SubmissionStatus.WRONG_ANSWER,
-              passedTests: checkerResult.passed_tests || 0,
-              totalTests: checkerResult.total_tests || 0,
-              errorMessage: checkerResult.error || "Solution produced incorrect results",
-              errorDetails: checkerResult.details || JSON.stringify(checkerResult.test_results || []),
-            } as any,
-          }) as unknown as SubmissionWithCustomFields;
-          
+            data: updateData,
+          })) as SubmissionWithCustomFields;
+
           const response: SubmissionErrorResponse = {
             status: wrongAnswerSubmission.status as SubmissionStatus,
             id: wrongAnswerSubmission.id,
             passedTests: wrongAnswerSubmission.passedTests,
             totalTests: wrongAnswerSubmission.totalTests,
-            errorMessage: wrongAnswerSubmission.errorMessage || "Unknown error",
+            errorMessage: wrongAnswerSubmission.errorMessage ?? "Unknown error",
             errorDetails: wrongAnswerSubmission.errorDetails,
           };
           return response;
@@ -211,65 +259,74 @@ export const problemsRouter = createTRPCRouter({
           where: { id: submission.id },
           data: {
             status: SubmissionStatus.BENCHMARKING,
-            passedTests: checkerResult.total_tests,
-            totalTests: checkerResult.total_tests,
+            passedTests: checkerResult.data.total_tests,
+            totalTests: checkerResult.data.total_tests,
           },
         });
 
-        const benchmarkResponse = await fetch("https://labs-asterisk--tensara-benchmark.modal.run", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            solution_code: submission.code,
-            tests_code: submission.problem.tests,
-          }),
-        });
+        const benchmarkResponse = await fetch(
+          "https://labs-asterisk--tensara-benchmark.modal.run",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              solution_code: submission.code,
+              tests_code: submission.problem.tests,
+            }),
+          }
+        );
 
         if (!benchmarkResponse.ok) {
           throw new Error(`Benchmark API returned ${benchmarkResponse.status}`);
         }
 
-        const benchmarkResult = await benchmarkResponse.json() as BenchmarkResponse;
+        const benchmarkResult =
+          (await benchmarkResponse.json()) as BenchmarkResponse;
         console.log("BENCHMARK RESULT");
         console.log(benchmarkResult);
 
-        if ('error' in benchmarkResult) {
-          const errorSubmission = await ctx.db.submission.update({
+        if ("error" in benchmarkResult) {
+          const errorSubmission = (await ctx.db.submission.update({
             where: { id: submission.id },
             data: {
               status: SubmissionStatus.ERROR,
-              passedTests: checkerResult.total_tests,
-              totalTests: checkerResult.total_tests,
+              passedTests: checkerResult.data.total_tests ?? 0,
+              totalTests: checkerResult.data.total_tests ?? 0,
               errorMessage: benchmarkResult.error,
               errorDetails: benchmarkResult.details,
-            } as any,
-          }) as unknown as SubmissionWithCustomFields;
-          
+            } satisfies SubmissionUpdateData,
+          })) as SubmissionWithCustomFields;
+
           const response: SubmissionErrorResponse = {
             status: errorSubmission.status as SubmissionStatus,
             id: errorSubmission.id,
             passedTests: errorSubmission.passedTests,
             totalTests: errorSubmission.totalTests,
-            errorMessage: errorSubmission.errorMessage || "Unknown error",
+            errorMessage: errorSubmission.errorMessage ?? "Unknown error",
             errorDetails: errorSubmission.errorDetails,
           };
           return response;
         }
 
         // Update submission with successful results
-        const updatedSubmission = await ctx.db.submission.update({
+        const updatedSubmission = (await ctx.db.submission.update({
           where: { id: submission.id },
           data: {
             status: SubmissionStatus.ACCEPTED,
-            runtime: benchmarkResult.test_results.reduce((acc: number, test: BenchmarkTestResult) => acc + test.runtime_ms, 0) / benchmarkResult.test_results.length,
+            runtime:
+              benchmarkResult.test_results.reduce(
+                (acc: number, test: BenchmarkTestResult) =>
+                  acc + test.runtime_ms,
+                0
+              ) / benchmarkResult.test_results.length,
             gflops: benchmarkResult.average_gflops,
-            passedTests: checkerResult.total_tests,
-            totalTests: checkerResult.total_tests,
+            passedTests: checkerResult.data.total_tests ?? 0,
+            totalTests: checkerResult.data.total_tests ?? 0,
             benchmarkResults: benchmarkResult.test_results,
-          } as any,
-        }) as unknown as SubmissionWithCustomFields;
+          } satisfies SuccessSubmissionUpdateData,
+        })) as SubmissionWithCustomFields;
 
         const response: SubmissionSuccessResponse = {
           status: updatedSubmission.status as SubmissionStatus,
@@ -278,25 +335,27 @@ export const problemsRouter = createTRPCRouter({
           totalTests: updatedSubmission.totalTests,
           runtime: updatedSubmission.runtime,
           gflops: updatedSubmission.gflops,
-          benchmarkResults: updatedSubmission.benchmarkResults || [],
+          benchmarkResults: updatedSubmission.benchmarkResults ?? [],
         };
         return response;
       } catch (error) {
         // Update submission with error status
-        const failedSubmission = await ctx.db.submission.update({
+        const failedSubmission = (await ctx.db.submission.update({
           where: { id: submission.id },
           data: {
             status: SubmissionStatus.ERROR,
             passedTests: 0,
             totalTests: 0,
-            errorMessage: error instanceof Error ? error.message : "Unknown error occurred",
-            errorDetails: error instanceof Error ? error.stack : undefined,
-          } as any,
-        }) as unknown as SubmissionWithCustomFields;
+            errorMessage:
+              error instanceof Error ? error.message : "Unknown error occurred",
+            errorDetails: error instanceof Error ? error.stack ?? "" : "",
+          } satisfies SubmissionUpdateData,
+        })) as SubmissionWithCustomFields;
 
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR", 
-          message: failedSubmission.errorMessage || "Failed to evaluate submission",
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            failedSubmission.errorMessage ?? "Failed to evaluate submission",
           cause: error,
         });
       }
@@ -312,7 +371,7 @@ export const problemsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const submissions = await ctx.db.submission.findMany({
+      const submissions = (await ctx.db.submission.findMany({
         where: {
           userId: ctx.session.user.id,
           problem: { slug: input.problemSlug },
@@ -328,7 +387,7 @@ export const problemsRouter = createTRPCRouter({
             },
           },
         },
-      }) as unknown as (SubmissionWithCustomFields & {
+      })) as unknown as (SubmissionWithCustomFields & {
         problem: {
           title: string;
           slug: string;

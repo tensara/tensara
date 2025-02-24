@@ -1,4 +1,4 @@
-import { Box, BoxProps } from "@chakra-ui/react";
+import { Box, type BoxProps } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 
 interface CodeEditorProps extends Omit<BoxProps, "onChange"> {
@@ -11,7 +11,6 @@ interface CodeEditorProps extends Omit<BoxProps, "onChange"> {
 export function CodeEditor({
   value,
   onChange,
-  language = "python",
   height = "300px",
   ...props
 }: CodeEditorProps) {
@@ -37,7 +36,7 @@ export function CodeEditor({
     return () => {
       textarea.remove();
     };
-  }, []);
+  }, [height, onChange, value]);
 
   return <Box ref={editorRef} {...props} />;
 }
