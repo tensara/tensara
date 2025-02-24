@@ -108,8 +108,9 @@ export function Header() {
             color="white"
             onClick={handleSignIn}
             leftIcon={<Icon as={FiGithub} boxSize={5} />}
+            bg="#24292e"
             _hover={{
-              bg: "whiteAlpha.200",
+              bg: "#2f363d",
             }}
           >
             Sign in with GitHub
