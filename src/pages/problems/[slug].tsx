@@ -720,67 +720,67 @@ export default function ProblemPage() {
             </VStack>
           ) : (
             <Box>
-              <HStack
-                justify="space-between"
-                align="flex-start"
-                spacing={4}
-                mb={6}
-              >
-                <VStack align="start" spacing={2}>
-                  <Heading as="h1" size="xl">
-                    {problem.title}
-                  </Heading>
-                  <Badge
-                    colorScheme={getDifficultyColor(problem.difficulty)}
-                    px={2}
-                    py={1}
-                    borderRadius="full"
-                  >
-                    {problem.difficulty}
-                  </Badge>
-                </VStack>
-
-                <VStack spacing={2} align="end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setSubmissionStatus({
-                        status: "SUBMISSIONS",
-                        runtime: null,
-                        gflops: null,
-                        passedTests: null,
-                        totalTests: null,
-                        message: null,
-                      })
-                    }
-                    leftIcon={<TimeIcon />}
-                    borderRadius="full"
-                    color="gray.300"
-                    _hover={{
-                      bg: "whiteAlpha.50",
-                      color: "white",
-                    }}
-                  >
-                    My Submissions
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      window.location.href = `/leaderboard/${problem.slug}`;
-                    }}
-                    leftIcon={<Icon as={FiTrendingUp} />}
-                    borderRadius="full"
-                    color="gray.300"
-                    _hover={{
-                      bg: "whiteAlpha.50",
-                      color: "white",
-                    }}
-                  >
-                    Leaderboard
-                  </Button>
-                </VStack>
+              <Heading as="h1" size="lg" mb={2}>
+                {problem.title}
+              </Heading>
+              <HStack spacing={2} align="center" mb={6}>
+                <Badge
+                  colorScheme={getDifficultyColor(problem.difficulty)}
+                  px={2}
+                  py={1}
+                  borderRadius="full"
+                >
+                  {problem.difficulty}
+                </Badge>
+                <Button
+                  variant="outline"
+                  height="28px"
+                  px={3}
+                  py={1}
+                  fontSize="xs"
+                  onClick={() =>
+                    setSubmissionStatus({
+                      status: "SUBMISSIONS",
+                      runtime: null,
+                      gflops: null,
+                      passedTests: null,
+                      totalTests: null,
+                      message: null,
+                    })
+                  }
+                  leftIcon={<TimeIcon boxSize={3} />}
+                  borderRadius="full"
+                  borderColor="whiteAlpha.200"
+                  color="gray.300"
+                  cursor="pointer"
+                  _hover={{
+                    bg: "whiteAlpha.50",
+                    color: "white",
+                  }}
+                >
+                  My Submissions
+                </Button>
+                <Button
+                  variant="outline"
+                  height="28px"
+                  px={3}
+                  py={1}
+                  fontSize="xs"
+                  onClick={() => {
+                    window.location.href = `/leaderboard/${problem.slug}`;
+                  }}
+                  leftIcon={<Icon as={FiTrendingUp} boxSize={3} />}
+                  borderRadius="full"
+                  borderColor="whiteAlpha.200"
+                  color="gray.300"
+                  cursor="pointer"
+                  _hover={{
+                    bg: "whiteAlpha.50",
+                    color: "white",
+                  }}
+                >
+                  Leaderboard
+                </Button>
               </HStack>
 
               <Box className="markdown" color="gray.100">
