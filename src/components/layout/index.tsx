@@ -10,7 +10,7 @@ interface LayoutProps {
 }
 
 export function Layout({
-  title = "Tensara",
+  title,
   children,
   ogDescription = "The competitive platform for CUDA and GPU programming challenges",
 }: LayoutProps) {
