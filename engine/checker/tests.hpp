@@ -7,6 +7,7 @@ public:
     
     MatrixMultiplyTest(size_t m, size_t n, size_t k) {
         this->problem_size_ = m * n * k;
+        this->name_ = std::to_string(m) + "x" + std::to_string(k) + " x " + std::to_string(k) + "x" + std::to_string(n);
         
         auto matrix_a_shape = std::vector<size_t>{m, k};
         auto matrix_b_shape = std::vector<size_t>{k, n}; 
@@ -39,6 +40,10 @@ public:
         }
     }
     
+    std::string get_name() const override {
+        return this->name_;
+    }
+
     size_t calculate_flops() const override {
         const size_t m = this->inputs_[0]->shape()[0];
         const size_t k = this->inputs_[0]->shape()[1];

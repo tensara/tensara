@@ -348,6 +348,14 @@ export const problemsRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const submission = await ctx.db.submission.findUnique({
         where: { id: input.submissionId },
+        include: {
+          problem: {
+            select: {
+              title: true,
+              slug: true,
+            },
+          },
+        },
       });
 
       if (!submission) {

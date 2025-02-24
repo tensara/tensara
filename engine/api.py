@@ -60,9 +60,10 @@ def benchmark(item: dict):
                 test_results = []
                 
                 for line in lines[:-1]:
-                    test_id, runtime_ms, gflops = line.split(',')
+                    test_id, name, runtime_ms, gflops = line.split(',')
                     test_results.append({
                         "test_id": int(test_id),
+                        "name": name,
                         "runtime_ms": float(runtime_ms),
                         "gflops": float(gflops)
                     })
@@ -133,9 +134,10 @@ def checker(item: dict):
             passed_tests = 0
             
             for line in lines[:-1]:
-                test_id, status = line.split(',')
+                test_id, name, status = line.split(',')
                 test_results.append({
                     "test_id": int(test_id),
+                    "name": name,
                     "status": status.strip()
                 })
                 if status.strip() == "PASSED":

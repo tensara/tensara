@@ -86,11 +86,11 @@ int main() {
     
     for (size_t i = 0; i < test_cases.size(); i++) {
         if (!run_test(*test_cases[i])) {
-            std::cout << (i + 1) << "," << "FAILED" << std::endl;
+            std::cout << (i + 1) << "," << test_cases[i]->get_name() << "," << "FAILED" << std::endl;
             all_passed = false;
             break;
         }
-        std::cout << (i + 1) << "," << "PASSED" << std::endl;
+        std::cout << (i + 1) << "," << test_cases[i]->get_name() << "," << "PASSED" << std::endl;
     }
     
     if (all_passed) {

@@ -7,6 +7,7 @@ public:
     
     explicit VectorAddTest(size_t n) {
         this->problem_size_ = n;
+        this->name_ = "n = " + std::to_string(n);
         
         auto vec_shape = std::vector<size_t>{n};
         this->inputs_ = {
@@ -29,6 +30,10 @@ public:
     
     size_t calculate_flops() const override {
         return this->problem_size_;
+    }
+    
+    std::string get_name() const override {
+        return this->name_;
     }
 
     std::vector<size_t> get_sizes() const override {

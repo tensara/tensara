@@ -34,6 +34,7 @@ import {
   Collapse,
   IconButton,
   Select,
+  Link,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { Layout } from "~/components/layout";
@@ -51,6 +52,7 @@ type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
   gflops: number;
+  name: string;
 };
 
 type SubmissionStatus = {
@@ -273,41 +275,46 @@ export default function ProblemPage() {
                     </Box>
                   ) : (
                     submissionsQuery.data?.submissions.map((submission) => (
-                      <Box
+                      <Link
                         key={submission.id}
-                        bg="whiteAlpha.50"
-                        p={4}
-                        borderRadius="xl"
-                        cursor="pointer"
-                        _hover={{ bg: "whiteAlpha.100" }}
+                        href={`/submission/${submission.id}`}
+                        style={{ textDecoration: 'none' }}
                       >
-                        <HStack justify="space-between" mb={2}>
-                          <HStack>
-                            <Icon
-                              as={submission.status === "ACCEPTED" ? CheckIcon : submission.status === "WRONG_ANSWER" ? WarningIcon : TimeIcon}
-                              color={submission.status === "ACCEPTED" ? "green.400" : submission.status === "WRONG_ANSWER" ? "red.400" : "blue.400"}
-                            />
-                            <Text fontWeight="semibold">
-                              {submission.status === "ACCEPTED" ? "Accepted" : submission.status === "WRONG_ANSWER" ? "Wrong Answer" : submission.status}
+                        <Box
+                          bg="whiteAlpha.50"
+                          p={4}
+                          borderRadius="xl"
+                          cursor="pointer"
+                          _hover={{ bg: "whiteAlpha.100" }}
+                        >
+                          <HStack justify="space-between" mb={2}>
+                            <HStack>
+                              <Icon
+                                as={submission.status === "ACCEPTED" ? CheckIcon : submission.status === "WRONG_ANSWER" ? WarningIcon : TimeIcon}
+                                color={submission.status === "ACCEPTED" ? "green.400" : submission.status === "WRONG_ANSWER" ? "red.400" : "blue.400"}
+                              />
+                              <Text fontWeight="semibold">
+                                {submission.status === "ACCEPTED" ? "Accepted" : submission.status === "WRONG_ANSWER" ? "Wrong Answer" : submission.status}
+                              </Text>
+                            </HStack>
+                            <Text color="whiteAlpha.700" fontSize="sm">
+                              {new Date(submission.createdAt).toLocaleString()}
                             </Text>
                           </HStack>
-                          <Text color="whiteAlpha.700" fontSize="sm">
-                            {new Date(submission.createdAt).toLocaleString()}
-                          </Text>
-                        </HStack>
-                        {submission.status === "ACCEPTED" && (
-                          <SimpleGrid columns={2} spacing={4}>
-                            <Box>
-                              <Text color="whiteAlpha.600" fontSize="sm">Performance</Text>
-                              <Text fontWeight="semibold">{submission.gflops?.toFixed(2)} GFLOPS</Text>
-                            </Box>
-                            <Box>
-                              <Text color="whiteAlpha.600" fontSize="sm">Runtime</Text>
-                              <Text fontWeight="semibold">{submission.runtime?.toFixed(2)}ms</Text>
-                            </Box>
-                          </SimpleGrid>
-                        )}
-                      </Box>
+                          {submission.gflops !== null && submission.runtime !== null && (
+                            <SimpleGrid columns={2} spacing={4}>
+                              <Box>
+                                <Text color="whiteAlpha.600" fontSize="sm">Performance</Text>
+                                <Text fontWeight="semibold">{submission.gflops.toFixed(2)} GFLOPS</Text>
+                              </Box>
+                              <Box>
+                                <Text color="whiteAlpha.600" fontSize="sm">Runtime</Text>
+                                <Text fontWeight="semibold">{submission.runtime.toFixed(2)}ms</Text>
+                              </Box>
+                            </SimpleGrid>
+                          )}
+                        </Box>
+                      </Link>
                     ))
                   )}
                 </VStack>
@@ -416,7 +423,7 @@ export default function ProblemPage() {
                                           color="green.300"
                                           boxSize={4}
                                         />
-                                        <Text>Test Case {result.test_id}</Text>
+                                        <Text>{result.name}</Text>
                                       </HStack>
                                     </Td>
                                     <Td py={3} isNumeric>

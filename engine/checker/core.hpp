@@ -40,7 +40,8 @@ public:
     const std::vector<std::shared_ptr<Tensor<T>>>& output_shapes() const { return outputs_; }
     
     size_t problem_size() const { return problem_size_; }
-
+    
+    virtual std::string get_name() const { return name_; }
     virtual std::vector<size_t> get_sizes() const { return {problem_size_}; }
     virtual void launch_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, 
                              const std::vector<size_t>& sizes, void* kernel_func) = 0;
@@ -52,4 +53,5 @@ protected:
     std::vector<std::shared_ptr<Tensor<T>>> inputs_;
     std::vector<std::shared_ptr<Tensor<T>>> outputs_;
     size_t problem_size_ = 0;
+    std::string name_;
 }; 

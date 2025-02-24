@@ -109,7 +109,7 @@ void run_benchmarks(const std::vector<std::unique_ptr<TestCase<T>>>& test_cases)
         double gflops = (flops / 1e9) / (avg_ms / 1000.0);
         total_gflops += gflops;
         
-        std::cout << curr_testcase << "," << avg_ms << "," << gflops << std::endl;
+        std::cout << curr_testcase << "," << test_case->get_name() << "," << avg_ms << "," << gflops << std::endl;
         curr_testcase++;
     }
     
