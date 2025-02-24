@@ -112,7 +112,7 @@ export const problemsRouter = createTRPCRouter({
       };
     }),
 
-  submit: protectedProcedure
+  createSubmission: protectedProcedure
     .input(
       z.object({
         problemSlug: z.string(),
@@ -121,9 +121,9 @@ export const problemsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const problem = await (ctx.db.problem.findUniqueOrThrow({
+      const problem = await ctx.db.problem.findUniqueOrThrow({
         where: { slug: input.problemSlug }
-      }) as Promise<any>);
+      });
 
       const submission = await ctx.db.submission.create({
         data: {
@@ -135,10 +135,27 @@ export const problemsRouter = createTRPCRouter({
         },
       });
 
+      return submission;
+    }),
+
+  submit: protectedProcedure
+    .input(
+      z.object({
+        submissionId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const submission = await ctx.db.submission.findUniqueOrThrow({
+        where: { id: input.submissionId },
+        include: {
+          problem: true,
+        },
+      });
+
       try {
-        console.log("problem bindings", problem.tests);
-        console.log("problem reference", problem.reference);
-        console.log("input code", input.code);
+        console.log("problem bindings", submission.problem.tests);
+        console.log("problem reference", submission.problem.reference);
+        console.log("input code", submission.code);
 
         await ctx.db.submission.update({
           where: { id: submission.id },
@@ -153,9 +170,9 @@ export const problemsRouter = createTRPCRouter({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            solution_code: input.code,
-            tests_code: problem.tests,
-            reference_code: problem.reference,
+            solution_code: submission.code,
+            tests_code: submission.problem.tests,
+            reference_code: submission.problem.reference,
           }),
         });
 
@@ -205,8 +222,8 @@ export const problemsRouter = createTRPCRouter({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            solution_code: input.code,
-            tests_code: problem.tests,
+            solution_code: submission.code,
+            tests_code: submission.problem.tests,
           }),
         });
 
@@ -219,7 +236,6 @@ export const problemsRouter = createTRPCRouter({
         console.log(benchmarkResult);
 
         if ('error' in benchmarkResult) {
-          // Handle error case
           const errorSubmission = await ctx.db.submission.update({
             where: { id: submission.id },
             data: {

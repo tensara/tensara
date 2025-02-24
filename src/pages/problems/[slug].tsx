@@ -125,7 +125,8 @@ export default function ProblemPage() {
       totalTests: null,
       message: "Running test cases...",
     });
-    submitMutation.mutate({
+    
+    createSubmissionMutation.mutate({
       problemSlug: slug as string,
       code,
       language: "cuda",
@@ -150,68 +151,132 @@ export default function ProblemPage() {
   useEffect(() => {
     if (!submissionId) return;
 
-    const eventSource = new EventSource(
-      `/api/submissions/${submissionId}/status`
-    );
+    let retryCount = 0;
+    const maxRetries = 3;
+    let retryTimeout: NodeJS.Timeout;
 
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log("SSE Update:", data);
+    const setupEventSource = () => {
+      console.log("[sse] Setting up EventSource for submission:", submissionId);
+      const eventSource = new EventSource(
+        `/api/submissions/${submissionId}/status`
+      );
 
-      setSubmissionStatus({
-        status: data.status as SubmissionStatus["status"],
-        runtime: data.runtime,
-        gflops: data.gflops,
-        passedTests: data.passedTests,
-        totalTests: data.totalTests,
-        message:
-          data.status === "BENCHMARKING"
-            ? "All test cases passed! Running performance benchmark..."
-            : data.passedTests !== null
-            ? `${data.passedTests} test cases passed...`
-            : "Running test cases...",
-        errorMessage: data.errorMessage,
-        errorDetails: data.errorDetails,
-        ...(data.benchmarkResults && {
-          benchmarkResults: data.benchmarkResults,
-        }),
-      });
+      // Handle connection open
+      eventSource.onopen = () => {
+        console.log("[sse] Connection opened");
+        retryCount = 0; // Reset retry count on successful connection
+      };
 
-      // Close connection on final states
-      if (["ACCEPTED", "ERROR", "WRONG_ANSWER"].includes(data.status)) {
+      // Log all raw events for debugging
+      const rawEventListener = (e: MessageEvent) => {
+        console.log("[sse] Raw event received:", {
+          data: e.data,
+          lastEventId: e.lastEventId,
+          origin: e.origin,
+          type: e.type
+        });
+      };
+      eventSource.addEventListener('message', rawEventListener);
+
+      eventSource.onmessage = (event) => {
+        try {
+          console.log("[sse] Message received:", event.data);
+          const data = JSON.parse(event.data);
+          console.log("[sse] Parsed data:", data);
+
+          setSubmissionStatus(prevStatus => {
+            return {
+              status: data.status as SubmissionStatus["status"],
+              runtime: data.runtime,
+              gflops: data.gflops,
+              passedTests: data.passedTests,
+              totalTests: data.totalTests,
+              message:
+                data.status === "BENCHMARKING"
+                  ? "All test cases passed! Running performance benchmark..."
+                  : data.passedTests !== null
+                  ? `${data.passedTests} test cases passed...`
+                  : "Running test cases...",
+              errorMessage: data.errorMessage,
+              errorDetails: data.errorDetails,
+              ...(data.benchmarkResults && {
+                benchmarkResults: data.benchmarkResults,
+              }),
+            };
+          });
+
+          if (["ACCEPTED", "ERROR", "WRONG_ANSWER"].includes(data.status)) {
+            console.log("[sse] Final status reached, closing connection:", data.status);
+            eventSource.close();
+            setSubmissionId(null);
+            setIsSubmitting(false);
+            submissionsQuery.refetch();
+          }
+        } catch (error) {
+          console.error("[sse] Error parsing data:", error, "Raw data:", event.data);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error("[sse] Connection error:", error);
         eventSource.close();
-        setSubmissionId(null);
-        setIsSubmitting(false);
-        submissionsQuery.refetch();
-      }
+
+        // If we haven't exceeded max retries and the submission is still in progress
+        if (retryCount < maxRetries && submissionStatus?.status !== "ACCEPTED" && 
+            submissionStatus?.status !== "ERROR" && submissionStatus?.status !== "WRONG_ANSWER") {
+          retryCount++;
+          console.log(`[sse] Retrying connection (${retryCount}/${maxRetries})...`);
+          retryTimeout = setTimeout(setupEventSource, 1000 * retryCount); // Exponential backoff
+        } else {
+          console.log("[sse] Max retries exceeded or submission complete, giving up");
+          setSubmissionId(null);
+          setIsSubmitting(false);
+          toast({
+            title: "Connection Error",
+            description: "Lost connection to submission status updates",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      };
+
+      return eventSource;
     };
 
-    eventSource.onerror = (error) => {
-      console.error("SSE Error:", error);
-      eventSource.close();
-      setSubmissionId(null);
-      setIsSubmitting(false);
-      toast({
-        title: "Connection Error",
-        description: "Lost connection to submission status updates",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    };
+    const eventSource = setupEventSource();
 
     return () => {
+      console.log("[sse] Cleaning up EventSource");
       eventSource.close();
+      if (retryTimeout) clearTimeout(retryTimeout);
     };
-  }, [submissionId]);
+  }, [submissionId, toast, submissionsQuery]);
 
-  const submitMutation = api.problems.submit.useMutation({
+  const createSubmissionMutation = api.problems.createSubmission.useMutation({
     onSuccess: (data) => {
       setSubmissionId(data.id);
+      // Start the actual submission process
+      submitMutation.mutate({ submissionId: data.id });
     },
     onError: (error) => {
       setIsSubmitting(false);
       setSubmissionStatus(null);
+      toast({
+        title: "Failed to create submission",
+        description: error.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+  });
+
+  const submitMutation = api.problems.submit.useMutation({
+    onError: (error) => {
+      setIsSubmitting(false);
+      setSubmissionStatus(null);
+      setSubmissionId(null); // Clear the submissionId on error
       toast({
         title: "Submission failed",
         description: error.message,
@@ -440,7 +505,8 @@ export default function ProblemPage() {
                   </Box>
 
                   {submissionStatus.passedTests !== null &&
-                    submissionStatus.status !== "WRONG_ANSWER" && (
+                    submissionStatus.status !== "WRONG_ANSWER" && 
+                    submissionStatus.status !== "BENCHMARKING" && (
                       <Box
                         bg="whiteAlpha.50"
                         borderRadius="xl"
