@@ -105,6 +105,8 @@ export default function ProblemPage() {
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [hasSetInitialCode, setHasSetInitialCode] = useState(false);
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] = useState(false);
+  const [splitRatio, setSplitRatio] = useState(35); // Initial left panel width percentage
+  const [isDragging, setIsDragging] = useState(false);
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
     { problemSlug: slug as string, limit: 10 },
@@ -222,6 +224,45 @@ export default function ProblemPage() {
     },
   });
 
+  // Add drag handling functions
+  const handleMouseDown = () => {
+    setIsDragging(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+
+    const container = document.getElementById("split-container");
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const newRatio =
+      ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+    // Adjust max ratio to 55% to ensure submit button stays visible
+    const clampedRatio = Math.min(Math.max(newRatio, 35), 55);
+    setSplitRatio(clampedRatio);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    document.body.style.cursor = "default";
+    document.body.style.userSelect = "auto";
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
   if (isLoading) {
     return (
       <Layout title="Loading...">
@@ -249,9 +290,16 @@ export default function ProblemPage() {
 
   return (
     <Layout title={problem.title}>
-      <HStack align="start" spacing={8} h="100%" maxH="calc(100vh - 120px)">
+      <HStack
+        id="split-container"
+        align="start"
+        spacing={0}
+        h="100%"
+        maxH="calc(100vh - 120px)"
+        position="relative"
+      >
         {/* Left Panel - Problem Description or Submission Results */}
-        <Box w="35%" h="100%" overflowY="auto">
+        <Box w={`${splitRatio}%`} h="100%" overflowY="auto" pr={4}>
           {submissionStatus ? (
             <VStack spacing={4} align="stretch" p={6}>
               <HStack justify="space-between">
@@ -782,151 +830,181 @@ export default function ProblemPage() {
           )}
         </Box>
 
-        {/* Right Panel - Code Editor and Submit Button */}
-        <VStack w="65%" h="100%" spacing={4}>
-          <HStack w="100%" justify="space-between" spacing={4}>
-            <HStack spacing={2}>
-              <Box>
-                <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
-                  GPU Type
-                </Text>
-                <Select
-                  size="sm"
-                  bg="whiteAlpha.50"
-                  borderColor="whiteAlpha.200"
-                  _hover={{ borderColor: "whiteAlpha.300" }}
-                  w="160px"
-                  defaultValue="t4"
-                  borderRadius="full"
-                  sx={{
-                    "& > option": {
-                      bg: "gray.800",
-                    },
-                  }}
-                >
-                  <option value="a100">NVIDIA A100</option>
-                  <option value="v100">NVIDIA V100</option>
-                  <option value="t4">NVIDIA T4</option>
-                </Select>
-              </Box>
-              <Box>
-                <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
-                  Language
-                </Text>
-                <Select
-                  size="sm"
-                  bg="whiteAlpha.50"
-                  borderColor="whiteAlpha.200"
-                  _hover={{ borderColor: "whiteAlpha.300" }}
-                  w="160px"
-                  defaultValue="cuda"
-                  borderRadius="full"
-                  sx={{
-                    "& > option": {
-                      bg: "gray.800",
-                    },
-                  }}
-                >
-                  <option value="cuda">CUDA C++</option>
-                  <option value="python">Python (Triton)</option>
-                </Select>
-              </Box>
-              <Box>
-                <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
-                  Data Type
-                </Text>
-                <Select
-                  size="sm"
-                  bg="whiteAlpha.50"
-                  borderColor="whiteAlpha.200"
-                  _hover={{ borderColor: "whiteAlpha.300" }}
-                  w="140px"
-                  defaultValue="float32"
-                  borderRadius="full"
-                  sx={{
-                    "& > option": {
-                      bg: "gray.800",
-                    },
-                  }}
-                >
-                  <option value="float32">float32</option>
-                  <option value="float16">float16</option>
-                  <option value="int32">int32</option>
-                  <option value="int16">int16</option>
-                </Select>
-              </Box>
-            </HStack>
-
-            <HStack spacing={2}>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  window.location.href = "/problems";
-                }}
-                leftIcon={<Icon as={FiArrowLeft} />}
-                borderRadius="full"
-                color="gray.300"
-                _hover={{
-                  bg: "whiteAlpha.50",
-                  color: "white",
-                }}
-              >
-                Back to Problems
-              </Button>
-              <Button
-                bg="rgba(34, 197, 94, 0.1)"
-                color="rgb(34, 197, 94)"
-                size="md"
-                onClick={handleSubmit}
-                isLoading={isSubmitting}
-                loadingText="Submit"
-                spinner={<></>}
-                disabled={isSubmitting}
-                borderRadius="full"
-                height="40px"
-                fontSize="sm"
-                fontWeight="semibold"
-                px={8}
-                _hover={{
-                  bg: "rgba(34, 197, 94, 0.2)",
-                  transform: "translateY(-1px)",
-                }}
-                _active={{
-                  bg: "rgba(34, 197, 94, 0.25)",
-                }}
-                transition="all 0.2s"
-              >
-                Submit
-              </Button>
-            </HStack>
-          </HStack>
-
+        {/* Resizer Handle */}
+        <Box
+          position="absolute"
+          left={`${splitRatio}%`}
+          transform="translateX(-50%)"
+          width="4px"
+          height="100%"
+          cursor="col-resize"
+          zIndex={2}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={handleMouseDown}
+        >
           <Box
-            w="100%"
-            h="100%"
-            bg="gray.800"
-            borderRadius="xl"
-            overflow="hidden"
-          >
-            <Editor
-              height="100%"
-              defaultLanguage="cpp"
-              theme="vs-dark"
-              value={code}
-              onChange={(value) => setCode(value ?? "")}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                lineNumbers: "on",
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                padding: { top: 16, bottom: 16 },
-                fontFamily: "JetBrains Mono, monospace",
-              }}
-            />
-          </Box>
-        </VStack>
+            position="absolute"
+            left="50%"
+            top="50%"
+            transform="translate(-50%, -50%)"
+            width="4px"
+            height="32px"
+            bg="whiteAlpha.200"
+            borderRadius="full"
+            _hover={{ bg: "whiteAlpha.300" }}
+          />
+        </Box>
+
+        {/* Right Panel - Code Editor and Submit Button */}
+        <Box w={`${100 - splitRatio}%`} h="100%" pl={4}>
+          <VStack w="100%" h="100%" spacing={4}>
+            <HStack w="100%" justify="space-between" spacing={4}>
+              <HStack spacing={2}>
+                <Box>
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                    GPU Type
+                  </Text>
+                  <Select
+                    size="sm"
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                    _hover={{ borderColor: "whiteAlpha.300" }}
+                    w="160px"
+                    defaultValue="t4"
+                    borderRadius="full"
+                    sx={{
+                      "& > option": {
+                        bg: "gray.800",
+                      },
+                    }}
+                  >
+                    <option value="a100">NVIDIA A100</option>
+                    <option value="v100">NVIDIA V100</option>
+                    <option value="t4">NVIDIA T4</option>
+                  </Select>
+                </Box>
+                <Box>
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                    Language
+                  </Text>
+                  <Select
+                    size="sm"
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                    _hover={{ borderColor: "whiteAlpha.300" }}
+                    w="160px"
+                    defaultValue="cuda"
+                    borderRadius="full"
+                    sx={{
+                      "& > option": {
+                        bg: "gray.800",
+                      },
+                    }}
+                  >
+                    <option value="cuda">CUDA C++</option>
+                    <option value="python">Python (Triton)</option>
+                  </Select>
+                </Box>
+                <Box>
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                    Data Type
+                  </Text>
+                  <Select
+                    size="sm"
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                    _hover={{ borderColor: "whiteAlpha.300" }}
+                    w="140px"
+                    defaultValue="float32"
+                    borderRadius="full"
+                    sx={{
+                      "& > option": {
+                        bg: "gray.800",
+                      },
+                    }}
+                  >
+                    <option value="float32">float32</option>
+                    <option value="float16">float16</option>
+                    <option value="int32">int32</option>
+                    <option value="int16">int16</option>
+                  </Select>
+                </Box>
+              </HStack>
+
+              <HStack spacing={2}>
+                {/* Hide "Back to Problems" button when split ratio exceeds 45% */}
+                {splitRatio < 45 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      window.location.href = "/problems";
+                    }}
+                    leftIcon={<Icon as={FiArrowLeft} />}
+                    borderRadius="full"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white",
+                    }}
+                  >
+                    Back to Problems
+                  </Button>
+                )}
+                <Button
+                  bg="rgba(34, 197, 94, 0.1)"
+                  color="rgb(34, 197, 94)"
+                  size="md"
+                  onClick={handleSubmit}
+                  isLoading={isSubmitting}
+                  loadingText="Submit"
+                  spinner={<></>}
+                  disabled={isSubmitting}
+                  borderRadius="full"
+                  height="40px"
+                  fontSize="sm"
+                  fontWeight="semibold"
+                  px={8}
+                  _hover={{
+                    bg: "rgba(34, 197, 94, 0.2)",
+                    transform: "translateY(-1px)",
+                  }}
+                  _active={{
+                    bg: "rgba(34, 197, 94, 0.25)",
+                  }}
+                  transition="all 0.2s"
+                >
+                  Submit
+                </Button>
+              </HStack>
+            </HStack>
+
+            <Box
+              w="100%"
+              h="100%"
+              bg="gray.800"
+              borderRadius="xl"
+              overflow="hidden"
+            >
+              <Editor
+                height="100%"
+                defaultLanguage="cpp"
+                theme="vs-dark"
+                value={code}
+                onChange={(value) => setCode(value ?? "")}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  lineNumbers: "on",
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  padding: { top: 16, bottom: 16 },
+                  fontFamily: "JetBrains Mono, monospace",
+                }}
+              />
+            </Box>
+          </VStack>
+        </Box>
       </HStack>
     </Layout>
   );
