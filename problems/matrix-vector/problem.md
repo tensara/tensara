@@ -6,7 +6,6 @@ author: "sarthak"
 tags: ["cuda-basics", "parallel-computing"]
 ---
 
-## Problem Statement
 Implement a CUDA kernel to perform multiplication of a matrix and a vector:
 $C_i = \sum_{k=0}^{K-1} A_{i,k} \cdot B_k$
 

@@ -1,12 +1,11 @@
 ---
 slug: "vector-addition"
 title: "Vector Addition"
-difficulty: "MEDIUM"
+difficulty: "EASY"
 author: "someshkar"
 tags: ["cuda-basics", "parallel-computing"]
 ---
 
-## Problem Statement
 Implement a CUDA kernel to perform element-wise addition of two vectors:
 $c_i = a_i + b_i$
 

@@ -6,7 +6,6 @@ author: "sarthak"
 tags: ["cuda-basics", "parallel-computing", "neural-networks"]
 ---
 
-## Problem Statement
 Implement a CUDA kernel to perform the ReLU (Rectified Linear Unit) activation function on an input matrix:
 $C_{i,j} = \max(0, A_{i,j})$
 

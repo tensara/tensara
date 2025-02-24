@@ -6,7 +6,6 @@ author: "sarthak"
 tags: ["cuda-basics", "parallel-computing"]
 ---
 
-## Problem Statement
 Implement a CUDA kernel to perform multiplication of a matrix and a scalar:
 $C_{i,j} = A_{i,j} \cdot s$ where $s$ is the scalar value
 
