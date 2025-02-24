@@ -12,12 +12,12 @@ interface LayoutProps {
 export function Layout({
   title = "Tensara",
   children,
-  ogDescription = "Competitive programming platform for GPU kernel developers",
+  ogDescription = "The competitive platform for CUDA and GPU programming challenges",
 }: LayoutProps) {
   return (
     <>
       <Head>
-        <title>{title}</title>
+        <title>{title ? `${title} | Tensara` : "Tensara"}</title>
         <meta name="description" content={ogDescription} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
