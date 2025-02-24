@@ -14,3 +14,92 @@ a {
 * {
   box-sizing: border-box;
 }
+
+/* Markdown Styles */
+.markdown {
+  line-height: 1.6;
+}
+
+.markdown p {
+  margin-bottom: 1rem;
+}
+
+.markdown a {
+  color: #63B3ED;
+  text-decoration: none;
+}
+
+.markdown a:hover {
+  text-decoration: underline;
+}
+
+.markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.markdown blockquote {
+  border-left: 4px solid #4A5568;
+  margin: 1rem 0;
+  padding-left: 1rem;
+  color: #A0AEC0;
+}
+
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.markdown table th,
+.markdown table td {
+  border: 1px solid #4A5568;
+  padding: 0.5rem;
+}
+
+.markdown table th {
+  background-color: #2D3748;
+}
+
+.markdown code:not(pre code) {
+  background-color: rgba(45, 55, 72, 0.5);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.markdown pre {
+  background-color: #1A202C;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.markdown pre code {
+  color: #E2E8F0;
+  font-size: 0.875em;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+.markdown li {
+  margin: 0.5rem 0;
+}
+
+/* KaTeX Math Styles */
+.katex {
+  font-size: 1.1em;
+}
+
+.katex-display {
+  margin: 1rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}

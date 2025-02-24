@@ -24,7 +24,7 @@ const safeReadFile = (path: string): string | null => {
 
 async function main() {
   const problemsDir = getProblemsDir();
-  const problemSlugs = readdirSync(problemsDir);
+  const problemSlugs = readdirSync(problemsDir).filter(slug => slug !== '.DS_Store');
 
   for (const slug of problemSlugs) {
     const problemPath = getProblemPath(slug);

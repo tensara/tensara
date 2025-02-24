@@ -5,6 +5,8 @@ import { Providers } from "~/components/layout/providers";
 import { api } from "~/utils/api";
 
 import "~/styles/globals.css";
+import "katex/dist/katex.min.css";
+import "highlight.js/styles/github-dark.css";
 
 const MyApp: AppType<{ session: Session | null }> = ({
   Component,

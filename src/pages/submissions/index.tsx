@@ -238,7 +238,7 @@ const SubmissionsPage: NextPage = () => {
                     </HStack>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    <ChakraLink as={Link} href={`/submission/${submission.id}`}>
+                    <ChakraLink as={Link} href={`/submissions/${submission.id}`}>
                       <Badge colorScheme={getStatusColor(submission.status)}>
                         {formatStatus(submission.status)}
                       </Badge>

@@ -45,7 +45,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import Editor from "@monaco-editor/react";
 import { CheckIcon, TimeIcon, WarningIcon, ChevronDownIcon, ChevronUpIcon } from "@chakra-ui/icons";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiTrendingUp } from "react-icons/fi";
 import { Icon } from "@chakra-ui/react";
 
 type BenchmarkTestResult = {
@@ -517,47 +517,65 @@ export default function ProblemPage() {
               )}
             </VStack>
           ) : (
-            <Box p={6}>
-              <HStack justify="space-between" align="center" mb={2}>
+            <Box>
+              <VStack align="stretch" spacing={4} mb={6}>
                 <Heading size="lg">
                   {problem.title}
                 </Heading>
-                <HStack>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSubmissionStatus({ status: "SUBMISSIONS", runtime: null, gflops: null, passedTests: null, totalTests: null, message: null })}
-                    leftIcon={<TimeIcon />}
-                    borderRadius="full"
-                    color="gray.300"
-                    _hover={{
-                      bg: "whiteAlpha.50",
-                      color: "white"
-                    }}
-                  >
-                    My Submissions
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      window.location.href = "/problems";
-                    }}
-                    leftIcon={<Icon as={FiArrowLeft} />}
-                    borderRadius="full"
-                    color="gray.300"
-                    _hover={{
-                      bg: "whiteAlpha.50",
-                      color: "white"
-                    }}
-                  >
-                    Back to Problems
-                  </Button>
+                <HStack spacing={2}>
+                  <Text color="gray.400">
+                    Difficulty: {problem.difficulty}
+                  </Text>
+                  <HStack spacing={2} ml="auto">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        window.location.href = `/leaderboard/${problem.slug}`;
+                      }}
+                      leftIcon={<Icon as={FiTrendingUp} />}
+                      borderRadius="full"
+                      color="gray.300"
+                      _hover={{
+                        bg: "whiteAlpha.50",
+                        color: "white"
+                      }}
+                    >
+                      Leaderboard
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSubmissionStatus({ status: "SUBMISSIONS", runtime: null, gflops: null, passedTests: null, totalTests: null, message: null })}
+                      leftIcon={<TimeIcon />}
+                      borderRadius="full"
+                      color="gray.300"
+                      _hover={{
+                        bg: "whiteAlpha.50",
+                        color: "white"
+                      }}
+                    >
+                      My Submissions
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        window.location.href = "/problems";
+                      }}
+                      leftIcon={<Icon as={FiArrowLeft} />}
+                      borderRadius="full"
+                      color="gray.300"
+                      _hover={{
+                        bg: "whiteAlpha.50",
+                        color: "white"
+                      }}
+                    >
+                      Back to Problems
+                    </Button>
+                  </HStack>
                 </HStack>
-              </HStack>
-              <Text color="gray.400" mb={6}>
-                Difficulty: {problem.difficulty}
-              </Text>
+              </VStack>
 
               <Box className="markdown" color="gray.100">
                 <ReactMarkdown
