@@ -1,11 +1,11 @@
-import { 
-  Box, 
-  Table, 
-  Thead, 
-  Tbody, 
-  Tr, 
-  Th, 
-  Td, 
+import {
+  Box,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
   Text,
   Input,
   Select,
@@ -14,12 +14,25 @@ import {
   Flex,
   Badge,
   InputGroup,
-  InputLeftElement
+  InputLeftElement,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useState } from "react";
 import { SearchIcon } from "@chakra-ui/icons";
+
+export const getDifficultyColor = (difficulty: string) => {
+  switch (difficulty.toLowerCase()) {
+    case "easy":
+      return "green";
+    case "medium":
+      return "yellow";
+    case "hard":
+      return "red";
+    default:
+      return "gray";
+  }
+};
 
 export default function ProblemsPage() {
   const { data: problems, isLoading } = api.problems.getAll.useQuery();
@@ -27,19 +40,13 @@ export default function ProblemsPage() {
   const [difficultyFilter, setDifficultyFilter] = useState("all");
 
   const filteredProblems = problems?.filter((problem) => {
-    const matchesSearch = problem.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDifficulty = difficultyFilter === "all" || problem.difficulty === difficultyFilter;
+    const matchesSearch = problem.title
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesDifficulty =
+      difficultyFilter === "all" || problem.difficulty === difficultyFilter;
     return matchesSearch && matchesDifficulty;
   });
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
-      case "easy": return "green";
-      case "medium": return "yellow";
-      case "hard": return "red";
-      default: return "gray";
-    }
-  };
 
   if (isLoading) {
     return (
@@ -91,9 +98,9 @@ export default function ProblemsPage() {
           Showing {filteredProblems?.length} of {problems?.length} problems
         </Text>
 
-        <Box 
-          overflowX="auto" 
-          borderRadius="xl" 
+        <Box
+          overflowX="auto"
+          borderRadius="xl"
           bg="whiteAlpha.50"
           border="1px solid"
           borderColor="gray.700"
@@ -101,13 +108,32 @@ export default function ProblemsPage() {
           <Table variant="simple">
             <Thead bg="gray.800">
               <Tr>
-                <Th color="gray.300" fontSize="md" py={4} borderBottom="1px solid" borderColor="gray.700">
+                <Th
+                  color="gray.300"
+                  fontSize="md"
+                  py={4}
+                  borderBottom="1px solid"
+                  borderColor="gray.700"
+                >
                   Title
                 </Th>
-                <Th color="gray.300" fontSize="md" width="150px" borderBottom="1px solid" borderColor="gray.700">
+                <Th
+                  color="gray.300"
+                  fontSize="md"
+                  width="150px"
+                  borderBottom="1px solid"
+                  borderColor="gray.700"
+                >
                   Difficulty
                 </Th>
-                <Th color="gray.300" fontSize="md" width="200px" display={{ base: "none", md: "table-cell" }} borderBottom="1px solid" borderColor="gray.700">
+                <Th
+                  color="gray.300"
+                  fontSize="md"
+                  width="200px"
+                  display={{ base: "none", md: "table-cell" }}
+                  borderBottom="1px solid"
+                  borderColor="gray.700"
+                >
                   Author
                 </Th>
               </Tr>
@@ -119,7 +145,9 @@ export default function ProblemsPage() {
                   _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
                   transition="all 0.2s"
                   cursor="pointer"
-                  onClick={() => (window.location.href = `/problems/${problem.slug}`)}
+                  onClick={() =>
+                    (window.location.href = `/problems/${problem.slug}`)
+                  }
                   borderBottom="1px solid"
                   borderColor="gray.800"
                 >
@@ -136,7 +164,11 @@ export default function ProblemsPage() {
                       {problem.difficulty}
                     </Badge>
                   </Td>
-                  <Td color="gray.400" display={{ base: "none", md: "table-cell" }} borderBottom="none">
+                  <Td
+                    color="gray.400"
+                    display={{ base: "none", md: "table-cell" }}
+                    borderBottom="none"
+                  >
                     {problem.author}
                   </Td>
                 </Tr>

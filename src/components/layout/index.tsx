@@ -12,7 +12,7 @@ interface LayoutProps {
 export function Layout({
   title = "Tensara",
   children,
-  ogDescription = "Competitive programming platform",
+  ogDescription = "Competitive programming platform for GPU kernel developers",
 }: LayoutProps) {
   return (
     <>
@@ -26,11 +26,11 @@ export function Layout({
         <Box px={4} py={4}>
           <Header />
         </Box>
-        
+
         <Box flex="1" px={4} pb={4} overflow="hidden">
-          <Box 
-            bg="brand.secondary" 
-            borderRadius="xl" 
+          <Box
+            bg="brand.secondary"
+            borderRadius="xl"
             h="100%"
             p={6}
             overflow="auto"

@@ -1,12 +1,4 @@
-import {
-  Box,
-  Flex,
-  HStack,
-  Text,
-  Image,
-  Button,
-  Icon,
-} from "@chakra-ui/react";
+import { Box, Flex, HStack, Text, Image, Button, Icon } from "@chakra-ui/react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -24,7 +16,10 @@ export function Header() {
 
   const isActivePath = (path: string) => {
     if (path === "/problems") {
-      return router.pathname === "/problems" || router.pathname.startsWith("/problems/");
+      return (
+        router.pathname === "/problems" ||
+        router.pathname.startsWith("/problems/")
+      );
     }
     return router.pathname === path;
   };
@@ -42,12 +37,18 @@ export function Header() {
       <Flex h="full" alignItems="center" justifyContent="space-between">
         <HStack spacing={8}>
           <Link href="/" passHref legacyBehavior>
-            <Text as="a" fontSize="xl" fontWeight="bold" color="white" _hover={{ textDecoration: "none" }}>
+            <Text
+              as="a"
+              fontSize="xl"
+              fontWeight="bold"
+              color="white"
+              _hover={{ textDecoration: "none" }}
+            >
               tensara
             </Text>
           </Link>
 
-          <HStack spacing={1}>
+          <HStack spacing={3}>
             {navItems.map((item) => (
               <Link key={item.href} href={item.href} passHref legacyBehavior>
                 <Button
@@ -56,7 +57,9 @@ export function Header() {
                   px={4}
                   py={2}
                   color="white"
-                  bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
+                  bg={
+                    isActivePath(item.href) ? "whiteAlpha.200" : "transparent"
+                  }
                   _hover={{
                     textDecoration: "none",
                     bg: "whiteAlpha.100",

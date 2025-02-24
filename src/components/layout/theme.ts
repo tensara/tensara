@@ -14,7 +14,7 @@ export const system = extendTheme({
       primary: "#10B981",
       secondary: "#1E293B",
       dark: "#0F172A",
-      navbar: "#065F46",
+      navbar: "#0e8144",
     },
     gray: {
       700: "#334155",
