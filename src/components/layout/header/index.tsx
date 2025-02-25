@@ -118,19 +118,26 @@ export function Header() {
   );
 
   return (
-    <Box bg="brand.navbar" h="full" borderRadius="xl" px={6} py={2}>
+    <Box bg="brand.navbar" h="full" borderRadius="xl" px={4} py={2}>
       <Flex h="full" alignItems="center" justifyContent="space-between">
-        <HStack spacing={8}>
+        <HStack>
           <Link href="/" passHref legacyBehavior>
-            <Text
-              as="a"
-              fontSize="lg"
-              fontWeight="bold"
-              color="white"
-              _hover={{ textDecoration: "none" }}
-            >
-              tensara
-            </Text>
+            <HStack as="a">
+              <Image
+                src="/tensara_logo_notext.png"
+                alt="Tensara Logo"
+                w={9}
+                h={9}
+              />
+              <Text
+                fontSize="lg"
+                fontWeight="bold"
+                color="white"
+                _hover={{ textDecoration: "none" }}
+              >
+                tensara
+              </Text>
+            </HStack>
           </Link>
 
           {/* Desktop Navigation */}
