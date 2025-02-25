@@ -7,12 +7,14 @@ interface LayoutProps {
   title?: string;
   children: ReactNode;
   ogDescription?: string;
+  ogImage?: string;
 }
 
 export function Layout({
   title,
   children,
   ogDescription = "The competitive platform for CUDA and GPU programming challenges",
+  ogImage = "/tensara_ogimage.png",
 }: LayoutProps) {
   return (
     <>
@@ -20,6 +22,7 @@ export function Layout({
         <title>{title ? `${title} | Tensara` : "Tensara"}</title>
         <meta name="description" content={ogDescription} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {ogImage && <meta property="og:image" content={ogImage} />}
       </Head>
 
       <Box h="100vh" bg="gray.900" display="flex" flexDirection="column">
@@ -27,7 +30,12 @@ export function Layout({
           <Header />
         </Box>
 
-        <Box flex="1" px={{ base: 2, md: 4 }} pb={{ base: 2, md: 4 }} overflow="hidden">
+        <Box
+          flex="1"
+          px={{ base: 2, md: 4 }}
+          pb={{ base: 2, md: 4 }}
+          overflow="hidden"
+        >
           <Box
             bg="brand.secondary"
             borderRadius="xl"
