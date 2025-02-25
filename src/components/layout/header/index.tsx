@@ -2,7 +2,7 @@ import { Box, Flex, HStack, Text, Image, Button, Icon, IconButton, useDisclosure
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FiCode, FiList, FiBookOpen, FiLogOut, FiGithub, FiMenu } from "react-icons/fi";
+import { FiCode, FiList, FiBookOpen, FiLogOut, FiGithub, FiMenu, FiAward } from "react-icons/fi";
 import { useState, useEffect } from "react";
 
 export function Header() {
@@ -25,6 +25,7 @@ export function Header() {
   const navItems = [
     { label: "Problems", href: "/problems", icon: FiCode },
     { label: "Submissions", href: "/submissions", icon: FiList },
+    { label: "Leaderboards", href: "/leaderboard", icon: FiAward },
     { label: "Blog", href: "/blog", icon: FiBookOpen },
   ];
 
@@ -142,7 +143,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           {!isMobile && (
-            <HStack spacing={2}>
+            <HStack ml={2} spacing={3}>
               <NavLinks />
             </HStack>
           )}

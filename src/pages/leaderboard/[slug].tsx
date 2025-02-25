@@ -17,7 +17,7 @@ import {
   Select,
   HStack,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
@@ -45,13 +45,38 @@ const GPU_DISPLAY_NAMES: Record<string, string> = {
   "H100": "NVIDIA H100",
   "A100": "NVIDIA A100",
   "A10G": "NVIDIA A10G",
-  "L4": "NVIDIA L4"
+  "L4": "NVIDIA L4",
+  "all": "All GPUs"
 };
 
 const LeaderboardPage: NextPage = () => {
   const router = useRouter();
-  const { slug } = router.query;
+  const { slug, gpu } = router.query;
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
+
+  // Update selectedGpu when URL parameter changes
+  useEffect(() => {
+    if (router.isReady && gpu) {
+      setSelectedGpu(gpu as string);
+    }
+  }, [router.isReady, gpu]);
+
+  // Update URL when selectedGpu changes (but not on initial mount)
+  useEffect(() => {
+    if (router.isReady && selectedGpu !== "all") {
+      void router.push(
+        {
+          pathname: router.pathname,
+          query: {
+            ...router.query,
+            gpu: selectedGpu,
+          },
+        },
+        undefined,
+        { shallow: true }
+      );
+    }
+  }, [selectedGpu, router.isReady]);
 
   const { data: problem, isLoading: isProblemLoading } = api.problems.getById.useQuery(
     { slug: slug as string },
@@ -118,7 +143,7 @@ const LeaderboardPage: NextPage = () => {
   }
 
   return (
-    <Layout title={`Leaderboard - ${problem.title}`}>
+    <Layout title={`Leaderboard: ${problem.title} on ${GPU_DISPLAY_NAMES[selectedGpu]}`}>
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
           <Heading size="lg">Leaderboard</Heading>
