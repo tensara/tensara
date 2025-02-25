@@ -191,10 +191,6 @@ export const problemsRouter = createTRPCRouter({
       });
 
       try {
-        console.log("problem bindings", submission.problem.tests);
-        console.log("problem reference", submission.problem.reference);
-        console.log("input code", submission.code);
-
         await ctx.db.submission.update({
           where: { id: submission.id },
           data: {
@@ -218,41 +214,78 @@ export const problemsRouter = createTRPCRouter({
         );
 
         if (!checkerResponse.ok) {
-          const errorStatus: number = checkerResponse.status;
-          const errorText: string = await checkerResponse.text();
-          throw new Error(`Checker API returned ${errorStatus}: ${errorText}`);
+          throw new Error(`Checker API returned ${checkerResponse.status}`);
         }
 
-        const rawCheckerResult: unknown = await checkerResponse.json();
-        const checkerResult = CheckerResultSchema.safeParse(rawCheckerResult);
+        // Handle streaming response from checker
+        const reader = checkerResponse.body?.getReader();
+        if (!reader) throw new Error("No response body from checker");
 
-        if (!checkerResult.success) {
-          throw new Error(
-            `Invalid checker response: ${checkerResult.error.message}`
-          );
+        let passedTests = 0;
+        let totalTests = 0;
+        let finalResult = null;
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const text = new TextDecoder().decode(value);
+            const lines = text.trim().split('\n');
+            
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              
+              // Extract the JSON part after "data: " and parse it
+              const match = line.match(/^data: (.+)$/);
+              if (!match?.[1]) continue;
+              
+              try {
+                const response = JSON.parse(match[1].trim());
+
+                if (response.status === "test_result" && response.result?.status === "PASSED") {
+                  passedTests++;
+                  totalTests++;
+                  await ctx.db.submission.update({
+                    where: { id: submission.id },
+                    data: { passedTests, totalTests }
+                  });
+                } else if (response.status === "test_result") {
+                  totalTests++;
+                  await ctx.db.submission.update({
+                    where: { id: submission.id },
+                    data: { passedTests, totalTests }
+                  });
+                } else if (response.status === "complete") {
+                  finalResult = response;
+                } else if (response.status === "error") {
+                  throw new Error(response.error);
+                }
+              } catch (e) {
+                console.error("Failed to parse SSE data:", e);
+                continue;
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
         }
 
-        console.log("CHECKER RESULT");
-        console.log(checkerResult.data);
-
-        if (!checkerResult.data.passed) {
+        if (!finalResult?.passed) {
           const updateData: SubmissionUpdateData = {
             status: SubmissionStatus.WRONG_ANSWER,
-            passedTests: checkerResult.data.passed_tests ?? 0,
-            totalTests: checkerResult.data.total_tests ?? 0,
-            errorMessage:
-              checkerResult.data.error ?? "Solution produced incorrect results",
-            errorDetails:
-              checkerResult.data.details ??
-              JSON.stringify(checkerResult.data.test_results ?? []),
+            passedTests,
+            totalTests,
+            errorMessage: finalResult?.error ?? "Solution produced incorrect results",
+            errorDetails: finalResult?.details ?? "",
           };
 
-          const wrongAnswerSubmission = (await ctx.db.submission.update({
+          const wrongAnswerSubmission = await ctx.db.submission.update({
             where: { id: submission.id },
             data: updateData,
-          })) as SubmissionWithCustomFields;
+          });
 
-          const response: SubmissionErrorResponse = {
+          return {
             status: wrongAnswerSubmission.status as SubmissionStatus,
             id: wrongAnswerSubmission.id,
             passedTests: wrongAnswerSubmission.passedTests,
@@ -260,15 +293,14 @@ export const problemsRouter = createTRPCRouter({
             errorMessage: wrongAnswerSubmission.errorMessage ?? "Unknown error",
             errorDetails: wrongAnswerSubmission.errorDetails,
           };
-          return response;
         }
 
         await ctx.db.submission.update({
           where: { id: submission.id },
           data: {
             status: SubmissionStatus.BENCHMARKING,
-            passedTests: checkerResult.data.total_tests,
-            totalTests: checkerResult.data.total_tests,
+            passedTests,
+            totalTests,
           },
         });
 
@@ -290,24 +322,72 @@ export const problemsRouter = createTRPCRouter({
           throw new Error(`Benchmark API returned ${benchmarkResponse.status}`);
         }
 
-        const benchmarkResult =
-          (await benchmarkResponse.json()) as BenchmarkResponse;
-        console.log("BENCHMARK RESULT");
-        console.log(benchmarkResult);
+        // Handle streaming response from benchmark
+        const benchmarkReader = benchmarkResponse.body?.getReader();
+        if (!benchmarkReader) throw new Error("No response body from benchmark");
 
-        if ("error" in benchmarkResult) {
-          const errorSubmission = (await ctx.db.submission.update({
+        let benchmarkResults: BenchmarkTestResult[] = [];
+        let averageGflops = 0;
+        let benchmarkError: string | null = null;
+        let benchmarkErrorDetails: string | null = null;
+
+        try {
+          while (true) {
+            const { done, value } = await benchmarkReader.read();
+            if (done) break;
+
+            const text = new TextDecoder().decode(value);
+            const lines = text.trim().split('\n');
+            
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              
+              // Extract the JSON part after "data: " and parse it
+              const match = line.match(/^data: (.+)$/);
+              if (!match?.[1]) continue;
+              
+              try {
+                const response = JSON.parse(match[1].trim());
+
+                if (response.status === "test_result" && response.result) {
+                  benchmarkResults.push(response.result);
+                  await ctx.db.submission.update({
+                    where: { id: submission.id },
+                    data: {
+                      benchmarkResults: benchmarkResults
+                    }
+                  });
+                } else if (response.status === "success") {
+                  averageGflops = response.average_gflops;
+                  benchmarkResults = response.test_results;
+                } else if (response.status === "error") {
+                  benchmarkError = response.error;
+                  benchmarkErrorDetails = response.details || "";
+                  break;
+                }
+              } catch (e) {
+                console.error("Failed to parse benchmark SSE data:", e);
+                continue;
+              }
+            }
+          }
+        } finally {
+          benchmarkReader.releaseLock();
+        }
+        
+        if (benchmarkError) {
+          const errorSubmission = await ctx.db.submission.update({
             where: { id: submission.id },
             data: {
               status: SubmissionStatus.ERROR,
-              passedTests: checkerResult.data.total_tests ?? 0,
-              totalTests: checkerResult.data.total_tests ?? 0,
-              errorMessage: benchmarkResult.error,
-              errorDetails: benchmarkResult.details,
+              passedTests,
+              totalTests,
+              errorMessage: benchmarkError,
+              errorDetails: benchmarkErrorDetails || "",
             } satisfies SubmissionUpdateData,
-          })) as SubmissionWithCustomFields;
+          });
 
-          const response: SubmissionErrorResponse = {
+          return {
             status: errorSubmission.status as SubmissionStatus,
             id: errorSubmission.id,
             passedTests: errorSubmission.passedTests,
@@ -315,28 +395,26 @@ export const problemsRouter = createTRPCRouter({
             errorMessage: errorSubmission.errorMessage ?? "Unknown error",
             errorDetails: errorSubmission.errorDetails,
           };
-          return response;
         }
 
         // Update submission with successful results
-        const updatedSubmission = (await ctx.db.submission.update({
+        const updatedSubmission = await ctx.db.submission.update({
           where: { id: submission.id },
           data: {
             status: SubmissionStatus.ACCEPTED,
             runtime:
-              benchmarkResult.test_results.reduce(
-                (acc: number, test: BenchmarkTestResult) =>
-                  acc + test.runtime_ms,
+              benchmarkResults.reduce(
+                (acc, test) => acc + test.runtime_ms,
                 0
-              ) / benchmarkResult.test_results.length,
-            gflops: benchmarkResult.average_gflops,
-            passedTests: checkerResult.data.total_tests ?? 0,
-            totalTests: checkerResult.data.total_tests ?? 0,
-            benchmarkResults: benchmarkResult.test_results,
+              ) / benchmarkResults.length,
+            gflops: averageGflops,
+            passedTests,
+            totalTests,
+            benchmarkResults: benchmarkResults,
           } satisfies SuccessSubmissionUpdateData,
-        })) as SubmissionWithCustomFields;
+        });
 
-        const response: SubmissionSuccessResponse = {
+        return {
           status: updatedSubmission.status as SubmissionStatus,
           id: updatedSubmission.id,
           passedTests: updatedSubmission.passedTests,
@@ -345,10 +423,10 @@ export const problemsRouter = createTRPCRouter({
           gflops: updatedSubmission.gflops,
           benchmarkResults: updatedSubmission.benchmarkResults ?? [],
         };
-        return response;
+
       } catch (error) {
         // Update submission with error status
-        const failedSubmission = (await ctx.db.submission.update({
+        const failedSubmission = await ctx.db.submission.update({
           where: { id: submission.id },
           data: {
             status: SubmissionStatus.ERROR,
@@ -358,7 +436,7 @@ export const problemsRouter = createTRPCRouter({
               error instanceof Error ? error.message : "Unknown error occurred",
             errorDetails: error instanceof Error ? error.stack ?? "" : "",
           } satisfies SubmissionUpdateData,
-        })) as SubmissionWithCustomFields;
+        });
 
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",

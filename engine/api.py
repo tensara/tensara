@@ -2,6 +2,8 @@ import modal
 import tempfile
 import os
 from pathlib import Path
+from fastapi.responses import StreamingResponse
+import json
 
 stub_dir = Path(__file__).parent
 image = (
@@ -14,8 +16,6 @@ image = (
         "g++"
     ])
     .pip_install([
-        "fastapi",
-        "uvicorn", 
         "torch",
         "ninja"
     ])
@@ -33,130 +33,174 @@ app = modal.App("tensara", image=image)
 
 @app.function(gpu="T4")
 @modal.web_endpoint(method="POST")
-def benchmark(item: dict):
-    try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            solution_path = Path(tmpdir) / "solution.cu"
-            solution_path.write_text(item["solution_code"])
-            
-            tests_path = Path(tmpdir) / "tests.hpp"
-            tests_path.write_text(item["tests_code"])
-            
-            os.system("cp /root/benchmark.cu /root/core.hpp /root/Makefile " + tmpdir)            
+async def benchmark(item: dict):
+    async def generate_benchmark_results():
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
+                
+                solution_path = Path(tmpdir) / "solution.cu"
+                solution_path.write_text(item["solution_code"])
+                
+                tests_path = Path(tmpdir) / "tests.hpp"
+                tests_path.write_text(item["tests_code"])
+                
+                os.system("cp /root/benchmark.cu /root/core.hpp /root/Makefile " + tmpdir)            
 
-            os.chdir(tmpdir)
-            compile_result = os.system("make 2>&1")
-            if compile_result != 0:
-                return {"error": "Compilation failed", "details": os.popen("make 2>&1").read()}
-            
-            import subprocess
-            result = subprocess.run(["./benchmark"], capture_output=True, text=True)
-            
-            if result.stderr:
-                return {"error": "Runtime error", "details": result.stderr}
-            
-            try:
-                lines = result.stdout.strip().split('\n')
-                test_results = []
+                os.chdir(tmpdir)
+                compile_result = os.system("make 2>&1")
+                if compile_result != 0:
+                    yield "data: " + json.dumps({
+                        "status": "error",
+                        "error": "Compilation failed", 
+                        "details": os.popen("make 2>&1").read()
+                    }) + "\n\n"
+                    return
                 
-                for line in lines[:-1]:
-                    test_id, name, runtime_ms, gflops = line.split(',')
-                    test_results.append({
-                        "test_id": int(test_id),
-                        "name": name,
-                        "runtime_ms": float(runtime_ms),
-                        "gflops": float(gflops)
-                    })
+                yield "data: " + json.dumps({"status": "running"}) + "\n\n"
                 
-                avg_gflops = float(lines[-1])
+                import subprocess
+                result = subprocess.run(["./benchmark"], capture_output=True, text=True)
                 
-                return {
-                    "status": "success",
-                    "test_results": test_results,
-                    "average_gflops": avg_gflops
-                }
-            except Exception as e:
-                return {"error": "Failed to parse benchmark output", "details": str(e)}
-            
-    except Exception as e:
-        return {"error": str(e)}
+                if result.stderr:
+                    yield "data: " + json.dumps({
+                        "status": "error",
+                        "error": "Runtime error",
+                        "details": result.stderr
+                    }) + "\n\n"
+                    return
+                
+                try:
+                    lines = result.stdout.strip().split('\n')
+                    test_results = []
+                    
+                    for line in lines[:-1]:
+                        test_id, name, runtime_ms, gflops = line.split(',')
+                        test_result = {
+                            "test_id": int(test_id),
+                            "name": name,
+                            "runtime_ms": float(runtime_ms),
+                            "gflops": float(gflops)
+                        }
+                        test_results.append(test_result)
+                        yield "data: " + json.dumps({
+                            "status": "test_result",
+                            "result": test_result
+                        }) + "\n\n"
+                    
+                    avg_gflops = float(lines[-1])
+                    
+                    yield "data: " + json.dumps({
+                        "status": "success",
+                        "test_results": test_results,
+                        "average_gflops": avg_gflops
+                    }) + "\n\n"
+                    
+                except Exception as e:
+                    yield "data: " + json.dumps({
+                        "status": "error",
+                        "error": "Failed to parse benchmark output",
+                        "details": str(e)
+                    }) + "\n\n"
+                
+        except Exception as e:
+            yield "data: " + json.dumps({
+                "status": "error",
+                "error": str(e)
+            }) + "\n\n"
 
+    return StreamingResponse(generate_benchmark_results(), media_type="text/event-stream")
 
 @app.function(gpu="T4")
 @modal.web_endpoint(method="POST")
-def checker(item: dict):
-    try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir_path = Path(tmpdir)
-            
-            checker_dir = tmpdir_path / "checker"
-            checker_dir.mkdir()
-            os.system(f"cp /root/checker/core.hpp /root/checker/Makefile {str(checker_dir)}")
-            
-            solution_path = checker_dir / "solution.cu"
-            solution_path.write_text(item["solution_code"])
-            
-            tests_path = checker_dir / "tests.hpp"
-            tests_path.write_text(item["tests_code"])
-            
-            reference_path = checker_dir / "reference.cu"
-            reference_path.write_text(item["reference_code"])
-            
-            os.system(f"cp /root/checker.cu {str(checker_dir)}")
-            
-            os.chdir(checker_dir)
-            compile_result = os.system("make 2>&1")
-            if compile_result != 0:
-                return {
-                    "passed": False,
-                    "error": "Compilation failed",
-                    "details": os.popen("make 2>&1").read(),
-                    "test_results": [],
-                    "passed_tests": 0,
-                    "total_tests": 0
-                }
-            
-            import subprocess
-            result = subprocess.run(["./checker"], capture_output=True, text=True)
-            
-            if result.stderr:
-                return {
-                    "passed": False,
-                    "error": "Runtime error",
-                    "details": result.stderr,
-                    "test_results": [],
-                    "passed_tests": 0, 
-                    "total_tests": 0
-                }
-            
-            lines = result.stdout.strip().split('\n')
-            test_results = []
-            passed_tests = 0
-            
-            for line in lines[:-1]:
-                test_id, name, status = line.split(',')
-                test_results.append({
-                    "test_id": int(test_id),
-                    "name": name,
-                    "status": status.strip()
-                })
-                if status.strip() == "PASSED":
-                    passed_tests += 1
-            
-            overall_status = lines[-1].strip()
-            total_tests = len(test_results)
-            
-            return {
-                "passed": overall_status == "PASSED",
-                "test_results": test_results,
-                "passed_tests": passed_tests,
-                "total_tests": total_tests
-            }
-            
-    except Exception as e:
-        return {
-            "passed": False,
-            "error": str(e),
-            "test_results": []
-        }
+async def checker(item: dict):
+    async def generate_checker_results():
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
+                
+                tmpdir_path = Path(tmpdir)
+                
+                checker_dir = tmpdir_path / "checker"
+                checker_dir.mkdir()
+                os.system(f"cp /root/checker/core.hpp /root/checker/Makefile {str(checker_dir)}")
+                
+                solution_path = checker_dir / "solution.cu"
+                solution_path.write_text(item["solution_code"])
+                
+                tests_path = checker_dir / "tests.hpp"
+                tests_path.write_text(item["tests_code"])
+                
+                reference_path = checker_dir / "reference.cu"
+                reference_path.write_text(item["reference_code"])
+                
+                os.system(f"cp /root/checker.cu {str(checker_dir)}")
+                
+                os.chdir(checker_dir)
+                compile_result = os.system("make 2>&1")
+                if compile_result != 0:
+                    yield "data: " + json.dumps({
+                        "status": "error",
+                        "error": "Compilation failed",
+                        "details": os.popen("make 2>&1").read(),
+                        "test_results": [],
+                        "passed_tests": 0,
+                        "total_tests": 0
+                    }) + "\n\n"
+                    return
+                
+                yield "data: " + json.dumps({"status": "running"}) + "\n\n"
+                
+                import subprocess
+                result = subprocess.run(["./checker"], capture_output=True, text=True)
+                
+                if result.stderr:
+                    yield "data: " + json.dumps({
+                        "status": "error",
+                        "error": "Runtime error",
+                        "details": result.stderr,
+                        "test_results": [],
+                        "passed_tests": 0,
+                        "total_tests": 0
+                    }) + "\n\n"
+                    return
+                
+                lines = result.stdout.strip().split('\n')
+                test_results = []
+                passed_tests = 0
+                
+                for line in lines[:-1]:
+                    test_id, name, status = line.split(',')
+                    test_result = {
+                        "test_id": int(test_id),
+                        "name": name,
+                        "status": status.strip()
+                    }
+                    test_results.append(test_result)
+                    if status.strip() == "PASSED":
+                        passed_tests += 1
+                    yield "data: " + json.dumps({
+                        "status": "test_result",
+                        "result": test_result
+                    }) + "\n\n"
+                
+                overall_status = lines[-1].strip()
+                total_tests = len(test_results)
+                
+                yield "data: " + json.dumps({
+                    "status": "complete",
+                    "passed": overall_status == "PASSED",
+                    "test_results": test_results,
+                    "passed_tests": passed_tests,
+                    "total_tests": total_tests
+                }) + "\n\n"
+                
+        except Exception as e:
+            yield "data: " + json.dumps({
+                "status": "error",
+                "error": str(e),
+                "test_results": []
+            }) + "\n\n"
+
+    return StreamingResponse(generate_checker_results(), media_type="text/event-stream")
 

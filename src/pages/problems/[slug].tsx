@@ -105,6 +105,7 @@ export default function ProblemPage() {
   };
 
   const handleSubmit = () => {
+    setIsTestCaseTableOpen(false);
     setIsSubmitting(true);
     setSubmissionStatus({
       status: "CHECKING",
@@ -187,7 +188,9 @@ export default function ProblemPage() {
           }
           const data = JSON.parse(event.data) as SSESubmissionData;
           console.log("[sse] Parsed data:", data);
-
+          if (data.benchmarkResults) {
+            setIsTestCaseTableOpen(true);
+          }
           setSubmissionStatus(() => {
             return {
               status: data.status,
@@ -573,8 +576,7 @@ export default function ProblemPage() {
                   </Box>
 
                   {submissionStatus.passedTests !== null &&
-                    submissionStatus.status !== "WRONG_ANSWER" &&
-                    submissionStatus.status !== "BENCHMARKING" && (
+                    submissionStatus.status !== "WRONG_ANSWER" && (
                       <Box
                         bg="whiteAlpha.50"
                         borderRadius="xl"
@@ -627,7 +629,7 @@ export default function ProblemPage() {
                             <HStack spacing={1}>
                               <Text
                                 color={
-                                  submissionStatus.status === "ACCEPTED"
+                                  (submissionStatus.status === "ACCEPTED" || submissionStatus.status === "CHECKING" || submissionStatus.status === "BENCHMARKING")
                                     ? "green.300"
                                     : "red.300"
                                 }
@@ -658,9 +660,6 @@ export default function ProblemPage() {
                                     <Th color="whiteAlpha.700" py={3} isNumeric>
                                       Performance
                                     </Th>
-                                    <Th color="whiteAlpha.700" py={3}>
-                                      Status
-                                    </Th>
                                   </Tr>
                                 </Thead>
                                 <Tbody>
@@ -690,18 +689,11 @@ export default function ProblemPage() {
                                             {result.gflops.toFixed(2)} GFLOPS
                                           </Text>
                                         </Td>
-                                        <Td py={3}>
-                                          <Badge
-                                            colorScheme="green"
-                                            fontSize="xs"
-                                          >
-                                            Passed
-                                          </Badge>
-                                        </Td>
                                       </Tr>
                                     )
                                   )}
-                                  {submissionStatus.totalTests !== null &&
+                                  {submissionStatus.status != "BENCHMARKING" && 
+                                  submissionStatus.totalTests !== null &&
                                     submissionStatus.benchmarkResults &&
                                     submissionStatus.totalTests >
                                       submissionStatus.benchmarkResults

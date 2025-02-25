@@ -16,7 +16,7 @@ __global__ void reference_matrix_multiply(float* A, float* B, float* C, size_t N
 extern "C" void reference_solution(float* input_a, float* input_b, float* output_c, size_t n) {
     dim3 blockDim(16, 16);
     dim3 gridDim((n + blockDim.x - 1) / blockDim.x, 
-                 (m + blockDim.y - 1) / blockDim.y);
+                 (n + blockDim.y - 1) / blockDim.y);
 
     reference_matrix_multiply<<<gridDim, blockDim>>>(input_a, input_b, output_c, n);   
 }
