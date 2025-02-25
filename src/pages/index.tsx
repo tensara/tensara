@@ -13,6 +13,7 @@ import {
   Divider,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
 import { Layout } from "~/components/layout";
 import { FiCpu, FiAward, FiUsers, FiCode, FiGithub, FiTwitter, FiMail } from "react-icons/fi";
 import { useSession, signIn } from "next-auth/react";
@@ -26,6 +27,19 @@ const MotionHStack = motion(HStack);
 
 export default function HomePage() {
   const { data: session } = useSession();
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleStartSolving = () => {
     if (!session) {
@@ -37,11 +51,11 @@ export default function HomePage() {
 
   return (
     <Layout title="Home">
-      <Container maxW="8xl">
+      <Container maxW="8xl" px={{ base: 4, md: 8 }}>
         {/* Hero Section */}
         <MotionVStack
-          spacing={8}
-          py={16}
+          spacing={{ base: 6, md: 8 }}
+          py={{ base: 8, md: 16 }}
           textAlign="center"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -49,19 +63,21 @@ export default function HomePage() {
         >
           <Heading
             as="h1"
-            fontSize="5rem"
+            fontSize={{ base: "3rem", md: "4rem", lg: "5rem" }}
             fontWeight="semibold"
             letterSpacing="tight"
             fontFamily="Space Grotesk, sans-serif"
+            lineHeight={{ base: "1.2", md: "1.1" }}
           >
             Optimize, Benchmark, Repeat
           </Heading>
 
           <Text
-            fontSize="2xl"
+            fontSize={{ base: "xl", md: "2xl" }}
             color="whiteAlpha.900"
             maxW="3xl"
             lineHeight="tall"
+            px={{ base: 4, md: 0 }}
           >
             A platform for GPU programming challenges. Write efficient CUDA code and
             compare your solutions with other developers.
@@ -69,10 +85,10 @@ export default function HomePage() {
 
           <Button
             onClick={handleStartSolving}
-            size="lg"
-            height="16"
-            px="8"
-            fontSize="lg"
+            size={{ base: "md", md: "lg" }}
+            height={{ base: "14", md: "16" }}
+            px={{ base: "6", md: "8" }}
+            fontSize={{ base: "md", md: "lg" }}
             bg="#0e8144"
             color="white"
             leftIcon={<FiCode size={24} />}
@@ -90,32 +106,51 @@ export default function HomePage() {
           <MotionBox
             w="full"
             maxW="7xl"
-            mt={8}
+            mt={{ base: 6, md: 8 }}
             position="relative"
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <Box
-              as="video"
-              src="/demo.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
+            {/* Static Image for Mobile / Video Loading */}
+            <Image
+              src="/demo-poster.jpg"
+              alt="Demo preview"
               w="full"
               boxShadow="2xl"
               borderRadius="xl"
               objectFit="cover"
+              display={(isMobile || !videoLoaded) ? "block" : "none"}
             />
+            {/* Video only for desktop */}
+            {!isMobile && (
+              <Box
+                as="video"
+                src="/demo.mp4"
+                poster="/demo-poster.jpg"
+                preload="auto"
+                autoPlay
+                loop
+                muted
+                playsInline
+                w="full"
+                boxShadow="2xl"
+                borderRadius="xl"
+                objectFit="cover"
+                opacity={videoLoaded ? 1 : 0}
+                transition="opacity 0.3s ease-in-out"
+                onLoadedData={() => setVideoLoaded(true)}
+              />
+            )}
           </MotionBox>
         </MotionVStack>
 
         {/* Features Grid */}
         <MotionSimpleGrid
           columns={{ base: 1, md: 3 }}
-          spacing={10}
-          py={20}
+          spacing={{ base: 6, md: 10 }}
+          py={{ base: 12, md: 20 }}
+          px={{ base: 4, md: 0 }}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}

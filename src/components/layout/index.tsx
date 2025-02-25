@@ -23,16 +23,16 @@ export function Layout({
       </Head>
 
       <Box h="100vh" bg="gray.900" display="flex" flexDirection="column">
-        <Box px={4} py={4}>
+        <Box px={{ base: 2, md: 4 }} py={{ base: 2, md: 4 }}>
           <Header />
         </Box>
 
-        <Box flex="1" px={4} pb={4} overflow="hidden">
+        <Box flex="1" px={{ base: 2, md: 4 }} pb={{ base: 2, md: 4 }} overflow="hidden">
           <Box
             bg="brand.secondary"
             borderRadius="xl"
             h="100%"
-            p={6}
+            p={{ base: 4, md: 6 }}
             overflow="auto"
           >
             {children}
