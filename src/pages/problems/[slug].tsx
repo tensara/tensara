@@ -271,7 +271,7 @@ export default function ProblemPage() {
       eventSource.close();
       if (retryTimeout) clearTimeout(retryTimeout);
     };
-  }, [submissionId, toast, submissionsQuery, submissionStatus]);
+  }, [submissionId]);
 
   const createSubmissionMutation = api.problems.createSubmission.useMutation({
     onSuccess: (data) => {

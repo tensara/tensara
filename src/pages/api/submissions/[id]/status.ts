@@ -22,13 +22,20 @@ export default async function handler(
     return;
   }
 
-  // Set SSE headers
+
   res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); 
+
+
+  const sendSSE = (data: unknown) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+    // @ts-expect-error - flush exists on Node response objects
+    if (res.flush) res.flush();
+  };
 
   try {
-    // Initial check
     const initialSubmission = await db.submission.findUnique({
       where: { id: id as string },
       select: {
@@ -49,10 +56,9 @@ export default async function handler(
       return;
     }
 
-    // Send initial state
-    res.write(`data: ${JSON.stringify(initialSubmission)}\n\n`);
+    console.log("[status] initial submission", initialSubmission);
+    sendSSE(initialSubmission);
 
-    // Create interval to check submission status
     const interval = setInterval(() => {
       void (async () => {
         try {
@@ -76,9 +82,8 @@ export default async function handler(
             res.end();
             return;
           }
-
-          // Send update
-          res.write(`data: ${JSON.stringify(submission)}\n\n`);
+          
+          sendSSE(submission);
 
           // Check if we've reached a final status
           if (submission.status && isFinalStatus(submission.status)) {
