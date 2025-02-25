@@ -13,7 +13,7 @@ interface LayoutProps {
 export function Layout({
   title,
   children,
-  ogDescription = "The competitive platform for CUDA and GPU programming challenges",
+  ogDescription = "A platform for GPU programming challenges. Write efficient CUDA code and compare your solutions with other developers.",
   ogImage = "/tensara_ogimage.png",
 }: LayoutProps) {
   return (
