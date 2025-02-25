@@ -40,7 +40,12 @@ const LeaderboardPage: NextPage = () => {
   const router = useRouter();
   const { slug } = router.query;
 
-  const { data: submissions, isLoading } =
+  const { data: problem, isLoading: isProblemLoading } = api.problems.getById.useQuery(
+    { slug: slug as string },
+    { enabled: !!slug }
+  );
+
+  const { data: submissions, isLoading: isSubmissionsLoading } =
     api.submissions.getAllSubmissions.useQuery();
 
   // Filter submissions for the current problem
@@ -72,7 +77,7 @@ const LeaderboardPage: NextPage = () => {
 
   const leaderboardEntries = getBestSubmissions(problemSubmissions);
 
-  if (isLoading) {
+  if (isProblemLoading || isSubmissionsLoading) {
     return (
       <Layout title="Leaderboard">
         <Box
@@ -87,7 +92,7 @@ const LeaderboardPage: NextPage = () => {
     );
   }
 
-  if (!submissions?.[0]?.problem) {
+  if (!problem) {
     return (
       <Layout title="Leaderboard">
         <Box maxW="7xl" mx="auto" px={4} py={8}>
@@ -98,12 +103,24 @@ const LeaderboardPage: NextPage = () => {
   }
 
   return (
-    <Layout title={`Leaderboard - ${submissions[0]?.problem.title}`}>
+    <Layout title={`Leaderboard - ${problem.title}`}>
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
           <Heading size="lg">Leaderboard</Heading>
-          <Heading size="md">{submissions[0]?.problem.title}</Heading>
-
+          <Heading size="md">{problem.title}</Heading>
+          {leaderboardEntries.length === 0 ? (
+            <Box p={4} textAlign="center" color="whiteAlpha.700">
+              No submissions yet,{" "}
+              <ChakraLink
+                as={Link}
+                href={`/problems/${problem.slug}`}
+                color="blue.400"
+                _hover={{ textDecoration: "underline" }}
+              >
+                be the first to submit!
+              </ChakraLink>
+            </Box>
+          ) : (
           <Box overflowX="auto">
             <Table variant="unstyled">
               <Thead>
@@ -168,8 +185,9 @@ const LeaderboardPage: NextPage = () => {
                   </Tr>
                 ))}
               </Tbody>
-            </Table>
-          </Box>
+              </Table>
+            </Box>
+          )}
         </Flex>
       </Box>
     </Layout>

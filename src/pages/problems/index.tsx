@@ -19,6 +19,10 @@ import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useState } from "react";
 import { SearchIcon } from "@chakra-ui/icons";
+import { TriangleDownIcon, TriangleUpIcon } from "@chakra-ui/icons";
+
+type SortField = "title" | "difficulty" | "submissionCount";
+type SortDirection = "asc" | "desc";
 
 export const getDifficultyColor = (difficulty: string) => {
   switch (difficulty.toLowerCase()) {
@@ -33,19 +37,59 @@ export const getDifficultyColor = (difficulty: string) => {
   }
 };
 
+const getDifficultyValue = (difficulty: string) => {
+  switch (difficulty.toLowerCase()) {
+    case "easy":
+      return 1;
+    case "medium":
+      return 2;
+    case "hard":
+      return 3;
+    default:
+      return 0;
+  }
+};
+
 export default function ProblemsPage() {
   const { data: problems, isLoading } = api.problems.getAll.useQuery();
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
+  const [sortField, setSortField] = useState<SortField>("title");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
-  const filteredProblems = problems?.filter((problem) => {
-    const matchesSearch = problem.title
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesDifficulty =
-      difficultyFilter === "all" || problem.difficulty === difficultyFilter;
-    return matchesSearch && matchesDifficulty;
-  });
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const filteredAndSortedProblems = problems
+    ?.filter((problem) => {
+      const matchesSearch = problem.title
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchesDifficulty =
+        difficultyFilter === "all" ||
+        problem.difficulty.toLowerCase() === difficultyFilter.toLowerCase();
+      return matchesSearch && matchesDifficulty;
+    })
+    .sort((a, b) => {
+      const multiplier = sortDirection === "asc" ? 1 : -1;
+      
+      switch (sortField) {
+        case "title":
+          return multiplier * a.title.localeCompare(b.title);
+        case "difficulty":
+          return multiplier * (getDifficultyValue(a.difficulty) - getDifficultyValue(b.difficulty));
+        case "submissionCount":
+          return multiplier * (a.submissionCount - b.submissionCount);
+        default:
+          return 0;
+      }
+    });
 
   if (isLoading) {
     return (
@@ -54,6 +98,15 @@ export default function ProblemsPage() {
       </Layout>
     );
   }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortDirection === "asc" ? (
+      <TriangleUpIcon ml={1} w={3} h={3} />
+    ) : (
+      <TriangleDownIcon ml={1} w={3} h={3} />
+    );
+  };
 
   return (
     <Layout title="Problems">
@@ -87,14 +140,14 @@ export default function ProblemsPage() {
             color="white"
           >
             <option value="all">All Difficulties</option>
-            <option value="Easy">Easy</option>
-            <option value="Medium">Medium</option>
-            <option value="Hard">Hard</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
           </Select>
         </HStack>
 
         <Text color="gray.400" fontSize="sm">
-          Showing {filteredProblems?.length} of {problems?.length} problems
+          Showing {filteredAndSortedProblems?.length} of {problems?.length} problems
         </Text>
 
         <Box
@@ -113,8 +166,12 @@ export default function ProblemsPage() {
                   py={4}
                   borderBottom="1px solid"
                   borderColor="gray.700"
+                  cursor="pointer"
+                  onClick={() => handleSort("title")}
+                  _hover={{ color: "white" }}
                 >
                   Title
+                  <SortIcon field="title" />
                 </Th>
                 <Th
                   color="gray.300"
@@ -122,8 +179,12 @@ export default function ProblemsPage() {
                   width="150px"
                   borderBottom="1px solid"
                   borderColor="gray.700"
+                  cursor="pointer"
+                  onClick={() => handleSort("difficulty")}
+                  _hover={{ color: "white" }}
                 >
                   Difficulty
+                  <SortIcon field="difficulty" />
                 </Th>
                 <Th
                   color="gray.300"
@@ -132,13 +193,17 @@ export default function ProblemsPage() {
                   display={{ base: "none", md: "table-cell" }}
                   borderBottom="1px solid"
                   borderColor="gray.700"
+                  cursor="pointer"
+                  onClick={() => handleSort("submissionCount")}
+                  _hover={{ color: "white" }}
                 >
-                  Author
+                  Submissions
+                  <SortIcon field="submissionCount" />
                 </Th>
               </Tr>
             </Thead>
             <Tbody>
-              {filteredProblems?.map((problem) => (
+              {filteredAndSortedProblems?.map((problem) => (
                 <Tr
                   key={problem.id}
                   _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
@@ -163,12 +228,10 @@ export default function ProblemsPage() {
                       {problem.difficulty}
                     </Badge>
                   </Td>
-                  <Td
-                    color="gray.400"
-                    display={{ base: "none", md: "table-cell" }}
-                    borderBottom="none"
-                  >
-                    {problem.author}
+                  <Td borderBottom="none">
+                    <Text color="gray.400" fontSize="sm">
+                      {problem.submissionCount}
+                    </Text>
                   </Td>
                 </Tr>
               ))}

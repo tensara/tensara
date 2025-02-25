@@ -112,11 +112,19 @@ export const problemsRouter = createTRPCRouter({
           title: true,
           difficulty: true,
           author: true,
+          _count: {
+            select: {
+              submissions: true
+            }
+          }
         },
       });
 
       console.log("Found problems:", problems);
-      return problems;
+      return problems.map(problem => ({
+        ...problem,
+        submissionCount: problem._count.submissions
+      }));
     } catch (error) {
       console.error("Error fetching problems:", error);
       throw new TRPCError({

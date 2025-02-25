@@ -33,13 +33,13 @@ export function Header() {
   };
 
   return (
-    <Box bg="brand.navbar" h="full" borderRadius="xl" px={6} py={4}>
+    <Box bg="brand.navbar" h="full" borderRadius="xl" px={6} py={2}>
       <Flex h="full" alignItems="center" justifyContent="space-between">
         <HStack spacing={8}>
           <Link href="/" passHref legacyBehavior>
             <Text
               as="a"
-              fontSize="xl"
+              fontSize="lg"
               fontWeight="bold"
               color="white"
               _hover={{ textDecoration: "none" }}
@@ -48,15 +48,14 @@ export function Header() {
             </Text>
           </Link>
 
-          <HStack spacing={3}>
+          <HStack>
             {navItems.map((item) => (
               <Link key={item.href} href={item.href} passHref legacyBehavior>
                 <Button
                   as="a"
                   variant="ghost"
-                  px={4}
-                  py={2}
                   color="white"
+                  px={3}
                   bg={
                     isActivePath(item.href) ? "whiteAlpha.200" : "transparent"
                   }
@@ -64,7 +63,8 @@ export function Header() {
                     textDecoration: "none",
                     bg: "whiteAlpha.100",
                   }}
-                  leftIcon={<Icon as={item.icon} boxSize={5} />}
+                  fontSize="sm"
+                  leftIcon={<Icon as={item.icon} boxSize={4} />}
                 >
                   {item.label}
                 </Button>

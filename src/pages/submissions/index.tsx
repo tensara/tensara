@@ -1,3 +1,4 @@
+import { useRouter } from "next/router";
 import { type NextPage } from "next";
 import {
   Box,
@@ -43,6 +44,7 @@ const SubmissionsPage: NextPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const router = useRouter();
 
   const { data: submissions, isLoading } =
     api.submissions.getAllSubmissions.useQuery();
@@ -150,6 +152,9 @@ const SubmissionsPage: NextPage = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             w="200px"
             bg="whiteAlpha.50"
+            borderColor="transparent"
+            _hover={{ borderColor: "gray.600" }}
+            _focus={{ borderColor: "gray.500" }}
           >
             <option value="all">All Statuses</option>
             <option value="ACCEPTED">Accepted</option>
@@ -165,6 +170,7 @@ const SubmissionsPage: NextPage = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             w="300px"
             bg="whiteAlpha.50"
+            _focus={{ borderColor: "gray.500" }}
           />
         </HStack>
 
@@ -282,8 +288,9 @@ const SubmissionsPage: NextPage = () => {
               {filteredAndSortedSubmissions?.map((submission) => (
                 <Tr
                   key={submission.id}
-                  _hover={{ bg: "whiteAlpha.50" }}
+                  _hover={{ bg: "whiteAlpha.50", cursor: "pointer" }}
                   transition="background-color 0.2s"
+                  onClick={() => router.push(`/submissions/${submission.id}`)}
                 >
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <ChakraLink
@@ -301,14 +308,9 @@ const SubmissionsPage: NextPage = () => {
                     </HStack>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    <ChakraLink
-                      as={Link}
-                      href={`/submissions/${submission.id}`}
-                    >
-                      <Badge colorScheme={getStatusColor(submission.status)}>
-                        {formatStatus(submission.status)}
-                      </Badge>
-                    </ChakraLink>
+                    <Badge colorScheme={getStatusColor(submission.status)}>
+                      {formatStatus(submission.status)}
+                    </Badge>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     {submission.status === "ACCEPTED" ? (
