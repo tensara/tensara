@@ -12,19 +12,6 @@ type BenchmarkTestResult = {
   gflops: number;
 };
 
-type BenchmarkSuccessResponse = {
-  status: "success";
-  test_results: BenchmarkTestResult[];
-  average_gflops: number;
-};
-
-type BenchmarkErrorResponse = {
-  error: string;
-  details: string;
-};
-
-type BenchmarkResponse = BenchmarkSuccessResponse | BenchmarkErrorResponse;
-
 const SubmissionStatus = {
   CHECKING: "CHECKING",
   BENCHMARKING: "BENCHMARKING",
@@ -36,25 +23,6 @@ const SubmissionStatus = {
 type SubmissionStatus =
   (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
 
-// Add response types
-type SubmissionErrorResponse = {
-  status: SubmissionStatus;
-  id: string;
-  passedTests: number | null;
-  totalTests: number | null;
-  errorMessage: string;
-  errorDetails?: string;
-};
-
-type SubmissionSuccessResponse = {
-  status: SubmissionStatus;
-  id: string;
-  passedTests: number | null;
-  totalTests: number | null;
-  runtime: number | null;
-  gflops: number | null;
-  benchmarkResults: BenchmarkTestResult[];
-};
 
 // type SubmissionResponse = SubmissionErrorResponse | SubmissionSuccessResponse;
 
@@ -237,11 +205,19 @@ export const problemsRouter = createTRPCRouter({
               if (!line.trim()) continue;
               
               // Extract the JSON part after "data: " and parse it
-              const match = line.match(/^data: (.+)$/);
+              const match = /^data: (.+)$/.exec(line);
               if (!match?.[1]) continue;
               
               try {
-                const response = JSON.parse(match[1].trim());
+                const response = JSON.parse(match[1].trim()) as {
+                  status: string;
+                  details?: string;
+                  result?: {
+                    status: string;
+                  };
+                  passed?: boolean;
+                  error?: string;
+                };
 
                 if (response.status === "test_result" && response.result?.status === "PASSED") {
                   passedTests++;
@@ -259,7 +235,7 @@ export const problemsRouter = createTRPCRouter({
                 } else if (response.status === "complete") {
                   finalResult = response;
                 } else if (response.status === "error") {
-                  throw new Error(response.error);
+                  throw new Error(response.error ?? "Unknown error");
                 }
               } catch (e) {
                 console.error("Failed to parse SSE data:", e);
@@ -343,11 +319,28 @@ export const problemsRouter = createTRPCRouter({
               if (!line.trim()) continue;
               
               // Extract the JSON part after "data: " and parse it
-              const match = line.match(/^data: (.+)$/);
+              const match = /^data: (.+)$/.exec(line);
               if (!match?.[1]) continue;
               
               try {
-                const response = JSON.parse(match[1].trim());
+                const response = JSON.parse(match[1].trim()) as {
+                  status: string;
+                  result?: {
+                    test_id: number;
+                    name: string;
+                    runtime_ms: number;
+                    gflops: number;
+                  };
+                  test_results?: Array<{
+                    test_id: number;
+                    name: string;
+                    runtime_ms: number;
+                    gflops: number;
+                  }>;
+                  average_gflops?: number;
+                  error?: string;
+                  details?: string;
+                };
 
                 if (response.status === "test_result" && response.result) {
                   benchmarkResults.push(response.result);
@@ -357,12 +350,12 @@ export const problemsRouter = createTRPCRouter({
                       benchmarkResults: benchmarkResults
                     }
                   });
-                } else if (response.status === "success") {
+                } else if (response.status === "success" && response.test_results && response.average_gflops) {
                   averageGflops = response.average_gflops;
                   benchmarkResults = response.test_results;
-                } else if (response.status === "error") {
+                } else if (response.status === "error" && response.error) {
                   benchmarkError = response.error;
-                  benchmarkErrorDetails = response.details || "";
+                  benchmarkErrorDetails = response.details ?? "";
                   break;
                 }
               } catch (e) {
@@ -383,7 +376,7 @@ export const problemsRouter = createTRPCRouter({
               passedTests,
               totalTests,
               errorMessage: benchmarkError,
-              errorDetails: benchmarkErrorDetails || "",
+              errorDetails: benchmarkErrorDetails ?? "",
             } satisfies SubmissionUpdateData,
           });
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { db } from "~/server/db";
 
