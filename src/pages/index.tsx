@@ -96,13 +96,17 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <Image
-              src="/tensara_landing_ss_v2.jpg"
-              alt="Tensara Platform Interface"
+            <Box
+              as="video"
+              src="/demo.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
               w="full"
-              loading="eager"
               boxShadow="2xl"
               borderRadius="xl"
+              objectFit="cover"
             />
           </MotionBox>
         </MotionVStack>
