@@ -65,10 +65,10 @@ std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
     std::vector<std::unique_ptr<TestCase<float>>> test_cases;
     
     std::vector<std::pair<size_t, size_t>> sizes = {
-        {65536, 16},
-        {32768, 500},
-        {131072, 5},
-        {524288, 150},
+        {65536, 8192},
+        {32768, 8192}, 
+        {131072, 8192},
+        {524288, 8192},
     };
 
     unsigned int base_seed = 42;

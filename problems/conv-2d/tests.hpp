@@ -72,10 +72,15 @@ std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
     std::vector<std::unique_ptr<TestCase<float>>> test_cases;
     
     std::vector<std::tuple<size_t, size_t, size_t, size_t>> sizes = {
+        {512, 512, 3, 3},
+        {1024, 1024, 5, 5}, 
         {2048, 2048, 7, 7},
         {4096, 4096, 9, 9},
         {8192, 8192, 11, 11},
-        {8192, 8192, 52, 52},
+        {16384, 16384, 13, 13},
+        {1024, 1024, 32, 32},
+        {2048, 2048, 64, 64},
+        {4096, 4096, 128, 128}
     };
 
     unsigned int base_seed = 42;
