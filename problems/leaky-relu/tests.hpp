@@ -1,11 +1,12 @@
 #include "core.hpp"
+#include <random>
 
 template<typename T>
 class LeakyReLUTest: public TestCase<T> {
 public:
     using kernel_func_t = void (*)(T*, T*, size_t, size_t, T);
     
-    LeakyReLUTest(size_t n, size_t m, T alpha) {
+    LeakyReLUTest(size_t n, size_t m, T alpha, unsigned int seed = 42) : rng_(seed) {
         this->problem_size_ = n * m;
         this->name_ = std::to_string(n) + "x" + std::to_string(m) + "_alpha" + std::to_string(alpha);
         this->alpha_ = alpha;
@@ -24,15 +25,13 @@ public:
         const size_t n = this->inputs_[0]->shape()[0];
         const size_t m = this->inputs_[0]->shape()[1];
         
+        std::uniform_real_distribution<T> dist(-10000.0, 10000.0);
+        
         for (size_t i = 0; i < n; i++) {
             for (size_t j = 0; j < m; j++) {
-                host_inputs[0][i * m + j] = static_cast<T>(i + j - (n + m)/2);
+                host_inputs[0][i * m + j] = dist(rng_);
             }
         }
-    }
-    
-    std::string get_name() const override {
-        return this->name_;
     }
 
     size_t calculate_flops() const override {
@@ -55,6 +54,7 @@ public:
 
 private:
     T alpha_;
+    std::mt19937 rng_;
 };
 
 std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
@@ -68,7 +68,7 @@ std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
 
     for (const auto& size : matrix_sizes) {
         for (float alpha : alpha_values) {
-            test_cases.push_back(std::make_unique<LeakyReLUTest<float>>(size.first, size.second, alpha));
+            test_cases.push_back(std::make_unique<LeakyReLUTest<float>>(size.first, size.second, alpha, 498));
         }
     }
     

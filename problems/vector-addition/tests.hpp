@@ -1,11 +1,12 @@
 #include "core.hpp"
+#include <random>
 
 template<typename T>
 class VectorAddTest: public TestCase<T> {
 public:
     using kernel_func_t = void (*)(T*, T*, T*, size_t);
     
-    explicit VectorAddTest(size_t n) {
+    explicit VectorAddTest(size_t n, unsigned int seed = 42) : rng_(seed) {
         this->problem_size_ = n;
         this->name_ = "n = " + std::to_string(n);
         
@@ -22,9 +23,11 @@ public:
     void prepare_data(T** host_inputs, T** host_outputs) override {
         const size_t n = this->problem_size_;
         
+        std::uniform_real_distribution<T> dist(-100.0, 100.0);
+        
         for (size_t i = 0; i < n; i++) {
-            host_inputs[0][i] = static_cast<T>(i);
-            host_inputs[1][i] = static_cast<T>(i * 2);
+            host_inputs[0][i] = dist(rng_);
+            host_inputs[1][i] = dist(rng_);
         }
     }
     
@@ -45,16 +48,21 @@ public:
         auto typed_func = reinterpret_cast<kernel_func_t>(kernel_func);
         typed_func(inputs[0], inputs[1], outputs[0], sizes[0]);
     }
+
+private:
+    std::string name_;
+    std::mt19937 rng_;
 };
 
 std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
     std::vector<std::unique_ptr<TestCase<float>>> test_cases;
-    test_cases.push_back(std::make_unique<VectorAddTest<float>>(1000000));
-    test_cases.push_back(std::make_unique<VectorAddTest<float>>(5000000));
-    test_cases.push_back(std::make_unique<VectorAddTest<float>>(10000000));
-    test_cases.push_back(std::make_unique<VectorAddTest<float>>(50000000));
-    test_cases.push_back(std::make_unique<VectorAddTest<float>>(100000000));
-    test_cases.push_back(std::make_unique<VectorAddTest<float>>(500000000));
-    test_cases.push_back(std::make_unique<VectorAddTest<float>>(1000000000));
+    unsigned int base_seed = 98765;
+    test_cases.push_back(std::make_unique<VectorAddTest<float>>(1000000, base_seed++));
+    test_cases.push_back(std::make_unique<VectorAddTest<float>>(5000000, base_seed++));
+    test_cases.push_back(std::make_unique<VectorAddTest<float>>(10000000, base_seed++));
+    test_cases.push_back(std::make_unique<VectorAddTest<float>>(50000000, base_seed++));
+    test_cases.push_back(std::make_unique<VectorAddTest<float>>(100000000, base_seed++));
+    test_cases.push_back(std::make_unique<VectorAddTest<float>>(500000000, base_seed++));
+    test_cases.push_back(std::make_unique<VectorAddTest<float>>(1000000000, base_seed++));
     return test_cases;
 } 

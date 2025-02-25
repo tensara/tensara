@@ -1,11 +1,12 @@
 #include "core.hpp"
+#include <random>
 
 template<typename T>
 class GEMMReLUTest: public TestCase<T> {
 public:
     using kernel_func_t = void (*)(T*, T*, T*, T*, size_t, size_t, size_t);
     
-    GEMMReLUTest(size_t batch_size, size_t in_features, size_t out_features) {
+    GEMMReLUTest(size_t batch_size, size_t in_features, size_t out_features, unsigned int seed = 42) : rng_(seed) {
         this->problem_size_ = batch_size * in_features * out_features;
         this->name_ = std::to_string(batch_size) + "x" + std::to_string(in_features) + "x" + std::to_string(out_features);
         
@@ -29,20 +30,24 @@ public:
         const size_t N = this->inputs_[0]->shape()[1];
         const size_t M = this->outputs_[0]->shape()[1];
         
+        std::uniform_real_distribution<T> input_dist(-10.0, 10.0);
+        std::normal_distribution<T> weight_dist(0.0, 1.0);
+        std::uniform_real_distribution<T> bias_dist(-100.0, 100.0);
+        
         for (size_t i = 0; i < B; i++) {
             for (size_t j = 0; j < N; j++) {
-                host_inputs[0][i * N + j] = static_cast<T>((i + j) % 7 - 3) * 0.1f;
+                host_inputs[0][i * N + j] = input_dist(rng_);
             }
         }
 
         for (size_t i = 0; i < M; i++) {
             for (size_t j = 0; j < N; j++) {
-                host_inputs[1][i * N + j] = static_cast<T>((i - j) % 5 - 2) * 0.1f;
+                host_inputs[1][i * N + j] = weight_dist(rng_);
             }
         }
 
         for (size_t i = 0; i < M; i++) {
-            host_inputs[2][i] = static_cast<T>(i % 3 - 1) * 0.1f;
+            host_inputs[2][i] = bias_dist(rng_);
         }
     }
     
@@ -72,6 +77,7 @@ public:
 
 private:
     std::string name_;
+    std::mt19937 rng_;
 };
 
 std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
@@ -84,8 +90,9 @@ std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
         {6144, 1024, 1024}
     };
 
+    unsigned int base_seed = 42;
     for (const auto& [B, N, M] : sizes) {
-        test_cases.push_back(std::make_unique<GEMMReLUTest<float>>(B, N, M));
+        test_cases.push_back(std::make_unique<GEMMReLUTest<float>>(B, N, M, base_seed++));
     }
     
     return test_cases;

@@ -5,7 +5,7 @@ class MatrixVectorTest: public TestCase<T> {
 public:
     using kernel_func_t = void (*)(T*, T*, T*, size_t, size_t);
     
-    MatrixVectorTest(size_t m, size_t k) {
+    MatrixVectorTest(size_t m, size_t k, unsigned int seed = 42) : rng_(seed) {
         this->problem_size_ = m * k;
         this->name_ = std::to_string(m) + "x" + std::to_string(k) + " x " + std::to_string(k) + "x1";
         
@@ -24,19 +24,17 @@ public:
         const size_t m = this->inputs_[0]->shape()[0];
         const size_t k = this->inputs_[0]->shape()[1];
         
+        std::uniform_real_distribution<T> dist(-10000.0, 10000.0);
+
         for (size_t i = 0; i < m; i++) {
             for (size_t j = 0; j < k; j++) {
-                host_inputs[0][i * k + j] = static_cast<T>(i + j);
+                host_inputs[0][i * k + j] = dist(rng_);
             }
         }
         
         for (size_t i = 0; i < k; i++) {
-            host_inputs[1][i] = static_cast<T>(i);
+            host_inputs[1][i] = dist(rng_);
         }
-    }
-    
-    std::string get_name() const override {
-        return this->name_;
     }
 
     size_t calculate_flops() const override {
@@ -56,15 +54,18 @@ public:
         auto typed_func = reinterpret_cast<kernel_func_t>(kernel_func);
         typed_func(inputs[0], inputs[1], outputs[0], sizes[0], sizes[1]);
     }
+
+private:
+    std::mt19937 rng_;
 };
 
 std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
     std::vector<std::unique_ptr<TestCase<float>>> test_cases;
     
-    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(4096, 4096));
-    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(6144, 4096));
-    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(7168, 4096));
-    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(8192, 4096));
-    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(9216, 4096));
+    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(4096, 4096, 4891));
+    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(6144, 4096, 3928));
+    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(7168, 4096, 48923));
+    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(8192, 4096, 382));
+    test_cases.push_back(std::make_unique<MatrixVectorTest<float>>(9216, 4096, 48));
     return test_cases;
 }

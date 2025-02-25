@@ -1,11 +1,12 @@
 #include "core.hpp"
+#include <random>
 
 template<typename T>
 class MatrixScalarTest: public TestCase<T> {
 public:
     using kernel_func_t = void (*)(T*, T, T*, size_t, size_t);
     
-    MatrixScalarTest(size_t m, size_t n, T scalar) {
+    MatrixScalarTest(size_t m, size_t n, T scalar, unsigned int seed = 42) : rng_(seed) {
         this->problem_size_ = m * n;
         this->name_ = std::to_string(m) + "x" + std::to_string(n) + "_scalar" + std::to_string(scalar);
         this->scalar_ = scalar;
@@ -27,17 +28,13 @@ public:
         
         for (size_t i = 0; i < m; i++) {
             for (size_t j = 0; j < n; j++) {
-                host_inputs[0][i * n + j] = static_cast<T>(i + j);
+                host_inputs[0][i * n + j] = dist(rng_);
             }
         }
         
         host_inputs[1][0] = this->scalar_;
     }
     
-    std::string get_name() const override {
-        return this->name_;
-    }
-
     size_t calculate_flops() const override {
         const size_t m = this->inputs_[0]->shape()[0];
         const size_t n = this->inputs_[0]->shape()[1];
@@ -57,6 +54,7 @@ public:
     }
 
 private:
+    std::mt19937 rng_;
     T scalar_;
 };
 
@@ -68,7 +66,8 @@ std::vector<std::unique_ptr<TestCase<float>>> create_test_cases() {
     
     for (size_t size: matrix_sizes) {
         for (float scalar: scalar_values) {
-            test_cases.push_back(std::make_unique<MatrixScalarTest<float>>(size, 4096, scalar));
+            test_cases.push_back(std::make_unique<MatrixScalarTest<float>>(size, 4096, scalar, 123));
+            test_cases.push_back(std::make_unique<MatrixScalarTest<float>>(size, 8192, scalar, 3928));
         }
     }
     
