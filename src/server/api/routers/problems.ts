@@ -70,7 +70,6 @@ type SuccessSubmissionUpdateData = {
 };
 
 export const problemsRouter = createTRPCRouter({
-  // Get all problems (public)
   getAll: publicProcedure.query(async ({ ctx }) => {
     try {
       const problems = await ctx.db.problem.findMany({
@@ -497,7 +496,7 @@ export const problemsRouter = createTRPCRouter({
   }),
 
   // Get submission status
-  getSubmissionStatus: protectedProcedure
+  getSubmissionStatus: publicProcedure
     .input(z.object({ submissionId: z.string() }))
     .query(async ({ ctx, input }) => {
       const submission = await ctx.db.submission.findUnique({

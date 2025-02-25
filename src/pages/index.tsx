@@ -8,11 +8,21 @@ import {
   Icon,
   Image,
   SimpleGrid,
+  HStack,
+  Link,
+  Divider,
 } from "@chakra-ui/react";
+import { motion } from "framer-motion";
 import { Layout } from "~/components/layout";
-import { FiCpu, FiAward, FiUsers, FiCode } from "react-icons/fi";
+import { FiCpu, FiAward, FiUsers, FiCode, FiGithub, FiTwitter, FiMail } from "react-icons/fi";
 import { useSession, signIn } from "next-auth/react";
 import { type IconType } from "react-icons";
+
+// Create motion components
+const MotionVStack = motion(VStack);
+const MotionBox = motion(Box);
+const MotionSimpleGrid = motion(SimpleGrid);
+const MotionHStack = motion(HStack);
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -29,14 +39,22 @@ export default function HomePage() {
     <Layout title="Home">
       <Container maxW="8xl">
         {/* Hero Section */}
-        <VStack spacing={8} py={16} textAlign="center">
+        <MotionVStack
+          spacing={8}
+          py={16}
+          textAlign="center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
           <Heading
             as="h1"
-            fontSize="7rem"
+            fontSize="5rem"
             fontWeight="semibold"
             letterSpacing="tight"
+            fontFamily="Space Grotesk, sans-serif"
           >
-            Clash of the Kernels
+            Optimize, Benchmark, Repeat
           </Heading>
 
           <Text
@@ -45,8 +63,8 @@ export default function HomePage() {
             maxW="3xl"
             lineHeight="tall"
           >
-            The ultimate battleground for GPU programmers. Write, optimize, and
-            benchmark your CUDA kernels against the community.
+            A platform for GPU programming challenges. Write efficient CUDA code and
+            compare your solutions with other developers.
           </Text>
 
           <Button
@@ -69,7 +87,15 @@ export default function HomePage() {
           </Button>
 
           {/* Product Screenshot */}
-          <Box w="full" maxW="7xl" mt={8} position="relative">
+          <MotionBox
+            w="full"
+            maxW="7xl"
+            mt={8}
+            position="relative"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
             <Image
               src="/tensara_landing_ss_v2.jpg"
               alt="Tensara Platform Interface"
@@ -78,11 +104,25 @@ export default function HomePage() {
               boxShadow="2xl"
               borderRadius="xl"
             />
-          </Box>
-        </VStack>
+          </MotionBox>
+        </MotionVStack>
 
         {/* Features Grid */}
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={10} py={20}>
+        <MotionSimpleGrid
+          columns={{ base: 1, md: 3 }}
+          spacing={10}
+          py={20}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={{
+            visible: {
+              transition: {
+                staggerChildren: 0.2,
+              },
+            },
+          }}
+        >
           <FeatureCard
             icon={FiCpu}
             title="Real GPU Challenges"
@@ -98,7 +138,81 @@ export default function HomePage() {
             title="Global Competition"
             description="Join the ranks of GPU programmers worldwide and prove your parallel programming prowess."
           />
-        </SimpleGrid>
+        </MotionSimpleGrid>
+
+        {/* Footer */}
+        <MotionBox
+          as="footer"
+          py={16}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+        >
+          <Divider mb={10} />
+          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
+            {/* Company Info */}
+            <VStack align="start" spacing={4}>
+              <Heading size="md" fontFamily="Space Grotesk, sans-serif">
+                Tensara
+              </Heading>
+              <Text color="whiteAlpha.800">
+                Write efficient GPU code and compete with other developers.
+              </Text>
+            </VStack>
+
+            {/* Quick Links */}
+            <VStack align="start" spacing={4}>
+              <Heading size="md" fontFamily="Space Grotesk, sans-serif">
+                Quick Links
+              </Heading>
+              <Link href="/problems" color="whiteAlpha.800" _hover={{ color: "#2ecc71" }}>
+                Problems
+              </Link>
+              <Link href="/submissions" color="whiteAlpha.800" _hover={{ color: "#2ecc71" }}>
+                Submissions
+              </Link>
+              <Link href="/blog" color="whiteAlpha.800" _hover={{ color: "#2ecc71" }}>
+                Blog
+              </Link>
+            </VStack>
+
+            {/* Social Links */}
+            <VStack align="start" spacing={4}>
+              <Heading size="md" fontFamily="Space Grotesk, sans-serif">
+                Connect
+              </Heading>
+              <HStack spacing={4}>
+                <Link 
+                  href="https://github.com/tensara" 
+                  isExternal
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  <Icon as={FiGithub} boxSize={6} />
+                </Link>
+                <Link 
+                  href="https://twitter.com/someshkar" 
+                  isExternal
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  <Icon as={FiTwitter} boxSize={6} />
+                </Link>
+                <Link 
+                  href="mailto:hello@tensara.org"
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  <Icon as={FiMail} boxSize={6} />
+                </Link>
+              </HStack>
+              <Text color="whiteAlpha.600" fontSize="sm" mt={4}>
+                © {new Date().getFullYear()} Tensara. All rights reserved.
+              </Text>
+            </VStack>
+          </SimpleGrid>
+        </MotionBox>
       </Container>
     </Layout>
   );
@@ -114,18 +228,22 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <VStack
+    <MotionVStack
       bg="rgba(14, 129, 68, 0.1)"
       p={8}
       borderRadius="xl"
       spacing={4}
       align="start"
-      transition="all 0.2s"
+      style={{ transition: "all 0.2s" }}
       _hover={{ transform: "translateY(-4px)", bg: "rgba(14, 129, 68, 0.15)" }}
+      variants={{
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+      }}
     >
       <Icon as={icon} boxSize={8} color="#2ecc71" />
       <Heading size="md">{title}</Heading>
       <Text color="whiteAlpha.900">{description}</Text>
-    </VStack>
+    </MotionVStack>
   );
 }

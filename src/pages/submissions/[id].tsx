@@ -288,13 +288,18 @@ const SubmissionPage: NextPage = () => {
             <Box h="600px" borderRadius="lg" overflow="hidden">
               <Editor
                 height="100%"
-                defaultLanguage={submission.language.toLowerCase()}
+                defaultLanguage="cpp"
                 value={code}
                 theme="vs-dark"
                 options={{
                   readOnly: true,
                   minimap: { enabled: true },
+                  fontSize: 14,
+                  lineNumbers: "on",
                   scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  padding: { top: 16, bottom: 16 },
+                  fontFamily: "JetBrains Mono, monospace",
                 }}
               />
             </Box>

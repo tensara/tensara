@@ -14,6 +14,7 @@ import {
   Badge,
   InputGroup,
   InputLeftElement,
+  Spinner
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
@@ -94,7 +95,9 @@ export default function ProblemsPage() {
   if (isLoading) {
     return (
       <Layout title="Problems">
-        <Text color="white">Loading problems...</Text>
+        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+          <Spinner size="xl" />
+        </Box>
       </Layout>
     );
   }
@@ -215,7 +218,7 @@ export default function ProblemsPage() {
                   borderBottom="1px solid"
                   borderColor="gray.800"
                 >
-                  <Td color="white" fontWeight="medium" borderBottom="none">
+                  <Td color="white" borderBottom="none">
                     {problem.title}
                   </Td>
                   <Td borderBottom="none">
