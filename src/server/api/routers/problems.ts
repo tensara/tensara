@@ -123,6 +123,7 @@ export const problemsRouter = createTRPCRouter({
         problemSlug: z.string(),
         code: z.string(),
         language: z.enum(["cpp", "cuda", "python", "javascript", "typescript"]),
+        gpuType: z.string(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -137,6 +138,7 @@ export const problemsRouter = createTRPCRouter({
           userId: ctx.session.user.id,
           problemId: problem.id,
           status: SubmissionStatus.CHECKING,
+          gpuType: input.gpuType,
         },
       });
 
@@ -166,7 +168,7 @@ export const problemsRouter = createTRPCRouter({
         });
 
         const checkerResponse = await fetch(
-          "https://labs-asterisk--tensara-checker.modal.run",
+          `https://labs-asterisk--tensara-checker-${(submission.gpuType ?? "t4").toLowerCase()}.modal.run`,
           {
             method: "POST",
             headers: {
@@ -176,6 +178,7 @@ export const problemsRouter = createTRPCRouter({
               solution_code: submission.code,
               tests_code: submission.problem.tests,
               reference_code: submission.problem.reference,
+              gpu_type: submission.gpuType,
             }),
           }
         );
@@ -280,7 +283,7 @@ export const problemsRouter = createTRPCRouter({
         });
 
         const benchmarkResponse = await fetch(
-          "https://labs-asterisk--tensara-benchmark.modal.run",
+          `https://labs-asterisk--tensara-benchmark-${(submission.gpuType ?? "t4").toLowerCase()}.modal.run`,
           {
             method: "POST",
             headers: {
@@ -289,6 +292,7 @@ export const problemsRouter = createTRPCRouter({
             body: JSON.stringify({
               solution_code: submission.code,
               tests_code: submission.problem.tests,
+              gpu_type: submission.gpuType,
             }),
           }
         );

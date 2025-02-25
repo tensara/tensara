@@ -39,8 +39,18 @@ interface SubmissionWithProblem extends Submission {
   };
 }
 
+const GPU_DISPLAY_NAMES: Record<string, string> = {
+  "T4": "NVIDIA T4",
+  "H100": "NVIDIA H100",
+  "A100": "NVIDIA A100",
+  "A10G": "NVIDIA A10G",
+  "L4": "NVIDIA L4"
+};
+
+
 const SubmissionsPage: NextPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [gpuFilter, setGpuFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -94,12 +104,14 @@ const SubmissionsPage: NextPage = () => {
     ?.filter((submission: SubmissionWithProblem) => {
       const matchesStatus =
         statusFilter === "all" || submission.status === statusFilter;
+      const matchesGpu =
+        gpuFilter === "all" || submission.gpuType === gpuFilter;
       const matchesSearch =
         searchQuery === "" ||
         submission.problem.title
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesSearch;
+      return matchesStatus && matchesGpu && matchesSearch;
     })
     .sort((a: SubmissionWithProblem, b: SubmissionWithProblem) => {
       const order = sortOrder === "asc" ? 1 : -1;
@@ -162,6 +174,22 @@ const SubmissionsPage: NextPage = () => {
             <option value="ERROR">Error</option>
             <option value="CHECKING">Checking</option>
             <option value="BENCHMARKING">Benchmarking</option>
+          </Select>
+
+          <Select
+            value={gpuFilter}
+            onChange={(e) => setGpuFilter(e.target.value)}
+            w="200px"
+            bg="whiteAlpha.50"
+            borderColor="transparent"
+            _hover={{ borderColor: "gray.600" }}
+            _focus={{ borderColor: "gray.500" }}
+          >
+            <option value="all">All GPUs</option>
+            <option value="T4">NVIDIA T4</option>
+            <option value="H100">NVIDIA H100</option>
+            <option value="A10G">NVIDIA A10G</option>
+            <option value="A100-80GB">NVIDIA A100-80GB</option>
           </Select>
 
           <Input
@@ -263,6 +291,31 @@ const SubmissionsPage: NextPage = () => {
                     cursor="pointer"
                     onClick={() => handleSort("createdAt")}
                   >
+                    <Text>GPU</Text>
+                    {sortField === "createdAt" && (
+                      <IconButton
+                        aria-label={`Sort ${
+                          sortOrder === "asc" ? "descending" : "ascending"
+                        }`}
+                        icon={
+                          sortOrder === "asc" ? (
+                            <ChevronUpIcon />
+                          ) : (
+                            <ChevronDownIcon />
+                          )
+                        }
+                        size="xs"
+                        variant="ghost"
+                      />
+                    )}
+                  </HStack>
+                </Th>
+                <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                  <HStack
+                    spacing={2}
+                    cursor="pointer"
+                    onClick={() => handleSort("createdAt")}
+                  >
                     <Text>Submitted</Text>
                     {sortField === "createdAt" && (
                       <IconButton
@@ -324,6 +377,9 @@ const SubmissionsPage: NextPage = () => {
                     ) : (
                       <Text color="whiteAlpha.700">-</Text>
                     )}
+                  </Td>
+                  <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                    {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <Tooltip

@@ -14,7 +14,10 @@ import {
   Spinner,
   Flex,
   Heading,
+  Select,
+  HStack,
 } from "@chakra-ui/react";
+import { useState } from "react";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
@@ -27,6 +30,7 @@ interface LeaderboardEntry {
   runtime: number | null;
   createdAt: Date;
   status: string | null;
+  gpuType: string | null;
   user: {
     name: string | null;
   };
@@ -36,9 +40,18 @@ interface LeaderboardEntry {
   };
 }
 
+const GPU_DISPLAY_NAMES: Record<string, string> = {
+  "T4": "NVIDIA T4",
+  "H100": "NVIDIA H100",
+  "A100": "NVIDIA A100",
+  "A10G": "NVIDIA A10G",
+  "L4": "NVIDIA L4"
+};
+
 const LeaderboardPage: NextPage = () => {
   const router = useRouter();
   const { slug } = router.query;
+  const [selectedGpu, setSelectedGpu] = useState<string>("all");
 
   const { data: problem, isLoading: isProblemLoading } = api.problems.getById.useQuery(
     { slug: slug as string },
@@ -53,24 +66,26 @@ const LeaderboardPage: NextPage = () => {
     (submission) => submission.problem.slug === slug
   );
 
-  // Process submissions to get the best submission per user
+  // Process submissions to get the best submission per user per GPU type
   const getBestSubmissions = (submissions: LeaderboardEntry[] | undefined) => {
     if (!submissions) return [];
 
-    const userBestMap = new Map<string, LeaderboardEntry>();
+    const userGpuBestMap = new Map<string, LeaderboardEntry>();
 
     submissions.forEach((submission) => {
       if (submission.status !== "ACCEPTED" || !submission.gflops) return;
+      
+      if (selectedGpu !== "all" && submission.gpuType !== selectedGpu) return;
 
-      const userId = submission.user.name ?? "Anonymous";
-      const currentBest = userBestMap.get(userId);
+      const userGpuKey = `${submission.user.name ?? "Anonymous"}-${submission.gpuType}`;
+      const currentBest = userGpuBestMap.get(userGpuKey);
 
       if (!currentBest || submission.gflops > currentBest.gflops!) {
-        userBestMap.set(userId, submission);
+        userGpuBestMap.set(userGpuKey, submission);
       }
     });
 
-    return Array.from(userBestMap.values()).sort(
+    return Array.from(userGpuBestMap.values()).sort(
       (a, b) => (b.gflops ?? 0) - (a.gflops ?? 0)
     );
   };
@@ -107,10 +122,28 @@ const LeaderboardPage: NextPage = () => {
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
           <Heading size="lg">Leaderboard</Heading>
-          <Heading size="md">{problem.title}</Heading>
+          <HStack justify="space-between" align="center">
+            <Heading size="md">{problem.title}</Heading>
+            <Select
+              value={selectedGpu}
+              onChange={(e) => setSelectedGpu(e.target.value)}
+              w="200px"
+              bg="whiteAlpha.50"
+              borderColor="transparent"
+              _hover={{ borderColor: "gray.600" }}
+              _focus={{ borderColor: "gray.500" }}
+            >
+              <option value="all">All GPUs</option>
+              <option value="T4">NVIDIA T4</option>
+              <option value="H100">NVIDIA H100</option>
+              <option value="A10G">NVIDIA A10G</option>
+              <option value="A100">NVIDIA A100</option>
+              <option value="L4">NVIDIA L4</option>
+            </Select>
+          </HStack>
           {leaderboardEntries.length === 0 ? (
             <Box p={4} textAlign="center" color="whiteAlpha.700">
-              No submissions yet,{" "}
+              No submissions yet{selectedGpu !== "all" ? ` for ${GPU_DISPLAY_NAMES[selectedGpu]}` : ""},{" "}
               <ChakraLink
                 as={Link}
                 href={`/problems/${problem.slug}`}
@@ -130,6 +163,9 @@ const LeaderboardPage: NextPage = () => {
                   </Th>
                   <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
                     User
+                  </Th>
+                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                    GPU
                   </Th>
                   <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
                     Performance
@@ -161,6 +197,11 @@ const LeaderboardPage: NextPage = () => {
                       <Text fontWeight={index < 3 ? "bold" : "normal"}>
                         {entry.user.name ?? "Anonymous"}
                       </Text>
+                    </Td>
+                    <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                      <Badge colorScheme="gray">
+                        {GPU_DISPLAY_NAMES[entry.gpuType ?? "T4"]}
+                      </Badge>
                     </Td>
                     <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                       <ChakraLink as={Link} href={`/submissions/${entry.id}`}>

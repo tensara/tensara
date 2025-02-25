@@ -79,6 +79,7 @@ type Submission = {
     title: string;
     slug: string;
   };
+  gpuType: string;
 };
 
 export default function ProblemPage() {
@@ -94,6 +95,7 @@ export default function ProblemPage() {
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] = useState(false);
   const [splitRatio, setSplitRatio] = useState(35);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedGpuType, setSelectedGpuType] = useState("T4");
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
     { problemSlug: slug as string, limit: 10 },
@@ -103,6 +105,40 @@ export default function ProblemPage() {
     isLoading: boolean;
     refetch: () => void;
   };
+
+  const createSubmissionMutation = api.problems.createSubmission.useMutation({
+    onSuccess: (data) => {
+      setSubmissionId(data.id);
+      // Start the actual submission process
+      submitMutation.mutate({ submissionId: data.id });
+    },
+    onError: (error) => {
+      setIsSubmitting(false);
+      setSubmissionStatus(null);
+      toast({
+        title: "Failed to create submission",
+        description: error.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+  });
+
+  const submitMutation = api.problems.submit.useMutation({
+    onError: (error) => {
+      setIsSubmitting(false);
+      setSubmissionStatus(null);
+      setSubmissionId(null); // Clear the submissionId on error
+      toast({
+        title: "Submission failed",
+        description: error.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+  });
 
   const handleSubmit = () => {
     setIsTestCaseTableOpen(false);
@@ -120,6 +156,7 @@ export default function ProblemPage() {
       problemSlug: slug as string,
       code,
       language: "cuda",
+      gpuType: selectedGpuType,
     });
   };
 
@@ -178,6 +215,7 @@ export default function ProblemPage() {
         errorMessage?: string;
         errorDetails?: string;
         benchmarkResults?: BenchmarkTestResult[];
+        gpuType: string;
       };
 
       eventSource.onmessage = (event) => {
@@ -209,6 +247,7 @@ export default function ProblemPage() {
               ...(data.benchmarkResults && {
                 benchmarkResults: data.benchmarkResults,
               }),
+              gpuType: data.gpuType,
             };
           });
 
@@ -275,40 +314,6 @@ export default function ProblemPage() {
       if (retryTimeout) clearTimeout(retryTimeout);
     };
   }, [submissionId]);
-
-  const createSubmissionMutation = api.problems.createSubmission.useMutation({
-    onSuccess: (data) => {
-      setSubmissionId(data.id);
-      // Start the actual submission process
-      submitMutation.mutate({ submissionId: data.id });
-    },
-    onError: (error) => {
-      setIsSubmitting(false);
-      setSubmissionStatus(null);
-      toast({
-        title: "Failed to create submission",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
-
-  const submitMutation = api.problems.submit.useMutation({
-    onError: (error) => {
-      setIsSubmitting(false);
-      setSubmissionStatus(null);
-      setSubmissionId(null); // Clear the submissionId on error
-      toast({
-        title: "Submission failed",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
 
   // Move these handlers to useCallback
   const handleMouseDown = useCallback(() => {
@@ -490,6 +495,17 @@ export default function ProblemPage() {
                                   ? "Wrong Answer"
                                   : submission.status}
                               </Text>
+                              <Badge 
+                                ml={2} 
+                                px={2} 
+                                rounded="full" 
+                                variant="outline" 
+                                borderColor="whiteAlpha.200" 
+                                color="gray.300"
+                                fontSize="xs"
+                              >
+                                {submission.gpuType}
+                              </Badge>
                             </HStack>
                             <Text color="whiteAlpha.700" fontSize="sm">
                               {new Date(submission.createdAt).toLocaleString()}
@@ -948,7 +964,8 @@ export default function ProblemPage() {
                     borderColor="whiteAlpha.200"
                     _hover={{ borderColor: "whiteAlpha.300" }}
                     w="160px"
-                    defaultValue="t4"
+                    value={selectedGpuType}
+                    onChange={(e) => setSelectedGpuType(e.target.value)}
                     borderRadius="full"
                     sx={{
                       "& > option": {
@@ -956,9 +973,10 @@ export default function ProblemPage() {
                       },
                     }}
                   >
-                    <option value="a100">NVIDIA A100</option>
-                    <option value="v100">NVIDIA V100</option>
-                    <option value="t4">NVIDIA T4</option>
+                    <option value="T4">NVIDIA T4</option>
+                    <option value="H100">NVIDIA H100</option>
+                    <option value="A10G">NVIDIA A10G</option>
+                    <option value="A100-80GB">NVIDIA A100-80GB</option>
                   </Select>
                 </Box>
                 <Box>
@@ -980,7 +998,7 @@ export default function ProblemPage() {
                     }}
                   >
                     <option value="cuda">CUDA C++</option>
-                    <option value="python">Python (Triton)</option>
+                    {/* <option value="python">Python (Triton)</option> */}
                   </Select>
                 </Box>
                 <Box>
@@ -1002,9 +1020,9 @@ export default function ProblemPage() {
                     }}
                   >
                     <option value="float32">float32</option>
-                    <option value="float16">float16</option>
+                    {/* <option value="float16">float16</option>
                     <option value="int32">int32</option>
-                    <option value="int16">int16</option>
+                    <option value="int16">int16</option> */}
                   </Select>
                 </Box>
               </HStack>

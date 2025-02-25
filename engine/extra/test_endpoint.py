@@ -12,7 +12,8 @@ def test_benchmark():
         "https://labs-asterisk--tensara-benchmark.modal.run",
         json={
             "solution_code": solution_code,
-            "tests_code": tests_code
+            "tests_code": tests_code,
+            "gpu_type": "T4"
         }
     )
     if response.status_code == 200:
@@ -44,7 +45,8 @@ def test_checker():
         json={
             "solution_code": solution_code,
             "tests_code": tests_code,
-            "reference_code": reference_code
+            "reference_code": reference_code,
+            "gpu_type": "T4"
         }
     )
 
