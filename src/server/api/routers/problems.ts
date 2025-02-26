@@ -305,6 +305,8 @@ export const problemsRouter = createTRPCRouter({
           },
         });
 
+        console.log("Starting benchmark for submission:", submission.id);
+
         const benchmarkResponse = await fetch(
           `https://${env.MODAL_BENCHMARK_SLUG}-${(
             submission.gpuType ?? "t4"
@@ -322,6 +324,8 @@ export const problemsRouter = createTRPCRouter({
           }
         );
 
+        console.log("Benchmark API response status:", benchmarkResponse.status);
+
         if (!benchmarkResponse.ok) {
           throw new Error(`Benchmark API returned ${benchmarkResponse.status}`);
         }
@@ -335,6 +339,8 @@ export const problemsRouter = createTRPCRouter({
         let averageGflops = 0;
         let benchmarkError: string | null = null;
         let benchmarkErrorDetails: string | null = null;
+
+        console.log("Starting to process benchmark stream");
 
         try {
           while (true) {
@@ -371,7 +377,10 @@ export const problemsRouter = createTRPCRouter({
                   details?: string;
                 };
 
+                console.log("Received benchmark response:", response.status);
+
                 if (response.status === "test_result" && response.result) {
+                  console.log("Test result:", response.result);
                   benchmarkResults.push(response.result);
                   await ctx.db.submission.update({
                     where: { id: submission.id },
@@ -384,9 +393,11 @@ export const problemsRouter = createTRPCRouter({
                   response.test_results &&
                   response.average_gflops
                 ) {
+                  console.log("Benchmark completed successfully. Average GFLOPS:", response.average_gflops);
                   averageGflops = response.average_gflops;
                   benchmarkResults = response.test_results;
                 } else if (response.status === "error" && response.error) {
+                  console.log("Benchmark error:", response.error);
                   benchmarkError = response.error;
                   benchmarkErrorDetails = response.details ?? "";
                   break;
@@ -399,6 +410,7 @@ export const problemsRouter = createTRPCRouter({
           }
         } finally {
           benchmarkReader.releaseLock();
+          console.log("Benchmark stream processing completed");
         }
 
         if (benchmarkError) {

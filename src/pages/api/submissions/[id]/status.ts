@@ -57,7 +57,6 @@ export default async function handler(
       return;
     }
 
-    console.log("[status] initial submission", initialSubmission);
     sendSSE(initialSubmission);
 
     const interval = setInterval(() => {
