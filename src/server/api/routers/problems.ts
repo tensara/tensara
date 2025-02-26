@@ -196,22 +196,23 @@ export const problemsRouter = createTRPCRouter({
         let finalResult = null;
 
         try {
+          let partialMessage = '';
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
             const text = new TextDecoder().decode(value);
-            const lines = text.trim().split('\n');
             
-            for (const line of lines) {
-              if (!line.trim()) continue;
-              
-              // Extract the JSON part after "data: " and parse it
-              const match = /^data: (.+)$/.exec(line);
-              if (!match?.[1]) continue;
-              
+            partialMessage += text;
+            const messages = partialMessage.split('\n');
+            partialMessage = messages[messages.length - 1] ?? '';
+
+            for (let i = 0; i < messages.length - 1; i++) {
+              const message = messages[i];
+              if (!message?.startsWith('data: ')) continue;
+
               try {
-                const response = JSON.parse(match[1].trim()) as {
+                const response = JSON.parse(message.slice(6).trim()) as {
                   status: string;
                   details?: string;
                   result?: {
@@ -237,39 +238,53 @@ export const problemsRouter = createTRPCRouter({
                 } else if (response.status === "complete") {
                   finalResult = response;
                 } else if (response.status === "error") {
-                  throw new Error(response.error ?? "Unknown error");
+                  // Instead of throwing the error, store it to update the submission later
+                  finalResult = {
+                    passed: false,
+                    error: response.error ?? "Unknown error",
+                    details: response.details ?? "",
+                    passed_tests: passedTests,
+                    total_tests: totalTests
+                  };
+                  break; // Exit the loop once we encounter an error
                 }
               } catch (e) {
                 console.error("Failed to parse SSE data:", e);
                 continue;
               }
             }
+            
+            if (finalResult?.error) break;
           }
         } finally {
           reader.releaseLock();
         }
+        console.log("finalResult from checker", finalResult);
 
         if (!finalResult?.passed) {
+          // Determine if this is an error (compilation/runtime) or wrong answer
+          const isError = finalResult?.error !== undefined;
+
           const updateData: SubmissionUpdateData = {
-            status: SubmissionStatus.WRONG_ANSWER,
+            status: isError ? SubmissionStatus.ERROR : SubmissionStatus.WRONG_ANSWER,
             passedTests,
             totalTests,
             errorMessage: finalResult?.error ?? "Solution produced incorrect results",
             errorDetails: finalResult?.details ?? "",
           };
 
-          const wrongAnswerSubmission = await ctx.db.submission.update({
+          const failedSubmission = await ctx.db.submission.update({
             where: { id: submission.id },
             data: updateData,
           });
 
           return {
-            status: wrongAnswerSubmission.status as SubmissionStatus,
-            id: wrongAnswerSubmission.id,
-            passedTests: wrongAnswerSubmission.passedTests,
-            totalTests: wrongAnswerSubmission.totalTests,
-            errorMessage: wrongAnswerSubmission.errorMessage ?? "Unknown error",
-            errorDetails: wrongAnswerSubmission.errorDetails,
+            status: failedSubmission.status as SubmissionStatus,
+            id: failedSubmission.id,
+            passedTests: failedSubmission.passedTests,
+            totalTests: failedSubmission.totalTests,
+            errorMessage: failedSubmission.errorMessage ?? "Unknown error",
+            errorDetails: failedSubmission.errorDetails,
           };
         }
 
@@ -448,7 +463,7 @@ export const problemsRouter = createTRPCRouter({
     .input(
       z.object({
         problemSlug: z.string(),
-        limit: z.number().min(1).max(100).default(10),
+        limit: z.number().min(1).max(100).default(50),
         cursor: z.string().nullish(),
       })
     )

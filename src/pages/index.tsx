@@ -41,14 +41,6 @@ export default function HomePage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const handleStartSolving = () => {
-    if (!session) {
-      signIn("github").catch(console.error);
-    } else {
-      window.location.href = "/problems";
-    }
-  };
-
   return (
     <Layout title="Home">
       <Container maxW="8xl" px={{ base: 4, md: 8 }}>
@@ -84,7 +76,8 @@ export default function HomePage() {
           </Text>
 
           <Button
-            onClick={handleStartSolving}
+            as="a"
+            href="/problems"
             size={{ base: "md", md: "lg" }}
             height={{ base: "14", md: "16" }}
             px={{ base: "6", md: "8" }}

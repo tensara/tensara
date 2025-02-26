@@ -98,7 +98,7 @@ export default function ProblemPage() {
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
-    { problemSlug: slug as string, limit: 10 },
+    { problemSlug: slug as string },
     { enabled: !!slug }
   ) as {
     data?: { submissions: Submission[]; nextCursor: string | null };
@@ -789,7 +789,7 @@ export default function ProblemPage() {
                     </SimpleGrid>
                   )}
 
-                  {submissionStatus.errorMessage && (
+                  {(submissionStatus.errorMessage && submissionStatus.errorDetails) && (
                     <Box bg="red.900" p={6} borderRadius="xl">
                       <Text color="red.200" fontWeight="semibold" mb={3}>
                         Error Details
