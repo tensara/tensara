@@ -80,7 +80,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         trpcState: helpers.dehydrate(),
       },
     };
-  } catch (error) {
+  } catch (e) {
+    console.error(e);
     return { notFound: true };
   }
 };

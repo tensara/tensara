@@ -23,7 +23,6 @@ const SubmissionStatus = {
 type SubmissionStatus =
   (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
 
-
 // type SubmissionResponse = SubmissionErrorResponse | SubmissionSuccessResponse;
 
 // Add types for database submission
@@ -39,15 +38,15 @@ type SubmissionWithCustomFields = {
   errorDetails?: string;
 };
 
-// Add this type definition near the other types at the top
-const CheckerResultSchema = z.object({
-  passed: z.boolean(),
-  passed_tests: z.number().optional(),
-  total_tests: z.number().optional(),
-  error: z.string().optional(),
-  details: z.string().optional(),
-  test_results: z.array(z.unknown()).optional(),
-});
+// // Add this type definition near the other types at the top
+// const CheckerResultSchema = z.object({
+//   passed: z.boolean(),
+//   passed_tests: z.number().optional(),
+//   total_tests: z.number().optional(),
+//   error: z.string().optional(),
+//   details: z.string().optional(),
+//   test_results: z.array(z.unknown()).optional(),
+// });
 
 // type CheckerResult = z.infer<typeof CheckerResultSchema>;
 
@@ -81,16 +80,16 @@ export const problemsRouter = createTRPCRouter({
           author: true,
           _count: {
             select: {
-              submissions: true
-            }
-          }
+              submissions: true,
+            },
+          },
         },
       });
 
       console.log("Found problems:", problems);
-      return problems.map(problem => ({
+      return problems.map((problem) => ({
         ...problem,
-        submissionCount: problem._count.submissions
+        submissionCount: problem._count.submissions,
       }));
     } catch (error) {
       console.error("Error fetching problems:", error);
@@ -168,7 +167,9 @@ export const problemsRouter = createTRPCRouter({
         });
 
         const checkerResponse = await fetch(
-          `https://labs-asterisk--tensara-checker-${(submission.gpuType ?? "t4").toLowerCase()}.modal.run`,
+          `https://labs-asterisk--tensara-checker-${(
+            submission.gpuType ?? "t4"
+          ).toLowerCase()}.modal.run`,
           {
             method: "POST",
             headers: {
@@ -196,20 +197,20 @@ export const problemsRouter = createTRPCRouter({
         let finalResult = null;
 
         try {
-          let partialMessage = '';
+          let partialMessage = "";
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
             const text = new TextDecoder().decode(value);
-            
+
             partialMessage += text;
-            const messages = partialMessage.split('\n');
-            partialMessage = messages[messages.length - 1] ?? '';
+            const messages = partialMessage.split("\n");
+            partialMessage = messages[messages.length - 1] ?? "";
 
             for (let i = 0; i < messages.length - 1; i++) {
               const message = messages[i];
-              if (!message?.startsWith('data: ')) continue;
+              if (!message?.startsWith("data: ")) continue;
 
               try {
                 const response = JSON.parse(message.slice(6).trim()) as {
@@ -222,18 +223,21 @@ export const problemsRouter = createTRPCRouter({
                   error?: string;
                 };
 
-                if (response.status === "test_result" && response.result?.status === "PASSED") {
+                if (
+                  response.status === "test_result" &&
+                  response.result?.status === "PASSED"
+                ) {
                   passedTests++;
                   totalTests++;
                   await ctx.db.submission.update({
                     where: { id: submission.id },
-                    data: { passedTests, totalTests }
+                    data: { passedTests, totalTests },
                   });
                 } else if (response.status === "test_result") {
                   totalTests++;
                   await ctx.db.submission.update({
                     where: { id: submission.id },
-                    data: { passedTests, totalTests }
+                    data: { passedTests, totalTests },
                   });
                 } else if (response.status === "complete") {
                   finalResult = response;
@@ -244,7 +248,7 @@ export const problemsRouter = createTRPCRouter({
                     error: response.error ?? "Unknown error",
                     details: response.details ?? "",
                     passed_tests: passedTests,
-                    total_tests: totalTests
+                    total_tests: totalTests,
                   };
                   break; // Exit the loop once we encounter an error
                 }
@@ -253,7 +257,7 @@ export const problemsRouter = createTRPCRouter({
                 continue;
               }
             }
-            
+
             if (finalResult?.error) break;
           }
         } finally {
@@ -266,10 +270,13 @@ export const problemsRouter = createTRPCRouter({
           const isError = finalResult?.error !== undefined;
 
           const updateData: SubmissionUpdateData = {
-            status: isError ? SubmissionStatus.ERROR : SubmissionStatus.WRONG_ANSWER,
+            status: isError
+              ? SubmissionStatus.ERROR
+              : SubmissionStatus.WRONG_ANSWER,
             passedTests,
             totalTests,
-            errorMessage: finalResult?.error ?? "Solution produced incorrect results",
+            errorMessage:
+              finalResult?.error ?? "Solution produced incorrect results",
             errorDetails: finalResult?.details ?? "",
           };
 
@@ -298,7 +305,9 @@ export const problemsRouter = createTRPCRouter({
         });
 
         const benchmarkResponse = await fetch(
-          `https://labs-asterisk--tensara-benchmark-${(submission.gpuType ?? "t4").toLowerCase()}.modal.run`,
+          `https://labs-asterisk--tensara-benchmark-${(
+            submission.gpuType ?? "t4"
+          ).toLowerCase()}.modal.run`,
           {
             method: "POST",
             headers: {
@@ -318,7 +327,8 @@ export const problemsRouter = createTRPCRouter({
 
         // Handle streaming response from benchmark
         const benchmarkReader = benchmarkResponse.body?.getReader();
-        if (!benchmarkReader) throw new Error("No response body from benchmark");
+        if (!benchmarkReader)
+          throw new Error("No response body from benchmark");
 
         let benchmarkResults: BenchmarkTestResult[] = [];
         let averageGflops = 0;
@@ -331,15 +341,15 @@ export const problemsRouter = createTRPCRouter({
             if (done) break;
 
             const text = new TextDecoder().decode(value);
-            const lines = text.trim().split('\n');
-            
+            const lines = text.trim().split("\n");
+
             for (const line of lines) {
               if (!line.trim()) continue;
-              
+
               // Extract the JSON part after "data: " and parse it
               const match = /^data: (.+)$/.exec(line);
               if (!match?.[1]) continue;
-              
+
               try {
                 const response = JSON.parse(match[1].trim()) as {
                   status: string;
@@ -365,10 +375,14 @@ export const problemsRouter = createTRPCRouter({
                   await ctx.db.submission.update({
                     where: { id: submission.id },
                     data: {
-                      benchmarkResults: benchmarkResults
-                    }
+                      benchmarkResults: benchmarkResults,
+                    },
                   });
-                } else if (response.status === "success" && response.test_results && response.average_gflops) {
+                } else if (
+                  response.status === "success" &&
+                  response.test_results &&
+                  response.average_gflops
+                ) {
                   averageGflops = response.average_gflops;
                   benchmarkResults = response.test_results;
                 } else if (response.status === "error" && response.error) {
@@ -385,7 +399,7 @@ export const problemsRouter = createTRPCRouter({
         } finally {
           benchmarkReader.releaseLock();
         }
-        
+
         if (benchmarkError) {
           const errorSubmission = await ctx.db.submission.update({
             where: { id: submission.id },
@@ -414,10 +428,8 @@ export const problemsRouter = createTRPCRouter({
           data: {
             status: SubmissionStatus.ACCEPTED,
             runtime:
-              benchmarkResults.reduce(
-                (acc, test) => acc + test.runtime_ms,
-                0
-              ) / benchmarkResults.length,
+              benchmarkResults.reduce((acc, test) => acc + test.runtime_ms, 0) /
+              benchmarkResults.length,
             gflops: averageGflops,
             passedTests,
             totalTests,
@@ -434,7 +446,6 @@ export const problemsRouter = createTRPCRouter({
           gflops: updatedSubmission.gflops,
           benchmarkResults: updatedSubmission.benchmarkResults ?? [],
         };
-
       } catch (error) {
         // Update submission with error status
         const failedSubmission = await ctx.db.submission.update({
@@ -538,7 +549,8 @@ export const problemsRouter = createTRPCRouter({
       }
 
       if (ctx.session?.user?.id != submission.userId && !submission.isPublic) {
-        const { code, ...submissionWithoutCode } = submission;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { code: _, ...submissionWithoutCode } = submission;
         return submissionWithoutCode;
       }
 
@@ -551,7 +563,7 @@ export const problemsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const submission = await ctx.db.submission.findUnique({
         where: { id: input.submissionId },
-        select: { userId: true }
+        select: { userId: true },
       });
 
       if (!submission) {

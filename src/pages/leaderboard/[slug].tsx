@@ -29,21 +29,21 @@ import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 
-interface LeaderboardEntry {
+type LeaderboardEntry = {
   id: string;
-  gflops: number | null;
-  runtime: number | null;
   createdAt: Date;
-  status: string | null;
-  gpuType: string | null;
+  runtime: number | null;
+  gflops: number | null;
   user: {
-    name: string | null;
+    username: string | null;
   };
   problem: {
-    title: string;
     slug: string;
+    title: string;
   };
-}
+  status: string | null;
+  gpuType: string | null;
+};
 
 const GPU_DISPLAY_NAMES: Record<string, string> = {
   T4: "NVIDIA T4",
@@ -75,7 +75,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         slug,
       },
     };
-  } catch (error) {
+  } catch (e) {
+    console.error(e);
     return {
       notFound: true,
     };
@@ -109,7 +110,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
         { shallow: true }
       );
     }
-  }, [selectedGpu, router.isReady]);
+  }, [selectedGpu, router]);
 
   const { data: problem, isLoading: isProblemLoading } =
     api.problems.getById.useQuery({ slug: slug }, { enabled: !!slug });
@@ -126,24 +127,23 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const getBestSubmissions = (submissions: LeaderboardEntry[] | undefined) => {
     if (!submissions) return [];
 
-    const userGpuBestMap = new Map<string, LeaderboardEntry>();
+    // Create a map to store the best submission for each user
+    const bestSubmissionsByUser = new Map<string, LeaderboardEntry>();
 
     submissions.forEach((submission) => {
-      if (submission.status !== "ACCEPTED" || !submission.gflops) return;
+      const userId = submission.user.username ?? "anonymous"; // Use username instead of name
+      const currentBest = bestSubmissionsByUser.get(userId);
 
-      if (selectedGpu !== "all" && submission.gpuType !== selectedGpu) return;
-
-      const userGpuKey = `${submission.user.name ?? "Anonymous"}-${
-        submission.gpuType
-      }`;
-      const currentBest = userGpuBestMap.get(userGpuKey);
-
-      if (!currentBest || submission.gflops > currentBest.gflops!) {
-        userGpuBestMap.set(userGpuKey, submission);
+      if (
+        !currentBest ||
+        (submission.gflops ?? 0) > (currentBest.gflops ?? 0)
+      ) {
+        bestSubmissionsByUser.set(userId, submission);
       }
     });
 
-    return Array.from(userGpuBestMap.values()).sort(
+    // Convert map back to array and sort by GFLOPS
+    return Array.from(bestSubmissionsByUser.values()).sort(
       (a, b) => (b.gflops ?? 0) - (a.gflops ?? 0)
     );
   };
@@ -259,7 +259,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                       </Td>
                       <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                         <Text fontWeight={index < 3 ? "bold" : "normal"}>
-                          {entry.user.name ?? "Anonymous"}
+                          {entry.user.username ?? "Anonymous"}
                         </Text>
                       </Td>
                       <Td borderBottom="1px solid" borderColor="whiteAlpha.100">

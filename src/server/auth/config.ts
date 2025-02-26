@@ -1,6 +1,7 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { NextAuthOptions, DefaultSession } from "next-auth";
 import GithubProvider from "next-auth/providers/github";
+import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers/oauth";
 
 import { db } from "~/server/db";
 import { env } from "~/env";
@@ -22,6 +23,15 @@ declare module "next-auth" {
   interface User {
     username?: string;
   }
+}
+
+// Add this interface for GitHub API response
+interface GitHubUser {
+  id: number;
+  login: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;
 }
 
 /**
@@ -56,7 +66,7 @@ export const authConfig: NextAuthOptions = {
         const response = await fetch(
           `https://api.github.com/user/${account.providerAccountId}`
         );
-        const data = await response.json();
+        const data = (await response.json()) as GitHubUser;
 
         await db.user.update({
           where: { id: user.id },
@@ -75,3 +85,34 @@ export const authConfig: NextAuthOptions = {
     }),
   },
 } satisfies NextAuthOptions;
+
+interface DiscordProfile {
+  id: string;
+  username: string;
+  discriminator: string;
+  avatar: string | null;
+  email: string | null;
+}
+
+export const discordAuth = (
+  config: OAuthUserConfig<DiscordProfile>
+): OAuthConfig<DiscordProfile> => ({
+  id: "discord",
+  name: "Discord",
+  type: "oauth",
+  authorization:
+    "https://discord.com/api/oauth2/authorize?scope=identify+email",
+  token: "https://discord.com/api/oauth2/token",
+  userinfo: "https://discord.com/api/users/@me",
+  profile(profile) {
+    return {
+      id: profile.id,
+      name: profile.username,
+      email: profile.email,
+      image: profile.avatar
+        ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
+        : null,
+    };
+  },
+  ...config,
+});

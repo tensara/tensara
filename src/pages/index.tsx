@@ -15,18 +15,24 @@ import {
 import { motion } from "framer-motion";
 import React, { useState, useEffect } from "react";
 import { Layout } from "~/components/layout";
-import { FiCpu, FiAward, FiUsers, FiCode, FiGithub, FiTwitter, FiMail } from "react-icons/fi";
-import { useSession, signIn } from "next-auth/react";
+import {
+  FiCpu,
+  FiAward,
+  FiUsers,
+  FiCode,
+  FiGithub,
+  FiTwitter,
+  FiMail,
+} from "react-icons/fi";
 import { type IconType } from "react-icons";
 
 // Create motion components
 const MotionVStack = motion(VStack);
 const MotionBox = motion(Box);
 const MotionSimpleGrid = motion(SimpleGrid);
-const MotionHStack = motion(HStack);
 
 export default function HomePage() {
-  const { data: session } = useSession();
+  // const { data: session } = useSession();
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -34,11 +40,11 @@ export default function HomePage() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   return (
@@ -71,8 +77,8 @@ export default function HomePage() {
             lineHeight="tall"
             px={{ base: 4, md: 0 }}
           >
-            A platform for GPU programming challenges. Write efficient CUDA code and
-            compare your solutions with other developers.
+            A platform for GPU programming challenges. Write efficient CUDA code
+            and compare your solutions with other developers.
           </Text>
 
           <Button
@@ -113,7 +119,7 @@ export default function HomePage() {
               boxShadow="2xl"
               borderRadius="xl"
               objectFit="cover"
-              display={(isMobile || !videoLoaded) ? "block" : "none"}
+              display={isMobile || !videoLoaded ? "block" : "none"}
             />
             {/* Video only for desktop */}
             {!isMobile && (
@@ -198,13 +204,25 @@ export default function HomePage() {
               <Heading size="md" fontFamily="Space Grotesk, sans-serif">
                 Quick Links
               </Heading>
-              <Link href="/problems" color="whiteAlpha.800" _hover={{ color: "#2ecc71" }}>
+              <Link
+                href="/problems"
+                color="whiteAlpha.800"
+                _hover={{ color: "#2ecc71" }}
+              >
                 Problems
               </Link>
-              <Link href="/submissions" color="whiteAlpha.800" _hover={{ color: "#2ecc71" }}>
+              <Link
+                href="/submissions"
+                color="whiteAlpha.800"
+                _hover={{ color: "#2ecc71" }}
+              >
                 Submissions
               </Link>
-              <Link href="/blog" color="whiteAlpha.800" _hover={{ color: "#2ecc71" }}>
+              <Link
+                href="/blog"
+                color="whiteAlpha.800"
+                _hover={{ color: "#2ecc71" }}
+              >
                 Blog
               </Link>
             </VStack>
@@ -215,23 +233,23 @@ export default function HomePage() {
                 Connect
               </Heading>
               <HStack spacing={4}>
-                <Link 
-                  href="https://github.com/tensara" 
+                <Link
+                  href="https://github.com/tensara"
                   isExternal
                   color="whiteAlpha.800"
                   _hover={{ color: "#2ecc71" }}
                 >
                   <Icon as={FiGithub} boxSize={6} />
                 </Link>
-                <Link 
-                  href="https://twitter.com/someshkar" 
+                <Link
+                  href="https://twitter.com/someshkar"
                   isExternal
                   color="whiteAlpha.800"
                   _hover={{ color: "#2ecc71" }}
                 >
                   <Icon as={FiTwitter} boxSize={6} />
                 </Link>
-                <Link 
+                <Link
                   href="mailto:hello@tensara.org"
                   color="whiteAlpha.800"
                   _hover={{ color: "#2ecc71" }}

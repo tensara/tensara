@@ -1,4 +1,3 @@
-import { useRouter } from "next/router";
 import { api } from "~/utils/api";
 import {
   Box,
@@ -125,7 +124,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         slug,
       },
     };
-  } catch (error) {
+  } catch (e) {
+    console.error(e);
     return {
       notFound: true,
     };
@@ -133,8 +133,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
-  const router = useRouter();
-  const { slug: routerSlug } = router.query;
   const toast = useToast();
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -373,7 +371,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       eventSource.close();
       if (retryTimeout) clearTimeout(retryTimeout);
     };
-  }, [submissionId]);
+  }, [submissionId, submissionStatus?.status, submissionsQuery, toast]);
 
   useEffect(() => {
     if (problem?.starterCode) {

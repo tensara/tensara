@@ -1,5 +1,4 @@
 import { type NextPage } from "next";
-import { useRouter } from "next/router";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import {
@@ -74,7 +73,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 const SubmissionPage: NextPage<{ id: string }> = ({ id }) => {
-  const router = useRouter();
+  // const router = useRouter();
   const [code, setCode] = useState("");
   const { data: session } = useSession();
   const toast = useToast();
