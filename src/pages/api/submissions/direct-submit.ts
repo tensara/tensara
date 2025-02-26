@@ -11,7 +11,8 @@ const SubmissionStatus = {
   ERROR: "ERROR",
 } as const;
 
-type SubmissionStatus = (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
+type SubmissionStatus =
+  (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -43,12 +44,17 @@ export default async function handler(
 
   const sendSSE = (event: string, data: unknown) => {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    // @ts-expect-error - flush exists on Node response objects
-    if (res.flush) res.flush();
+    // Use type assertion to handle Node.js specific response object
+    if (
+      "flush" in res &&
+      typeof (res as { flush: () => void }).flush === "function"
+    ) {
+      (res as { flush: () => void }).flush();
+    }
   };
 
   const { submissionId } = req.body as { submissionId: string };
-  
+
   if (!submissionId) {
     res.status(400).json({ error: "Missing submissionId" });
     return;
@@ -75,14 +81,14 @@ export default async function handler(
 
     await db.submission.update({
       where: { id: submissionId },
-      data: { 
-        status: SubmissionStatus.CHECKING 
+      data: {
+        status: SubmissionStatus.CHECKING,
       },
     });
 
-    sendSSE("status", { 
+    sendSSE("status", {
       id: submission.id,
-      status: SubmissionStatus.CHECKING 
+      status: SubmissionStatus.CHECKING,
     });
 
     console.log("Starting checker process");
@@ -106,11 +112,11 @@ export default async function handler(
 
     if (!checkerResponse.ok) {
       const errorText = await checkerResponse.text();
-      sendSSE("error", { 
+      sendSSE("error", {
         error: `Checker API returned ${checkerResponse.status}`,
-        details: errorText 
+        details: errorText,
       });
-      
+
       await db.submission.update({
         where: { id: submission.id },
         data: {
@@ -119,7 +125,7 @@ export default async function handler(
           errorDetails: errorText,
         },
       });
-      
+
       res.end();
       return;
     }
@@ -127,7 +133,7 @@ export default async function handler(
     const reader = checkerResponse.body?.getReader();
     if (!reader) {
       sendSSE("error", { error: "No response body from checker" });
-      
+
       await db.submission.update({
         where: { id: submission.id },
         data: {
@@ -135,7 +141,7 @@ export default async function handler(
           errorMessage: "No response body from checker",
         },
       });
-      
+
       res.end();
       return;
     }
@@ -144,7 +150,7 @@ export default async function handler(
     let totalTests = 0;
     let partialMessage = "";
     let checkerPassed = false;
-    
+
     const processedTestIds = new Set<number>();
 
     try {
@@ -154,7 +160,7 @@ export default async function handler(
 
         const text = new TextDecoder().decode(value);
         partialMessage += text;
-        
+
         const messages = partialMessage.split("\n\n");
         partialMessage = messages.pop() ?? "";
 
@@ -185,9 +191,11 @@ export default async function handler(
 
             if (response.status === "test_result" && response.result) {
               if (!processedTestIds.has(response.result.test_id)) {
-                console.log(`Processing test result for test ID ${response.result.test_id}`);
+                console.log(
+                  `Processing test result for test ID ${response.result.test_id}`
+                );
                 processedTestIds.add(response.result.test_id);
-                
+
                 totalTests++;
                 if (response.result.status === "PASSED") {
                   passedTests++;
@@ -201,20 +209,28 @@ export default async function handler(
                   },
                 });
               } else {
-                console.log(`Skipping duplicate test result for test ID ${response.result.test_id}`);
+                console.log(
+                  `Skipping duplicate test result for test ID ${response.result.test_id}`
+                );
               }
-            } 
-            else if (response.status === "complete") {
+            } else if (response.status === "complete") {
               checkerPassed = response.passed ?? false;
-              
-              if (response.total_tests !== undefined && response.passed_tests !== undefined) {
-                console.log(`Using complete message test counts: passed=${response.passed_tests}, total=${response.total_tests}`);
+
+              if (
+                response.total_tests !== undefined &&
+                response.passed_tests !== undefined
+              ) {
+                console.log(
+                  `Using complete message test counts: passed=${response.passed_tests}, total=${response.total_tests}`
+                );
                 totalTests = response.total_tests;
                 passedTests = response.passed_tests;
               } else {
-                console.log(`Using local test counts: passed=${passedTests}, total=${totalTests}`);
+                console.log(
+                  `Using local test counts: passed=${passedTests}, total=${totalTests}`
+                );
               }
-              
+
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
@@ -222,8 +238,7 @@ export default async function handler(
                   totalTests,
                 },
               });
-            }
-            else if (response.status === "error") {
+            } else if (response.status === "error") {
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
@@ -234,7 +249,7 @@ export default async function handler(
                   totalTests,
                 },
               });
-              
+
               res.end();
               return;
             }
@@ -257,13 +272,13 @@ export default async function handler(
           totalTests,
         },
       });
-      
-      sendSSE("complete", { 
+
+      sendSSE("complete", {
         status: SubmissionStatus.WRONG_ANSWER,
         passedTests,
-        totalTests 
+        totalTests,
       });
-      
+
       res.end();
       return;
     }
@@ -276,11 +291,11 @@ export default async function handler(
         totalTests,
       },
     });
-    
-    sendSSE("status", { 
+
+    sendSSE("status", {
       status: SubmissionStatus.BENCHMARKING,
       passedTests,
-      totalTests 
+      totalTests,
     });
 
     const benchmarkResponse = await fetch(
@@ -306,7 +321,7 @@ export default async function handler(
         error: `Benchmark API returned ${benchmarkResponse.status}`,
         details: errorText,
       });
-      
+
       await db.submission.update({
         where: { id: submission.id },
         data: {
@@ -315,7 +330,7 @@ export default async function handler(
           errorDetails: errorText,
         },
       });
-      
+
       res.end();
       return;
     }
@@ -323,7 +338,7 @@ export default async function handler(
     const benchmarkReader = benchmarkResponse.body?.getReader();
     if (!benchmarkReader) {
       sendSSE("error", { error: "No response body from benchmark" });
-      
+
       await db.submission.update({
         where: { id: submission.id },
         data: {
@@ -331,7 +346,7 @@ export default async function handler(
           errorMessage: "No response body from benchmark",
         },
       });
-      
+
       res.end();
       return;
     }
@@ -347,7 +362,7 @@ export default async function handler(
 
         const text = new TextDecoder().decode(value);
         partialMessage += text;
-        
+
         const messages = partialMessage.split("\n\n");
         partialMessage = messages.pop() ?? "";
 
@@ -375,20 +390,25 @@ export default async function handler(
             // Update database based on event type
             if (response.status === "test_result" && response.result) {
               benchmarkResults.push(response.result);
-              
+
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
                   benchmarkResults,
                 },
               });
-            } 
-            else if (response.status === "success" && response.test_results && response.average_gflops) {
+            } else if (
+              response.status === "success" &&
+              response.test_results &&
+              response.average_gflops
+            ) {
               benchmarkResults = response.test_results;
               averageGflops = response.average_gflops;
-              
-              const runtime = benchmarkResults.reduce((acc, r) => acc + r.runtime_ms, 0) / benchmarkResults.length;
-              
+
+              const runtime =
+                benchmarkResults.reduce((acc, r) => acc + r.runtime_ms, 0) /
+                benchmarkResults.length;
+
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
@@ -398,7 +418,7 @@ export default async function handler(
                   benchmarkResults,
                 },
               });
-              
+
               sendSSE("complete", {
                 status: SubmissionStatus.ACCEPTED,
                 runtime,
@@ -407,11 +427,10 @@ export default async function handler(
                 passedTests,
                 totalTests,
               });
-              
+
               res.end();
               return;
-            } 
-            else if (response.status === "error") {
+            } else if (response.status === "error") {
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
@@ -420,12 +439,12 @@ export default async function handler(
                   errorDetails: response.details ?? "",
                 },
               });
-              
+
               sendSSE("error", {
                 error: response.error ?? "Unknown error",
                 details: response.details ?? "",
               });
-              
+
               res.end();
               return;
             }
@@ -442,19 +461,20 @@ export default async function handler(
     res.end();
   } catch (error) {
     console.error("Error in direct-submit handler:", error);
-    
-    sendSSE("error", { 
+
+    sendSSE("error", {
       error: error instanceof Error ? error.message : "Unknown error",
       details: error instanceof Error ? error.stack : undefined,
     });
-    
+
     if (submissionId) {
       try {
         await db.submission.update({
           where: { id: submissionId },
           data: {
             status: SubmissionStatus.ERROR,
-            errorMessage: error instanceof Error ? error.message : "Unknown error occurred",
+            errorMessage:
+              error instanceof Error ? error.message : "Unknown error occurred",
             errorDetails: error instanceof Error ? error.stack ?? "" : "",
           },
         });
@@ -462,7 +482,7 @@ export default async function handler(
         console.error("Failed to update submission with error:", dbError);
       }
     }
-    
+
     res.end();
   }
-} 
+}
