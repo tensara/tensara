@@ -10,18 +10,18 @@ export const submissionsRouter = createTRPCRouter({
   getAllSubmissions: protectedProcedure.query(async ({ ctx }) => {
     const submissions = await ctx.db.submission.findMany({
       where: {
-        userId: ctx.session.user.id,
+        OR: [{ userId: ctx.session.user.id }, { isPublic: true }],
       },
       include: {
+        user: {
+          select: {
+            username: true,
+          },
+        },
         problem: {
           select: {
             title: true,
             slug: true,
-          },
-        },
-        user: {
-          select: {
-            username: true,
           },
         },
       },
@@ -48,6 +48,33 @@ export const submissionsRouter = createTRPCRouter({
         user: {
           select: {
             username: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return submissions;
+  }),
+
+  getAllPublicSubmissions: publicProcedure.query(async ({ ctx }) => {
+    const submissions = await ctx.db.submission.findMany({
+      where: {
+        isPublic: true,
+        status: "ACCEPTED",
+      },
+      include: {
+        user: {
+          select: {
+            username: true,
+          },
+        },
+        problem: {
+          select: {
+            title: true,
+            slug: true,
           },
         },
       },

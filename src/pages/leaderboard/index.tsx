@@ -31,6 +31,7 @@ import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
+import { useSession } from "next-auth/react";
 
 const GPU_DISPLAY_NAMES: Record<string, string> = {
   T4: "NVIDIA T4",
@@ -41,16 +42,18 @@ const GPU_DISPLAY_NAMES: Record<string, string> = {
   all: "All GPUs",
 };
 
-export const getServerSideProps: GetServerSideProps = async () => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
   const helpers = createServerSideHelpers({
     router: appRouter,
     ctx: createInnerTRPCContext({ session: null }),
     transformer: superjson,
   });
 
-  // Prefetch both problems and submissions data
+  // Prefetch problems
   await helpers.problems.getAll.prefetch();
-  await helpers.submissions.getAllSubmissions.prefetch();
+
+  // Prefetch public submissions instead of all submissions
+  await helpers.submissions.getAllPublicSubmissions.prefetch();
 
   return {
     props: {
@@ -60,13 +63,17 @@ export const getServerSideProps: GetServerSideProps = async () => {
 };
 
 const LeaderboardIndexPage: NextPage = () => {
+  const { data: session } = useSession();
   const router = useRouter();
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
 
   const { data: problems, isLoading: isProblemsLoading } =
     api.problems.getAll.useQuery();
-  const { data: submissions, isLoading: isSubmissionsLoading } =
-    api.submissions.getAllSubmissions.useQuery();
+
+  // Use the appropriate query based on auth status
+  const { data: submissions, isLoading: isSubmissionsLoading } = session
+    ? api.submissions.getAllSubmissions.useQuery()
+    : api.submissions.getAllPublicSubmissions.useQuery();
 
   // Process submissions to get the best submission per user per problem per GPU type
   const getBestSubmissions = (problemSlug: string) => {
