@@ -14,13 +14,18 @@ import {
   Badge,
   InputGroup,
   InputLeftElement,
-  Spinner
+  Spinner,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useState } from "react";
 import { SearchIcon } from "@chakra-ui/icons";
 import { TriangleDownIcon, TriangleUpIcon } from "@chakra-ui/icons";
+import { createServerSideHelpers } from "@trpc/react-query/server";
+import { appRouter } from "~/server/api/root";
+import { createInnerTRPCContext } from "~/server/api/trpc";
+import superjson from "superjson";
+import type { GetServerSideProps } from "next";
 
 type SortField = "title" | "difficulty" | "submissionCount";
 type SortDirection = "asc" | "desc";
@@ -51,8 +56,30 @@ const getDifficultyValue = (difficulty: string) => {
   }
 };
 
+export const getServerSideProps: GetServerSideProps = async () => {
+  const helpers = createServerSideHelpers({
+    router: appRouter,
+    ctx: createInnerTRPCContext({ session: null }),
+    transformer: superjson,
+  });
+
+  await helpers.problems.getAll.prefetch();
+
+  return {
+    props: {
+      trpcState: helpers.dehydrate(),
+    },
+  };
+};
+
 export default function ProblemsPage() {
-  const { data: problems, isLoading } = api.problems.getAll.useQuery();
+  const { data: problems = [], isLoading } = api.problems.getAll.useQuery(
+    undefined,
+    {
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    }
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [sortField, setSortField] = useState<SortField>("title");
@@ -79,12 +106,16 @@ export default function ProblemsPage() {
     })
     .sort((a, b) => {
       const multiplier = sortDirection === "asc" ? 1 : -1;
-      
+
       switch (sortField) {
         case "title":
           return multiplier * a.title.localeCompare(b.title);
         case "difficulty":
-          return multiplier * (getDifficultyValue(a.difficulty) - getDifficultyValue(b.difficulty));
+          return (
+            multiplier *
+            (getDifficultyValue(a.difficulty) -
+              getDifficultyValue(b.difficulty))
+          );
         case "submissionCount":
           return multiplier * (a.submissionCount - b.submissionCount);
         default:
@@ -95,7 +126,12 @@ export default function ProblemsPage() {
   if (isLoading) {
     return (
       <Layout title="Problems">
-        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="50vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -150,7 +186,8 @@ export default function ProblemsPage() {
         </HStack>
 
         <Text color="gray.400" fontSize="sm">
-          Showing {filteredAndSortedProblems?.length} of {problems?.length} problems
+          Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "}
+          problems
         </Text>
 
         <Box

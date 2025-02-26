@@ -24,6 +24,11 @@ import Link from "next/link";
 import { Editor } from "@monaco-editor/react";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { createServerSideHelpers } from "@trpc/react-query/server";
+import { appRouter } from "~/server/api/root";
+import { createInnerTRPCContext } from "~/server/api/trpc";
+import superjson from "superjson";
+import type { GetServerSideProps } from "next";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -32,18 +37,45 @@ type BenchmarkTestResult = {
   name: string;
 };
 
-const SubmissionPage: NextPage = () => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const helpers = createServerSideHelpers({
+    router: appRouter,
+    ctx: createInnerTRPCContext({ session: null }),
+    transformer: superjson,
+  });
+
+  const id = context.params?.id as string;
+
+  try {
+    await helpers.problems.getSubmissionStatus.prefetch({ submissionId: id });
+
+    return {
+      props: {
+        trpcState: helpers.dehydrate(),
+        id,
+      },
+    };
+  } catch (error) {
+    return {
+      notFound: true,
+    };
+  }
+};
+
+const SubmissionPage: NextPage<{ id: string }> = ({ id }) => {
   const router = useRouter();
-  const { id } = router.query;
   const [code, setCode] = useState("");
   const { data: session } = useSession();
   const toast = useToast();
 
-  const { data: submission, isLoading, refetch } =
-    api.problems.getSubmissionStatus.useQuery(
-      { submissionId: id as string },
-      { enabled: !!id }
-    );
+  const {
+    data: submission,
+    isLoading,
+    refetch,
+  } = api.problems.getSubmissionStatus.useQuery(
+    { submissionId: id as string },
+    { enabled: !!id }
+  );
 
   const togglePublicMutation = api.problems.toggleSubmissionPublic.useMutation({
     onSuccess: async () => {
@@ -73,7 +105,7 @@ const SubmissionPage: NextPage = () => {
 
   useEffect(() => {
     // Using optional chaining to safely access code which might not be present
-    if (submission && 'code' in submission) {
+    if (submission && "code" in submission) {
       setCode(submission.code as string);
     }
   }, [submission]);
@@ -144,7 +176,7 @@ const SubmissionPage: NextPage = () => {
     }
   };
 
-  const hasCode = 'code' in submission;
+  const hasCode = "code" in submission;
 
   return (
     <Layout title={`Submission ${id as string}`}>
@@ -190,12 +222,12 @@ const SubmissionPage: NextPage = () => {
 
               {/* Public/Private Toggle (only for submission owner) */}
               {isOwner && (
-                <FormControl display='flex' alignItems='center'>
-                  <FormLabel htmlFor='public-toggle' mb='0'>
+                <FormControl display="flex" alignItems="center">
+                  <FormLabel htmlFor="public-toggle" mb="0">
                     Make submission public
                   </FormLabel>
-                  <Switch 
-                    id='public-toggle' 
+                  <Switch
+                    id="public-toggle"
                     isChecked={submission.isPublic}
                     onChange={handleTogglePublic}
                     colorScheme="blue"
@@ -352,9 +384,9 @@ const SubmissionPage: NextPage = () => {
               <Alert status="info" variant="solid" mb={4}>
                 <AlertIcon />
                 <AlertDescription>
-                  {session ? 
-                    "You don't have access to this code. Ask the submission owner to make it public." : 
-                    "Sign in to view this submission's code."}
+                  {session
+                    ? "You don't have access to this code. Ask the submission owner to make it public."
+                    : "Sign in to view this submission's code."}
                 </AlertDescription>
               </Alert>
             ) : (

@@ -26,22 +26,47 @@ import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { createServerSideHelpers } from "@trpc/react-query/server";
+import { appRouter } from "~/server/api/root";
+import { createInnerTRPCContext } from "~/server/api/trpc";
+import superjson from "superjson";
+import type { GetServerSideProps } from "next";
 
 const GPU_DISPLAY_NAMES: Record<string, string> = {
-  "T4": "NVIDIA T4",
-  "H100": "NVIDIA H100",
+  T4: "NVIDIA T4",
+  H100: "NVIDIA H100",
   "A100-80GB": "NVIDIA A100-80GB",
-  "A10G": "NVIDIA A10G",
-  "L4": "NVIDIA L4",
-  "all": "All GPUs"
+  A10G: "NVIDIA A10G",
+  L4: "NVIDIA L4",
+  all: "All GPUs",
+};
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  const helpers = createServerSideHelpers({
+    router: appRouter,
+    ctx: createInnerTRPCContext({ session: null }),
+    transformer: superjson,
+  });
+
+  // Prefetch both problems and submissions data
+  await helpers.problems.getAll.prefetch();
+  await helpers.submissions.getAllSubmissions.prefetch();
+
+  return {
+    props: {
+      trpcState: helpers.dehydrate(),
+    },
+  };
 };
 
 const LeaderboardIndexPage: NextPage = () => {
   const router = useRouter();
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
 
-  const { data: problems, isLoading: isProblemsLoading } = api.problems.getAll.useQuery();
-  const { data: submissions, isLoading: isSubmissionsLoading } = api.submissions.getAllSubmissions.useQuery();
+  const { data: problems, isLoading: isProblemsLoading } =
+    api.problems.getAll.useQuery();
+  const { data: submissions, isLoading: isSubmissionsLoading } =
+    api.submissions.getAllSubmissions.useQuery();
 
   // Process submissions to get the best submission per user per problem per GPU type
   const getBestSubmissions = (problemSlug: string) => {
@@ -51,14 +76,16 @@ const LeaderboardIndexPage: NextPage = () => {
       (submission) => submission.problem.slug === problemSlug
     );
 
-    const userGpuBestMap = new Map<string, typeof submissions[0]>();
+    const userGpuBestMap = new Map<string, (typeof submissions)[0]>();
 
     problemSubmissions.forEach((submission) => {
       if (submission.status !== "ACCEPTED" || !submission.gflops) return;
-      
+
       if (selectedGpu !== "all" && submission.gpuType !== selectedGpu) return;
 
-      const userGpuKey = `${submission.user.name ?? "Anonymous"}-${submission.gpuType}`;
+      const userGpuKey = `${submission.user.name ?? "Anonymous"}-${
+        submission.gpuType
+      }`;
       const currentBest = userGpuBestMap.get(userGpuKey);
 
       if (!currentBest || submission.gflops > currentBest.gflops!) {
@@ -113,8 +140,11 @@ const LeaderboardIndexPage: NextPage = () => {
 
           <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
             {problems?.map((problem) => {
-              const topSubmissions = getBestSubmissions(problem.slug).slice(0, 3);
-              
+              const topSubmissions = getBestSubmissions(problem.slug).slice(
+                0,
+                3
+              );
+
               return (
                 <Card
                   key={problem.slug}
@@ -126,9 +156,15 @@ const LeaderboardIndexPage: NextPage = () => {
                   <CardHeader>
                     <ChakraLink
                       as={Link}
-                      href={`/leaderboard/${problem.slug}${selectedGpu !== "all" ? `?gpu=${selectedGpu}` : ""}`}
+                      href={`/leaderboard/${problem.slug}${
+                        selectedGpu !== "all" ? `?gpu=${selectedGpu}` : ""
+                      }`}
                     >
-                      <Heading size="md" color="white" _hover={{ color: "blue.400" }}>
+                      <Heading
+                        size="md"
+                        color="white"
+                        _hover={{ color: "blue.400" }}
+                      >
                         {problem.title}
                       </Heading>
                     </ChakraLink>
@@ -136,27 +172,51 @@ const LeaderboardIndexPage: NextPage = () => {
                   <CardBody>
                     {topSubmissions.length === 0 ? (
                       <Text color="whiteAlpha.700">
-                        No submissions yet{selectedGpu !== "all" ? ` for ${GPU_DISPLAY_NAMES[selectedGpu]}` : ""}
+                        No submissions yet
+                        {selectedGpu !== "all"
+                          ? ` for ${GPU_DISPLAY_NAMES[selectedGpu]}`
+                          : ""}
                       </Text>
                     ) : (
                       <Table variant="unstyled" size="sm">
                         <Thead>
                           <Tr>
-                            <Th pl={2} color="whiteAlpha.600">Rank</Th>
+                            <Th pl={2} color="whiteAlpha.600">
+                              Rank
+                            </Th>
                             <Th color="whiteAlpha.600">User</Th>
                             <Th color="whiteAlpha.600">GPU</Th>
-                            <Th isNumeric color="whiteAlpha.600">GFLOPS</Th>
+                            <Th isNumeric color="whiteAlpha.600">
+                              GFLOPS
+                            </Th>
                           </Tr>
                         </Thead>
                         <Tbody>
                           {topSubmissions.map((submission, index) => (
-                            <Tr key={submission.id} onClick={() => router.push(`/submissions/${submission.id}`)} cursor="pointer" 
-                            _hover={{ bg: "gray.600", transform: "scale(1.02)", transition: "background-color 0.2s, transform 0.2s" }}
-                            px={4}
-                            rounded="full">
+                            <Tr
+                              key={submission.id}
+                              onClick={() =>
+                                router.push(`/submissions/${submission.id}`)
+                              }
+                              cursor="pointer"
+                              _hover={{
+                                bg: "gray.600",
+                                transform: "scale(1.02)",
+                                transition:
+                                  "background-color 0.2s, transform 0.2s",
+                              }}
+                              px={4}
+                              rounded="full"
+                            >
                               <Td pl={2}>
                                 <Badge
-                                  colorScheme={index === 0 ? "yellow" : index === 1 ? "gray" : "blue"}
+                                  colorScheme={
+                                    index === 0
+                                      ? "yellow"
+                                      : index === 1
+                                      ? "gray"
+                                      : "blue"
+                                  }
                                   variant="solid"
                                   fontSize="sm"
                                   px={2}
@@ -177,7 +237,11 @@ const LeaderboardIndexPage: NextPage = () => {
                                 </Badge>
                               </Td>
                               <Td isNumeric>
-                                <Tooltip label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}>
+                                <Tooltip
+                                  label={`Runtime: ${submission.runtime?.toFixed(
+                                    2
+                                  )} ms`}
+                                >
                                   <Text color="green.300" fontWeight="semibold">
                                     {submission.gflops?.toFixed(2)}
                                   </Text>

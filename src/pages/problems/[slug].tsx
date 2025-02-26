@@ -41,6 +41,11 @@ import {
 import { FiArrowLeft, FiTrendingUp } from "react-icons/fi";
 import { Icon } from "@chakra-ui/react";
 import { getDifficultyColor } from ".";
+import { createServerSideHelpers } from "@trpc/react-query/server";
+import { appRouter } from "~/server/api/root";
+import { createInnerTRPCContext } from "~/server/api/trpc";
+import superjson from "superjson";
+import type { GetServerSideProps } from "next";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -82,9 +87,40 @@ type Submission = {
   gpuType: string;
 };
 
-export default function ProblemPage() {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const helpers = createServerSideHelpers({
+    router: appRouter,
+    ctx: createInnerTRPCContext({ session: null }),
+    transformer: superjson,
+  });
+
+  const slug = context.params?.slug as string;
+
+  try {
+    // Prefetch the problem data
+    await helpers.problems.getById.prefetch({ slug });
+    // Prefetch the submissions data (this will only work if user is authenticated)
+    await helpers.problems.getSubmissions.prefetch({
+      problemSlug: slug,
+      limit: 50,
+    });
+
+    return {
+      props: {
+        trpcState: helpers.dehydrate(),
+        slug,
+      },
+    };
+  } catch (error) {
+    return {
+      notFound: true,
+    };
+  }
+};
+
+export default function ProblemPage({ slug }: { slug: string }) {
   const router = useRouter();
-  const { slug } = router.query;
+  const { slug: routerSlug } = router.query;
   const toast = useToast();
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -495,12 +531,12 @@ export default function ProblemPage() {
                                   ? "Wrong Answer"
                                   : submission.status}
                               </Text>
-                              <Badge 
-                                ml={2} 
-                                px={2} 
-                                rounded="full" 
-                                variant="outline" 
-                                borderColor="whiteAlpha.200" 
+                              <Badge
+                                ml={2}
+                                px={2}
+                                rounded="full"
+                                variant="outline"
+                                borderColor="whiteAlpha.200"
                                 color="gray.300"
                                 fontSize="xs"
                               >
@@ -645,7 +681,9 @@ export default function ProblemPage() {
                             <HStack spacing={1}>
                               <Text
                                 color={
-                                  (submissionStatus.status === "ACCEPTED" || submissionStatus.status === "CHECKING" || submissionStatus.status === "BENCHMARKING")
+                                  submissionStatus.status === "ACCEPTED" ||
+                                  submissionStatus.status === "CHECKING" ||
+                                  submissionStatus.status === "BENCHMARKING"
                                     ? "green.300"
                                     : "red.300"
                                 }
@@ -708,8 +746,8 @@ export default function ProblemPage() {
                                       </Tr>
                                     )
                                   )}
-                                  {submissionStatus.status != "BENCHMARKING" && 
-                                  submissionStatus.totalTests !== null &&
+                                  {submissionStatus.status != "BENCHMARKING" &&
+                                    submissionStatus.totalTests !== null &&
                                     submissionStatus.benchmarkResults &&
                                     submissionStatus.totalTests >
                                       submissionStatus.benchmarkResults
@@ -789,26 +827,27 @@ export default function ProblemPage() {
                     </SimpleGrid>
                   )}
 
-                  {(submissionStatus.errorMessage && submissionStatus.errorDetails) && (
-                    <Box bg="red.900" p={6} borderRadius="xl">
-                      <Text color="red.200" fontWeight="semibold" mb={3}>
-                        Error Details
-                      </Text>
-                      <Code
-                        display="block"
-                        whiteSpace="pre-wrap"
-                        p={4}
-                        bg="red.800"
-                        color="red.100"
-                        borderRadius="lg"
-                        fontSize="sm"
-                        fontFamily="mono"
-                      >
-                        {submissionStatus.errorDetails ??
-                          submissionStatus.errorMessage}
-                      </Code>
-                    </Box>
-                  )}
+                  {submissionStatus.errorMessage &&
+                    submissionStatus.errorDetails && (
+                      <Box bg="red.900" p={6} borderRadius="xl">
+                        <Text color="red.200" fontWeight="semibold" mb={3}>
+                          Error Details
+                        </Text>
+                        <Code
+                          display="block"
+                          whiteSpace="pre-wrap"
+                          p={4}
+                          bg="red.800"
+                          color="red.100"
+                          borderRadius="lg"
+                          fontSize="sm"
+                          fontFamily="mono"
+                        >
+                          {submissionStatus.errorDetails ??
+                            submissionStatus.errorMessage}
+                        </Code>
+                      </Box>
+                    )}
                 </>
               )}
             </VStack>

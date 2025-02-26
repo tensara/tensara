@@ -23,6 +23,11 @@ import { Layout } from "~/components/layout";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { formatDistanceToNow } from "date-fns";
+import { createServerSideHelpers } from "@trpc/react-query/server";
+import { appRouter } from "~/server/api/root";
+import { createInnerTRPCContext } from "~/server/api/trpc";
+import superjson from "superjson";
+import type { GetServerSideProps } from "next";
 
 interface LeaderboardEntry {
   id: string;
@@ -41,17 +46,45 @@ interface LeaderboardEntry {
 }
 
 const GPU_DISPLAY_NAMES: Record<string, string> = {
-  "T4": "NVIDIA T4",
-  "H100": "NVIDIA H100",
+  T4: "NVIDIA T4",
+  H100: "NVIDIA H100",
   "A100-80GB": "NVIDIA A100-80GB",
-  "A10G": "NVIDIA A10G",
-  "L4": "NVIDIA L4",
-  "all": "All GPUs"
+  A10G: "NVIDIA A10G",
+  L4: "NVIDIA L4",
+  all: "All GPUs",
 };
 
-const LeaderboardPage: NextPage = () => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const helpers = createServerSideHelpers({
+    router: appRouter,
+    ctx: createInnerTRPCContext({ session: null }),
+    transformer: superjson,
+  });
+
+  const slug = context.params?.slug as string;
+
+  try {
+    // Prefetch the problem data
+    await helpers.problems.getById.prefetch({ slug });
+    // Prefetch all submissions for the leaderboard
+    await helpers.submissions.getAllSubmissions.prefetch();
+
+    return {
+      props: {
+        trpcState: helpers.dehydrate(),
+        slug,
+      },
+    };
+  } catch (error) {
+    return {
+      notFound: true,
+    };
+  }
+};
+
+const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const router = useRouter();
-  const { slug, gpu } = router.query;
+  const { gpu } = router.query;
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
 
   // Update selectedGpu when URL parameter changes
@@ -78,10 +111,11 @@ const LeaderboardPage: NextPage = () => {
     }
   }, [selectedGpu, router.isReady]);
 
-  const { data: problem, isLoading: isProblemLoading } = api.problems.getById.useQuery(
-    { slug: slug as string },
-    { enabled: !!slug }
-  );
+  const { data: problem, isLoading: isProblemLoading } =
+    api.problems.getById.useQuery(
+      { slug: slug as string },
+      { enabled: !!slug }
+    );
 
   const { data: submissions, isLoading: isSubmissionsLoading } =
     api.submissions.getAllSubmissions.useQuery();
@@ -99,10 +133,12 @@ const LeaderboardPage: NextPage = () => {
 
     submissions.forEach((submission) => {
       if (submission.status !== "ACCEPTED" || !submission.gflops) return;
-      
+
       if (selectedGpu !== "all" && submission.gpuType !== selectedGpu) return;
 
-      const userGpuKey = `${submission.user.name ?? "Anonymous"}-${submission.gpuType}`;
+      const userGpuKey = `${submission.user.name ?? "Anonymous"}-${
+        submission.gpuType
+      }`;
       const currentBest = userGpuBestMap.get(userGpuKey);
 
       if (!currentBest || submission.gflops > currentBest.gflops!) {
@@ -143,7 +179,9 @@ const LeaderboardPage: NextPage = () => {
   }
 
   return (
-    <Layout title={`Leaderboard: ${problem.title} on ${GPU_DISPLAY_NAMES[selectedGpu]}`}>
+    <Layout
+      title={`Leaderboard: ${problem.title} on ${GPU_DISPLAY_NAMES[selectedGpu]}`}
+    >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
           <Heading size="lg">Leaderboard</Heading>
@@ -168,7 +206,11 @@ const LeaderboardPage: NextPage = () => {
           </HStack>
           {leaderboardEntries.length === 0 ? (
             <Box p={4} textAlign="center" color="whiteAlpha.700">
-              No submissions yet{selectedGpu !== "all" ? ` for ${GPU_DISPLAY_NAMES[selectedGpu]}` : ""},{" "}
+              No submissions yet
+              {selectedGpu !== "all"
+                ? ` for ${GPU_DISPLAY_NAMES[selectedGpu]}`
+                : ""}
+              ,{" "}
               <ChakraLink
                 as={Link}
                 href={`/problems/${problem.slug}`}
@@ -179,78 +221,78 @@ const LeaderboardPage: NextPage = () => {
               </ChakraLink>
             </Box>
           ) : (
-          <Box overflowX="auto">
-            <Table variant="unstyled">
-              <Thead>
-                <Tr>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                    Rank
-                  </Th>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                    User
-                  </Th>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                    GPU
-                  </Th>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                    Performance
-                  </Th>
-                  <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                    Submitted
-                  </Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {leaderboardEntries.map((entry, index) => (
-                  <Tr
-                    key={entry.id}
-                    _hover={{ bg: "whiteAlpha.50" }}
-                    transition="background-color 0.2s"
-                  >
-                    <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                      <Badge
-                        colorScheme={index < 3 ? "yellow" : "gray"}
-                        fontSize="md"
-                        px={3}
-                        py={1}
-                        borderRadius="full"
-                      >
-                        #{index + 1}
-                      </Badge>
-                    </Td>
-                    <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                      <Text fontWeight={index < 3 ? "bold" : "normal"}>
-                        {entry.user.name ?? "Anonymous"}
-                      </Text>
-                    </Td>
-                    <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                      <Badge colorScheme="gray">
-                        {GPU_DISPLAY_NAMES[entry.gpuType ?? "T4"]}
-                      </Badge>
-                    </Td>
-                    <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                      <ChakraLink as={Link} href={`/submissions/${entry.id}`}>
-                        <Tooltip
-                          label={`Runtime: ${entry.runtime?.toFixed(2)} ms`}
+            <Box overflowX="auto">
+              <Table variant="unstyled">
+                <Thead>
+                  <Tr>
+                    <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                      Rank
+                    </Th>
+                    <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                      User
+                    </Th>
+                    <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                      GPU
+                    </Th>
+                    <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                      Performance
+                    </Th>
+                    <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                      Submitted
+                    </Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {leaderboardEntries.map((entry, index) => (
+                    <Tr
+                      key={entry.id}
+                      _hover={{ bg: "whiteAlpha.50" }}
+                      transition="background-color 0.2s"
+                    >
+                      <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                        <Badge
+                          colorScheme={index < 3 ? "yellow" : "gray"}
+                          fontSize="md"
+                          px={3}
+                          py={1}
+                          borderRadius="full"
                         >
-                          <Text fontWeight="medium">
-                            {entry.gflops?.toFixed(2)} GFLOPS
+                          #{index + 1}
+                        </Badge>
+                      </Td>
+                      <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                        <Text fontWeight={index < 3 ? "bold" : "normal"}>
+                          {entry.user.name ?? "Anonymous"}
+                        </Text>
+                      </Td>
+                      <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                        <Badge colorScheme="gray">
+                          {GPU_DISPLAY_NAMES[entry.gpuType ?? "T4"]}
+                        </Badge>
+                      </Td>
+                      <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                        <ChakraLink as={Link} href={`/submissions/${entry.id}`}>
+                          <Tooltip
+                            label={`Runtime: ${entry.runtime?.toFixed(2)} ms`}
+                          >
+                            <Text fontWeight="medium">
+                              {entry.gflops?.toFixed(2)} GFLOPS
+                            </Text>
+                          </Tooltip>
+                        </ChakraLink>
+                      </Td>
+                      <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                        <Tooltip
+                          label={new Date(entry.createdAt).toLocaleString()}
+                        >
+                          <Text>
+                            {formatDistanceToNow(new Date(entry.createdAt))} ago
                           </Text>
                         </Tooltip>
-                      </ChakraLink>
-                    </Td>
-                    <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                      <Tooltip
-                        label={new Date(entry.createdAt).toLocaleString()}
-                      >
-                        <Text>
-                          {formatDistanceToNow(new Date(entry.createdAt))} ago
-                        </Text>
-                      </Tooltip>
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
               </Table>
             </Box>
           )}

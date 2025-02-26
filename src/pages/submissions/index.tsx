@@ -25,6 +25,11 @@ import Link from "next/link";
 import { ChevronUpIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { formatDistanceToNow } from "date-fns";
 import type { Submission } from "@prisma/client";
+import { createServerSideHelpers } from "@trpc/react-query/server";
+import { appRouter } from "~/server/api/root";
+import { createInnerTRPCContext } from "~/server/api/trpc";
+import superjson from "superjson";
+import type { GetServerSideProps } from "next";
 
 type SortField = "createdAt" | "status" | "problem" | "performance";
 type SortOrder = "asc" | "desc";
@@ -40,13 +45,28 @@ interface SubmissionWithProblem extends Submission {
 }
 
 const GPU_DISPLAY_NAMES: Record<string, string> = {
-  "T4": "NVIDIA T4",
-  "H100": "NVIDIA H100",
+  T4: "NVIDIA T4",
+  H100: "NVIDIA H100",
   "A100-80GB": "NVIDIA A100-80GB",
-  "A10G": "NVIDIA A10G",
-  "L4": "NVIDIA L4"
+  A10G: "NVIDIA A10G",
+  L4: "NVIDIA L4",
 };
 
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const helpers = createServerSideHelpers({
+    router: appRouter,
+    ctx: createInnerTRPCContext({ session: null }),
+    transformer: superjson,
+  });
+
+  await helpers.submissions.getAllSubmissions.prefetch();
+
+  return {
+    props: {
+      trpcState: helpers.dehydrate(),
+    },
+  };
+};
 
 const SubmissionsPage: NextPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
