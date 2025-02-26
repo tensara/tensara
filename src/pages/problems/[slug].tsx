@@ -87,6 +87,20 @@ type Submission = {
   gpuType: string;
 };
 
+const LOCAL_STORAGE_PREFIX = "problem_solution_";
+
+const getSolutionKey = (slug: string) => `${LOCAL_STORAGE_PREFIX}${slug}`;
+
+const saveSolutionToStorage = (slug: string, code: string) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(getSolutionKey(slug), code);
+};
+
+const loadSolutionFromStorage = (slug: string): string | null => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(getSolutionKey(slug));
+};
+
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const helpers = createServerSideHelpers({
     router: appRouter,
@@ -132,6 +146,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [splitRatio, setSplitRatio] = useState(35);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
+  const [isCodeDirty, setIsCodeDirty] = useState(false);
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
     { problemSlug: slug },
@@ -202,14 +217,23 @@ export default function ProblemPage({ slug }: { slug: string }) {
   );
 
   useEffect(() => {
-    if (
-      problem?.starterCode &&
-      (!hasSetInitialCode || problem.slug !== router.query.slug)
-    ) {
-      setCode(problem.starterCode);
-      setHasSetInitialCode(true);
+    if (!hasSetInitialCode && slug) {
+      const savedSolution = loadSolutionFromStorage(slug);
+      if (savedSolution) {
+        setCode(savedSolution);
+        setHasSetInitialCode(true);
+      } else if (problem?.starterCode) {
+        setCode(problem.starterCode);
+        setHasSetInitialCode(true);
+      }
     }
-  }, [problem, hasSetInitialCode, router.query.slug]);
+  }, [slug, hasSetInitialCode, problem]);
+
+  useEffect(() => {
+    if (code && slug) {
+      saveSolutionToStorage(slug, code);
+    }
+  }, [code, slug]);
 
   useEffect(() => {
     if (!submissionId) return;
@@ -350,6 +374,22 @@ export default function ProblemPage({ slug }: { slug: string }) {
       if (retryTimeout) clearTimeout(retryTimeout);
     };
   }, [submissionId]);
+
+  useEffect(() => {
+    if (problem?.starterCode) {
+      setIsCodeDirty(code !== problem.starterCode);
+    }
+  }, [code, problem?.starterCode]);
+
+  const handleReset = () => {
+    if (problem?.starterCode) {
+      setCode(problem.starterCode);
+      // Clear localStorage
+      if (slug) {
+        localStorage.removeItem(getSolutionKey(slug));
+      }
+    }
+  };
 
   // Move these handlers to useCallback
   const handleMouseDown = useCallback(() => {
@@ -968,23 +1008,28 @@ export default function ProblemPage({ slug }: { slug: string }) {
           position="absolute"
           left={`${splitRatio}%`}
           transform="translateX(-50%)"
-          width="4px"
+          width="6px"
           height="100%"
           cursor="col-resize"
           zIndex={2}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={handleMouseDown}
+          _hover={{
+            "& > div": {
+              bg: "whiteAlpha.400",
+            },
+          }}
         >
           <Box
             position="absolute"
             left="50%"
             top="50%"
             transform="translate(-50%, -50%)"
-            width="4px"
-            height="32px"
+            width="6px"
+            height="80px"
             bg="whiteAlpha.200"
             borderRadius="full"
-            _hover={{ bg: "whiteAlpha.300" }}
+            transition="all 0.2s"
           />
         </Box>
 
@@ -1067,7 +1112,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
               </HStack>
 
               <HStack spacing={2}>
-                {/* Hide "Back to Problems" button when split ratio exceeds 45% */}
                 {splitRatio < 45 && (
                   <Button
                     size="sm"
@@ -1084,6 +1128,32 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     }}
                   >
                     Back to Problems
+                  </Button>
+                )}
+                {isCodeDirty && (
+                  <Button
+                    size="md"
+                    variant="ghost"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Are you sure you want to reset to the starter code? Your changes will be lost."
+                        )
+                      ) {
+                        handleReset();
+                      }
+                    }}
+                    borderRadius="full"
+                    height="40px"
+                    fontSize="sm"
+                    fontWeight="semibold"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white",
+                    }}
+                  >
+                    Reset Code
                   </Button>
                 )}
                 <Button
