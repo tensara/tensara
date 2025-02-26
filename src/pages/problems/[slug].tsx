@@ -21,6 +21,13 @@ import {
   IconButton,
   Select,
   Link,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
 } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "~/components/layout";
@@ -145,6 +152,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isCodeDirty, setIsCodeDirty] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
     { problemSlug: slug },
@@ -1132,15 +1140,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   <Button
                     size="md"
                     variant="ghost"
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "Are you sure you want to reset to the starter code? Your changes will be lost."
-                        )
-                      ) {
-                        handleReset();
-                      }
-                    }}
+                    onClick={() => setIsResetModalOpen(true)}
                     borderRadius="full"
                     height="40px"
                     fontSize="sm"
@@ -1209,6 +1209,54 @@ export default function ProblemPage({ slug }: { slug: string }) {
           </VStack>
         </Box>
       </HStack>
+
+      <Modal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        isCentered
+      >
+        <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
+        <ModalContent
+          bg="gray.800"
+          borderColor="whiteAlpha.100"
+          borderWidth={1}
+          mx={4}
+          maxW="md"
+        >
+          <ModalHeader color="white">Reset Code</ModalHeader>
+          <ModalCloseButton color="gray.400" />
+          <ModalBody>
+            <Text color="gray.300">
+              Are you sure you want to reset to the starter code? Your changes
+              will be lost.
+            </Text>
+          </ModalBody>
+
+          <ModalFooter gap={3}>
+            <Button
+              variant="ghost"
+              onClick={() => setIsResetModalOpen(false)}
+              color="gray.300"
+              _hover={{ bg: "whiteAlpha.100" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              bg="rgba(34, 197, 94, 0.1)"
+              color="rgb(34, 197, 94)"
+              _hover={{
+                bg: "rgba(34, 197, 94, 0.2)",
+              }}
+              onClick={() => {
+                handleReset();
+                setIsResetModalOpen(false);
+              }}
+            >
+              Reset Code
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Layout>
   );
 }
