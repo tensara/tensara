@@ -30,6 +30,7 @@ import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
+import { auth } from "~/server/auth";
 
 type SortField = "createdAt" | "status" | "problem" | "performance";
 type SortOrder = "asc" | "desc";
@@ -53,19 +54,35 @@ const GPU_DISPLAY_NAMES: Record<string, string> = {
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
+  const session = await auth(context.req, context.res);
+
+  // Redirect to login if not authenticated
+  if (!session) {
+    return {
+      redirect: {
+        destination: "/api/auth/signin",
+        permanent: false,
+      },
+    };
+  }
+
   const helpers = createServerSideHelpers({
     router: appRouter,
-    ctx: createInnerTRPCContext({ session: null }),
+    ctx: createInnerTRPCContext({ session }),
     transformer: superjson,
   });
 
-  await helpers.submissions.getAllSubmissions.prefetch();
+  try {
+    await helpers.submissions.getAllSubmissions.prefetch();
 
-  return {
-    props: {
-      trpcState: helpers.dehydrate(),
-    },
-  };
+    return {
+      props: {
+        trpcState: helpers.dehydrate(),
+      },
+    };
+  } catch (error) {
+    return { notFound: true };
+  }
 };
 
 const SubmissionsPage: NextPage = () => {

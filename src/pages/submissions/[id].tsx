@@ -29,6 +29,8 @@ import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
+import { auth } from "~/server/auth";
+import { TRPCError } from "@trpc/server";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -40,14 +42,16 @@ type BenchmarkTestResult = {
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const helpers = createServerSideHelpers({
     router: appRouter,
-    ctx: createInnerTRPCContext({ session: null }),
+    ctx: createInnerTRPCContext({
+      session: await auth(context.req, context.res),
+    }),
     transformer: superjson,
   });
 
   const id = context.params?.id as string;
 
   try {
-    await helpers.problems.getSubmissionStatus.prefetch({ submissionId: id });
+    await helpers.submissions.getSubmissionById.prefetch({ id });
 
     return {
       props: {
@@ -56,9 +60,16 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       },
     };
   } catch (error) {
-    return {
-      notFound: true,
-    };
+    if (error instanceof TRPCError) {
+      if (error.code === "FORBIDDEN") {
+        return {
+          props: {
+            error: "You don't have permission to view this submission",
+          },
+        };
+      }
+    }
+    return { notFound: true };
   }
 };
 
