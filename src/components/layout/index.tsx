@@ -38,7 +38,12 @@ export function Layout({
         <meta name="twitter:title" content={siteTitle} />
         <meta name="twitter:description" content={ogDescription} />
 
-        {ogImage && <meta property="og:image" content={ogImage} />}
+        {ogImage && (
+          <>
+            <meta property="og:image" content={ogImage} />
+            <meta name="twitter:image" content={ogImage} />
+          </>
+        )}
       </Head>
 
       <GoogleAnalytics gaId={env.NEXT_PUBLIC_GA_ID} />
