@@ -29,7 +29,7 @@ import {
   ModalBody,
   ModalCloseButton,
 } from "@chakra-ui/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Layout } from "~/components/layout";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -156,6 +156,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isCodeDirty, setIsCodeDirty] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const isProcessing = useRef<boolean>(false);
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
     { problemSlug: slug },
@@ -169,29 +170,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const createSubmissionMutation = api.problems.createSubmission.useMutation({
     onSuccess: (data) => {
       setSubmissionId(data.id);
-      // Start the actual submission process
-      submitMutation.mutate({ submissionId: data.id });
+      // No need to call submitMutation here - we'll directly connect to the streaming endpoint
     },
     onError: (error) => {
       setIsSubmitting(false);
       setSubmissionStatus(null);
       toast({
         title: "Failed to create submission",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
-
-  const submitMutation = api.problems.submit.useMutation({
-    onError: (error) => {
-      setIsSubmitting(false);
-      setSubmissionStatus(null);
-      setSubmissionId(null); // Clear the submissionId on error
-      toast({
-        title: "Submission failed",
         description: error.message,
         status: "error",
         duration: 5000,
@@ -228,6 +213,222 @@ export default function ProblemPage({ slug }: { slug: string }) {
       code,
       language: "cuda", 
       gpuType: selectedGpuType,
+    },
+    {
+      onSuccess: async (data) => {
+        try {
+          const response = await fetch('/api/submissions/direct-submit', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ submissionId: data.id }),
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Direct submit API returned ${response.status}`);
+          }
+          
+          // Set up reader for streaming response
+          const reader = response.body?.getReader();
+          if (!reader) {
+            throw new Error("No response body from direct-submit");
+          }
+          
+          // Process the stream
+          const decoder = new TextDecoder();
+          let buffer = '';
+          
+          // We'll create a void function here to process the stream
+          const processStream = async (): Promise<void> => {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                  console.log("[sse] Stream complete");
+                  break;
+                }
+                
+                const chunk = decoder.decode(value, { stream: true });
+                buffer += chunk;
+                
+                // Process complete events in buffer
+                const events = buffer.split('\n\n');
+                buffer = events.pop() ?? ''; // Use nullish coalescing
+                
+                for (const event of events) {
+                  if (!event) continue;
+                  
+                  const eventLines = event.split('\n');
+                  let eventType = 'message';
+                  let eventData = '';
+                  
+                  for (const line of eventLines) {
+                    if (line.startsWith('event: ')) {
+                      eventType = line.slice(7);
+                    } else if (line.startsWith('data: ')) {
+                      eventData = line.slice(6);
+                    }
+                  }
+                  
+                  if (!eventData) continue;
+                  
+                  try {
+                    // Parse and type the data
+                    const data = JSON.parse(eventData) as {
+                      status?: string;
+                      passedTests?: number;
+                      totalTests?: number;
+                      result?: {
+                        status?: string;
+                        test_id?: number;
+                        runtime_ms?: number;
+                        gflops?: number;
+                        name?: string;
+                      };
+                      runtime?: number;
+                      gflops?: number;
+                      error?: string;
+                      details?: string;
+                      benchmarkResults?: BenchmarkTestResult[];
+                    };
+                    
+                    console.log(`[sse] ${eventType} event:`, data);
+                    
+                    // Handle different event types
+                    if (eventType === 'status') {
+                      setSubmissionStatus((prev) => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          status: data.status as SubmissionStatus['status'] ?? prev.status,
+                          passedTests: data.passedTests ?? prev.passedTests,
+                          totalTests: data.totalTests ?? prev.totalTests,
+                          message:
+                            data.status === "BENCHMARKING"
+                              ? "All test cases passed! Running performance benchmark..."
+                              : data.passedTests
+                              ? `${data.passedTests} test cases passed...`
+                              : "Running test cases...",
+                        };
+                      });
+                    } 
+                    else if (eventType === 'checker') {
+                      if (data.status === 'test_result' && data.result) {
+                        setSubmissionStatus((prev) => {
+                          if (!prev) {
+                            return {
+                              status: "CHECKING",
+                              runtime: null,
+                              gflops: null,
+                              passedTests: data.result?.status === 'PASSED' ? 1 : 0,
+                              totalTests: 1,
+                              message: `${data.result?.status === 'PASSED' ? 1 : 0} test cases passed...`,
+                            };
+                          }
+                          return {
+                            ...prev,
+                            passedTests: (prev.passedTests ?? 0) + (data.result?.status === 'PASSED' ? 1 : 0),
+                            totalTests: (prev.totalTests ?? 0) + 1,
+                            message: `${(prev.passedTests ?? 0) + (data.result?.status === 'PASSED' ? 1 : 0)} test cases passed...`,
+                          };
+                        });
+                      }
+                    } 
+                    else if (eventType === 'benchmark') {
+                      if (data.status === 'test_result' && data.result) {
+                        setIsTestCaseTableOpen(true);
+                        setSubmissionStatus((prev) => {
+                          if (!prev) return prev;
+                          const benchmarkResult: BenchmarkTestResult = {
+                            test_id: data.result?.test_id ?? 0,
+                            runtime_ms: data.result?.runtime_ms ?? 0,
+                            gflops: data.result?.gflops ?? 0,
+                            name: data.result?.name ?? `Test ${data.result?.test_id ?? 0}`,
+                          };
+                          return {
+                            ...prev,
+                            benchmarkResults: [
+                              ...(prev.benchmarkResults ?? []),
+                              benchmarkResult
+                            ],
+                          };
+                        });
+                      }
+                    }
+                    else if (eventType === 'complete') {
+                      setSubmissionStatus({
+                        status: data.status as SubmissionStatus['status'] ?? "ERROR",
+                        runtime: data.runtime ?? null,
+                        gflops: data.gflops ?? null,
+                        passedTests: data.passedTests ?? null,
+                        totalTests: data.totalTests ?? null,
+                        message:
+                          data.status === "ACCEPTED"
+                            ? "Submission accepted!"
+                            : data.status === "WRONG_ANSWER"
+                            ? "Solution produced incorrect results"
+                            : "Error occurred during submission",
+                        errorMessage: data.error ?? undefined,
+                        errorDetails: data.details ?? undefined,
+                        benchmarkResults: data.benchmarkResults ?? undefined,
+                      });
+                      
+                      setIsSubmitting(false);
+                      submissionsQuery.refetch();
+                      return;
+                    }
+                    else if (eventType === 'error') {
+                      setSubmissionStatus({
+                        status: "ERROR",
+                        runtime: null,
+                        gflops: null,
+                        passedTests: null,
+                        totalTests: null,
+                        message: "Error occurred during submission",
+                        errorMessage: data.error ?? undefined,
+                        errorDetails: data.details ?? undefined,
+                      });
+                      
+                      setIsSubmitting(false);
+                      submissionsQuery.refetch();
+                      
+                      toast({
+                        title: "Submission Error",
+                        description: data.error ?? "An error occurred during submission",
+                        status: "error",
+                        duration: 5000,
+                        isClosable: true,
+                      });
+                      return;
+                    }
+                  } catch (error) {
+                    console.error("Error parsing event data:", error, "Raw data:", eventData);
+                  }
+                }
+              }
+              
+              // If we reach here, the stream ended normally
+              setIsSubmitting(false);
+            } finally {
+              reader.releaseLock();
+            }
+          };
+          
+          // Execute the stream processing function without awaiting it directly
+          void processStream();
+        } catch (error) {
+          console.error("[sse] Error:", error);
+          setIsSubmitting(false);
+          toast({
+            title: "Connection Error",
+            description: error instanceof Error ? error.message : "Failed to connect to submission service",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
     });
   };
 
@@ -254,146 +455,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
       saveSolutionToStorage(slug, code);
     }
   }, [code, slug]);
-
-  useEffect(() => {
-    if (!submissionId) return;
-
-    let retryCount = 0;
-    const maxRetries = 3;
-    let retryTimeout: NodeJS.Timeout;
-
-    const setupEventSource = () => {
-      console.log("[sse] Setting up EventSource for submission:", submissionId);
-      const eventSource = new EventSource(
-        `/api/submissions/${submissionId}/status`
-      );
-
-      // Handle connection open
-      eventSource.onopen = () => {
-        console.log("[sse] Connection opened");
-        retryCount = 0; // Reset retry count on successful connection
-      };
-
-      // Log all raw events for debugging
-      const rawEventListener = (e: MessageEvent<string>) => {
-        console.log("[sse] Raw event received:", {
-          data: e.data,
-          lastEventId: e.lastEventId,
-          origin: e.origin,
-          type: e.type,
-        });
-      };
-      eventSource.addEventListener("message", rawEventListener);
-
-      type SSESubmissionData = {
-        id: string;
-        status: SubmissionStatus["status"];
-        runtime: number | null;
-        gflops: number | null;
-        passedTests: number | null;
-        totalTests: number | null;
-        errorMessage?: string;
-        errorDetails?: string;
-        benchmarkResults?: BenchmarkTestResult[];
-        gpuType: string;
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          console.log("[sse] Message received:", event.data);
-          if (typeof event.data !== "string") {
-            throw new Error("Expected event.data to be a string");
-          }
-          const data = JSON.parse(event.data) as SSESubmissionData;
-          console.log("[sse] Parsed data:", data);
-          if (data.benchmarkResults) {
-            setIsTestCaseTableOpen(true);
-          }
-          setSubmissionStatus(() => {
-            return {
-              status: data.status,
-              runtime: data.runtime,
-              gflops: data.gflops,
-              passedTests: data.passedTests,
-              totalTests: data.totalTests,
-              message:
-                data.status === "BENCHMARKING"
-                  ? "All test cases passed! Running performance benchmark..."
-                  : data.passedTests !== null
-                  ? `${data.passedTests} test cases passed...`
-                  : "Running test cases...",
-              errorMessage: data.errorMessage,
-              errorDetails: data.errorDetails,
-              ...(data.benchmarkResults && {
-                benchmarkResults: data.benchmarkResults,
-              }),
-              gpuType: data.gpuType,
-            };
-          });
-
-          if (["ACCEPTED", "ERROR", "WRONG_ANSWER"].includes(data.status)) {
-            console.log(
-              "[sse] Final status reached, closing connection:",
-              data.status
-            );
-            eventSource.close();
-            setSubmissionId(null);
-            setIsSubmitting(false);
-            submissionsQuery.refetch();
-          }
-        } catch (error) {
-          console.error(
-            "[sse] Error parsing data:",
-            error,
-            "Raw data:",
-            event.data
-          );
-        }
-      };
-
-      eventSource.onerror = (error) => {
-        console.error("[sse] Connection error:", error);
-        eventSource.close();
-
-        // If we haven't exceeded max retries and the submission is still in progress
-        if (
-          retryCount < maxRetries &&
-          submissionStatus?.status !== "ACCEPTED" &&
-          submissionStatus?.status !== "ERROR" &&
-          submissionStatus?.status !== "WRONG_ANSWER"
-        ) {
-          retryCount++;
-          console.log(
-            `[sse] Retrying connection (${retryCount}/${maxRetries})...`
-          );
-          retryTimeout = setTimeout(setupEventSource, 1000 * retryCount); // Exponential backoff
-        } else {
-          console.log(
-            "[sse] Max retries exceeded or submission complete, giving up"
-          );
-          setSubmissionId(null);
-          setIsSubmitting(false);
-          toast({
-            title: "Connection Error",
-            description: "Lost connection to submission status updates",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-        }
-      };
-
-      return eventSource;
-    };
-
-    const eventSource = setupEventSource();
-
-    return () => {
-      console.log("[sse] Cleaning up EventSource");
-      eventSource.close();
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
-  }, [submissionId, submissionStatus?.status, submissionsQuery, toast]);
 
   useEffect(() => {
     if (problem?.starterCode) {
