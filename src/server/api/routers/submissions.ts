@@ -1,12 +1,13 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 
 export const submissionsRouter = createTRPCRouter({
-  getAllSubmissions: protectedProcedure.query(async ({ ctx }) => {
+  getAllSubmissions: publicProcedure.query(async ({ ctx }) => {
     const submissions = await ctx.db.submission.findMany({
-      where: {
-        userId: ctx.session.user.id,
-      },
       include: {
         problem: {
           select: {
@@ -16,7 +17,7 @@ export const submissionsRouter = createTRPCRouter({
         },
         user: {
           select: {
-            name: true,
+            username: true,
           },
         },
       },
@@ -26,5 +27,5 @@ export const submissionsRouter = createTRPCRouter({
     });
 
     return submissions;
-  })
+  }),
 });

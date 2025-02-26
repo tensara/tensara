@@ -1,8 +1,33 @@
-import { Box, Flex, HStack, Text, Image, Button, Icon, IconButton, useDisclosure, VStack, Drawer, DrawerBody, DrawerHeader, DrawerOverlay, DrawerContent, DrawerCloseButton } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  HStack,
+  Text,
+  Image,
+  Button,
+  Icon,
+  IconButton,
+  useDisclosure,
+  VStack,
+  Drawer,
+  DrawerBody,
+  DrawerHeader,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
+} from "@chakra-ui/react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FiCode, FiList, FiBookOpen, FiLogOut, FiGithub, FiMenu, FiAward } from "react-icons/fi";
+import {
+  FiCode,
+  FiList,
+  FiBookOpen,
+  FiLogOut,
+  FiGithub,
+  FiMenu,
+  FiAward,
+} from "react-icons/fi";
 import { useState, useEffect } from "react";
 
 export function Header() {
@@ -20,11 +45,11 @@ export function Header() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   const navItems = [
@@ -77,32 +102,34 @@ export function Header() {
           </Button>
         </Link>
       ))}
-      {mounted && status === "authenticated" && protectedNavItems.map((item) => (
-        <Link key={item.href} href={item.href} passHref legacyBehavior>
-          <Button
-            as="a"
-            variant="ghost"
-            color="white"
-            px={3}
-            bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
-            _hover={{
-              textDecoration: "none",
-              bg: "whiteAlpha.100",
-            }}
-            fontSize="sm"
-            leftIcon={<Icon as={item.icon} boxSize={4} />}
-            w={isMobile ? "full" : "auto"}
-          >
-            {item.label}
-          </Button>
-        </Link>
-      ))}
+      {mounted &&
+        status === "authenticated" &&
+        protectedNavItems.map((item) => (
+          <Link key={item.href} href={item.href} passHref legacyBehavior>
+            <Button
+              as="a"
+              variant="ghost"
+              color="white"
+              px={3}
+              bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
+              _hover={{
+                textDecoration: "none",
+                bg: "whiteAlpha.100",
+              }}
+              fontSize="sm"
+              leftIcon={<Icon as={item.icon} boxSize={4} />}
+              w={isMobile ? "full" : "auto"}
+            >
+              {item.label}
+            </Button>
+          </Link>
+        ))}
     </>
   );
 
   const AuthSection = () => {
     if (!mounted) return null;
-    
+
     return (
       <>
         {status === "authenticated" ? (
@@ -116,7 +143,7 @@ export function Header() {
                 rounded="full"
               />
               <Text color="white" fontSize="sm">
-                {session.user?.name}
+                {session.user?.username}
               </Text>
             </HStack>
             <Button

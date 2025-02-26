@@ -40,7 +40,7 @@ interface SubmissionWithProblem extends Submission {
     slug: string;
   };
   user: {
-    name: string | null;
+    username: string | null;
   };
 }
 
@@ -377,7 +377,7 @@ const SubmissionsPage: NextPage = () => {
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <HStack spacing={2}>
-                      <Text>{submission.user.name ?? "Anonymous"}</Text>
+                      <Text>{submission.user.username ?? "Anonymous"}</Text>
                     </HStack>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">

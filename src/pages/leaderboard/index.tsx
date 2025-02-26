@@ -83,7 +83,7 @@ const LeaderboardIndexPage: NextPage = () => {
 
       if (selectedGpu !== "all" && submission.gpuType !== selectedGpu) return;
 
-      const userGpuKey = `${submission.user.name ?? "Anonymous"}-${
+      const userGpuKey = `${submission.user.username ?? "Anonymous"}-${
         submission.gpuType
       }`;
       const currentBest = userGpuBestMap.get(userGpuKey);
@@ -225,7 +225,7 @@ const LeaderboardIndexPage: NextPage = () => {
                                 </Badge>
                               </Td>
                               <Td color="white">
-                                {submission.user.name ?? "Anonymous"}
+                                {submission.user.username ?? "Anonymous"}
                               </Td>
                               <Td>
                                 <Badge

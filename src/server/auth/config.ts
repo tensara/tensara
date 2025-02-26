@@ -15,15 +15,13 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
-      // ...other properties
-      // role: UserRole;
+      username?: string;
     } & DefaultSession["user"];
   }
 
-  // interface User {
-  //   // ...other properties
-  //   // role: UserRole;
-  // }
+  interface User {
+    username?: string;
+  }
 }
 
 /**
@@ -53,11 +51,26 @@ export const authConfig: NextAuthOptions = {
   },
   secret: process.env.AUTH_SECRET,
   callbacks: {
+    signIn: async ({ user, account }) => {
+      if (account?.provider === "github") {
+        const response = await fetch(
+          `https://api.github.com/user/${account.providerAccountId}`
+        );
+        const data = await response.json();
+
+        await db.user.update({
+          where: { id: user.id },
+          data: { username: data.login },
+        });
+      }
+      return true;
+    },
     session: ({ session, user }) => ({
       ...session,
       user: {
         ...session.user,
         id: user.id,
+        username: user.username,
       },
     }),
   },

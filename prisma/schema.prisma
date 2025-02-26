@@ -10,6 +10,7 @@ generator client {
 model User {
   id            String    @id @default(cuid())
   name          String?
+  username      String?
   email         String?   @unique
   emailVerified DateTime?
   image         String?
@@ -106,30 +107,30 @@ model Problem {
 }
 
 model Submission {
-  id          String   @id @default(cuid())
-  code        String   @db.Text
+  id          String  @id @default(cuid())
+  code        String  @db.Text
   language    String
-  status      String?  // Can be: PENDING, CHECKING, BENCHMARKING, ACCEPTED, ERROR, WRONG_ANSWER, TIMEOUT
+  status      String? // Can be: PENDING, CHECKING, BENCHMARKING, ACCEPTED, ERROR, WRONG_ANSWER, TIMEOUT
   runtime     Float?
   memory      Int?
   passedTests Int?
   totalTests  Int?
-  logs        String?  @db.Text
+  logs        String? @db.Text
   gpuType     String?
   timeMs      Float?
   memoryMB    Float?
-  verified    Boolean  @default(false)
-  
+  verified    Boolean @default(false)
+
   gflops           Float?
   errorMessage     String?
-  errorDetails     String?  @db.Text
+  errorDetails     String? @db.Text
   benchmarkResults Json?
-  
-  user        User     @relation(fields: [userId], references: [id])
-  userId      String
-  problem     Problem  @relation(fields: [problemId], references: [id])
-  problemId   String
-  createdAt   DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  problem   Problem  @relation(fields: [problemId], references: [id])
+  problemId String
+  createdAt DateTime @default(now())
 
   callId   String?
   isPublic Boolean @default(false)
