@@ -7,10 +7,11 @@ import {
 import { TRPCError } from "@trpc/server";
 
 export const submissionsRouter = createTRPCRouter({
-  getAllSubmissions: protectedProcedure.query(async ({ ctx }) => {
+  // all submissions (public or not) for the current user
+  getAllUserSubmissions: protectedProcedure.query(async ({ ctx }) => {
     const submissions = await ctx.db.submission.findMany({
       where: {
-        OR: [{ userId: ctx.session.user.id }, { isPublic: true }],
+        userId: ctx.session.user.id
       },
       include: {
         user: {
@@ -33,36 +34,10 @@ export const submissionsRouter = createTRPCRouter({
     return submissions;
   }),
 
-  getPublicSubmissions: publicProcedure.query(async ({ ctx }) => {
+  // all submissions (public or not)
+  getLeaderboardSubmissions: publicProcedure.query(async ({ ctx }) => {
     const submissions = await ctx.db.submission.findMany({
       where: {
-        isPublic: true,
-      },
-      include: {
-        problem: {
-          select: {
-            title: true,
-            slug: true,
-          },
-        },
-        user: {
-          select: {
-            username: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return submissions;
-  }),
-
-  getAllPublicSubmissions: publicProcedure.query(async ({ ctx }) => {
-    const submissions = await ctx.db.submission.findMany({
-      where: {
-        isPublic: true,
         status: "ACCEPTED",
       },
       include: {

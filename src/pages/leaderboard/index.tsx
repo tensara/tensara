@@ -53,7 +53,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   await helpers.problems.getAll.prefetch();
 
   // Prefetch public submissions instead of all submissions
-  await helpers.submissions.getAllPublicSubmissions.prefetch();
+  await helpers.submissions.getLeaderboardSubmissions.prefetch();
 
   return {
     props: {
@@ -71,9 +71,7 @@ const LeaderboardIndexPage: NextPage = () => {
     api.problems.getAll.useQuery();
 
   // Use the appropriate query based on auth status
-  const { data: submissions, isLoading: isSubmissionsLoading } = session
-    ? api.submissions.getAllSubmissions.useQuery()
-    : api.submissions.getAllPublicSubmissions.useQuery();
+  const { data: submissions, isLoading: isSubmissionsLoading } = api.submissions.getLeaderboardSubmissions.useQuery();
 
   // Process submissions to get the best submission per user per problem per GPU type
   const getBestSubmissions = (problemSlug: string) => {

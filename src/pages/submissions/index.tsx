@@ -73,7 +73,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   });
 
   try {
-    await helpers.submissions.getAllSubmissions.prefetch();
+    await helpers.submissions.getAllUserSubmissions.prefetch();
 
     return {
       props: {
@@ -95,7 +95,7 @@ const SubmissionsPage: NextPage = () => {
   const router = useRouter();
 
   const { data: submissions, isLoading } =
-    api.submissions.getAllSubmissions.useQuery();
+    api.submissions.getAllUserSubmissions.useQuery();
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -189,10 +189,10 @@ const SubmissionsPage: NextPage = () => {
   }
 
   return (
-    <Layout title="All Submissions">
+    <Layout title="My Submissions">
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Text fontSize="2xl" fontWeight="bold" mb={6}>
-          All Submissions
+          My Submissions
         </Text>
 
         {/* Filters */}
@@ -269,9 +269,6 @@ const SubmissionsPage: NextPage = () => {
                       />
                     )}
                   </HStack>
-                </Th>
-                <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
-                  User
                 </Th>
                 <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
                   <HStack
@@ -392,11 +389,6 @@ const SubmissionsPage: NextPage = () => {
                     >
                       {submission.problem.title}
                     </ChakraLink>
-                  </Td>
-                  <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    <HStack spacing={2}>
-                      <Text>{submission.user.username ?? "Anonymous"}</Text>
-                    </HStack>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <Badge colorScheme={getStatusColor(submission.status)}>

@@ -67,7 +67,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     // Prefetch the problem data
     await helpers.problems.getById.prefetch({ slug });
     // Prefetch all submissions for the leaderboard
-    await helpers.submissions.getAllSubmissions.prefetch();
+    await helpers.submissions.getLeaderboardSubmissions.prefetch();
 
     return {
       props: {
@@ -116,7 +116,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
     api.problems.getById.useQuery({ slug: slug }, { enabled: !!slug });
 
   const { data: submissions, isLoading: isSubmissionsLoading } =
-    api.submissions.getAllSubmissions.useQuery();
+    api.submissions.getLeaderboardSubmissions.useQuery();
 
   // Filter submissions for the current problem
   const problemSubmissions = submissions?.filter(
@@ -127,23 +127,22 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const getBestSubmissions = (submissions: LeaderboardEntry[] | undefined) => {
     if (!submissions) return [];
 
-    // Create a map to store the best submission for each user
-    const bestSubmissionsByUser = new Map<string, LeaderboardEntry>();
+    const userGpuBestMap = new Map<string, LeaderboardEntry>();
 
     submissions.forEach((submission) => {
-      const userId = submission.user.username ?? "anonymous"; // Use username instead of name
-      const currentBest = bestSubmissionsByUser.get(userId);
+      if (submission.status !== "ACCEPTED" || !submission.gflops) return;
+      
+      if (selectedGpu !== "all" && submission.gpuType !== selectedGpu) return;
 
-      if (
-        !currentBest ||
-        (submission.gflops ?? 0) > (currentBest.gflops ?? 0)
-      ) {
-        bestSubmissionsByUser.set(userId, submission);
+      const userGpuKey = `${submission.user.username ?? "Anonymous"}-${submission.gpuType}`;
+      const currentBest = userGpuBestMap.get(userGpuKey);
+
+      if (!currentBest || submission.gflops > currentBest.gflops!) {
+        userGpuBestMap.set(userGpuKey, submission);
       }
     });
 
-    // Convert map back to array and sort by GFLOPS
-    return Array.from(bestSubmissionsByUser.values()).sort(
+    return Array.from(userGpuBestMap.values()).sort(
       (a, b) => (b.gflops ?? 0) - (a.gflops ?? 0)
     );
   };

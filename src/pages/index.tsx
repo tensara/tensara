@@ -136,8 +136,7 @@ export default function HomePage() {
                 boxShadow="2xl"
                 borderRadius="xl"
                 objectFit="cover"
-                opacity={videoLoaded ? 1 : 0}
-                transition="opacity 0.3s ease-in-out"
+                display={videoLoaded ? "block" : "none"}
                 onLoadedData={() => setVideoLoaded(true)}
               />
             )}
