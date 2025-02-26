@@ -43,7 +43,7 @@ interface LeaderboardEntry {
 const GPU_DISPLAY_NAMES: Record<string, string> = {
   "T4": "NVIDIA T4",
   "H100": "NVIDIA H100",
-  "A100": "NVIDIA A100",
+  "A100-80GB": "NVIDIA A100-80GB",
   "A10G": "NVIDIA A10G",
   "L4": "NVIDIA L4",
   "all": "All GPUs"
@@ -162,7 +162,7 @@ const LeaderboardPage: NextPage = () => {
               <option value="T4">NVIDIA T4</option>
               <option value="H100">NVIDIA H100</option>
               <option value="A10G">NVIDIA A10G</option>
-              <option value="A100">NVIDIA A100</option>
+              <option value="A100-80GB">NVIDIA A100-80GB</option>
               <option value="L4">NVIDIA L4</option>
             </Select>
           </HStack>
