@@ -1,0 +1,11 @@
+{
+  "name": "MatrixMultiply",
+  "inputs": [
+    {"name": "input_a", "type": "float", "dims": ["m", "k"]},
+    {"name": "input_b", "type": "float", "dims": ["k", "n"]}
+  ],
+  "outputs": [
+    {"name": "output_c", "type": "float", "dims": ["m", "n"]}
+  ],
+  "parameters": ["m", "n", "k"]
+} 

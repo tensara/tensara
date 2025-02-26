@@ -5,12 +5,15 @@
 #include <math.h>
 #include "tests.hpp"
 #include "core.hpp"
+#include "python_reference.hpp"
 #include "solution.cu"
-#include "reference.cu"
 
 bool check_results(float* output1, float* output2, size_t size, float tolerance = 1e-5) {
     for (size_t i = 0; i < size; i++) {
         if (fabs(output1[i] - output2[i]) > tolerance) {
+            std::cout << "Mismatch at index " << i << ": " 
+                      << output1[i] << " vs " << output2[i] 
+                      << " (diff: " << fabs(output1[i] - output2[i]) << ")" << std::endl;
             return false;
         }
     }
@@ -81,6 +84,12 @@ bool run_test(TestCase<T>& test_case) {
 }
 
 int main() {
+    // Check if Python reference callback is registered
+    if (g_python_reference_callback == nullptr) {
+        std::cerr << "Warning: Python reference not registered, checking may not work correctly." << std::endl;
+        std::cerr << "Make sure to run through the Python interface with reference.py" << std::endl;
+    }
+    
     auto test_cases = create_test_cases();
     bool all_passed = true;
     
