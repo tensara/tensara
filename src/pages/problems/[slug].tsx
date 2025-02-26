@@ -52,6 +52,8 @@ import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
+import { useSession } from "next-auth/react";
+
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -140,6 +142,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
+  const { data: session, status } = useSession();
   const toast = useToast();
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -198,10 +201,21 @@ export default function ProblemPage({ slug }: { slug: string }) {
   });
 
   const handleSubmit = () => {
+    if (!session?.user) {
+      toast({
+        title: "Not signed in",
+        description: "Please sign in to submit solutions",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     setIsTestCaseTableOpen(false);
     setIsSubmitting(true);
     setSubmissionStatus({
-      status: "CHECKING",
+      status: "CHECKING", 
       runtime: null,
       gflops: null,
       passedTests: null,
@@ -212,7 +226,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     createSubmissionMutation.mutate({
       problemSlug: slug,
       code,
-      language: "cuda",
+      language: "cuda", 
       gpuType: selectedGpuType,
     });
   };
@@ -1084,7 +1098,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
               <HStack 
                 spacing={2} 
                 flexWrap={{ base: "wrap", lg: "nowrap" }}
-                gap={{ base: 2, lg: 0 }}
+                gap={2}
               >
                 <Box>
                   <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
@@ -1130,7 +1144,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     }}
                   >
                     <option value="cuda">CUDA C++</option>
-                    {/* <option value="python">Python (Triton)</option> */}
+                    <option value="python" disabled>Python (Triton)</option>
                   </Select>
                 </Box>
                 <Box>
@@ -1152,9 +1166,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     }}
                   >
                     <option value="float32">float32</option>
-                    {/* <option value="float16">float16</option>
-                    <option value="int32">int32</option>
-                    <option value="int16">int16</option> */}
+                    <option value="float16" disabled>float16</option>
+                    <option value="int32" disabled>int32</option>
+                    <option value="int16" disabled>int16</option>
                   </Select>
                 </Box>
               </HStack>

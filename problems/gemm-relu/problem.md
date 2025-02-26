@@ -6,8 +6,10 @@ author: "sarthak"
 tags: ["cuda-basics", "parallel-computing", "neural-networks"]
 ---
 
-Implement a CUDA kernel to perform a matrix multiplication followed by bias addition and ReLU activation:
-$\text{C} = \text{ReLU}(\text{A} \cdot \text{W}^T + \text{b})$
+Perform a matrix multiplication followed by bias addition and ReLU activation:
+$$
+\text{C} = \text{ReLU}(\text{A} \cdot \text{W}^T + \text{b})
+$$
 
 The ReLU (Rectified Linear Unit) activation function is defined as:
 $$

@@ -6,8 +6,10 @@ author: "someshkar"
 tags: ["cuda-basics", "parallel-computing"]
 ---
 
-Implement a CUDA kernel to perform element-wise addition of two vectors:
-$c_i = a_i + b_i$
+Perform element-wise addition of two vectors:
+$$
+c_i = a_i + b_i
+$$
 
 ## Input
 - Vectors $a$ and $b$ of length $N$

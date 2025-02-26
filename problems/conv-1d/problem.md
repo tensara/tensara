@@ -6,8 +6,10 @@ author: "sarthak"
 tags: ["cuda-basics", "parallel-computing", "signal-processing"]
 ---
 
-Implement a CUDA kernel to perform 1D convolution between an input signal and a kernel:
-$\text{C}[i] = \sum_{j=0}^{K-1} \text{A}[i + j] \cdot \text{B}[j]$
+Perform 1D convolution between an input signal and a kernel:
+$$
+\text{C}[i] = \sum_{j=0}^{K-1} \text{A}[i + j] \cdot \text{B}[j]
+$$
 
 The convolution operation slides the kernel over the input signal, computing the sum of element-wise multiplications at each position. Zero padding is used at the boundaries.
 

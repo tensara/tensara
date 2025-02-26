@@ -6,8 +6,10 @@ author: "sarthak"
 tags: ["cuda-basics", "parallel-computing"]
 ---
 
-Implement a CUDA kernel to perform multiplication of two square matrices:
-$C_{i,j} = \sum_{k=0}^{N-1} A_{i,k} \cdot B_{k,j}$
+Perform multiplication of two square matrices:
+$$
+C[i][j] = \sum_{k=0}^{N-1} A[i][k] \cdot B[k][j]
+$$
 
 ## Input
 - Matrix $A$ of size $N \times N$

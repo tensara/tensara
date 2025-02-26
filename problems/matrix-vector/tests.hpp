@@ -1,4 +1,5 @@
 #include "core.hpp"
+#include <random>
 
 template<typename T>
 class MatrixVectorTest: public TestCase<T> {

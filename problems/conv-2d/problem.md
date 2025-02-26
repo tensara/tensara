@@ -6,8 +6,10 @@ author: "sarthak"
 tags: ["cuda-basics", "parallel-computing", "image-processing"]
 ---
 
-Implement a CUDA kernel to perform 2D convolution between an input image and a kernel:
-$\text{C}[i,j] = \sum_{k=0}^{K_h-1}\sum_{l=0}^{K_w-1} \text{A}[i+k,j+l] \cdot \text{B}[k,l]$
+Perform 2D convolution between an input image and a kernel:
+$$
+\text{C}[i,j] = \sum_{k=0}^{K_h-1}\sum_{l=0}^{K_w-1} \text{A}[i+k,j+l] \cdot \text{B}[k,l]
+$$
 
 The convolution operation slides the 2D kernel over the input image, computing the sum of element-wise multiplications at each position. Zero padding is used at the boundaries.
 

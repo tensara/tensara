@@ -6,8 +6,11 @@ author: "sarthak"
 tags: ["cuda-basics", "parallel-computing", "neural-networks"]
 ---
 
-Implement a CUDA kernel to perform the Leaky ReLU (Leaky Rectified Linear Unit) activation function on an input matrix:
-$\text{C}_{i,j} = \max(\alpha \cdot \text{A}_{i,j}, \text{A}_{i,j})$ where $\alpha$ is a small positive constant (e.g. 0.01)
+Perform the Leaky ReLU (Leaky Rectified Linear Unit) activation function on an input matrix:
+$$
+\text{C}[i][j] = \max(\alpha \cdot \text{A}[i][j], \text{A}[i][j])
+$$
+where $\alpha$ is a small positive constant (e.g. 0.01)
 
 The Leaky ReLU function is defined as:
 $$

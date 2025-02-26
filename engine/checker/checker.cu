@@ -8,7 +8,7 @@
 #include "solution.cu"
 #include "reference.cu"
 
-bool check_results(float* output1, float* output2, size_t size, float tolerance = 1e-5) {
+bool check_results(float* output1, float* output2, size_t size, float tolerance = 1e-7) {
     for (size_t i = 0; i < size; i++) {
         if (fabs(output1[i] - output2[i]) > tolerance) {
             return false;

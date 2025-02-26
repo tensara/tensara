@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { env } from "~/env";
 
 // // Simulated evaluation delay
 // const EVAL_DELAY_MS = 1500;
@@ -167,7 +168,7 @@ export const problemsRouter = createTRPCRouter({
         });
 
         const checkerResponse = await fetch(
-          `https://labs-asterisk--tensara-checker-${(
+          `https://${env.MODAL_CHECKER_SLUG}-${(
             submission.gpuType ?? "t4"
           ).toLowerCase()}.modal.run`,
           {
@@ -305,7 +306,7 @@ export const problemsRouter = createTRPCRouter({
         });
 
         const benchmarkResponse = await fetch(
-          `https://labs-asterisk--tensara-benchmark-${(
+          `https://${env.MODAL_BENCHMARK_SLUG}-${(
             submission.gpuType ?? "t4"
           ).toLowerCase()}.modal.run`,
           {
