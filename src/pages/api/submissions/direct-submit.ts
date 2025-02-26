@@ -49,6 +49,8 @@ export default async function handler(
 
   res.setHeader("Content-Encoding", "identity");
 
+  res.setHeader("Keep-Alive", "timeout=120, max=1000");
+
   const sendSSE = (event: string, data: unknown) => {
     const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     res.write(payload);
@@ -73,6 +75,14 @@ export default async function handler(
     res.status(400).json({ error: "Missing submissionId" });
     return;
   }
+
+  const heartbeat = setInterval(() => {
+    try {
+      sendSSE("heartbeat", { timestamp: Date.now() });
+    } catch (error) {
+      console.warn("Failed to send heartbeat:", error);
+    }
+  }, 30000);
 
   try {
     const submission = await db.submission.findUnique({
@@ -498,5 +508,7 @@ export default async function handler(
     }
 
     res.end();
+  } finally {
+    clearInterval(heartbeat);
   }
 }
