@@ -228,6 +228,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 cache: "no-store",
                 credentials: "same-origin",
                 keepalive: true,
+                signal: AbortSignal.timeout(300000),
               });
 
               if (!response.ok) {
@@ -246,7 +247,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
               const decoder = new TextDecoder();
               let buffer = "";
 
-              const processStream = async (): Promise<void> => {
+              const MAX_RETRIES = 3;
+              let retryCount = 0;
+
+              const attemptConnection = async (): Promise<void> => {
                 try {
                   while (true) {
                     const { done, value } = await reader.read();
@@ -254,6 +258,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       console.log("[sse] Stream complete");
                       break;
                     }
+
+                    // Reset retry count on successful read
+                    retryCount = 0;
 
                     const chunk = decoder.decode(value, { stream: true });
                     buffer += chunk;
@@ -434,12 +441,29 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
                   // If we reach here, the stream ended normally
                   setIsSubmitting(false);
-                } finally {
-                  reader.releaseLock();
+                } catch (error) {
+                  console.error("[sse] Stream error:", error);
+
+                  // Attempt retry if we haven't exceeded max retries
+                  if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    console.log(
+                      `[sse] Retrying connection (${retryCount}/${MAX_RETRIES})...`
+                    );
+
+                    // Wait before retrying (exponential backoff)
+                    await new Promise((resolve) =>
+                      setTimeout(resolve, 1000 * Math.pow(2, retryCount))
+                    );
+
+                    return attemptConnection();
+                  } else {
+                    throw error; // Re-throw if max retries exceeded
+                  }
                 }
               };
 
-              void processStream();
+              void attemptConnection();
             } catch (error) {
               console.error("[sse] Error:", error);
               setIsSubmitting(false);
