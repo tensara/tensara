@@ -6,10 +6,15 @@ import { FiCode, FiList, FiBookOpen, FiLogOut, FiGithub, FiMenu, FiAward } from 
 import { useState, useEffect } from "react";
 
 export function Header() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -24,9 +29,12 @@ export function Header() {
 
   const navItems = [
     { label: "Problems", href: "/problems", icon: FiCode },
-    { label: "Submissions", href: "/submissions", icon: FiList },
     { label: "Leaderboards", href: "/leaderboard", icon: FiAward },
     { label: "Blog", href: "/blog", icon: FiBookOpen },
+  ];
+
+  const protectedNavItems = [
+    { label: "My Submissions", href: "/submissions", icon: FiList },
   ];
 
   const isActivePath = (path: string) => {
@@ -69,54 +77,78 @@ export function Header() {
           </Button>
         </Link>
       ))}
+      {mounted && status === "authenticated" && protectedNavItems.map((item) => (
+        <Link key={item.href} href={item.href} passHref legacyBehavior>
+          <Button
+            as="a"
+            variant="ghost"
+            color="white"
+            px={3}
+            bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
+            _hover={{
+              textDecoration: "none",
+              bg: "whiteAlpha.100",
+            }}
+            fontSize="sm"
+            leftIcon={<Icon as={item.icon} boxSize={4} />}
+            w={isMobile ? "full" : "auto"}
+          >
+            {item.label}
+          </Button>
+        </Link>
+      ))}
     </>
   );
 
-  const AuthSection = () => (
-    <>
-      {session ? (
-        <HStack spacing={4}>
-          <HStack spacing={3}>
-            <Image
-              src={session.user?.image ?? ""}
-              alt="Profile"
-              w={8}
-              h={8}
-              rounded="full"
-            />
-            <Text color="white" fontSize="sm">
-              {session.user?.name}
-            </Text>
+  const AuthSection = () => {
+    if (!mounted) return null;
+    
+    return (
+      <>
+        {status === "authenticated" ? (
+          <HStack spacing={4}>
+            <HStack spacing={3}>
+              <Image
+                src={session.user?.image ?? ""}
+                alt="Profile"
+                w={8}
+                h={8}
+                rounded="full"
+              />
+              <Text color="white" fontSize="sm">
+                {session.user?.name}
+              </Text>
+            </HStack>
+            <Button
+              variant="ghost"
+              size="sm"
+              color="white"
+              onClick={handleSignOut}
+              leftIcon={<Icon as={FiLogOut} boxSize={4} />}
+              _hover={{
+                bg: "whiteAlpha.200",
+              }}
+            >
+              Sign out
+            </Button>
           </HStack>
+        ) : (
           <Button
             variant="ghost"
-            size="sm"
             color="white"
-            onClick={handleSignOut}
-            leftIcon={<Icon as={FiLogOut} boxSize={4} />}
+            onClick={handleSignIn}
+            leftIcon={<Icon as={FiGithub} boxSize={5} />}
+            bg="#24292e"
             _hover={{
-              bg: "whiteAlpha.200",
+              bg: "#2f363d",
             }}
           >
-            Sign out
+            Sign in with GitHub
           </Button>
-        </HStack>
-      ) : (
-        <Button
-          variant="ghost"
-          color="white"
-          onClick={handleSignIn}
-          leftIcon={<Icon as={FiGithub} boxSize={5} />}
-          bg="#24292e"
-          _hover={{
-            bg: "#2f363d",
-          }}
-        >
-          Sign in with GitHub
-        </Button>
-      )}
-    </>
-  );
+        )}
+      </>
+    );
+  };
 
   return (
     <Box bg="brand.navbar" h="full" borderRadius="xl" px={4} py={2}>

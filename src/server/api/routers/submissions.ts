@@ -2,8 +2,11 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 
 export const submissionsRouter = createTRPCRouter({
-  getAllSubmissions: publicProcedure.query(async ({ ctx }) => {
+  getAllSubmissions: protectedProcedure.query(async ({ ctx }) => {
     const submissions = await ctx.db.submission.findMany({
+      where: {
+        userId: ctx.session.user.id,
+      },
       include: {
         problem: {
           select: {
