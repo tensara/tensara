@@ -465,16 +465,23 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
   return (
     <Layout title={problem.title}>
-      <HStack
+      <Box
         id="split-container"
-        align="start"
-        spacing={0}
+        display="flex"
+        flexDirection={{ base: "column", md: "row" }}
         h="100%"
         maxH="calc(100vh - 120px)"
         position="relative"
       >
-        {/* Left Panel - Problem Description or Submission Results */}
-        <Box w={`${splitRatio}%`} h="100%" overflowY="auto" pr={4}>
+        {/* Problem Description or Submission Results */}
+        <Box 
+          w={{ base: "100%", md: `${splitRatio}%` }} 
+          h={{ base: "auto", md: "100%" }} 
+          overflowY="auto" 
+          pr={{ base: 0, md: 4 }}
+          mb={{ base: 4, md: 0 }}
+          maxH={{ base: "auto", md: "100%" }}
+        >
           {submissionStatus ? (
             <VStack spacing={4} align="stretch" p={6}>
               <HStack justify="space-between">
@@ -1009,8 +1016,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
           )}
         </Box>
 
-        {/* Resizer Handle */}
+        {/* Resizer Handle - Only visible on desktop */}
         <Box
+          display={{ base: "none", md: "block" }}
           position="absolute"
           left={`${splitRatio}%`}
           transform="translateX(-50%)"
@@ -1039,11 +1047,45 @@ export default function ProblemPage({ slug }: { slug: string }) {
           />
         </Box>
 
-        {/* Right Panel - Code Editor and Submit Button */}
-        <Box w={`${100 - splitRatio}%`} h="100%" pl={4}>
+        {/* Mobile Warning - Only visible on mobile */}
+        <Box
+          display={{ base: "block", md: "none" }}
+          w="100%"
+          p={6}
+          bg="whiteAlpha.50"
+          borderRadius="xl"
+          mb={4}
+        >
+          <VStack spacing={4} align="center">
+            <Icon as={WarningIcon} boxSize={10} color="yellow.400" />
+            <Heading size="md" textAlign="center">Desktop Required for Code Submission</Heading>
+            <Text textAlign="center" color="whiteAlpha.800">
+              For the best coding experience, please switch to a desktop device to write and submit your solution.
+            </Text>
+          </VStack>
+        </Box>
+
+        {/* Code Editor and Submit Button - Only visible on desktop */}
+        <Box 
+          display={{ base: "none", md: "block" }}
+          w={{ base: "100%", md: `${100 - splitRatio}%` }} 
+          h={{ base: "auto", md: "100%" }}
+          minH={{ base: "50vh", md: "auto" }}
+          pl={{ base: 0, md: 4 }}
+        >
           <VStack w="100%" h="100%" spacing={4}>
-            <HStack w="100%" justify="space-between" spacing={4}>
-              <HStack spacing={2}>
+            <HStack 
+              w="100%" 
+              justify="space-between" 
+              spacing={4}
+              flexDirection={{ base: "column", sm: "row" }}
+              alignItems={{ base: "flex-start", sm: "center" }}
+            >
+              <HStack 
+                spacing={2} 
+                flexWrap={{ base: "wrap", lg: "nowrap" }}
+                gap={{ base: 2, lg: 0 }}
+              >
                 <Box>
                   <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
                     GPU Type
@@ -1117,7 +1159,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 </Box>
               </HStack>
 
-              <HStack spacing={2}>
+              <HStack spacing={2} mt={{ base: 2, sm: 0 }}>
                 {splitRatio < 45 && (
                   <Button
                     size="sm"
@@ -1184,7 +1226,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
             <Box
               w="100%"
-              h="100%"
+              h={{ base: "400px", md: "100%" }}
               bg="gray.800"
               borderRadius="xl"
               overflow="hidden"
@@ -1208,7 +1250,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             </Box>
           </VStack>
         </Box>
-      </HStack>
+      </Box>
 
       <Modal
         isOpen={isResetModalOpen}

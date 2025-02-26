@@ -97,6 +97,7 @@ export function Header() {
             fontSize="sm"
             leftIcon={<Icon as={item.icon} boxSize={4} />}
             w={isMobile ? "full" : "auto"}
+            justifyContent={isMobile ? "flex-start" : "center"}
           >
             {item.label}
           </Button>
@@ -119,6 +120,7 @@ export function Header() {
               fontSize="sm"
               leftIcon={<Icon as={item.icon} boxSize={4} />}
               w={isMobile ? "full" : "auto"}
+              justifyContent={isMobile ? "flex-start" : "center"}
             >
               {item.label}
             </Button>
