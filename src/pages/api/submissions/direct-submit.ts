@@ -41,20 +41,23 @@ export default async function handler(
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
-  
+
   res.setHeader("Transfer-Encoding", "chunked");
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  
+
   res.setHeader("Content-Encoding", "identity");
 
   const sendSSE = (event: string, data: unknown) => {
     const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     res.write(payload);
-    
+
     try {
-      if ("flush" in res && typeof (res as { flush: () => void }).flush === "function") {
+      if (
+        "flush" in res &&
+        typeof (res as { flush: () => void }).flush === "function"
+      ) {
         (res as { flush: () => void }).flush();
       } else if (res.flushHeaders) {
         res.flushHeaders();

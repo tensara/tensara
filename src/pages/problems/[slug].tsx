@@ -227,7 +227,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 body: JSON.stringify({ submissionId: data.id }),
                 cache: "no-store",
                 credentials: "same-origin",
-                keepalive: true
+                keepalive: true,
               });
 
               if (!response.ok) {
@@ -443,18 +443,21 @@ export default function ProblemPage({ slug }: { slug: string }) {
             } catch (error) {
               console.error("[sse] Error:", error);
               setIsSubmitting(false);
-              
+
               let errorMessage = "Failed to connect to submission service";
               if (error instanceof Error) {
-                if (error.message.includes("QUIC_PROTOCOL_ERROR") || 
-                    error.message.includes("network error") ||
-                    error.message.includes("failed to fetch")) {
-                  errorMessage = "Network protocol error. This may be due to your connection or a server configuration issue. Please try again in a few moments.";
+                if (
+                  error.message.includes("QUIC_PROTOCOL_ERROR") ||
+                  error.message.includes("network error") ||
+                  error.message.includes("failed to fetch")
+                ) {
+                  errorMessage =
+                    "Network protocol error. This may be due to your connection or a server configuration issue. Please try again in a few moments.";
                 } else {
                   errorMessage = error.message;
                 }
               }
-              
+
               toast({
                 title: "Connection Error",
                 description: errorMessage,
