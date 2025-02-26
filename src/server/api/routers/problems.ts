@@ -522,6 +522,50 @@ export const problemsRouter = createTRPCRouter({
         });
       }
 
+      if (ctx.session?.user?.id != submission.userId && !submission.isPublic) {
+        const { code, ...submissionWithoutCode } = submission;
+        return submissionWithoutCode;
+      }
+
       return submission;
+    }),
+
+  // Toggle a submission's public status
+  toggleSubmissionPublic: protectedProcedure
+    .input(z.object({ submissionId: z.string(), isPublic: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const submission = await ctx.db.submission.findUnique({
+        where: { id: input.submissionId },
+        select: { userId: true }
+      });
+
+      if (!submission) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Submission not found",
+        });
+      }
+
+      if (submission.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only modify your own submissions",
+        });
+      }
+
+      const updatedSubmission = await ctx.db.submission.update({
+        where: { id: input.submissionId },
+        data: { isPublic: input.isPublic },
+        include: {
+          problem: {
+            select: {
+              title: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      return updatedSubmission;
     }),
 });

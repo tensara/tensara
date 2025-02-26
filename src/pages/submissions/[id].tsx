@@ -11,11 +11,19 @@ import {
   Icon,
   Badge,
   Link as ChakraLink,
+  Switch,
+  FormControl,
+  FormLabel,
+  useToast,
+  Alert,
+  AlertIcon,
+  AlertDescription,
 } from "@chakra-ui/react";
 import { CheckIcon, WarningIcon, TimeIcon } from "@chakra-ui/icons";
 import Link from "next/link";
 import { Editor } from "@monaco-editor/react";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -28,16 +36,45 @@ const SubmissionPage: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
   const [code, setCode] = useState("");
+  const { data: session } = useSession();
+  const toast = useToast();
 
-  const { data: submission, isLoading } =
+  const { data: submission, isLoading, refetch } =
     api.problems.getSubmissionStatus.useQuery(
       { submissionId: id as string },
       { enabled: !!id }
     );
 
+  const togglePublicMutation = api.problems.toggleSubmissionPublic.useMutation({
+    onSuccess: async () => {
+      toast({
+        title: "Submission updated",
+        description: "Your submission's public status has been updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      // Refetch the submission data to update the UI
+      await refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating submission",
+        description: error.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+  });
+
+  // Check if the current user is the submission owner
+  const isOwner = session?.user?.id === submission?.userId;
+
   useEffect(() => {
-    if (submission?.code) {
-      setCode(submission.code);
+    // Using optional chaining to safely access code which might not be present
+    if (submission && 'code' in submission) {
+      setCode(submission.code as string);
     }
   }, [submission]);
 
@@ -65,6 +102,15 @@ const SubmissionPage: NextPage = () => {
       </Layout>
     );
   }
+
+  const handleTogglePublic = () => {
+    if (submission.id) {
+      togglePublicMutation.mutate({
+        submissionId: submission.id,
+        isPublic: !submission.isPublic,
+      });
+    }
+  };
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -97,6 +143,8 @@ const SubmissionPage: NextPage = () => {
         return status ?? "Unknown";
     }
   };
+
+  const hasCode = 'code' in submission;
 
   return (
     <Layout title={`Submission ${id as string}`}>
@@ -139,6 +187,21 @@ const SubmissionPage: NextPage = () => {
                   {submission.language}
                 </Badge>
               </HStack>
+
+              {/* Public/Private Toggle (only for submission owner) */}
+              {isOwner && (
+                <FormControl display='flex' alignItems='center'>
+                  <FormLabel htmlFor='public-toggle' mb='0'>
+                    Make submission public
+                  </FormLabel>
+                  <Switch 
+                    id='public-toggle' 
+                    isChecked={submission.isPublic}
+                    onChange={handleTogglePublic}
+                    colorScheme="blue"
+                  />
+                </FormControl>
+              )}
 
               {/* Metrics */}
               <HStack spacing={6} wrap="wrap">
@@ -285,24 +348,35 @@ const SubmissionPage: NextPage = () => {
             <Text mb={4} fontWeight="semibold">
               Submitted Code
             </Text>
-            <Box h="600px" borderRadius="lg" overflow="hidden">
-              <Editor
-                height="100%"
-                defaultLanguage="cpp"
-                value={code}
-                theme="vs-dark"
-                options={{
-                  readOnly: true,
-                  minimap: { enabled: true },
-                  fontSize: 14,
-                  lineNumbers: "on",
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  padding: { top: 16, bottom: 16 },
-                  fontFamily: "JetBrains Mono, monospace",
-                }}
-              />
-            </Box>
+            {!hasCode ? (
+              <Alert status="info" variant="solid" mb={4}>
+                <AlertIcon />
+                <AlertDescription>
+                  {session ? 
+                    "You don't have access to this code. Ask the submission owner to make it public." : 
+                    "Sign in to view this submission's code."}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Box h="600px" borderRadius="lg" overflow="hidden">
+                <Editor
+                  height="100%"
+                  defaultLanguage="cpp"
+                  value={code}
+                  theme="vs-dark"
+                  options={{
+                    readOnly: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    lineNumbers: "on",
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    padding: { top: 16, bottom: 16 },
+                    fontFamily: "JetBrains Mono, monospace",
+                  }}
+                />
+              </Box>
+            )}
           </Box>
         </VStack>
       </Box>
