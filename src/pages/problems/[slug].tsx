@@ -134,7 +134,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
-    { problemSlug: slug as string },
+    { problemSlug: slug },
     { enabled: !!slug }
   ) as {
     data?: { submissions: Submission[]; nextCursor: string | null };
@@ -189,7 +189,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     });
 
     createSubmissionMutation.mutate({
-      problemSlug: slug as string,
+      problemSlug: slug,
       code,
       language: "cuda",
       gpuType: selectedGpuType,
@@ -197,7 +197,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   };
 
   const { data: problem, isLoading } = api.problems.getById.useQuery(
-    { slug: slug as string },
+    { slug: slug },
     { enabled: !!slug }
   );
 

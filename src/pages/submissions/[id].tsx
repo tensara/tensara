@@ -73,7 +73,7 @@ const SubmissionPage: NextPage<{ id: string }> = ({ id }) => {
     isLoading,
     refetch,
   } = api.problems.getSubmissionStatus.useQuery(
-    { submissionId: id as string },
+    { submissionId: id },
     { enabled: !!id }
   );
 
@@ -179,7 +179,7 @@ const SubmissionPage: NextPage<{ id: string }> = ({ id }) => {
   const hasCode = "code" in submission;
 
   return (
-    <Layout title={`Submission ${id as string}`}>
+    <Layout title={`Submission ${id}`}>
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <VStack spacing={6} align="stretch">
           {/* Problem Link */}

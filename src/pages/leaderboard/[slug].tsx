@@ -112,10 +112,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   }, [selectedGpu, router.isReady]);
 
   const { data: problem, isLoading: isProblemLoading } =
-    api.problems.getById.useQuery(
-      { slug: slug as string },
-      { enabled: !!slug }
-    );
+    api.problems.getById.useQuery({ slug: slug }, { enabled: !!slug });
 
   const { data: submissions, isLoading: isSubmissionsLoading } =
     api.submissions.getAllSubmissions.useQuery();
