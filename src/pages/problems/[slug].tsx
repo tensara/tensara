@@ -54,7 +54,6 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 
-
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
@@ -200,7 +199,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setIsTestCaseTableOpen(false);
     setIsSubmitting(true);
     setSubmissionStatus({
-      status: "CHECKING", 
+      status: "CHECKING",
       runtime: null,
       gflops: null,
       passedTests: null,
@@ -208,228 +207,254 @@ export default function ProblemPage({ slug }: { slug: string }) {
       message: "Running test cases...",
     });
 
-    createSubmissionMutation.mutate({
-      problemSlug: slug,
-      code,
-      language: "cuda", 
-      gpuType: selectedGpuType,
-    },
-    {
-      onSuccess: async (data) => {
-        try {
-          const response = await fetch('/api/submissions/direct-submit', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ submissionId: data.id }),
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Direct submit API returned ${response.status}`);
-          }
-          
-          // Set up reader for streaming response
-          const reader = response.body?.getReader();
-          if (!reader) {
-            throw new Error("No response body from direct-submit");
-          }
-          
-          // Process the stream
-          const decoder = new TextDecoder();
-          let buffer = '';
-          
-          // We'll create a void function here to process the stream
-          const processStream = async (): Promise<void> => {
+    createSubmissionMutation.mutate(
+      {
+        problemSlug: slug,
+        code,
+        language: "cuda",
+        gpuType: selectedGpuType,
+      },
+      {
+        onSuccess: (data) => {
+          // Wrap the async logic in a void function
+          void (async () => {
             try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) {
-                  console.log("[sse] Stream complete");
-                  break;
-                }
-                
-                const chunk = decoder.decode(value, { stream: true });
-                buffer += chunk;
-                
-                // Process complete events in buffer
-                const events = buffer.split('\n\n');
-                buffer = events.pop() ?? ''; // Use nullish coalescing
-                
-                for (const event of events) {
-                  if (!event) continue;
-                  
-                  const eventLines = event.split('\n');
-                  let eventType = 'message';
-                  let eventData = '';
-                  
-                  for (const line of eventLines) {
-                    if (line.startsWith('event: ')) {
-                      eventType = line.slice(7);
-                    } else if (line.startsWith('data: ')) {
-                      eventData = line.slice(6);
-                    }
-                  }
-                  
-                  if (!eventData) continue;
-                  
-                  try {
-                    // Parse and type the data
-                    const data = JSON.parse(eventData) as {
-                      status?: string;
-                      passedTests?: number;
-                      totalTests?: number;
-                      result?: {
-                        status?: string;
-                        test_id?: number;
-                        runtime_ms?: number;
-                        gflops?: number;
-                        name?: string;
-                      };
-                      runtime?: number;
-                      gflops?: number;
-                      error?: string;
-                      details?: string;
-                      benchmarkResults?: BenchmarkTestResult[];
-                    };
-                    
-                    console.log(`[sse] ${eventType} event:`, data);
-                    
-                    // Handle different event types
-                    if (eventType === 'status') {
-                      setSubmissionStatus((prev) => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          status: data.status as SubmissionStatus['status'] ?? prev.status,
-                          passedTests: data.passedTests ?? prev.passedTests,
-                          totalTests: data.totalTests ?? prev.totalTests,
-                          message:
-                            data.status === "BENCHMARKING"
-                              ? "All test cases passed! Running performance benchmark..."
-                              : data.passedTests
-                              ? `${data.passedTests} test cases passed...`
-                              : "Running test cases...",
-                        };
-                      });
-                    } 
-                    else if (eventType === 'checker') {
-                      if (data.status === 'test_result' && data.result) {
-                        setSubmissionStatus((prev) => {
-                          if (!prev) {
-                            return {
-                              status: "CHECKING",
-                              runtime: null,
-                              gflops: null,
-                              passedTests: data.result?.status === 'PASSED' ? 1 : 0,
-                              totalTests: 1,
-                              message: `${data.result?.status === 'PASSED' ? 1 : 0} test cases passed...`,
-                            };
-                          }
-                          return {
-                            ...prev,
-                            passedTests: (prev.passedTests ?? 0) + (data.result?.status === 'PASSED' ? 1 : 0),
-                            totalTests: (prev.totalTests ?? 0) + 1,
-                            message: `${(prev.passedTests ?? 0) + (data.result?.status === 'PASSED' ? 1 : 0)} test cases passed...`,
-                          };
-                        });
-                      }
-                    } 
-                    else if (eventType === 'benchmark') {
-                      if (data.status === 'test_result' && data.result) {
-                        setIsTestCaseTableOpen(true);
-                        setSubmissionStatus((prev) => {
-                          if (!prev) return prev;
-                          const benchmarkResult: BenchmarkTestResult = {
-                            test_id: data.result?.test_id ?? 0,
-                            runtime_ms: data.result?.runtime_ms ?? 0,
-                            gflops: data.result?.gflops ?? 0,
-                            name: data.result?.name ?? `Test ${data.result?.test_id ?? 0}`,
-                          };
-                          return {
-                            ...prev,
-                            benchmarkResults: [
-                              ...(prev.benchmarkResults ?? []),
-                              benchmarkResult
-                            ],
-                          };
-                        });
-                      }
-                    }
-                    else if (eventType === 'complete') {
-                      setSubmissionStatus({
-                        status: data.status as SubmissionStatus['status'] ?? "ERROR",
-                        runtime: data.runtime ?? null,
-                        gflops: data.gflops ?? null,
-                        passedTests: data.passedTests ?? null,
-                        totalTests: data.totalTests ?? null,
-                        message:
-                          data.status === "ACCEPTED"
-                            ? "Submission accepted!"
-                            : data.status === "WRONG_ANSWER"
-                            ? "Solution produced incorrect results"
-                            : "Error occurred during submission",
-                        errorMessage: data.error ?? undefined,
-                        errorDetails: data.details ?? undefined,
-                        benchmarkResults: data.benchmarkResults ?? undefined,
-                      });
-                      
-                      setIsSubmitting(false);
-                      submissionsQuery.refetch();
-                      return;
-                    }
-                    else if (eventType === 'error') {
-                      setSubmissionStatus({
-                        status: "ERROR",
-                        runtime: null,
-                        gflops: null,
-                        passedTests: null,
-                        totalTests: null,
-                        message: "Error occurred during submission",
-                        errorMessage: data.error ?? undefined,
-                        errorDetails: data.details ?? undefined,
-                      });
-                      
-                      setIsSubmitting(false);
-                      submissionsQuery.refetch();
-                      
-                      toast({
-                        title: "Submission Error",
-                        description: data.error ?? "An error occurred during submission",
-                        status: "error",
-                        duration: 5000,
-                        isClosable: true,
-                      });
-                      return;
-                    }
-                  } catch (error) {
-                    console.error("Error parsing event data:", error, "Raw data:", eventData);
-                  }
-                }
+              const response = await fetch("/api/submissions/direct-submit", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ submissionId: data.id }),
+              });
+
+              if (!response.ok) {
+                throw new Error(
+                  `Direct submit API returned ${response.status}`
+                );
               }
-              
-              // If we reach here, the stream ended normally
+
+              // Set up reader for streaming response
+              const reader = response.body?.getReader();
+              if (!reader) {
+                throw new Error("No response body from direct-submit");
+              }
+
+              // Process the stream
+              const decoder = new TextDecoder();
+              let buffer = "";
+
+              const processStream = async (): Promise<void> => {
+                try {
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                      console.log("[sse] Stream complete");
+                      break;
+                    }
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += chunk;
+
+                    // Process complete events in buffer
+                    const events = buffer.split("\n\n");
+                    buffer = events.pop() ?? ""; // Use nullish coalescing
+
+                    for (const event of events) {
+                      if (!event) continue;
+
+                      const eventLines = event.split("\n");
+                      let eventType = "message";
+                      let eventData = "";
+
+                      for (const line of eventLines) {
+                        if (line.startsWith("event: ")) {
+                          eventType = line.slice(7);
+                        } else if (line.startsWith("data: ")) {
+                          eventData = line.slice(6);
+                        }
+                      }
+
+                      if (!eventData) continue;
+
+                      try {
+                        // Parse and type the data
+                        const data = JSON.parse(eventData) as {
+                          status?: string;
+                          passedTests?: number;
+                          totalTests?: number;
+                          result?: {
+                            status?: string;
+                            test_id?: number;
+                            runtime_ms?: number;
+                            gflops?: number;
+                            name?: string;
+                          };
+                          runtime?: number;
+                          gflops?: number;
+                          error?: string;
+                          details?: string;
+                          benchmarkResults?: BenchmarkTestResult[];
+                        };
+
+                        console.log(`[sse] ${eventType} event:`, data);
+
+                        // Handle different event types
+                        if (eventType === "status") {
+                          setSubmissionStatus((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              status:
+                                (data.status as SubmissionStatus["status"]) ??
+                                prev.status,
+                              passedTests: data.passedTests ?? prev.passedTests,
+                              totalTests: data.totalTests ?? prev.totalTests,
+                              message:
+                                data.status === "BENCHMARKING"
+                                  ? "All test cases passed! Running performance benchmark..."
+                                  : data.passedTests
+                                  ? `${data.passedTests} test cases passed...`
+                                  : "Running test cases...",
+                            };
+                          });
+                        } else if (eventType === "checker") {
+                          if (data.status === "test_result" && data.result) {
+                            setSubmissionStatus((prev) => {
+                              if (!prev) {
+                                return {
+                                  status: "CHECKING",
+                                  runtime: null,
+                                  gflops: null,
+                                  passedTests:
+                                    data.result?.status === "PASSED" ? 1 : 0,
+                                  totalTests: 1,
+                                  message: `${
+                                    data.result?.status === "PASSED" ? 1 : 0
+                                  } test cases passed...`,
+                                };
+                              }
+                              return {
+                                ...prev,
+                                passedTests:
+                                  (prev.passedTests ?? 0) +
+                                  (data.result?.status === "PASSED" ? 1 : 0),
+                                totalTests: (prev.totalTests ?? 0) + 1,
+                                message: `${
+                                  (prev.passedTests ?? 0) +
+                                  (data.result?.status === "PASSED" ? 1 : 0)
+                                } test cases passed...`,
+                              };
+                            });
+                          }
+                        } else if (eventType === "benchmark") {
+                          if (data.status === "test_result" && data.result) {
+                            setIsTestCaseTableOpen(true);
+                            setSubmissionStatus((prev) => {
+                              if (!prev) return prev;
+                              const benchmarkResult: BenchmarkTestResult = {
+                                test_id: data.result?.test_id ?? 0,
+                                runtime_ms: data.result?.runtime_ms ?? 0,
+                                gflops: data.result?.gflops ?? 0,
+                                name:
+                                  data.result?.name ??
+                                  `Test ${data.result?.test_id ?? 0}`,
+                              };
+                              return {
+                                ...prev,
+                                benchmarkResults: [
+                                  ...(prev.benchmarkResults ?? []),
+                                  benchmarkResult,
+                                ],
+                              };
+                            });
+                          }
+                        } else if (eventType === "complete") {
+                          setSubmissionStatus({
+                            status:
+                              (data.status as SubmissionStatus["status"]) ??
+                              "ERROR",
+                            runtime: data.runtime ?? null,
+                            gflops: data.gflops ?? null,
+                            passedTests: data.passedTests ?? null,
+                            totalTests: data.totalTests ?? null,
+                            message:
+                              data.status === "ACCEPTED"
+                                ? "Submission accepted!"
+                                : data.status === "WRONG_ANSWER"
+                                ? "Solution produced incorrect results"
+                                : "Error occurred during submission",
+                            errorMessage: data.error ?? undefined,
+                            errorDetails: data.details ?? undefined,
+                            benchmarkResults:
+                              data.benchmarkResults ?? undefined,
+                          });
+
+                          setIsSubmitting(false);
+                          submissionsQuery.refetch();
+                          return;
+                        } else if (eventType === "error") {
+                          setSubmissionStatus({
+                            status: "ERROR",
+                            runtime: null,
+                            gflops: null,
+                            passedTests: null,
+                            totalTests: null,
+                            message: "Error occurred during submission",
+                            errorMessage: data.error ?? undefined,
+                            errorDetails: data.details ?? undefined,
+                          });
+
+                          setIsSubmitting(false);
+                          submissionsQuery.refetch();
+
+                          toast({
+                            title: "Submission Error",
+                            description:
+                              data.error ??
+                              "An error occurred during submission",
+                            status: "error",
+                            duration: 5000,
+                            isClosable: true,
+                          });
+                          return;
+                        }
+                      } catch (error) {
+                        console.error(
+                          "Error parsing event data:",
+                          error,
+                          "Raw data:",
+                          eventData
+                        );
+                      }
+                    }
+                  }
+
+                  // If we reach here, the stream ended normally
+                  setIsSubmitting(false);
+                } finally {
+                  reader.releaseLock();
+                }
+              };
+
+              void processStream();
+            } catch (error) {
+              console.error("[sse] Error:", error);
               setIsSubmitting(false);
-            } finally {
-              reader.releaseLock();
+              toast({
+                title: "Connection Error",
+                description:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to connect to submission service",
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+              });
             }
-          };
-          
-          // Execute the stream processing function without awaiting it directly
-          void processStream();
-        } catch (error) {
-          console.error("[sse] Error:", error);
-          setIsSubmitting(false);
-          toast({
-            title: "Connection Error",
-            description: error instanceof Error ? error.message : "Failed to connect to submission service",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-        }
+          })();
+        },
       }
-    });
+    );
   };
 
   const { data: problem, isLoading } = api.problems.getById.useQuery(
@@ -549,10 +574,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
         position="relative"
       >
         {/* Problem Description or Submission Results */}
-        <Box 
-          w={{ base: "100%", md: `${splitRatio}%` }} 
-          h={{ base: "auto", md: "100%" }} 
-          overflowY="auto" 
+        <Box
+          w={{ base: "100%", md: `${splitRatio}%` }}
+          h={{ base: "auto", md: "100%" }}
+          overflowY="auto"
           pr={{ base: 0, md: 4 }}
           mb={{ base: 4, md: 0 }}
           maxH={{ base: "auto", md: "100%" }}
@@ -1133,31 +1158,34 @@ export default function ProblemPage({ slug }: { slug: string }) {
         >
           <VStack spacing={4} align="center">
             <Icon as={WarningIcon} boxSize={10} color="yellow.400" />
-            <Heading size="md" textAlign="center">Desktop Required for Code Submission</Heading>
+            <Heading size="md" textAlign="center">
+              Desktop Required for Code Submission
+            </Heading>
             <Text textAlign="center" color="whiteAlpha.800">
-              For the best coding experience, please switch to a desktop device to write and submit your solution.
+              For the best coding experience, please switch to a desktop device
+              to write and submit your solution.
             </Text>
           </VStack>
         </Box>
 
         {/* Code Editor and Submit Button - Only visible on desktop */}
-        <Box 
+        <Box
           display={{ base: "none", md: "block" }}
-          w={{ base: "100%", md: `${100 - splitRatio}%` }} 
+          w={{ base: "100%", md: `${100 - splitRatio}%` }}
           h={{ base: "auto", md: "100%" }}
           minH={{ base: "50vh", md: "auto" }}
           pl={{ base: 0, md: 4 }}
         >
           <VStack w="100%" h="100%" spacing={4}>
-            <HStack 
-              w="100%" 
-              justify="space-between" 
+            <HStack
+              w="100%"
+              justify="space-between"
               spacing={4}
               flexDirection={{ base: "column", sm: "row" }}
               alignItems={{ base: "flex-start", sm: "center" }}
             >
-              <HStack 
-                spacing={2} 
+              <HStack
+                spacing={2}
                 flexWrap={{ base: "wrap", lg: "nowrap" }}
                 gap={2}
               >
@@ -1205,7 +1233,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     }}
                   >
                     <option value="cuda">CUDA C++</option>
-                    <option value="python" disabled>Python (Triton)</option>
+                    <option value="python" disabled>
+                      Python (Triton)
+                    </option>
                   </Select>
                 </Box>
                 <Box>
@@ -1227,9 +1257,15 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     }}
                   >
                     <option value="float32">float32</option>
-                    <option value="float16" disabled>float16</option>
-                    <option value="int32" disabled>int32</option>
-                    <option value="int16" disabled>int16</option>
+                    <option value="float16" disabled>
+                      float16
+                    </option>
+                    <option value="int32" disabled>
+                      int32
+                    </option>
+                    <option value="int16" disabled>
+                      int16
+                    </option>
                   </Select>
                 </Box>
               </HStack>
