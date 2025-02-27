@@ -61,17 +61,10 @@ export const authConfig: NextAuthOptions = {
   },
   secret: process.env.AUTH_SECRET,
   callbacks: {
-    signIn: async ({ user, account }) => {
-      if (account?.provider === "github") {
-        const response = await fetch(
-          `https://api.github.com/user/${account.providerAccountId}`
-        );
-        const data = (await response.json()) as GitHubUser;
-
-        await db.user.update({
-          where: { id: user.id },
-          data: { username: data.login },
-        });
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "github" && profile) {
+        const githubProfile = profile as { login: string };
+        user.username = githubProfile.login;
       }
       return true;
     },
@@ -83,6 +76,16 @@ export const authConfig: NextAuthOptions = {
         username: user.username,
       },
     }),
+  },
+  events: {
+    async createUser({ user }) {
+      if (user.username) {
+        await db.user.update({
+          where: { id: user.id },
+          data: { username: user.username },
+        });
+      }
+    },
   },
 } satisfies NextAuthOptions;
 
