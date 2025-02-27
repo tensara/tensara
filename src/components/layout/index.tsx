@@ -34,7 +34,7 @@ export function Layout({
         <meta property="og:url" content="https://tensara.ai" />
 
         {/* Twitter tags */}
-        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={siteTitle} />
         <meta name="twitter:description" content={ogDescription} />
 
