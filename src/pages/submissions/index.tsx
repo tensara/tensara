@@ -46,11 +46,10 @@ interface SubmissionWithProblem extends Submission {
 }
 
 const GPU_DISPLAY_NAMES: Record<string, string> = {
-  T4: "NVIDIA T4",
-  H100: "NVIDIA H100",
+  "T4": "NVIDIA T4",
+  "H100": "NVIDIA H100",
   "A100-80GB": "NVIDIA A100-80GB",
-  A10G: "NVIDIA A10G",
-  L4: "NVIDIA L4",
+  "A10G": "NVIDIA A10G",
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
