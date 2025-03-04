@@ -182,7 +182,6 @@ async def generic_benchmark(item: dict):
                 # Run benchmark
                 process = subprocess.Popen(["./benchmark"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 test_results = []
-                total_tests = 0
                 test_count = 0
 
                 # Process each line as it comes in the stream
