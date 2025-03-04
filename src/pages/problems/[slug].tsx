@@ -150,6 +150,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [hasSetInitialCode, setHasSetInitialCode] = useState(false);
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] = useState(false);
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
   const [splitRatio, setSplitRatio] = useState(35);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
@@ -197,6 +198,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     }
 
     setIsTestCaseTableOpen(false);
+    setIsBenchmarking(false);
     setIsSubmitting(true);
     setSubmissionStatus({
       status: "CHECKING",
@@ -337,7 +339,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                   gflops: null,
                                   passedTests:
                                     data.result?.status === "PASSED" ? 1 : 0,
-                                  totalTests: 1,
+                                  totalTests: data.totalTests ?? 1,
                                   message: `${
                                     data.result?.status === "PASSED" ? 1 : 0
                                   } test cases passed...`,
@@ -348,7 +350,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                 passedTests:
                                   (prev.passedTests ?? 0) +
                                   (data.result?.status === "PASSED" ? 1 : 0),
-                                totalTests: (prev.totalTests ?? 0) + 1,
+                                totalTests: data.totalTests ?? prev.totalTests,
                                 message: `${
                                   (prev.passedTests ?? 0) +
                                   (data.result?.status === "PASSED" ? 1 : 0)
@@ -383,6 +385,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                           }
                         } else if (eventType === "benchmark") {
                           if (data.status === "test_result" && data.result) {
+                            setIsBenchmarking(true);
                             setIsTestCaseTableOpen(true);
                             setSubmissionStatus((prev) => {
                               if (!prev) return prev;
@@ -861,60 +864,70 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             />
                           }
                         >
-                          <HStack
-                            justify="space-between"
-                            px={6}
-                            py={4}
-                            onClick={() =>
-                              setIsTestCaseTableOpen(!isTestCaseTableOpen)
-                            }
-                            cursor="pointer"
-                            _hover={{ bg: "whiteAlpha.50" }}
-                          >
-                            <HStack spacing={2}>
-                              <Text fontWeight="semibold">Test Cases</Text>
-                              <IconButton
-                                aria-label="Toggle test cases"
-                                icon={
-                                  isTestCaseTableOpen ? (
-                                    <ChevronUpIcon />
-                                  ) : (
-                                    <ChevronDownIcon />
-                                  )
-                                }
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsTestCaseTableOpen(!isTestCaseTableOpen);
-                                }}
-                                color="gray.300"
-                                _hover={{
-                                  bg: "whiteAlpha.50",
-                                  color: "white",
-                                }}
+                          {isBenchmarking ? (
+                            <HStack
+                              justify="space-between"
+                              px={6}
+                              py={4}
+                              onClick={() =>
+                                setIsTestCaseTableOpen(!isTestCaseTableOpen)
+                              }
+                              cursor="pointer"
+                              _hover={{ bg: "whiteAlpha.50" }}
+                            >
+                              <HStack spacing={2} width="100%">
+                                <HStack spacing={2}>
+                                  <Text fontWeight="semibold">
+                                    Benchmark Results
+                                  </Text>
+                                  <IconButton
+                                    aria-label="Toggle test cases"
+                                    icon={
+                                      isTestCaseTableOpen ? (
+                                        <ChevronUpIcon />
+                                      ) : (
+                                        <ChevronDownIcon />
+                                      )
+                                    }
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setIsTestCaseTableOpen(
+                                        !isTestCaseTableOpen
+                                      );
+                                    }}
+                                    color="gray.300"
+                                    _hover={{
+                                      bg: "whiteAlpha.50",
+                                      color: "white",
+                                    }}
+                                  />
+                                </HStack>
+                              </HStack>
+                            </HStack>
+                          ) : (
+                            <Box
+                              w="100%"
+                              h="6"
+                              bg="whiteAlpha.200"
+                              borderRadius="md"
+                              overflow="hidden"
+                            >
+                              <Box
+                                h="100%"
+                                w={`${
+                                  (submissionStatus.passedTests /
+                                    (submissionStatus.totalTests ?? 10)) *
+                                  100
+                                }%`}
+                                bg="green.500"
+                                borderRadius="md"
+                                borderRightRadius="xl"
+                                transition="width 0.5s ease-in-out"
                               />
-                            </HStack>
-                            <HStack spacing={1}>
-                              <Text
-                                color={
-                                  submissionStatus.status === "ACCEPTED" ||
-                                  submissionStatus.status === "CHECKING" ||
-                                  submissionStatus.status === "BENCHMARKING"
-                                    ? "green.300"
-                                    : "red.300"
-                                }
-                                fontWeight="bold"
-                              >
-                                {submissionStatus.passedTests}
-                              </Text>
-                              <Text color="whiteAlpha.700">/</Text>
-                              <Text color="whiteAlpha.700">
-                                {submissionStatus.totalTests}
-                              </Text>
-                              <Text color="whiteAlpha.700">passed</Text>
-                            </HStack>
-                          </HStack>
+                            </Box>
+                          )}
 
                           {/* Test Case Results Table */}
                           <Collapse in={isTestCaseTableOpen} animateOpacity>
