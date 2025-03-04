@@ -19,7 +19,8 @@ image = (
     ])
     .pip_install([
         "torch",
-        "ninja"
+        "ninja",
+        "fastapi[standard]"
     ])
     .env({"CXX": "g++"})
     .add_local_file(stub_dir / "benchmark/benchmark.cu", "/root/benchmark.cu")
