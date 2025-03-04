@@ -74,9 +74,53 @@ async def generic_checker(item: dict):
                 
                 yield "data: " + json.dumps({"status": "running"}) + "\n\n"
                 
-                result = subprocess.run(["./checker"], capture_output=True, text=True)
+                # Stream the output line by line
+                process = subprocess.Popen(["./checker"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+                test_results = []
+                passed_tests = 0
+                total_tests = 0
+                has_failed = False
+                                
+                # Process each line as it comes in the stream
+                for line in iter(process.stdout.readline, ''):
+                    if not line.strip():
+                        continue
+
+                    # This would indicate the end of the test results
+                    if line.strip() in ["PASSED", "FAILED"]:
+                        overall_status = line.strip()
+                        continue
+                    
+                    test_case, name, status = line.split(',')   
+                    test_id = int(test_case.split("/")[0])
+                    total_tests = int(test_case.split("/")[1])
+
+                    test_result = {
+                        "test_id": test_id,
+                        "name": name,
+                        "status": status.strip()
+                    }
+                    test_results.append(test_result)
+                    
+                    if status.strip() == "PASSED":
+                        passed_tests += 1
+                        yield "data: " + json.dumps({
+                            "status": "test_result",
+                            "result": test_result,
+                            "totalTests": total_tests
+                        }) + "\n\n"
+                    else:
+                        has_failed = True
+                        yield "data: " + json.dumps({
+                            "status": "test_result",
+                            "result": test_result,
+                            "totalTests": total_tests
+                        }) + "\n\n"
                 
-                if result.stderr:
+                stderr_output = process.stderr.read()
+
+                if stderr_output:
                     yield "data: " + json.dumps({
                         "status": "error",
                         "error": "Runtime error",
@@ -87,36 +131,15 @@ async def generic_checker(item: dict):
                     }) + "\n\n"
                     return
                 
-                lines = result.stdout.strip().split('\n')
-                test_results = []
-                passed_tests = 0
-                
-                for line in lines[:-1]:
-                    test_id, name, status = line.split(',')
-                    test_result = {
-                        "test_id": int(test_id),
-                        "name": name,
-                        "status": status.strip()
-                    }
-                    test_results.append(test_result)
-                    if status.strip() == "PASSED":
-                        passed_tests += 1
-                    yield "data: " + json.dumps({
-                        "status": "test_result",
-                        "result": test_result
-                    }) + "\n\n"
-                
-                overall_status = lines[-1].strip()
-                total_tests = len(test_results)
-                
+                # Finally, at the very end, we can send the overall status
                 yield "data: " + json.dumps({
                     "status": "complete",
-                    "passed": overall_status == "PASSED",
+                    "passed": not has_failed,
                     "test_results": test_results,
                     "passed_tests": passed_tests,
                     "total_tests": total_tests
                 }) + "\n\n"
-                
+
         except Exception as e:
             yield "data: " + json.dumps({
                 "status": "error",
@@ -157,22 +180,24 @@ async def generic_benchmark(item: dict):
                 yield "data: " + json.dumps({"status": "running"}) + "\n\n"
                 
                 # Run benchmark
-                result = subprocess.run(["./benchmark"], capture_output=True, text=True)
-                
-                if result.stderr:
-                    yield "data: " + json.dumps({
-                        "status": "error",
-                        "error": "Runtime error",
-                        "details": result.stderr
-                    }) + "\n\n"
-                    return
-                
-                try:
-                    # Process results
-                    lines = result.stdout.strip().split('\n')
-                    test_results = []
+                process = subprocess.Popen(["./benchmark"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                test_results = []
+                total_tests = 0
+                test_count = 0
+
+                # Process each line as it comes in the stream
+                for line in iter(process.stdout.readline, ''):
+                    if not line.strip():
+                        continue
                     
-                    for line in lines[:-1]:
+                    # Check if it's the last line with average GFLOPS
+                    try:
+                        avg_gflops = float(line.strip())
+                        continue
+                    except ValueError:
+                        pass
+                        
+                    try:
                         test_id, name, runtime_ms, gflops = line.split(',')
                         test_result = {
                             "test_id": int(test_id),
@@ -181,26 +206,43 @@ async def generic_benchmark(item: dict):
                             "gflops": float(gflops)
                         }
                         test_results.append(test_result)
+                        test_count += 1
+                        
                         yield "data: " + json.dumps({
                             "status": "test_result",
-                            "result": test_result
+                            "result": test_result,
+                            "totalTests": test_count
                         }) + "\n\n"
-                    
-                    avg_gflops = float(lines[-1])
-                    
-                    yield "data: " + json.dumps({
-                        "status": "success",
-                        "test_results": test_results,
-                        "average_gflops": avg_gflops
-                    }) + "\n\n"
-                    
-                except Exception as e:
+                    except Exception as e:
+                        yield "data: " + json.dumps({
+                            "status": "error",
+                            "error": "Failed to parse benchmark line",
+                            "details": str(e),
+                            "line": line
+                        }) + "\n\n"
+    
+                stderr_output = process.stderr.read()
+                
+                if stderr_output:
                     yield "data: " + json.dumps({
                         "status": "error",
-                        "error": "Failed to parse benchmark output",
-                        "details": str(e)
+                        "error": "Runtime error",
+                        "details": stderr_output
                     }) + "\n\n"
-                
+                    return
+
+                # Finally, at the very end, we can send the overall status
+                # Calculate average GFLOPS if not already calculated
+                if not 'avg_gflops' in locals():
+                    avg_gflops = sum(result["gflops"] for result in test_results) / len(test_results) if test_results else 0
+
+                yield "data: " + json.dumps({
+                    "status": "success",
+                    "test_results": test_results,
+                    "average_gflops": avg_gflops,
+                    "total_tests": test_count
+                }) + "\n\n"
+
         except Exception as e:
             yield "data: " + json.dumps({
                 "status": "error",

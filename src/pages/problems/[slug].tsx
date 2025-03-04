@@ -328,6 +328,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             };
                           });
                         } else if (eventType === "checker") {
+                          console.log(data.totalTests);
                           if (data.status === "test_result" && data.result) {
                             setSubmissionStatus((prev) => {
                               if (!prev) {
@@ -337,7 +338,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                   gflops: null,
                                   passedTests:
                                     data.result?.status === "PASSED" ? 1 : 0,
-                                  totalTests: 1,
+                                  totalTests: data.totalTests ?? 1,
                                   message: `${
                                     data.result?.status === "PASSED" ? 1 : 0
                                   } test cases passed...`,
@@ -348,7 +349,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                 passedTests:
                                   (prev.passedTests ?? 0) +
                                   (data.result?.status === "PASSED" ? 1 : 0),
-                                totalTests: (prev.totalTests ?? 0) + 1,
+                                totalTests: data.totalTests ?? prev.totalTests,
                                 message: `${
                                   (prev.passedTests ?? 0) +
                                   (data.result?.status === "PASSED" ? 1 : 0)

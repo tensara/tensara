@@ -83,14 +83,15 @@ bool run_test(TestCase<T>& test_case) {
 int main() {
     auto test_cases = create_test_cases();
     bool all_passed = true;
+    int total_cases = test_cases.size();
     
-    for (size_t i = 0; i < test_cases.size(); i++) {
+    for (size_t i = 0; i < total_cases; i++) {
         if (!run_test(*test_cases[i])) {
-            std::cout << (i + 1) << "," << test_cases[i]->get_name() << "," << "FAILED" << std::endl;
+            std::cout << (i + 1) << "/" << total_cases << "," << test_cases[i]->get_name() << "," << "FAILED" << std::endl;
             all_passed = false;
             break;
         }
-        std::cout << (i + 1) << "," << test_cases[i]->get_name() << "," << "PASSED" << std::endl;
+        std::cout << (i + 1) << "/" << total_cases << "," << test_cases[i]->get_name() << "," << "PASSED" << std::endl;
     }
     
     if (all_passed) {
