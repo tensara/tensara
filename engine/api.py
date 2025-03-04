@@ -37,6 +37,7 @@ app = modal.App("tensara", image=image)
 async def generic_checker(item: dict):
     """Common implementation for all checker endpoints."""
     async def generate_checker_results():
+        import subprocess
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
@@ -128,6 +129,7 @@ async def generic_checker(item: dict):
 async def generic_benchmark(item: dict):
     """Common implementation for all benchmark endpoints."""
     async def generate_benchmark_results():
+        import subprocess
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
