@@ -1,39 +1,37 @@
-#include <cuda_runtime.h>
-#include <iostream>
-#include <vector>
-#include <memory>
-#include <functional>
-#include <iomanip>
-#include <utility>
 #include "core.hpp"
-#include "tests.hpp"
 #include "solution.cu"
+#include "tests.hpp"
+#include <cuda_runtime.h>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <utility>
+#include <vector>
+#include <chrono>
 
-template<typename T>
+template <typename T>
 class BenchmarkRunner {
-private:
+  private:
     cudaEvent_t start, stop;
-    std::vector<T*> h_inputs;
-    std::vector<T*> h_outputs;
-    std::vector<T*> d_inputs;
-    std::vector<T*> d_outputs;
-    size_t num_runs;
+    std::vector<T *> h_inputs;
+    std::vector<T *> h_outputs;
+    std::vector<T *> d_inputs;
+    std::vector<T *> d_outputs;
 
-public:
-    BenchmarkRunner(TestCase<T>& test_case, size_t runs = 10) 
-        : num_runs(runs) {
-        
+  public:
+    BenchmarkRunner(TestCase<T> &test_case) {
+
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         h_inputs.resize(test_case.input_shapes().size());
         h_outputs.resize(test_case.output_shapes().size());
-        
+
         for (size_t i = 0; i < test_case.input_shapes().size(); i++) {
             size_t size = test_case.input_shapes()[i]->size();
             h_inputs[i] = new T[size];
         }
-        
+
         for (size_t i = 0; i < test_case.output_shapes().size(); i++) {
             size_t size = test_case.output_shapes()[i]->size();
             h_outputs[i] = new T[size];
@@ -43,13 +41,13 @@ public:
 
         d_inputs.resize(test_case.input_shapes().size());
         d_outputs.resize(test_case.output_shapes().size());
-        
+
         for (size_t i = 0; i < test_case.input_shapes().size(); i++) {
             size_t size = test_case.input_shapes()[i]->size();
             cudaMalloc(&d_inputs[i], size * sizeof(T));
             cudaMemcpy(d_inputs[i], h_inputs[i], size * sizeof(T), cudaMemcpyHostToDevice);
         }
-        
+
         for (size_t i = 0; i < test_case.output_shapes().size(); i++) {
             size_t size = test_case.output_shapes()[i]->size();
             cudaMalloc(&d_outputs[i], size * sizeof(T));
@@ -57,62 +55,80 @@ public:
     }
 
     ~BenchmarkRunner() {
-        for (auto ptr : h_inputs) delete[] ptr;
-        for (auto ptr : h_outputs) delete[] ptr;
-        
-        for (auto ptr : d_inputs) cudaFree(ptr);
-        for (auto ptr : d_outputs) cudaFree(ptr);
-        
+        for (auto ptr : h_inputs)
+            delete[] ptr;
+        for (auto ptr : h_outputs)
+            delete[] ptr;
+
+        for (auto ptr : d_inputs)
+            cudaFree(ptr);
+        for (auto ptr : d_outputs)
+            cudaFree(ptr);
+
         cudaEventDestroy(start);
         cudaEventDestroy(stop);
     }
 
-public:
-    typedef void (*KernelLauncher)(const std::vector<T*>&, const std::vector<T*>&, const std::vector<size_t>&);
-    
-    std::pair<size_t, float> run_benchmark(TestCase<T>& test_case) {
+  public:
+    typedef void (*KernelLauncher)(const std::vector<T *> &, const std::vector<T *> &, const std::vector<size_t> &);
+
+    std::pair<size_t, float> run_benchmark(TestCase<T> &test_case) {
         float total_ms = 0.0f;
         size_t flops = test_case.calculate_flops();
         std::vector<size_t> sizes = test_case.get_sizes();
 
-        test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void*>(solution));
+        test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
         cudaDeviceSynchronize();
 
-        for (size_t i = 0; i < num_runs; i++) {
+        // warm up runs
+        for (size_t i = 0; i < 10; i++) {
+            test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
+            cudaDeviceSynchronize();
+        }
+
+        size_t num_runs = 0;
+        auto start_time = std::chrono::high_resolution_clock::now();
+        auto current_time = start_time;
+
+        // loop for 1 second
+        while (std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count() < 1000) {
+            cudaDeviceSynchronize();
             cudaEventRecord(start);
-            test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void*>(solution));
+            test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
 
             float ms = 0.0f;
             cudaEventElapsedTime(&ms, start, stop);
             total_ms += ms;
+            num_runs++;
+            current_time = std::chrono::high_resolution_clock::now();
         }
 
         return std::make_pair(flops, total_ms / num_runs);
     }
 };
 
-template<typename T>
-void run_benchmarks(const std::vector<std::unique_ptr<TestCase<T>>>& test_cases) {
+template <typename T>
+void run_benchmarks(const std::vector<std::unique_ptr<TestCase<T>>> &test_cases) {
     std::cout << std::fixed << std::setprecision(9);
-    
+
     double total_gflops = 0.0;
     int curr_testcase = 1;
-    
-    for (const auto& test_case : test_cases) {
+
+    for (const auto &test_case : test_cases) {
         BenchmarkRunner<T> runner(*test_case);
         std::pair<size_t, float> benchmark_result = runner.run_benchmark(*test_case);
         size_t flops = benchmark_result.first;
         float avg_ms = benchmark_result.second;
-        
+
         double gflops = (flops / 1e9) / (avg_ms / 1000.0);
         total_gflops += gflops;
-        
+
         std::cout << curr_testcase << "," << test_case->get_name() << "," << avg_ms << "," << gflops << std::endl;
         curr_testcase++;
     }
-    
+
     std::cout << (total_gflops / test_cases.size()) << std::endl;
 }
 

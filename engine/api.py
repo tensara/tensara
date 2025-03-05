@@ -36,11 +36,11 @@ class NVCCError(Exception):
 def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
     """Get nvcc command for the given GPU, source files, and output file"""
 
-    srcs = map(str, srcs)
+    srcs = [str(src) for src in srcs]
     out = str(out)
 
     sm = GPU_COMPUTE_CAPABILITIES[gpu]
-    cmd = ["nvcc", "-O2", f"-arch=compute_{sm}", f"-code=sm_{sm}", "-o", out] + srcs
+    cmd = ["nvcc", "-std=c++20", "-O2", f"-arch=compute_{sm}", f"-code=sm_{sm}", "-o", out] + srcs
 
     return cmd
 
@@ -105,193 +105,184 @@ def run_nvcc(gpu: str, files: dict[str, str], binary_name: str) -> Path:
 def generic_checker(gpu: str, item: dict):
     """Common implementation for all checker endpoints."""
 
+    yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
+
+    files = {
+        "reference.cu": item["reference_code"],
+        "solution.cu": item["solution_code"],
+        "tests.hpp": item["tests_code"],
+    }
     try:
-        yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
-
-        files = {
-            "reference.cu": item["reference_code"],
-            "solution.cu": item["solution_code"],
-            "tests.hpp": item["tests_code"],
-        }
-        try:
-            checker_path = run_nvcc(gpu, files, "checker")
-        except NVCCError as e:
-            obj = {
-                "status": "error",
-                "error": "Compilation failed",
-                "details": e.args[0],
-                "test_results": [],
-                "passed_tests": 0,
-                "total_tests": 0,
-            }
-            yield "data: " + json.dumps(obj) + "\n\n"
-            return
-
-        yield "data: " + json.dumps({"status": "running"}) + "\n\n"
-
-        # Stream the output line by line
-        process = subprocess.Popen(
-            [str(checker_path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-
-        test_results = []
-        passed_tests = 0
-        total_tests = 0
-        has_failed = False
-
-        # Process each line as it comes in the stream
-        for line in iter(process.stdout.readline, ""):
-            if not line.strip():
-                continue
-
-            # This would indicate the end of the test results
-            if line.strip() in ["PASSED", "FAILED"]:
-                continue
-
-            test_case, name, status = line.split(",")
-            status = status.strip()
-            test_id = int(test_case.split("/")[0])
-            total_tests = int(test_case.split("/")[1])
-
-            test_result = {"test_id": test_id, "name": name, "status": status}
-            test_results.append(test_result)
-            obj = {
-                "status": "test_result",
-                "result": test_result,
-                "totalTests": total_tests,
-            }
-            yield "data: " + json.dumps(obj) + "\n\n"
-
-            if status == "PASSED":
-                passed_tests += 1
-            else:
-                has_failed = True
-
-        try:
-            process.wait(timeout=1)
-        except subprocess.TimeoutExpired:
-            process.kill()
-
-        stderr_output = process.stderr.read()
-        if stderr_output:
-            obj = {
-                "status": "error",
-                "error": "Runtime error",
-                "details": stderr_output,
-                "test_results": [],
-                "passed_tests": 0,
-                "total_tests": 0,
-            }
-            yield "data: " + json.dumps(obj) + "\n\n"
-            return
-
-        # Finally, at the very end, we can send the overall status
+        checker_path = run_nvcc(gpu, files, "checker")
+    except NVCCError as e:
         obj = {
-            "status": "complete",
-            "passed": not has_failed,
-            "test_results": test_results,
-            "passed_tests": passed_tests,
-            "total_tests": total_tests,
+            "status": "error",
+            "error": "Compilation failed",
+            "details": e.args[0],
+            "test_results": [],
+            "passed_tests": 0,
+            "total_tests": 0,
+        }
+        yield "data: " + json.dumps(obj) + "\n\n"
+        return
+
+    yield "data: " + json.dumps({"status": "running"}) + "\n\n"
+
+    # Stream the output line by line
+    process = subprocess.Popen(
+        [str(checker_path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+
+    test_results = []
+    passed_tests = 0
+    total_tests = 0
+    has_failed = False
+
+    # Process each line as it comes in the stream
+    for line in iter(process.stdout.readline, ""):
+        if not line.strip():
+            continue
+
+        # This would indicate the end of the test results
+        if line.strip() in ["PASSED", "FAILED"]:
+            continue
+
+        test_case, name, status = line.split(",")
+        status = status.strip()
+        test_id = int(test_case.split("/")[0])
+        total_tests = int(test_case.split("/")[1])
+
+        test_result = {"test_id": test_id, "name": name, "status": status}
+        test_results.append(test_result)
+        obj = {
+            "status": "test_result",
+            "result": test_result,
+            "totalTests": total_tests,
         }
         yield "data: " + json.dumps(obj) + "\n\n"
 
-    except Exception as e:
-        obj = {"status": "error", "error": str(e), "test_results": []}
+        if status == "PASSED":
+            passed_tests += 1
+        else:
+            has_failed = True
+
+    try:
+        process.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        process.kill()
+
+    stderr_output = process.stderr.read()
+    if stderr_output:
+        obj = {
+            "status": "error",
+            "error": "Runtime error",
+            "details": stderr_output,
+            "test_results": [],
+            "passed_tests": 0,
+            "total_tests": 0,
+        }
         yield "data: " + json.dumps(obj) + "\n\n"
+        return
+
+    # Finally, at the very end, we can send the overall status
+    obj = {
+        "status": "complete",
+        "passed": not has_failed,
+        "test_results": test_results,
+        "passed_tests": passed_tests,
+        "total_tests": total_tests,
+    }
+    yield "data: " + json.dumps(obj) + "\n\n"
 
 
 def generic_benchmark(gpu: str, item: dict):
     """Common implementation for all benchmark endpoints."""
+    yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
 
+    # compile
+    files = {
+        "solution.cu": item["solution_code"],
+        "tests.hpp": item["tests_code"],
+    }
     try:
-        yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
+        benchmark_path = run_nvcc(gpu, files, "benchmark")
+    except NVCCError as e:
+        obj = {"status": "error", "error": "Compilation failed", "details": e.args[0]}
+        yield "data: " + json.dumps(obj) + "\n\n"
+        return
 
-        # compile
-        files = {
-            "solution.cu": item["solution_code"],
-            "tests.hpp": item["tests_code"],
-        }
+    yield "data: " + json.dumps({"status": "running"}) + "\n\n"
+
+    # Run benchmark
+    process = subprocess.Popen(
+        [str(benchmark_path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+
+    test_results = []
+    test_count = 0
+    avg_gflops = None
+
+    # Process each line as it comes in the stream
+    for line in iter(process.stdout.readline, ""):
+        if not line.strip():
+            continue
+
+        # Check if it's the last line with average GFLOPS
         try:
-            benchmark_path = run_nvcc(gpu, files, "benchmark")
-        except NVCCError as e:
-            obj = {"status": "error", "error": "Compilation failed", "details": e.args[0]}
+            avg_gflops = float(line.strip())
+            continue
+        except ValueError:
+            pass
+
+        try:
+            test_id, name, runtime_ms, gflops = line.split(",")
+            test_result = {
+                "test_id": int(test_id),
+                "name": name,
+                "runtime_ms": float(runtime_ms),
+                "gflops": float(gflops),
+            }
+            obj = {
+                "status": "test_result",
+                "result": test_result,
+                "totalTests": test_count,
+            }
+            test_results.append(test_result)
+            test_count += 1
+
             yield "data: " + json.dumps(obj) + "\n\n"
-            return
+        except Exception as e:
+            obj = {
+                "status": "error",
+                "error": "Failed to parse benchmark line",
+                "details": str(e),
+                "line": line,
+            }
+            yield "data: " + json.dumps(obj) + "\n\n"
 
-        yield "data: " + json.dumps({"status": "running"}) + "\n\n"
+    stderr_output = process.stderr.read()
 
-        # Run benchmark
-        process = subprocess.Popen(
-            [str(benchmark_path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    if stderr_output:
+        obj = {"status": "error", "error": "Runtime error", "details": stderr_output}
+        yield "data: " + json.dumps(obj) + "\n\n"
+        return
+
+    # Finally, at the very end, we can send the overall status
+    # Calculate average GFLOPS if not already calculated
+    if not avg_gflops:
+        avg_gflops = (
+            sum(result["gflops"] for result in test_results) / len(test_results)
+            if test_results
+            else 0
         )
 
-        test_results = []
-        test_count = 0
-        avg_gflops = None
-
-        # Process each line as it comes in the stream
-        for line in iter(process.stdout.readline, ""):
-            if not line.strip():
-                continue
-
-            # Check if it's the last line with average GFLOPS
-            try:
-                avg_gflops = float(line.strip())
-                continue
-            except ValueError:
-                pass
-
-            try:
-                test_id, name, runtime_ms, gflops = line.split(",")
-                test_result = {
-                    "test_id": int(test_id),
-                    "name": name,
-                    "runtime_ms": float(runtime_ms),
-                    "gflops": float(gflops),
-                }
-                obj = {
-                    "status": "test_result",
-                    "result": test_result,
-                    "totalTests": test_count,
-                }
-                test_results.append(test_result)
-                test_count += 1
-
-                yield "data: " + json.dumps(obj) + "\n\n"
-            except Exception as e:
-                obj = {
-                    "status": "error",
-                    "error": "Failed to parse benchmark line",
-                    "details": str(e),
-                    "line": line,
-                }
-                yield "data: " + json.dumps(obj) + "\n\n"
-
-        stderr_output = process.stderr.read()
-
-        if stderr_output:
-            obj = {"status": "error", "error": "Runtime error", "details": stderr_output}
-            yield "data: " + json.dumps(obj) + "\n\n"
-            return
-
-        # Finally, at the very end, we can send the overall status
-        # Calculate average GFLOPS if not already calculated
-        if not avg_gflops:
-            avg_gflops = (
-                sum(result["gflops"] for result in test_results) / len(test_results)
-                if test_results
-                else 0
-            )
-
-        obj = {
-            "status": "success",
-            "test_results": test_results,
-            "average_gflops": avg_gflops,
-            "total_tests": test_count,
-        }
-        yield "data: " + json.dumps(obj) + "\n\n"
-    except Exception as e:
-        yield "data: " + json.dumps({"status": "error", "error": str(e)}) + "\n\n"
+    obj = {
+        "status": "success",
+        "test_results": test_results,
+        "average_gflops": avg_gflops,
+        "total_tests": test_count,
+    }
+    yield "data: " + json.dumps(obj) + "\n\n"
 
 
 def checker(gpu: str, item: dict):

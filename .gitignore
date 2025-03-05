@@ -221,5 +221,5 @@ cython_debug/
 .pypirc
 
 # Binary build artifacts
-engine/benchmark/benchmark
-engine/checker/checker
+engine/skeleton/benchmark
+engine/skeleton/checker
