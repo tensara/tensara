@@ -1,13 +1,20 @@
-#include "core.hpp"
 #include "solution.cu"
+
+#include "core.hpp"
 #include "tests.hpp"
-#include <cuda_runtime.h>
+
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <memory>
 #include <utility>
 #include <vector>
-#include <chrono>
+
+#include <cuda_runtime.h>
+
+static const size_t WARMUP_RUNS = 10;
+static const size_t MINIMUM_RUNS = 20;
+static const double MINIMUM_TIME_SECS = 1.0;
 
 template <typename T>
 class BenchmarkRunner {
@@ -73,25 +80,23 @@ class BenchmarkRunner {
     typedef void (*KernelLauncher)(const std::vector<T *> &, const std::vector<T *> &, const std::vector<size_t> &);
 
     std::pair<size_t, float> run_benchmark(TestCase<T> &test_case) {
-        float total_ms = 0.0f;
         size_t flops = test_case.calculate_flops();
         std::vector<size_t> sizes = test_case.get_sizes();
 
         test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
         cudaDeviceSynchronize();
 
-        // warm up runs
-        for (size_t i = 0; i < 10; i++) {
+        auto start_time = std::chrono::high_resolution_clock::now();
+        double elapsed = 0.0;
+
+        std::vector<float> runtimes;
+
+        for (size_t i = 0; i < WARMUP_RUNS; i++) {
             test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
             cudaDeviceSynchronize();
         }
 
-        size_t num_runs = 0;
-        auto start_time = std::chrono::high_resolution_clock::now();
-        auto current_time = start_time;
-
-        // loop for 1 second
-        while (std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count() < 1000) {
+        while (elapsed < MINIMUM_TIME_SECS) {
             cudaDeviceSynchronize();
             cudaEventRecord(start);
             test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
@@ -100,12 +105,13 @@ class BenchmarkRunner {
 
             float ms = 0.0f;
             cudaEventElapsedTime(&ms, start, stop);
-            total_ms += ms;
-            num_runs++;
-            current_time = std::chrono::high_resolution_clock::now();
+            runtimes.push_back(ms);
+
+            elapsed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count();
         }
 
-        return std::make_pair(flops, total_ms / num_runs);
+        float avg_ms = std::reduce(runtimes.begin(), runtimes.end()) / runtimes.size();
+        return std::make_pair(flops, avg_ms);
     }
 };
 
