@@ -11,6 +11,8 @@ from util import GPU_COMPUTE_CAPABILITIES, SKELETON_FILES
 from util import run_nvcc_bytes, NVCCError, async_wrap_iter
 from runner import run_checker, run_benchmark
 
+SCALEDOWN_WINDOW = 30  # seconds before container is stopped
+
 SKELETON_DIR = Path(__file__).parent / "skeleton"
 
 DEVEL_IMG_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
@@ -35,7 +37,7 @@ runtime_image = (
 )
 
 
-app = modal.App("tensara-public", image=devel_image)
+app = modal.App("tensara", image=devel_image)
 web_app = FastAPI()
 
 
@@ -69,7 +71,13 @@ def binary_runner(binary_name: str, compiled: bytes):
 
 
 gpu_runners = {
-    gpu: app.function(image=runtime_image, name=f"runner_{gpu}", gpu=gpu)(binary_runner)
+    gpu: app.function(
+        image=runtime_image,
+        name=f"runner_{gpu}",
+        gpu=gpu,
+        scaledown_window=SCALEDOWN_WINDOW,
+        enable_memory_snapshot=True,
+    )(binary_runner)
     for gpu in GPU_COMPUTE_CAPABILITIES.keys()
 }
 
