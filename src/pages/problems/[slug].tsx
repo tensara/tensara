@@ -1323,6 +1323,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
               w="100%"
               justify="space-between"
               spacing={4}
+              flexWrap="wrap"
               flexDirection={{ base: "column", sm: "row" }}
               alignItems={{ base: "flex-start", sm: "center" }}
             >
@@ -1411,7 +1412,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   </Select>
                 </Box>
               </HStack>
-
               <HStack spacing={2} mt={{ base: 2, sm: 0 }}>
                 {splitRatio < 45 && (
                   <Button
