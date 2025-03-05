@@ -3,9 +3,6 @@ import tempfile
 import subprocess
 from pathlib import Path
 
-import asyncio
-import threading
-
 import json
 import modal
 from fastapi.responses import StreamingResponse
@@ -22,7 +19,10 @@ SKELETON_DIR = Path(__file__).parent / "skeleton"
 SKELETON_FILES = ["benchmark.cu", "checker.cu", "core.hpp"]
 
 DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
-image = modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
+image = modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11").pip_install(
+    "fastapi[standard]"
+)
+
 for path in SKELETON_FILES:
     image = image.add_local_file(SKELETON_DIR / path, "/skeleton/" + path)
 
@@ -294,50 +294,59 @@ def generic_benchmark(gpu: str, item: dict):
         yield "data: " + json.dumps({"status": "error", "error": str(e)}) + "\n\n"
 
 
-def async_wrap_iter(it):
-    """Wrap a sync iterator to make it async"""
-    loop = asyncio.get_event_loop()
-    exc = None
-    END_MARKER = object()
-    q = asyncio.Queue(1)
-
-    def iter_to_queue():
-        try:
-            for item in it:
-                pass
-        except Exception as e:
-            nonlocal exc
-            exc = e
-        finally:
-            asyncio.run_coroutine_threadsafe(q.put(END_MARKER), loop).result()
-
-    async def yield_items():
-        while True:
-            next_item = await q.get()
-            if next_item is END_MARKER:
-                break
-            yield next_item
-        if exc:
-            raise exc
-
-    threading.Thread(target=iter_to_queue).start()
-    return yield_items()
+def checker(gpu: str, item: dict):
+    stream = generic_checker(gpu, item)
+    return StreamingResponse(stream, media_type="text/event-stream")
 
 
-def make_endpoints(gpu):
-    @app.function(gpu=gpu)
-    @modal.web_endpoint(method="POST")
-    async def checker(item: dict):
-        stream = async_wrap_iter(generic_checker(gpu, item))
-        return StreamingResponse(stream, media_type="text/event-stream")
-
-    @app.function(gpu=gpu)
-    @modal.web_endpoint(method="POST")
-    async def benchmark(item: dict):
-        stream = async_wrap_iter(generic_benchmark(gpu, item))
-        return StreamingResponse(stream, media_type="text/event-stream")
+def benchmark(gpu: str, item: dict):
+    stream = generic_benchmark(gpu, item)
+    return StreamingResponse(stream, media_type="text/event-stream")
 
 
-# create endpoints for each GPU
-for gpu in GPU_COMPUTE_CAPABILITIES.keys():
-    make_endpoints(gpu)
+@app.function(gpu="T4")
+@modal.web_endpoint(method="POST")
+def checker_t4(item: dict):
+    return checker("T4", item)
+
+
+@app.function(gpu="H100")
+@modal.web_endpoint(method="POST")
+def checker_h100(item: dict):
+    return checker("H100", item)
+
+
+@app.function(gpu="A100-80GB")
+@modal.web_endpoint(method="POST")
+def checker_a100(item: dict):
+    return checker("A100-80GB", item)
+
+
+@app.function(gpu="A10G")
+@modal.web_endpoint(method="POST")
+def checker_a10g(item: dict):
+    return checker("A10G", item)
+
+
+@app.function(gpu="T4")
+@modal.web_endpoint(method="POST")
+def benchmark_t4(item: dict):
+    return benchmark("T4", item)
+
+
+@app.function(gpu="H100")
+@modal.web_endpoint(method="POST")
+def benchmark_h100(item: dict):
+    return benchmark("H100", item)
+
+
+@app.function(gpu="A100-80GB")
+@modal.web_endpoint(method="POST")
+def benchmark_a100(item: dict):
+    return benchmark("A100-80GB", item)
+
+
+@app.function(gpu="A10G")
+@modal.web_endpoint(method="POST")
+def benchmark_a10g(item: dict):
+    return benchmark("A10G", item)
