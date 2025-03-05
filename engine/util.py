@@ -2,6 +2,7 @@ import os
 import tempfile
 import subprocess
 from pathlib import Path
+from functools import lru_cache, wraps
 
 import threading
 import asyncio
@@ -20,6 +21,25 @@ class NVCCError(Exception):
     pass
 
 
+def hash_dict(func):
+    """Transform mutable dictionnary
+    Into immutable
+    Useful to be compatible with cache
+    """
+
+    class HDict(dict):
+        def __hash__(self):
+            return hash(frozenset(self.items()))
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        args = tuple([HDict(arg) if isinstance(arg, dict) else arg for arg in args])
+        kwargs = {k: HDict(v) if isinstance(v, dict) else v for k, v in kwargs.items()}
+        return func(*args, **kwargs)
+
+    return wrapped
+
+
 def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
     """Get nvcc command for the given GPU, source files, and output file"""
 
@@ -32,6 +52,8 @@ def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
     return cmd
 
 
+@hash_dict
+@lru_cache(maxsize=512)  # each binary is ~1MB, so 512MB cache
 def run_nvcc_bytes(gpu: str, files: dict[str, str], binary_name: str) -> bytes:
     """Compile checker code
 

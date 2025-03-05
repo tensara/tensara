@@ -2,6 +2,7 @@ import modal
 
 import json
 from pathlib import Path
+from threading import Thread
 
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
@@ -98,8 +99,24 @@ async def checker(gpu: str, request: Request):
         "tests.hpp": req["tests_code"],
     }
 
+    bench_files = {k: v for k, v in files.items() if k != "reference.cu"}
+
     def my_stream():
         yield {"status": "compiling"}
+
+        # compile benchmark in parallel to store it in the cache
+        # so when it comes time for benchmark, we don't have to wait
+        def compile_benchmark():
+            try:
+                run_nvcc_bytes(gpu, bench_files, "benchmark")
+            except Exception:
+                # we don't care if it fails here, since checker
+                # will fail anyway, and report the error
+                pass
+
+        bench_thr = Thread(target=compile_benchmark)
+        bench_thr.start()
+
         try:
             checker_compiled = run_nvcc_bytes(gpu, files, "checker")
         except NVCCError as e:
@@ -112,6 +129,8 @@ async def checker(gpu: str, request: Request):
                 "total_tests": 0,
             }
             return
+
+        bench_thr.join()
 
         gpu_checker = gpu_checkers[gpu]
         stream = gpu_checker.remote_gen(checker_compiled)
