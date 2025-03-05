@@ -2,11 +2,12 @@ import modal
 
 import json
 from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 
 from util import GPU_COMPUTE_CAPABILITIES, SKELETON_FILES
-from util import into_async, run_nvcc_bytes
+from util import run_nvcc_bytes, NVCCError, async_wrap_iter
 from runner import run_checker, run_benchmark
 
 SKELETON_DIR = Path(__file__).parent / "skeleton"
@@ -37,28 +38,45 @@ app = modal.App("tensara-public", image=devel_image)
 web_app = FastAPI()
 
 
-def generic_checker(binary: bytes):
-    print("running checker, binary size", len(binary))
-    for event in run_checker(binary):
-        print("event", event)
+def gen_wrapper(gen):
+    for event in gen:
         yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
 
 
-def generic_benchmark(binary: bytes):
-    print("running benchmark, binary size", len(binary))
-    for event in run_benchmark(binary):
-        print("event", event)
-        yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
+"""
+Explanation: modal gets mad if we do what we're about to do to a
+function in a different module (file). Of course these need
+to be generators because modal doesn't seem to look at the actual
+return value of the functions to check if it was a generator??
+
+Like simply doing return run_checker(compiled) doesn't work
+"""
+
+
+def my_run_checker(compiled):
+    for event in run_checker(compiled):
+        yield event
+
+
+def my_run_benchmark(compiled):
+    for event in run_benchmark(compiled):
+        yield event
 
 
 gpu_checkers = {
-    gpu: app.function(image=runtime_image, name=f"checker_{gpu}", gpu=gpu)(generic_checker)
+    gpu: app.function(image=runtime_image, name=f"checker_{gpu}", gpu=gpu)(my_run_checker)
     for gpu in GPU_COMPUTE_CAPABILITIES.keys()
 }
 gpu_benchmarks = {
-    gpu: app.function(image=runtime_image, name=f"benchmark_{gpu}", gpu=gpu)(generic_benchmark)
+    gpu: app.function(image=runtime_image, name=f"benchmark_{gpu}", gpu=gpu)(my_run_benchmark)
     for gpu in GPU_COMPUTE_CAPABILITIES.keys()
 }
+
+"""
+Explanation: modal gets mad if we create a app.function but that
+function with that name isn't a global of this module. so, we
+loop through those functions and add them to the globals dict
+"""
 
 
 for gpu in gpu_checkers:
@@ -71,7 +89,6 @@ for gpu in gpu_benchmarks:
 @web_app.post("/checker-{gpu}")
 async def checker(gpu: str, request: Request):
     req = await request.json()
-    print("checker with gpu", gpu)
     if gpu not in gpu_checkers:
         return 404
 
@@ -81,19 +98,33 @@ async def checker(gpu: str, request: Request):
         "tests.hpp": req["tests_code"],
     }
 
-    checker_compiled = await into_async(run_nvcc_bytes)(gpu, files, "checker")
+    def my_stream():
+        yield {"status": "compiling"}
+        try:
+            checker_compiled = run_nvcc_bytes(gpu, files, "checker")
+        except NVCCError as e:
+            yield {
+                "status": "error",
+                "error": "Compilation failed",
+                "details": e.args[0],
+                "test_results": [],
+                "passed_tests": 0,
+                "total_tests": 0,
+            }
+            return
 
-    print("checker compiled")
-    gpu_checker = gpu_checkers[gpu]
-    stream = gpu_checker.remote_gen(checker_compiled)
+        gpu_checker = gpu_checkers[gpu]
+        stream = gpu_checker.remote_gen(checker_compiled)
+        for event in stream:
+            yield event
 
+    stream = async_wrap_iter(gen_wrapper(my_stream()))
     return StreamingResponse(stream, media_type="text/event-stream")
 
 
 @web_app.post("/benchmark-{gpu}")
 async def benchmark(gpu: str, request: Request):
     item = await request.json()
-    print("benchmark with gpu", gpu)
     if gpu not in gpu_benchmarks:
         return 404
 
@@ -102,12 +133,20 @@ async def benchmark(gpu: str, request: Request):
         "tests.hpp": item["tests_code"],
     }
 
-    benchmark_compiled = await into_async(run_nvcc_bytes)(gpu, files, "benchmark")
+    def my_stream():
+        yield {"status": "compiling"}
+        try:
+            benchmark_compiled = run_nvcc_bytes(gpu, files, "benchmark")
+        except NVCCError as e:
+            yield {"status": "error", "error": "Compilation failed", "details": e.args[0]}
+            return
 
-    print("benchmark compiled")
-    gpu_benchmark = gpu_benchmarks[gpu]
-    stream = gpu_benchmark.remote_gen(benchmark_compiled)
+        gpu_benchmark = gpu_benchmarks[gpu]
+        stream = gpu_benchmark.remote_gen(benchmark_compiled)
+        for event in stream:
+            yield event
 
+    stream = async_wrap_iter(gen_wrapper(my_stream()))
     return StreamingResponse(stream, media_type="text/event-stream")
 
 

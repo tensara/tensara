@@ -11,7 +11,6 @@ def run_checker(binary: bytes):
     path = Path(f.name)
     path.chmod(0o755)
 
-    yield {"status": "compiling"}
     yield {"status": "running"}
 
     checker = subprocess.Popen(
@@ -98,7 +97,6 @@ def run_benchmark(binary: bytes):
 
     for line in iter(benchmark.stdout.readline, ""):
         line = line.strip()
-        print("line", line)
         if not line:
             continue
 
