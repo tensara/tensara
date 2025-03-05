@@ -12,7 +12,7 @@ from runner import run_checker, run_benchmark
 SKELETON_DIR = Path(__file__).parent / "skeleton"
 
 DEVEL_IMG_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
-# RUNTIME_IMG_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
+RUNTIME_IMG_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 
 PIP_PACKAGES = ["fastapi[standard]"]
 LOCAL_PACKAGES = ["util", "runner"]
@@ -27,7 +27,7 @@ for path in SKELETON_FILES:
     devel_image = devel_image.add_local_file(SKELETON_DIR / path, "/skeleton/" + path)
 
 runtime_image = (
-    modal.Image.from_registry(DEVEL_IMG_NAME, add_python="3.11")
+    modal.Image.from_registry(RUNTIME_IMG_NAME, add_python="3.11")
     .pip_install(PIP_PACKAGES)
     .add_local_python_source(*LOCAL_PACKAGES)
 )
@@ -52,11 +52,11 @@ def generic_benchmark(binary: bytes):
 
 
 gpu_checkers = {
-    gpu: app.function(image=runtime_image, name=f"checker_{gpu}")(generic_checker)
+    gpu: app.function(image=runtime_image, name=f"checker_{gpu}", gpu=gpu)(generic_checker)
     for gpu in GPU_COMPUTE_CAPABILITIES.keys()
 }
 gpu_benchmarks = {
-    gpu: app.function(image=runtime_image, name=f"benchmark_{gpu}")(generic_benchmark)
+    gpu: app.function(image=runtime_image, name=f"benchmark_{gpu}", gpu=gpu)(generic_benchmark)
     for gpu in GPU_COMPUTE_CAPABILITIES.keys()
 }
 

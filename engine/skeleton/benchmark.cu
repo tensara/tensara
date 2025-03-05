@@ -6,7 +6,6 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -107,20 +106,19 @@ class BenchmarkRunner {
         }
 
         while (elapsed < MINIMUM_TIME_SECS) {
-            cudaDeviceSynchronize();
             cudaEventRecord(start);
             test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
+            cudaDeviceSynchronize();
 
-            float ms = 0.0f;
+            float ms = 1e+4;
             cudaEventElapsedTime(&ms, start, stop);
             runtimes.push_back(ms);
 
             elapsed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count();
         }
 
-        // float avg_ms = std::reduce(runtimes.begin(), runtimes.end()) / runtimes.size();
         return std::make_pair(flops, median(runtimes));
     }
 };
