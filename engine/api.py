@@ -54,22 +54,22 @@ Like simply doing return run_checker(compiled) doesn't work
 """
 
 
-def my_run_checker(compiled):
-    for event in run_checker(compiled):
+def binary_runner(binary_name: str, compiled: bytes):
+    gen = None
+
+    if binary_name == "checker":
+        gen = run_checker(compiled)
+    elif binary_name == "benchmark":
+        gen = run_benchmark(compiled)
+    else:
+        raise ValueError(f"Unknown binary name: {binary_name}")
+
+    for event in gen:
         yield event
 
 
-def my_run_benchmark(compiled):
-    for event in run_benchmark(compiled):
-        yield event
-
-
-gpu_checkers = {
-    gpu: app.function(image=runtime_image, name=f"checker_{gpu}", gpu=gpu)(my_run_checker)
-    for gpu in GPU_COMPUTE_CAPABILITIES.keys()
-}
-gpu_benchmarks = {
-    gpu: app.function(image=runtime_image, name=f"benchmark_{gpu}", gpu=gpu)(my_run_benchmark)
+gpu_runners = {
+    gpu: app.function(image=runtime_image, name=f"runner_{gpu}", gpu=gpu)(binary_runner)
     for gpu in GPU_COMPUTE_CAPABILITIES.keys()
 }
 
@@ -80,17 +80,14 @@ loop through those functions and add them to the globals dict
 """
 
 
-for gpu in gpu_checkers:
-    globals()[f"checker_{gpu}"] = gpu_checkers[gpu]
-
-for gpu in gpu_benchmarks:
-    globals()[f"benchmark_{gpu}"] = gpu_benchmarks[gpu]
+for gpu in gpu_runners:
+    globals()[f"runner_{gpu}"] = gpu_runners[gpu]
 
 
 @web_app.post("/checker-{gpu}")
 async def checker(gpu: str, request: Request):
     req = await request.json()
-    if gpu not in gpu_checkers:
+    if gpu not in gpu_runners:
         return 404
 
     files = {
@@ -132,8 +129,8 @@ async def checker(gpu: str, request: Request):
 
         bench_thr.join()
 
-        gpu_checker = gpu_checkers[gpu]
-        stream = gpu_checker.remote_gen(checker_compiled)
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("checker", checker_compiled)
         for event in stream:
             yield event
 
@@ -144,7 +141,7 @@ async def checker(gpu: str, request: Request):
 @web_app.post("/benchmark-{gpu}")
 async def benchmark(gpu: str, request: Request):
     item = await request.json()
-    if gpu not in gpu_benchmarks:
+    if gpu not in gpu_runners:
         return 404
 
     files = {
@@ -160,8 +157,8 @@ async def benchmark(gpu: str, request: Request):
             yield {"status": "error", "error": "Compilation failed", "details": e.args[0]}
             return
 
-        gpu_benchmark = gpu_benchmarks[gpu]
-        stream = gpu_benchmark.remote_gen(benchmark_compiled)
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("benchmark", benchmark_compiled)
         for event in stream:
             yield event
 
