@@ -11,8 +11,7 @@ export const env = createEnv({
     AUTH_GITHUB_ID: z.string(),
     AUTH_GITHUB_SECRET: z.string(),
     AUTH_SECRET: z.string().optional(),
-    MODAL_CHECKER_SLUG: z.string(),
-    MODAL_BENCHMARK_SLUG: z.string(),
+    MODAL_ENDPOINT: z.string(),
   },
 
   /**
@@ -33,8 +32,7 @@ export const env = createEnv({
     AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
     AUTH_SECRET: process.env.AUTH_SECRET,
     NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID,
-    MODAL_CHECKER_SLUG: process.env.MODAL_CHECKER_SLUG,
-    MODAL_BENCHMARK_SLUG: process.env.MODAL_BENCHMARK_SLUG,
+    MODAL_ENDPOINT: process.env.MODAL_ENDPOINT,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 }); 

@@ -117,9 +117,7 @@ export default async function handler(
 
     console.log("Starting checker process");
     const checkerResponse = await fetch(
-      `https://${env.MODAL_CHECKER_SLUG}-${(
-        submission.gpuType ?? "t4"
-      ).toLowerCase()}.modal.run`,
+      env.MODAL_ENDPOINT + "/checker-" + (submission.gpuType ?? "t4"),
       {
         method: "POST",
         headers: {
@@ -323,9 +321,7 @@ export default async function handler(
     });
 
     const benchmarkResponse = await fetch(
-      `https://${env.MODAL_BENCHMARK_SLUG}-${(
-        submission.gpuType ?? "t4"
-      ).toLowerCase()}.modal.run`,
+      env.MODAL_ENDPOINT + "/benchmark-" + (submission.gpuType ?? "t4"),
       {
         method: "POST",
         headers: {
