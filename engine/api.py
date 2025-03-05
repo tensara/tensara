@@ -1,13 +1,37 @@
 import modal
 
 import json
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 
-from util import devel_image, runtime_image
-from util import GPU_COMPUTE_CAPABILITIES
+from util import GPU_COMPUTE_CAPABILITIES, SKELETON_FILES
 from util import into_async, run_nvcc_bytes
 from runner import run_checker, run_benchmark
+
+SKELETON_DIR = Path(__file__).parent / "skeleton"
+
+DEVEL_IMG_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
+# RUNTIME_IMG_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
+
+PIP_PACKAGES = ["fastapi[standard]"]
+LOCAL_PACKAGES = ["util", "runner"]
+
+devel_image = (
+    modal.Image.from_registry(DEVEL_IMG_NAME, add_python="3.11")
+    .pip_install(PIP_PACKAGES)
+    .add_local_python_source(*LOCAL_PACKAGES)
+)
+
+for path in SKELETON_FILES:
+    devel_image = devel_image.add_local_file(SKELETON_DIR / path, "/skeleton/" + path)
+
+runtime_image = (
+    modal.Image.from_registry(DEVEL_IMG_NAME, add_python="3.11")
+    .pip_install(PIP_PACKAGES)
+    .add_local_python_source(*LOCAL_PACKAGES)
+)
+
 
 app = modal.App("tensara-public", image=devel_image)
 web_app = FastAPI()
@@ -16,14 +40,15 @@ web_app = FastAPI()
 def generic_checker(binary: bytes):
     print("running checker, binary size", len(binary))
     for event in run_checker(binary):
-        yield "data: " + json.dumps(event) + "\n\n"
+        print("event", event)
+        yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
 
 
 def generic_benchmark(binary: bytes):
     print("running benchmark, binary size", len(binary))
     for event in run_benchmark(binary):
         print("event", event)
-        yield "data: " + json.dumps(event) + "\n\n"
+        yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
 
 
 gpu_checkers = {
@@ -57,6 +82,7 @@ async def checker(gpu: str, request: Request):
     }
 
     checker_compiled = await into_async(run_nvcc_bytes)(gpu, files, "checker")
+
     print("checker compiled")
     gpu_checker = gpu_checkers[gpu]
     stream = gpu_checker.remote_gen(checker_compiled)
@@ -77,6 +103,7 @@ async def benchmark(gpu: str, request: Request):
     }
 
     benchmark_compiled = await into_async(run_nvcc_bytes)(gpu, files, "benchmark")
+
     print("benchmark compiled")
     gpu_benchmark = gpu_benchmarks[gpu]
     stream = gpu_benchmark.remote_gen(benchmark_compiled)

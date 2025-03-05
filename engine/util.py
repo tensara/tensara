@@ -5,31 +5,7 @@ import subprocess
 from pathlib import Path
 from functools import wraps
 
-import modal
-
-SKELETON_DIR = Path(__file__).parent / "skeleton"
 SKELETON_FILES = ["benchmark.cu", "checker.cu", "core.hpp"]
-
-DEVEL_IMG_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
-RUNTIME_IMG_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
-
-PIP_PACKAGES = ["fastapi[standard]"]
-LOCAL_PACKAGES = ["util", "runner"]
-
-devel_image = (
-    modal.Image.from_registry(DEVEL_IMG_NAME, add_python="3.11")
-    .pip_install(PIP_PACKAGES)
-    .add_local_python_source(*LOCAL_PACKAGES)
-)
-
-for path in SKELETON_FILES:
-    devel_image = devel_image.add_local_file(SKELETON_DIR / path, "/skeleton/" + path)
-
-runtime_image = (
-    modal.Image.from_registry(RUNTIME_IMG_NAME, add_python="3.11")
-    .pip_install(PIP_PACKAGES)
-    .add_local_python_source(*LOCAL_PACKAGES)
-)
 
 GPU_COMPUTE_CAPABILITIES = {
     "T4": "75",
@@ -56,14 +32,6 @@ def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
 
 
 def run_nvcc_bytes(gpu: str, files: dict[str, str], binary_name: str) -> bytes:
-    path = run_nvcc(gpu, files, binary_name)
-    data = path.read_bytes()
-    path.unlink()
-
-    return data
-
-
-def run_nvcc(gpu: str, files: dict[str, str], binary_name: str) -> Path:
     """Compile checker code
 
     Args:
@@ -72,7 +40,7 @@ def run_nvcc(gpu: str, files: dict[str, str], binary_name: str) -> Path:
         binary_name (str): Binary name ("checker" or "benchmark")
 
     Returns:
-        Path: Path to the compiled binary
+        bytes: Compiled binary
 
     Raises:
         ValueError: If the binary name is not "checker" or "benchmark"
@@ -117,7 +85,10 @@ def run_nvcc(gpu: str, files: dict[str, str], binary_name: str) -> Path:
         if nvcc.returncode != 0:
             raise NVCCError(err)
 
-    return out_path
+    data = out_path.read_bytes()
+    out_path.unlink()
+
+    return data
 
 
 def into_async(func):

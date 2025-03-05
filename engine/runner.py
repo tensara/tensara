@@ -98,11 +98,12 @@ def run_benchmark(binary: bytes):
 
     for line in iter(benchmark.stdout.readline, ""):
         line = line.strip()
+        print("line", line)
         if not line:
             continue
 
         try:
-            avg_gflops = float(line.strip())
+            avg_gflops = float(line)
             continue
         except ValueError:
             pass
@@ -115,9 +116,9 @@ def run_benchmark(binary: bytes):
                 "runtime_ms": float(runtime_ms),
                 "gflops": float(gflops),
             }
-            yield {"status": "test_result", "result": test_result, "totalTests": test_count}
             test_results.append(test_result)
             test_count += 1
+            yield {"status": "test_result", "result": test_result, "totalTests": test_count}
         except Exception as e:
             yield {
                 "status": "error",
@@ -147,7 +148,7 @@ def run_benchmark(binary: bytes):
     if not avg_gflops:
         avg_gflops = (
             sum(result["gflops"] for result in test_results) / len(test_results)
-            if test_results
+            if len(test_results)
             else 0
         )
 
