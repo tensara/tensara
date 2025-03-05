@@ -16,6 +16,16 @@ static const size_t WARMUP_RUNS = 10;
 static const size_t MINIMUM_RUNS = 20;
 static const double MINIMUM_TIME_SECS = 1.0;
 
+inline float median(std::vector<float> &v) {
+    // return median of v
+    std::sort(v.begin(), v.end());
+    if (v.size() % 2 == 0) {
+        return (v[v.size() / 2 - 1] + v[v.size() / 2]) / 2;
+    } else {
+        return v[v.size() / 2];
+    }
+}
+
 template <typename T>
 class BenchmarkRunner {
   private:
@@ -110,8 +120,8 @@ class BenchmarkRunner {
             elapsed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count();
         }
 
-        float avg_ms = std::reduce(runtimes.begin(), runtimes.end()) / runtimes.size();
-        return std::make_pair(flops, avg_ms);
+        // float avg_ms = std::reduce(runtimes.begin(), runtimes.end()) / runtimes.size();
+        return std::make_pair(flops, median(runtimes));
     }
 };
 
