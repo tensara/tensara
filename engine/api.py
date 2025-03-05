@@ -172,6 +172,8 @@ def generic_checker(gpu: str, item: dict):
         process.kill()
 
     stderr_output = process.stderr.read()
+    checker_path.unlink()
+
     if stderr_output:
         obj = {
             "status": "error",
@@ -260,7 +262,13 @@ def generic_benchmark(gpu: str, item: dict):
             }
             yield "data: " + json.dumps(obj) + "\n\n"
 
+    try:
+        process.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        process.kill()
+
     stderr_output = process.stderr.read()
+    benchmark_path.unlink()
 
     if stderr_output:
         obj = {"status": "error", "error": "Runtime error", "details": stderr_output}
