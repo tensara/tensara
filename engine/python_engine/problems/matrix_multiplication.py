@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple, Any
 from problem import Problem
 
 
-class MatMul(Problem):
+class matrix_multiplication(Problem):
     """Matrix multiplication problem."""
     
     def __init__(self):
@@ -39,19 +39,19 @@ class MatMul(Problem):
         # dims represents (M, N, K)
         test_matrices = [
             {
-                "name": "4092x4092 random matrices",
+                "name": "4092x4092 matrices",
                 "dims": (4092, 4092, 4092),
             },
             {
-                "name": "8192x4096 random matrices",
+                "name": "8192x4096 matrices",
                 "dims": (8192, 8192, 4096),
             },
             {
-                "name": "4096x8192 random matrices",
+                "name": "4096x8192 matrices",
                 "dims": (4096, 4096, 8192),
             },
             {
-                "name": "8192x8192 random matrices",
+                "name": "8192x8192 matrices",
                 "dims": (8192, 8192, 8192),
             }
         ]
