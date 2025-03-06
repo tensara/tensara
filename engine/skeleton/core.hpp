@@ -3,6 +3,7 @@
 #include <memory>
 #include <numeric>
 #include <functional>
+#include <string>
 
 template<typename T>
 class Tensor {

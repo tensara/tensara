@@ -219,3 +219,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Binary build artifacts
+engine/skeleton/benchmark
+engine/skeleton/checker
