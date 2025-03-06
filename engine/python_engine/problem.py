@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Any, Callable, Optional
+from typing import List, Dict, Tuple, Any, Optional
+
 
 class Problem(ABC):
     """Base class for defining CUDA problems."""
+    
     def __init__(self, name: str, description: str):
         """
         Initialize a CUDA problem.
@@ -26,7 +28,6 @@ class Problem(ABC):
     def generate_test_cases(self) -> List[Dict[str, Any]]:
         """
         Generate test cases for this problem.
-        Must be implemented by subclasses.
         
         Returns:
             List of test case dictionaries
@@ -57,6 +58,19 @@ class Problem(ABC):
         """
         pass
     
+    @abstractmethod
+    def get_flops(self, test_case: Dict[str, Any]) -> int:
+        """
+        Get the number of floating point operations for the problem.
+        
+        Args:
+            test_case: The test case dictionary
+            
+        Returns:
+            Number of floating point operations
+        """
+        pass
+    
     def get_extra_params(self, test_case: Dict[str, Any]) -> List[Any]:
         """
         Get extra parameters to pass to the CUDA solution for a specific test case.
@@ -67,7 +81,4 @@ class Problem(ABC):
         Returns:
             List of extra parameters
         """
-        # Default implementation returns empty list
-        # All problems must define the extra parameters that they have
-        # For example, vector add would define extra_params as [n: int] as the length of the vectors
         return []

@@ -145,24 +145,15 @@ def generic_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> It
         test_results = []
         passed_tests = 0
         has_failed = False
-        
-        yield json.dumps({
-                    "status": "start",
-                    "memory_allocated": torch.cuda.memory_allocated(0)/1024/1024/1024,
-                    "memory_reserved": torch.cuda.memory_reserved(0)/1024/1024/1024,
-                    "max_memory_allocated": torch.cuda.max_memory_reserved(0)/1024/1024/1024,
-                    "total_memory": torch.cuda.get_device_properties(0).total_memory/1024/1024/1024,
-                })
 
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
             test_name = test_case["name"]
             try:
                 input_tensors = test_case["create_inputs"]()
-
+                
                 # Get the reference solution and move it to CPU
-                expected_output = problem.reference_solution(*input_tensors)
-                expected_output = expected_output.cpu()
+                expected_output = problem.reference_solution(*input_tensors).cpu()
 
                 # Create actual_output with the same shape as expected_output
                 actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
@@ -178,10 +169,7 @@ def generic_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> It
                 torch.cuda.synchronize()
 
                 # Move to CPU for comparison
-                actual_output = actual_output.cpu()
-
-                # Verify the result
-                is_correct, debug_info = problem.verify_result(expected_output, actual_output)
+                is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
 
                 # Clean up memory
                 del input_tensors, expected_output, actual_output, input_ptrs, output_ptr
@@ -259,37 +247,14 @@ def generic_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> It
 
 
 @app.function(gpu="T4")
-@modal.web_endpoint(method="GET")
-def checker_t4():
-    from examples import vecadd
-    
-    sample_solution = """
-    __global__ void vectorAddKernel(float* a, float* b, float* c, size_t n) {
-        size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (tid < n) {
-            c[tid] = a[tid] + b[tid];
-        }
-    }
+@modal.web_endpoint(method="POST")
+def checker_t4(gpu: str, item: dict):    
+    sample_solution = item["solution_code"]
+    problem_name = item["problem"]
+    problem = load_problem_module(problem_name)
 
-    extern "C" void solution(float* d_input1, float* d_input2, float* d_output, size_t n) {
-        int threadsPerBlock = 256;
-        int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
-        
-        vectorAddKernel<<<blocksPerGrid, threadsPerBlock>>>(
-            d_input1,   // Input vector a
-            d_input2,   // Input vector b
-            d_output,   // Output vector c
-            n           // Length of vectors
-        );
-        
-        cudaDeviceSynchronize();
-    }
-    """
-    
-    problem = vecadd.VectorAdditionProblem()
-    
     def json_stream():
-        for result in generic_checker(problem, sample_solution):
+        for result in generic_checker(problem, sample_solution, gpu=gpu):
             yield result + "\n"  
 
     return StreamingResponse(
