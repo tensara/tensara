@@ -1,0 +1,10 @@
+NVCC=nvcc
+CFLAGS=-std=c++11 -O3 -Xcompiler -fPIC
+
+all: libsolution.so
+
+libsolution.so: solution.cu
+	$(NVCC) $(CFLAGS) -shared -o libsolution.so solution.cu
+
+clean:
+	rm -f libsolution.so
