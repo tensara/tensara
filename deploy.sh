@@ -25,7 +25,7 @@ git pull origin main || { echo "❌ Error: Git pull failed"; exit 1; }
 pnpm install || { echo "❌ Error: Dependency installation failed"; exit 1; }
 
 # Build Next.js app
-pnpm build || { echo "❌ Error: Build failed"; exit 1; }
+pnpm build:prod || { echo "❌ Error: Build failed"; exit 1; }
 
 # Ensure build was successful before proceeding
 if [ -d "$BUILD_DIR" ]; then
