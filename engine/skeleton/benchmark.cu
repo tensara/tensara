@@ -3,6 +3,7 @@
 #include "core.hpp"
 #include "tests.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -11,8 +12,7 @@
 
 #include <cuda_runtime.h>
 
-static const size_t WARMUP_RUNS = 10;
-static const size_t MINIMUM_RUNS = 20;
+static const size_t MINIMUM_RUNS = 2;
 static const double MINIMUM_TIME_SECS = 1.0;
 
 inline float median(std::vector<float> &v) {
@@ -97,11 +97,6 @@ class BenchmarkRunner {
 
         std::vector<float> runtimes;
 
-        for (size_t i = 0; i < WARMUP_RUNS; i++) {
-            test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
-            cudaDeviceSynchronize();
-        }
-
         while (elapsed < MINIMUM_TIME_SECS || runtimes.size() < MINIMUM_RUNS) {
             cudaEventRecord(start);
             test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
@@ -116,7 +111,8 @@ class BenchmarkRunner {
             elapsed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count();
         }
 
-        return std::make_pair(flops, median(runtimes));
+        const float min_time = *std::min_element(runtimes.begin(), runtimes.end());
+        return std::make_pair(flops, min_time);
     }
 };
 
