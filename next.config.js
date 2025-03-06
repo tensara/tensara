@@ -18,6 +18,7 @@ const config = {
     defaultLocale: "en",
   },
   transpilePackages: ["geist"],
+  distDir: process.env.BUILD_DIR || ".next", // Set custom build directory
 };
 
 export default config;
