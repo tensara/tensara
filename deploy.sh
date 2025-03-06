@@ -31,6 +31,9 @@ pnpm build:prod || { echo "❌ Error: Build failed"; exit 1; }
 
 # Ensure build was successful before proceeding
 if [ -d "$BUILD_DIR" ]; then
+    # Remove any existing backup to avoid mv overwrite errors
+    rm -rf "${CURRENT_BUILD_DIR}-old"
+
     # Swap new build atomically
     mv "$CURRENT_BUILD_DIR" "${CURRENT_BUILD_DIR}-old"
     mv "$BUILD_DIR" "$CURRENT_BUILD_DIR"
