@@ -10,7 +10,8 @@ from fastapi import Response
 from fastapi.responses import StreamingResponse
 from problem import Problem
 import gc
-from utils import load_problem_module
+from utils import load_problem_module, prepare_gpu, lower_bound_memory_throughput, run_dynamic_benchmark
+
 
 GPU_COMPUTE_CAPABILITIES = {
     "T4": "75",
@@ -99,7 +100,7 @@ def run_nvcc(gpu: str, files: Dict[str, str], output_name: str) -> Path:
             
     return out_path
 
-def generic_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> Iterator[str]:
+def run_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> Iterator[str]:
     """
     Check a submitted CUDA solution against the reference implementation
     and stream results as they become available
@@ -243,34 +244,29 @@ def generic_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> It
         yield json.dumps(obj)
 
 
-def benchmark_solution(problem: Problem, solution_code: str, gpu: str = "T4") -> Iterator[dict]:
+def run_benchmark(problem, solution_code, gpu="T4"):
     """
-    Benchmark a submitted CUDA solution against the reference implementation
-    and stream results as they become available
+    Run benchmark on compiled CUDA solution
     
     Args:
-        problem: Problem instance
-        solution_code: CUDA code for the submitted solution
-        gpu: GPU type to use
-        
-    Returns:
-        Iterator that yields dictionaries with benchmark results
-    """
-    lib_path = None
+        problem: Problem module containing test cases and verification methods
+        solution_code: CUDA C code to compile and benchmark
+        gpu: GPU type to benchmark on
     
+    Yields:
+        Dictionary objects with benchmark status updates
+    """
     try:
-        # Send compilation status
-        yield {"status": "compiling"}
+        # Compile the solutionyield json.dumps({"status": "compiling"})
+        yield json.dumps({"status": "compiling"})
 
         files = {
             "solution.cu": solution_code
         }
-
-        # Compile the solution
         lib_path = run_nvcc(gpu, files, "solution")
         
-        # Send running status
-        yield {"status": "running"}
+
+        yield json.dumps({"status": "running"})
 
         # Load the compiled library
         cuda_lib = ctypes.CDLL(str(lib_path))
@@ -279,110 +275,59 @@ def benchmark_solution(problem: Problem, solution_code: str, gpu: str = "T4") ->
         func_sig = problem.get_function_signature()
         cuda_lib.solution.argtypes = func_sig["argtypes"]
         cuda_lib.solution.restype = func_sig["restype"]
-        
-        # Get test cases
+            
+        # Get test cases from the problem
         test_cases = problem.generate_test_cases()
+
         total_tests = len(test_cases)
+        
+        # Initialize statistics
         benchmark_results = []
         
-        # Variables to track overall statistics
-        total_flops = 0
-        total_runtime = 0
-        best_gflops = 0
-        worst_gflops = float('inf')
-
+        # Prepare GPU for benchmarking (one-time setup at the beginning)
+        prepare_gpu()
+        
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
             test_name = test_case["name"]
+            
             try:
+                # Create inputs and reference output
                 input_tensors = test_case["create_inputs"]()
-                
-                # Get the reference solution and move it to CPU
                 expected_output = problem.reference_solution(*input_tensors).cpu()
-
-                # Create actual_output with the same shape as expected_output
-                actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
-
+                actual_output = torch.zeros_like(expected_output, device='cuda')
+                
                 # Prepare pointers for CUDA
                 input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
                              for tensor in input_tensors]
                 output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
                 extra_params = problem.get_extra_params(test_case)
-
-                # Warm up run
+                
+                # First run to verify correctness
                 cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
                 torch.cuda.synchronize()
                 
-                # Verify correctness first
-                is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
                 
-                if not is_correct:
-                    benchmark_result = {
-                        "test_id": test_id,
-                        "name": test_name,
-                        "status": "FAILED",
-                        "debug_info": debug_info
-                    }
-                    benchmark_results.append(benchmark_result)
-                    
-                    obj = {
-                        "status": "benchmark_result",
-                        "result": benchmark_result,
-                        "totalTests": total_tests,
-                    }
-                    yield obj
-                    continue
-                
-                # Calculate FLOPS for this test case
-                flops = problem.get_flops(test_case)
-                
-                # Number of iterations for more accurate timing
-                num_iterations = 10
-                start_event = torch.cuda.Event(enable_timing=True)
-                end_event = torch.cuda.Event(enable_timing=True)
-                
-                # Start timing
-                start_event.record()
-                
-                # Run multiple times for a more accurate measurement
-                for _ in range(num_iterations):
-                    cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
-                
-                # End timing
-                end_event.record()
-                torch.cuda.synchronize()
-                
-                # Calculate elapsed time in seconds
-                elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
-                time_per_run = elapsed_time / num_iterations
-                
-                # Calculate GFLOPS
-                gflops = (flops / time_per_run) / 1e9  # Convert to GFLOPS
-                
-                # Update statistics
-                total_flops += flops
-                total_runtime += time_per_run
-                best_gflops = max(best_gflops, gflops)
-                worst_gflops = min(worst_gflops, gflops)
-                
-                benchmark_result = {
-                    "test_id": test_id,
-                    "name": test_name,
-                    "status": "PASSED",
-                    "runtime_ms": time_per_run * 1000,  # Convert back to milliseconds
-                    "gflops": gflops,
-                    "flops": flops
-                }
+                # Run the dynamic benchmark
+                benchmark_result = run_dynamic_benchmark(
+                    cuda_lib, 
+                    problem, 
+                    test_case, 
+                    input_tensors, 
+                    actual_output,
+                    min_iterations=5,
+                    max_iterations=15,
+                    target_cv=0.02  # 2% target coefficient of variation
+                )
                 
                 benchmark_results.append(benchmark_result)
                 
-                obj = {
+                yield {
                     "status": "benchmark_result",
                     "result": benchmark_result,
                     "totalTests": total_tests,
                 }
-                yield obj
-
+                
                 # Clean up memory
                 del input_tensors, expected_output, actual_output, input_ptrs, output_ptr
                 gc.collect()
@@ -398,43 +343,44 @@ def benchmark_solution(problem: Problem, solution_code: str, gpu: str = "T4") ->
                 
                 benchmark_results.append(benchmark_result)
                 
-                obj = {
+                yield {
                     "status": "benchmark_result",
                     "result": benchmark_result,
                     "totalTests": total_tests,
                 }
-                yield obj
         
-        # Calculate average GFLOPS across all tests
-        avg_gflops = (total_flops / total_runtime) / 1e9 if total_runtime > 0 else 0
+        # Calculate overall statistics
+        passed_results = [r for r in benchmark_results if r["status"] == "PASSED"]
+        
+        if passed_results:
+            avg_gflops = statistics.mean([r["performance_stats"]["mean_gflops"] for r in passed_results])
+            max_gflops = max([r["performance_stats"]["max_gflops"] for r in passed_results])
+            avg_throughput = statistics.mean([r["memory_stats"]["mean_throughput_gbps"] for r in passed_results])
+        else:
+            avg_gflops = 0
+            max_gflops = 0
+            avg_throughput = 0
         
         # Final status message
-        obj = {
+        yield {
             "status": "complete",
             "benchmark_results": benchmark_results,
             "summary": {
                 "avg_gflops": avg_gflops,
-                "best_gflops": best_gflops,
-                "worst_gflops": worst_gflops if worst_gflops != float('inf') else 0,
-                "total_tests": total_tests
+                "max_gflops": max_gflops,
+                "avg_memory_throughput_gbps": avg_throughput,
+                "total_tests": total_tests,
+                "passed_tests": len(passed_results)
             }
         }
-        yield obj
-        
-    except NVCCError as e:
-        obj = {
+    except Exception as e:
+        # Handle any unexpected errors
+        import traceback
+        yield {
             "status": "error",
-            "error": "Compilation failed",
-            "details": e.args[0],
-            "benchmark_results": [],
-            "summary": {
-                "avg_gflops": 0,
-                "best_gflops": 0,
-                "worst_gflops": 0,
-                "total_tests": 0
-            }
+            "error": str(e),
+            "traceback": traceback.format_exc()
         }
-        yield obj
 
 def format_for_sse(data: dict) -> str:
     """Convert dictionary to SSE-compatible JSON string"""
@@ -451,7 +397,7 @@ def checker_t4(item: dict):
     problem = load_problem_module(problem_name)
 
     def json_stream():
-        for result in generic_checker(problem, solution_code, gpu=gpu):
+        for result in run_checker(problem, solution_code, gpu=gpu):
             yield format_for_sse(result)
 
     return StreamingResponse(
@@ -474,7 +420,7 @@ def benchmark_t4(item: dict):
     problem = load_problem_module(problem_name)
 
     def json_stream():
-        for result in benchmark_solution(problem, solution_code, gpu=gpu):
+        for result in run_benchmark(problem, solution_code, gpu=gpu):
             yield format_for_sse(result)
 
     return StreamingResponse(
