@@ -6,15 +6,24 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include <memory>
 #include <utility>
 #include <vector>
 
 #include <cuda_runtime.h>
 
-static const size_t WARMUP_RUNS = 10;
-static const size_t MINIMUM_RUNS = 20;
+static const size_t WARMUP_RUNS = 3;
+static const size_t MINIMUM_RUNS = 10;
 static const double MINIMUM_TIME_SECS = 1.0;
+
+inline float median(std::vector<float> &v) {
+    // return median of v
+    std::sort(v.begin(), v.end());
+    if (v.size() % 2 == 0) {
+        return (v[v.size() / 2 - 1] + v[v.size() / 2]) / 2;
+    } else {
+        return v[v.size() / 2];
+    }
+}
 
 template <typename T>
 class BenchmarkRunner {
@@ -83,9 +92,6 @@ class BenchmarkRunner {
         size_t flops = test_case.calculate_flops();
         std::vector<size_t> sizes = test_case.get_sizes();
 
-        test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
-        cudaDeviceSynchronize();
-
         auto start_time = std::chrono::high_resolution_clock::now();
         double elapsed = 0.0;
 
@@ -96,22 +102,21 @@ class BenchmarkRunner {
             cudaDeviceSynchronize();
         }
 
-        while (elapsed < MINIMUM_TIME_SECS) {
-            cudaDeviceSynchronize();
+        while (elapsed < MINIMUM_TIME_SECS && runtimes.size() < MINIMUM_RUNS) {
             cudaEventRecord(start);
             test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
+            cudaDeviceSynchronize();
 
-            float ms = 0.0f;
+            float ms = 1e+4;
             cudaEventElapsedTime(&ms, start, stop);
             runtimes.push_back(ms);
 
             elapsed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count();
         }
 
-        float avg_ms = std::reduce(runtimes.begin(), runtimes.end()) / runtimes.size();
-        return std::make_pair(flops, avg_ms);
+        return std::make_pair(flops, median(runtimes));
     }
 };
 

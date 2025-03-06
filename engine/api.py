@@ -1,343 +1,180 @@
-import os
-import tempfile
-import subprocess
-from pathlib import Path
+import modal
 
 import json
-import modal
+from pathlib import Path
+from threading import Thread
+
+from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 
+from util import GPU_COMPUTE_CAPABILITIES, SKELETON_FILES
+from util import run_nvcc_bytes, NVCCError, async_wrap_iter
+from runner import run_checker, run_benchmark
 
-GPU_COMPUTE_CAPABILITIES = {
-    "T4": "75",
-    "H100": "90",
-    "A100-80GB": "80",
-    "A10G": "86",
-}
+SCALEDOWN_WINDOW = 30  # seconds before container is stopped
 
 SKELETON_DIR = Path(__file__).parent / "skeleton"
-SKELETON_FILES = ["benchmark.cu", "checker.cu", "core.hpp"]
 
-DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
-image = modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11").pip_install(
-    "fastapi[standard]"
+DEVEL_IMG_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
+RUNTIME_IMG_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
+
+PIP_PACKAGES = ["fastapi[standard]"]
+LOCAL_PACKAGES = ["util", "runner"]
+
+devel_image = (
+    modal.Image.from_registry(DEVEL_IMG_NAME, add_python="3.11")
+    .pip_install(PIP_PACKAGES)
+    .add_local_python_source(*LOCAL_PACKAGES)
 )
 
 for path in SKELETON_FILES:
-    image = image.add_local_file(SKELETON_DIR / path, "/skeleton/" + path)
+    devel_image = devel_image.add_local_file(SKELETON_DIR / path, "/skeleton/" + path)
 
-app = modal.App("tensara", image=image)
-
-
-class NVCCError(Exception):
-    pass
-
-
-def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
-    """Get nvcc command for the given GPU, source files, and output file"""
-
-    srcs = [str(src) for src in srcs]
-    out = str(out)
-
-    sm = GPU_COMPUTE_CAPABILITIES[gpu]
-    cmd = ["nvcc", "-std=c++20", "-O2", f"-arch=compute_{sm}", f"-code=sm_{sm}", "-o", out] + srcs
-
-    return cmd
+runtime_image = (
+    modal.Image.from_registry(RUNTIME_IMG_NAME, add_python="3.11")
+    .pip_install(PIP_PACKAGES)
+    .add_local_python_source(*LOCAL_PACKAGES)
+)
 
 
-def run_nvcc(gpu: str, files: dict[str, str], binary_name: str) -> Path:
-    """Compile checker code
+app = modal.App("tensara", image=devel_image)
+web_app = FastAPI()
 
-    Args:
-        gpu (str): GPU type
-        files (dict[str, str]): Code files (file name -> content)
-        binary_name (str): Binary name ("checker" or "benchmark")
 
-    Returns:
-        Path: Path to the compiled binary
+def gen_wrapper(gen):
+    for event in gen:
+        yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
 
-    Raises:
-        ValueError: If the binary name is not "checker" or "benchmark"
-        NVCCError: If compilation fails
-    """
 
-    binary_sources = {
-        "checker": ["checker.cu"],
-        "benchmark": ["benchmark.cu"],
-    }
+"""
+Explanation: modal gets mad if we do what we're about to do to a
+function in a different module (file). Of course these need
+to be generators because modal doesn't seem to look at the actual
+return value of the functions to check if it was a generator??
 
-    if binary_name not in binary_sources:
+Like simply doing return run_checker(compiled) doesn't work
+"""
+
+
+def binary_runner(binary_name: str, compiled: bytes):
+    gen = None
+
+    if binary_name == "checker":
+        gen = run_checker(compiled)
+    elif binary_name == "benchmark":
+        gen = run_benchmark(compiled)
+    else:
         raise ValueError(f"Unknown binary name: {binary_name}")
 
-    binary_file = tempfile.NamedTemporaryFile(delete=False)
-    binary_file.close()
-
-    out_path = Path(binary_file.name)
-    out_path.unlink()
-
-    with tempfile.TemporaryDirectory() as td:
-        path = Path(td)
-
-        # symlink skeleton files
-        for name in SKELETON_FILES:
-            os.symlink(f"/skeleton/{name}", path / name)
-
-        # write solution files
-        for name, code in files.items():
-            (path / name).write_text(code)
-
-        # compile
-        srcs = [path / src for src in binary_sources[binary_name]]
-        nvcc = subprocess.Popen(
-            nvcc_command(gpu, srcs, out_path),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-
-        out, err = nvcc.communicate(timeout=60)
-        if nvcc.returncode != 0:
-            raise NVCCError(err)
-
-    return out_path
+    for event in gen:
+        yield event
 
 
-def generic_checker(gpu: str, item: dict):
-    """Common implementation for all checker endpoints."""
+gpu_runners = {
+    gpu: app.function(
+        image=runtime_image,
+        name=f"runner_{gpu}",
+        gpu=gpu,
+        scaledown_window=SCALEDOWN_WINDOW,
+        enable_memory_snapshot=True,
+    )(binary_runner)
+    for gpu in GPU_COMPUTE_CAPABILITIES.keys()
+}
 
-    yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
+"""
+Explanation: modal gets mad if we create a app.function but that
+function with that name isn't a global of this module. so, we
+loop through those functions and add them to the globals dict
+"""
+
+
+for gpu in gpu_runners:
+    globals()[f"runner_{gpu}"] = gpu_runners[gpu]
+
+
+@web_app.post("/checker-{gpu}")
+async def checker(gpu: str, request: Request):
+    req = await request.json()
+    if gpu not in gpu_runners:
+        return 404
 
     files = {
-        "reference.cu": item["reference_code"],
-        "solution.cu": item["solution_code"],
-        "tests.hpp": item["tests_code"],
+        "reference.cu": req["reference_code"],
+        "solution.cu": req["solution_code"],
+        "tests.hpp": req["tests_code"],
     }
-    try:
-        checker_path = run_nvcc(gpu, files, "checker")
-    except NVCCError as e:
-        obj = {
-            "status": "error",
-            "error": "Compilation failed",
-            "details": e.args[0],
-            "test_results": [],
-            "passed_tests": 0,
-            "total_tests": 0,
-        }
-        yield "data: " + json.dumps(obj) + "\n\n"
-        return
 
-    yield "data: " + json.dumps({"status": "running"}) + "\n\n"
+    bench_files = {k: v for k, v in files.items() if k != "reference.cu"}
 
-    # Stream the output line by line
-    process = subprocess.Popen(
-        [str(checker_path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
+    def my_stream():
+        yield {"status": "compiling"}
 
-    test_results = []
-    passed_tests = 0
-    total_tests = 0
-    has_failed = False
+        # compile benchmark in parallel to store it in the cache
+        # so when it comes time for benchmark, we don't have to wait
+        def compile_benchmark():
+            try:
+                run_nvcc_bytes(gpu, bench_files, "benchmark")
+            except Exception:
+                # we don't care if it fails here, since checker
+                # will fail anyway, and report the error
+                pass
 
-    # Process each line as it comes in the stream
-    for line in iter(process.stdout.readline, ""):
-        if not line.strip():
-            continue
-
-        # This would indicate the end of the test results
-        if line.strip() in ["PASSED", "FAILED"]:
-            continue
-
-        test_case, name, status = line.split(",")
-        status = status.strip()
-        test_id = int(test_case.split("/")[0])
-        total_tests = int(test_case.split("/")[1])
-
-        test_result = {"test_id": test_id, "name": name, "status": status}
-        test_results.append(test_result)
-        obj = {
-            "status": "test_result",
-            "result": test_result,
-            "totalTests": total_tests,
-        }
-        yield "data: " + json.dumps(obj) + "\n\n"
-
-        if status == "PASSED":
-            passed_tests += 1
-        else:
-            has_failed = True
-
-    try:
-        process.wait(timeout=1)
-    except subprocess.TimeoutExpired:
-        process.kill()
-
-    stderr_output = process.stderr.read()
-    if stderr_output:
-        obj = {
-            "status": "error",
-            "error": "Runtime error",
-            "details": stderr_output,
-            "test_results": [],
-            "passed_tests": 0,
-            "total_tests": 0,
-        }
-        yield "data: " + json.dumps(obj) + "\n\n"
-        return
-
-    # Finally, at the very end, we can send the overall status
-    obj = {
-        "status": "complete",
-        "passed": not has_failed,
-        "test_results": test_results,
-        "passed_tests": passed_tests,
-        "total_tests": total_tests,
-    }
-    yield "data: " + json.dumps(obj) + "\n\n"
-
-
-def generic_benchmark(gpu: str, item: dict):
-    """Common implementation for all benchmark endpoints."""
-    yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
-
-    # compile
-    files = {
-        "solution.cu": item["solution_code"],
-        "tests.hpp": item["tests_code"],
-    }
-    try:
-        benchmark_path = run_nvcc(gpu, files, "benchmark")
-    except NVCCError as e:
-        obj = {"status": "error", "error": "Compilation failed", "details": e.args[0]}
-        yield "data: " + json.dumps(obj) + "\n\n"
-        return
-
-    yield "data: " + json.dumps({"status": "running"}) + "\n\n"
-
-    # Run benchmark
-    process = subprocess.Popen(
-        [str(benchmark_path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
-
-    test_results = []
-    test_count = 0
-    avg_gflops = None
-
-    # Process each line as it comes in the stream
-    for line in iter(process.stdout.readline, ""):
-        if not line.strip():
-            continue
-
-        # Check if it's the last line with average GFLOPS
-        try:
-            avg_gflops = float(line.strip())
-            continue
-        except ValueError:
-            pass
+        bench_thr = Thread(target=compile_benchmark)
+        bench_thr.start()
 
         try:
-            test_id, name, runtime_ms, gflops = line.split(",")
-            test_result = {
-                "test_id": int(test_id),
-                "name": name,
-                "runtime_ms": float(runtime_ms),
-                "gflops": float(gflops),
-            }
-            obj = {
-                "status": "test_result",
-                "result": test_result,
-                "totalTests": test_count,
-            }
-            test_results.append(test_result)
-            test_count += 1
-
-            yield "data: " + json.dumps(obj) + "\n\n"
-        except Exception as e:
-            obj = {
+            checker_compiled = run_nvcc_bytes(gpu, files, "checker")
+        except NVCCError as e:
+            yield {
                 "status": "error",
-                "error": "Failed to parse benchmark line",
-                "details": str(e),
-                "line": line,
+                "error": "Compilation failed",
+                "details": e.args[0],
+                "test_results": [],
+                "passed_tests": 0,
+                "total_tests": 0,
             }
-            yield "data: " + json.dumps(obj) + "\n\n"
+            return
 
-    stderr_output = process.stderr.read()
+        bench_thr.join()
 
-    if stderr_output:
-        obj = {"status": "error", "error": "Runtime error", "details": stderr_output}
-        yield "data: " + json.dumps(obj) + "\n\n"
-        return
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("checker", checker_compiled)
+        for event in stream:
+            yield event
 
-    # Finally, at the very end, we can send the overall status
-    # Calculate average GFLOPS if not already calculated
-    if not avg_gflops:
-        avg_gflops = (
-            sum(result["gflops"] for result in test_results) / len(test_results)
-            if test_results
-            else 0
-        )
+    stream = async_wrap_iter(gen_wrapper(my_stream()))
+    return StreamingResponse(stream, media_type="text/event-stream")
 
-    obj = {
-        "status": "success",
-        "test_results": test_results,
-        "average_gflops": avg_gflops,
-        "total_tests": test_count,
+
+@web_app.post("/benchmark-{gpu}")
+async def benchmark(gpu: str, request: Request):
+    item = await request.json()
+    if gpu not in gpu_runners:
+        return 404
+
+    files = {
+        "solution.cu": item["solution_code"],
+        "tests.hpp": item["tests_code"],
     }
-    yield "data: " + json.dumps(obj) + "\n\n"
 
+    def my_stream():
+        yield {"status": "compiling"}
+        try:
+            benchmark_compiled = run_nvcc_bytes(gpu, files, "benchmark")
+        except NVCCError as e:
+            yield {"status": "error", "error": "Compilation failed", "details": e.args[0]}
+            return
 
-def checker(gpu: str, item: dict):
-    stream = generic_checker(gpu, item)
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("benchmark", benchmark_compiled)
+        for event in stream:
+            yield event
+
+    stream = async_wrap_iter(gen_wrapper(my_stream()))
     return StreamingResponse(stream, media_type="text/event-stream")
 
 
-def benchmark(gpu: str, item: dict):
-    stream = generic_benchmark(gpu, item)
-    return StreamingResponse(stream, media_type="text/event-stream")
-
-
-@app.function(gpu="T4")
-@modal.web_endpoint(method="POST")
-def checker_t4(item: dict):
-    return checker("T4", item)
-
-
-# @app.function(gpu="H100")
-# @modal.web_endpoint(method="POST")
-# def checker_h100(item: dict):
-#     return checker("H100", item)
-
-
-# @app.function(gpu="A100-80GB")
-# @modal.web_endpoint(method="POST")
-# def checker_a100(item: dict):
-#     return checker("A100-80GB", item)
-
-
-# @app.function(gpu="A10G")
-# @modal.web_endpoint(method="POST")
-# def checker_a10g(item: dict):
-#     return checker("A10G", item)
-
-
-# @app.function(gpu="T4")
-# @modal.web_endpoint(method="POST")
-# def benchmark_t4(item: dict):
-#     return benchmark("T4", item)
-
-
-# @app.function(gpu="H100")
-# @modal.web_endpoint(method="POST")
-# def benchmark_h100(item: dict):
-#     return benchmark("H100", item)
-
-
-# @app.function(gpu="A100-80GB")
-# @modal.web_endpoint(method="POST")
-# def benchmark_a100(item: dict):
-#     return benchmark("A100-80GB", item)
-
-
-# @app.function(gpu="A10G")
-# @modal.web_endpoint(method="POST")
-# def benchmark_a10g(item: dict):
-#     return benchmark("A10G", item)
+@app.function()
+@modal.asgi_app()
+def fastapi_app():
+    return web_app

@@ -63,6 +63,7 @@ type BenchmarkTestResult = {
 
 type SubmissionStatus = {
   status:
+    | "compiling"
     | "CHECKING"
     | "BENCHMARKING"
     | "ACCEPTED"
@@ -140,6 +141,33 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 };
 
+const getStatusMessage = (status: SubmissionStatus): string => {
+  if (status.message?.startsWith("status: CHECKING") || status.status === "CHECKING") {
+    return "Checking...";
+  } else if (status.message?.startsWith("status: BENCHMARKING") || status.status === "BENCHMARKING") {
+    return "Running benchmarks...";
+  } else if (status.message?.startsWith("checker: compiling")) {
+    return "Compiling...";
+  } else if (status.message?.startsWith("checker: running")) {
+    return "Running tests...";
+  } else if (status.message?.startsWith("checker: complete")) {
+    return "Tests complete";
+  } else if (status.message?.startsWith("benchmark: compiling") || 
+             status.message?.startsWith("benchmark: running") ||
+             status.message?.startsWith("benchmark: test_result")) {
+    return "Running benchmarks...";
+  } else if (status.message?.startsWith("benchmark: success")) {
+    return "Benchmark results";
+  } else if (status.message?.startsWith("complete: ACCEPTED")) {
+    return "ACCEPTED";
+  } else if (status.message?.startsWith("complete: WRONG_ANSWER")) {
+    return "Wrong answer";
+  } else if (status.message?.startsWith("error:")) {
+    return "Error";
+  }
+  return `Status: ${status.status}`;
+};
+
 export default function ProblemPage({ slug }: { slug: string }) {
   const { data: session, status } = useSession();
   const toast = useToast();
@@ -206,7 +234,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       gflops: null,
       passedTests: null,
       totalTests: null,
-      message: "Running test cases...",
+      message: "status: CHECKING",
     });
 
     createSubmissionMutation.mutate(
@@ -322,11 +350,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                               passedTests: data.passedTests ?? prev.passedTests,
                               totalTests: data.totalTests ?? prev.totalTests,
                               message:
-                                data.status === "BENCHMARKING"
-                                  ? "All test cases passed! Running performance benchmark..."
-                                  : data.passedTests
-                                  ? `${data.passedTests} test cases passed...`
-                                  : "Running test cases...",
+                                eventType +
+                                ": " +
+                                (data.status ?? prev.message),
                             };
                           });
                         } else if (eventType === "checker") {
@@ -340,9 +366,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                   passedTests:
                                     data.result?.status === "PASSED" ? 1 : 0,
                                   totalTests: data.totalTests ?? 1,
-                                  message: `${
-                                    data.result?.status === "PASSED" ? 1 : 0
-                                  } test cases passed...`,
+                                  message: eventType + ": " + data.status,
                                 };
                               }
                               return {
@@ -351,10 +375,16 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                   (prev.passedTests ?? 0) +
                                   (data.result?.status === "PASSED" ? 1 : 0),
                                 totalTests: data.totalTests ?? prev.totalTests,
-                                message: `${
-                                  (prev.passedTests ?? 0) +
-                                  (data.result?.status === "PASSED" ? 1 : 0)
-                                } test cases passed...`,
+                                message: eventType + ": " + data.status,
+                              };
+                            });
+                          } else if (data.status && data.status !== "error") {
+                            // Handle other checker statuses like "compiling"
+                            setSubmissionStatus((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                message: eventType + ": " + data.status,
                               };
                             });
                           } else if (data.status === "error") {
@@ -364,7 +394,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                               gflops: null,
                               passedTests: null,
                               totalTests: null,
-                              message: "Error occurred during submission",
+                              message:
+                                eventType + ": " + (data.status ?? "ERROR"),
                               errorMessage: data.error ?? undefined,
                               errorDetails: data.details ?? undefined,
                             });
@@ -399,10 +430,20 @@ export default function ProblemPage({ slug }: { slug: string }) {
                               };
                               return {
                                 ...prev,
+                                message: eventType + ": " + data.status,
                                 benchmarkResults: [
                                   ...(prev.benchmarkResults ?? []),
                                   benchmarkResult,
                                 ],
+                              };
+                            });
+                          } else if (data.status && data.status !== "error") {
+                            // Handle other benchmark statuses
+                            setSubmissionStatus((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                message: eventType + ": " + data.status,
                               };
                             });
                           }
@@ -416,11 +457,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             passedTests: data.passedTests ?? null,
                             totalTests: data.totalTests ?? null,
                             message:
-                              data.status === "ACCEPTED"
-                                ? "Submission accepted!"
-                                : data.status === "WRONG_ANSWER"
-                                ? "Solution produced incorrect results"
-                                : "Error occurred during submission",
+                              eventType + ": " + (data.status ?? "ERROR"),
                             errorMessage: data.error ?? undefined,
                             errorDetails: data.details ?? undefined,
                             benchmarkResults:
@@ -437,7 +474,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             gflops: null,
                             passedTests: null,
                             totalTests: null,
-                            message: "Error occurred during submission",
+                            message:
+                              eventType + ": " + (data.status ?? "ERROR"),
                             errorMessage: data.error ?? undefined,
                             errorDetails: data.details ?? undefined,
                           });
@@ -797,9 +835,16 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 <>
                   <Box
                     bg={
-                      submissionStatus.status === "ACCEPTED"
+                      submissionStatus.status === "ACCEPTED" ||
+                      submissionStatus.message?.startsWith("complete: ACCEPTED")
                         ? "green.900"
-                        : submissionStatus.status === "CHECKING" ||
+                        : submissionStatus.message?.startsWith("status: CHECKING") ||
+                          submissionStatus.message?.startsWith("checker: compiling") ||
+                          submissionStatus.message?.startsWith("checker: running") ||
+                          submissionStatus.message?.startsWith("benchmark: compiling") ||
+                          submissionStatus.message?.startsWith("benchmark: running") ||
+                          submissionStatus.message?.startsWith("benchmark: test_result") ||
+                          submissionStatus.status === "CHECKING" ||
                           submissionStatus.status === "BENCHMARKING"
                         ? "blue.900"
                         : "red.900"
@@ -808,13 +853,20 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     borderRadius="xl"
                   >
                     <HStack spacing={3}>
-                      {submissionStatus.status === "CHECKING" ||
-                      submissionStatus.status === "BENCHMARKING" ? (
+                      {submissionStatus.message?.startsWith("status: CHECKING") ||
+                       submissionStatus.message?.startsWith("checker: compiling") ||
+                       submissionStatus.message?.startsWith("checker: running") ||
+                       submissionStatus.message?.startsWith("benchmark: compiling") ||
+                       submissionStatus.message?.startsWith("benchmark: running") ||
+                       submissionStatus.message?.startsWith("benchmark: test_result") ||
+                       submissionStatus.status === "CHECKING" ||
+                       submissionStatus.status === "BENCHMARKING" ? (
                         <Spinner size="sm" color="blue.200" />
                       ) : (
                         <Icon
                           as={
-                            submissionStatus.status === "ACCEPTED"
+                            submissionStatus.status === "ACCEPTED" ||
+                            submissionStatus.message?.startsWith("complete: ACCEPTED")
                               ? CheckIcon
                               : WarningIcon
                           }
@@ -823,32 +875,17 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       )}
                       <VStack align="start" spacing={0}>
                         <Text fontSize="lg" fontWeight="semibold">
-                          {submissionStatus.status === "WRONG_ANSWER"
-                            ? `Wrong Answer on Test ${
-                                submissionStatus.passedTests !== null
-                                  ? submissionStatus.passedTests + 1
-                                  : 1
-                              }`
-                            : submissionStatus.status === "CHECKING"
-                            ? "Running Tests"
-                            : submissionStatus.status === "BENCHMARKING"
-                            ? "Running Benchmark"
-                            : submissionStatus.status}
+                          {getStatusMessage(submissionStatus)}
                         </Text>
-                        {(submissionStatus.status === "CHECKING" ||
-                          submissionStatus.status === "BENCHMARKING") && (
-                          <Text fontSize="sm" color="whiteAlpha.700">
-                            {submissionStatus.status === "BENCHMARKING"
-                              ? "All test cases passed! Running performance benchmark..."
-                              : submissionStatus.message}
-                          </Text>
-                        )}
                       </VStack>
                     </HStack>
                   </Box>
 
                   {submissionStatus.passedTests !== null &&
-                    submissionStatus.status !== "WRONG_ANSWER" && (
+                    submissionStatus.status !== "WRONG_ANSWER" &&
+                    !submissionStatus.message?.startsWith(
+                      "complete: WRONG_ANSWER"
+                    ) && (
                       <Box
                         bg="whiteAlpha.50"
                         borderRadius="xl"
