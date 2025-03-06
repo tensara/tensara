@@ -142,19 +142,21 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 const getStatusMessage = (status: SubmissionStatus): string => {
-  if (status.message?.startsWith("status: CHECKING") || status.status === "CHECKING") {
+  if (status.message?.startsWith("status: CHECKING")) {
     return "Checking...";
-  } else if (status.message?.startsWith("status: BENCHMARKING") || status.status === "BENCHMARKING") {
+  } else if (status.message?.startsWith("status: BENCHMARKING")) {
     return "Running benchmarks...";
   } else if (status.message?.startsWith("checker: compiling")) {
     return "Compiling...";
-  } else if (status.message?.startsWith("checker: running")) {
+  } else if (status.message?.startsWith("checker: running") || status.message?.startsWith("checker: test_result")) {
     return "Running tests...";
   } else if (status.message?.startsWith("checker: complete")) {
     return "Tests complete";
-  } else if (status.message?.startsWith("benchmark: compiling") || 
-             status.message?.startsWith("benchmark: running") ||
-             status.message?.startsWith("benchmark: test_result")) {
+  } else if (
+    status.message?.startsWith("benchmark: compiling") ||
+    status.message?.startsWith("benchmark: running") ||
+    status.message?.startsWith("benchmark: test_result")
+  ) {
     return "Running benchmarks...";
   } else if (status.message?.startsWith("benchmark: success")) {
     return "Benchmark results";
@@ -838,12 +840,24 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       submissionStatus.status === "ACCEPTED" ||
                       submissionStatus.message?.startsWith("complete: ACCEPTED")
                         ? "green.900"
-                        : submissionStatus.message?.startsWith("status: CHECKING") ||
-                          submissionStatus.message?.startsWith("checker: compiling") ||
-                          submissionStatus.message?.startsWith("checker: running") ||
-                          submissionStatus.message?.startsWith("benchmark: compiling") ||
-                          submissionStatus.message?.startsWith("benchmark: running") ||
-                          submissionStatus.message?.startsWith("benchmark: test_result") ||
+                        : submissionStatus.message?.startsWith(
+                            "status: CHECKING"
+                          ) ||
+                          submissionStatus.message?.startsWith(
+                            "checker: compiling"
+                          ) ||
+                          submissionStatus.message?.startsWith(
+                            "checker: running"
+                          ) ||
+                          submissionStatus.message?.startsWith(
+                            "benchmark: compiling"
+                          ) ||
+                          submissionStatus.message?.startsWith(
+                            "benchmark: running"
+                          ) ||
+                          submissionStatus.message?.startsWith(
+                            "benchmark: test_result"
+                          ) ||
                           submissionStatus.status === "CHECKING" ||
                           submissionStatus.status === "BENCHMARKING"
                         ? "blue.900"
@@ -853,20 +867,34 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     borderRadius="xl"
                   >
                     <HStack spacing={3}>
-                      {submissionStatus.message?.startsWith("status: CHECKING") ||
-                       submissionStatus.message?.startsWith("checker: compiling") ||
-                       submissionStatus.message?.startsWith("checker: running") ||
-                       submissionStatus.message?.startsWith("benchmark: compiling") ||
-                       submissionStatus.message?.startsWith("benchmark: running") ||
-                       submissionStatus.message?.startsWith("benchmark: test_result") ||
-                       submissionStatus.status === "CHECKING" ||
-                       submissionStatus.status === "BENCHMARKING" ? (
+                      {submissionStatus.message?.startsWith(
+                        "status: CHECKING"
+                      ) ||
+                      submissionStatus.message?.startsWith(
+                        "checker: compiling"
+                      ) ||
+                      submissionStatus.message?.startsWith(
+                        "checker: running"
+                      ) ||
+                      submissionStatus.message?.startsWith(
+                        "benchmark: compiling"
+                      ) ||
+                      submissionStatus.message?.startsWith(
+                        "benchmark: running"
+                      ) ||
+                      submissionStatus.message?.startsWith(
+                        "benchmark: test_result"
+                      ) ||
+                      submissionStatus.status === "CHECKING" ||
+                      submissionStatus.status === "BENCHMARKING" ? (
                         <Spinner size="sm" color="blue.200" />
                       ) : (
                         <Icon
                           as={
                             submissionStatus.status === "ACCEPTED" ||
-                            submissionStatus.message?.startsWith("complete: ACCEPTED")
+                            submissionStatus.message?.startsWith(
+                              "complete: ACCEPTED"
+                            )
                               ? CheckIcon
                               : WarningIcon
                           }

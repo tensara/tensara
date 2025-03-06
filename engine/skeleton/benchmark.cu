@@ -3,7 +3,7 @@
 #include "core.hpp"
 #include "tests.hpp"
 
-#include <chrono>
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <utility>
@@ -11,22 +11,26 @@
 
 #include <cuda_runtime.h>
 
-static const size_t WARMUP_RUNS = 3;
-static const size_t MINIMUM_RUNS = 10;
-static const double MINIMUM_TIME_SECS = 1.0;
+static const size_t MINIMUM_RUNS = 1;
+static const double MINIMUM_TIME_SECS = 0.5;
 
-inline float median(std::vector<float> &v) {
-    // return median of v
-    std::sort(v.begin(), v.end());
-    if (v.size() % 2 == 0) {
-        return (v[v.size() / 2 - 1] + v[v.size() / 2]) / 2;
-    } else {
-        return v[v.size() / 2];
+static const size_t MINIMUM_WARMUP_RUNS = 1;
+static const float MINIMUM_WARMUP_TIME_SECS = 0.5;
+
+size_t prefix_sum(const std::vector<float> &v, float target) {
+    // return first index where sum[0:i] >= target
+    size_t i = 0;
+    float sum = 0.0;
+
+    while (i < v.size() && sum < target) {
+        sum += v[i];
+        i++;
     }
+
+    return i;
 }
 
-template <typename T>
-class BenchmarkRunner {
+template <typename T> class BenchmarkRunner {
   private:
     cudaEvent_t start, stop;
     std::vector<T *> h_inputs;
@@ -86,23 +90,18 @@ class BenchmarkRunner {
     }
 
   public:
-    typedef void (*KernelLauncher)(const std::vector<T *> &, const std::vector<T *> &, const std::vector<size_t> &);
+    typedef void (*KernelLauncher)(const std::vector<T *> &, const std::vector<T *> &,
+                                   const std::vector<size_t> &);
 
     std::pair<size_t, float> run_benchmark(TestCase<T> &test_case) {
         size_t flops = test_case.calculate_flops();
         std::vector<size_t> sizes = test_case.get_sizes();
 
-        auto start_time = std::chrono::high_resolution_clock::now();
         double elapsed = 0.0;
-
         std::vector<float> runtimes;
 
-        for (size_t i = 0; i < WARMUP_RUNS; i++) {
-            test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
-            cudaDeviceSynchronize();
-        }
-
-        while (elapsed < MINIMUM_TIME_SECS && runtimes.size() < MINIMUM_RUNS) {
+        while (elapsed < (MINIMUM_TIME_SECS + MINIMUM_WARMUP_TIME_SECS) ||
+               runtimes.size() < (MINIMUM_RUNS + MINIMUM_WARMUP_RUNS)) {
             cudaEventRecord(start);
             test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
             cudaEventRecord(stop);
@@ -113,10 +112,19 @@ class BenchmarkRunner {
             cudaEventElapsedTime(&ms, start, stop);
             runtimes.push_back(ms);
 
-            elapsed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count();
+            elapsed += ms / 1000.0;
         }
 
-        return std::make_pair(flops, median(runtimes));
+        size_t warmup_index = prefix_sum(runtimes, MINIMUM_WARMUP_TIME_SECS * 1000);
+        warmup_index = std::max(warmup_index, MINIMUM_WARMUP_RUNS);
+
+        // cut off warmup runs
+        runtimes.erase(runtimes.begin(), runtimes.begin() + warmup_index);
+
+        const float mean_time =
+            std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size();
+
+        return std::make_pair(flops, mean_time);
     }
 };
 
@@ -136,7 +144,8 @@ void run_benchmarks(const std::vector<std::unique_ptr<TestCase<T>>> &test_cases)
         double gflops = (flops / 1e9) / (avg_ms / 1000.0);
         total_gflops += gflops;
 
-        std::cout << curr_testcase << "," << test_case->get_name() << "," << avg_ms << "," << gflops << std::endl;
+        std::cout << curr_testcase << "," << test_case->get_name() << "," << avg_ms << "," << gflops
+                  << std::endl;
         curr_testcase++;
     }
 
