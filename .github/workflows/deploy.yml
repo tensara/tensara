@@ -28,6 +28,6 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           echo -e "Host aws\n\tHostName $SSH_HOST\n\tUser $SSH_USER\n\tIdentityFile ~/.ssh/deploy_key\n\tStrictHostKeyChecking no" > ~/.ssh/config
 
-      - name: Deploy to AWS
+      - name: Run Deployment Script on AWS
         run: |
-          ssh aws 'cd ~/code/tensara && git pull origin main && pnpm build && pm2 reload tensara'
+          ssh aws 'cd ~/code/tensara && chmod +x deploy.sh && ./deploy.sh'
