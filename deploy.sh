@@ -5,6 +5,8 @@ APP_DIR="/home/ubuntu/code/tensara"
 BUILD_DIR="${APP_DIR}/.next-build-temp"
 CURRENT_BUILD_DIR="${APP_DIR}/.next"
 
+PM2_PATH="/home/ubuntu/.local/share/pnpm/pm2"
+
 # Load environment variables to ensure pnpm is found
 export NVM_DIR="$HOME/.nvm"
 source "$NVM_DIR/nvm.sh"
@@ -34,7 +36,7 @@ if [ -d "$BUILD_DIR" ]; then
     mv "$BUILD_DIR" "$CURRENT_BUILD_DIR"
 
     # Reload Next.js server with PM2 (zero downtime)
-    pm2 reload tensara || { echo "❌ Error: PM2 reload failed"; exit 1; }
+    "$PM2_PATH" reload tensara || { echo "❌ Error: PM2 reload failed"; exit 1; }
 
     # Cleanup
     rm -rf "${CURRENT_BUILD_DIR}-old"
