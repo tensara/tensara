@@ -141,6 +141,33 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 };
 
+const getStatusMessage = (status: SubmissionStatus): string => {
+  if (status.message?.startsWith("status: CHECKING") || status.status === "CHECKING") {
+    return "Checking...";
+  } else if (status.message?.startsWith("status: BENCHMARKING") || status.status === "BENCHMARKING") {
+    return "Running benchmarks...";
+  } else if (status.message?.startsWith("checker: compiling")) {
+    return "Compiling...";
+  } else if (status.message?.startsWith("checker: running")) {
+    return "Running tests...";
+  } else if (status.message?.startsWith("checker: complete")) {
+    return "Tests complete";
+  } else if (status.message?.startsWith("benchmark: compiling") || 
+             status.message?.startsWith("benchmark: running") ||
+             status.message?.startsWith("benchmark: test_result")) {
+    return "Running benchmarks...";
+  } else if (status.message?.startsWith("benchmark: success")) {
+    return "Benchmark results";
+  } else if (status.message?.startsWith("complete: ACCEPTED")) {
+    return "ACCEPTED";
+  } else if (status.message?.startsWith("complete: WRONG_ANSWER")) {
+    return "Wrong answer";
+  } else if (status.message?.startsWith("error:")) {
+    return "Error";
+  }
+  return `Status: ${status.status}`;
+};
+
 export default function ProblemPage({ slug }: { slug: string }) {
   const { data: session, status } = useSession();
   const toast = useToast();
@@ -809,32 +836,16 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   <Box
                     bg={
                       submissionStatus.status === "ACCEPTED" ||
-                      (submissionStatus.message &&
-                        submissionStatus.message.startsWith(
-                          "complete: ACCEPTED"
-                        ))
+                      submissionStatus.message?.startsWith("complete: ACCEPTED")
                         ? "green.900"
-                        : submissionStatus.message &&
-                          (submissionStatus.message.startsWith(
-                            "status: CHECKING"
-                          ) ||
-                            submissionStatus.message.startsWith(
-                              "checker: compiling"
-                            ) ||
-                            submissionStatus.message.startsWith(
-                              "checker: running"
-                            ) ||
-                            submissionStatus.message.startsWith(
-                              "benchmark: compiling"
-                            ) ||
-                            submissionStatus.message.startsWith(
-                              "benchmark: running"
-                            ) ||
-                            submissionStatus.message.startsWith(
-                              "benchmark: test_result"
-                            ) ||
-                            submissionStatus.status === "CHECKING" ||
-                            submissionStatus.status === "BENCHMARKING")
+                        : submissionStatus.message?.startsWith("status: CHECKING") ||
+                          submissionStatus.message?.startsWith("checker: compiling") ||
+                          submissionStatus.message?.startsWith("checker: running") ||
+                          submissionStatus.message?.startsWith("benchmark: compiling") ||
+                          submissionStatus.message?.startsWith("benchmark: running") ||
+                          submissionStatus.message?.startsWith("benchmark: test_result") ||
+                          submissionStatus.status === "CHECKING" ||
+                          submissionStatus.status === "BENCHMARKING"
                         ? "blue.900"
                         : "red.900"
                     }
@@ -842,36 +853,20 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     borderRadius="xl"
                   >
                     <HStack spacing={3}>
-                      {submissionStatus.message &&
-                      (submissionStatus.message.startsWith(
-                        "status: CHECKING"
-                      ) ||
-                        submissionStatus.message.startsWith(
-                          "checker: compiling"
-                        ) ||
-                        submissionStatus.message.startsWith(
-                          "checker: running"
-                        ) ||
-                        submissionStatus.message.startsWith(
-                          "benchmark: compiling"
-                        ) ||
-                        submissionStatus.message.startsWith(
-                          "benchmark: running"
-                        ) ||
-                        submissionStatus.message.startsWith(
-                          "benchmark: test_result"
-                        ) ||
-                        submissionStatus.status === "CHECKING" ||
-                        submissionStatus.status === "BENCHMARKING") ? (
+                      {submissionStatus.message?.startsWith("status: CHECKING") ||
+                       submissionStatus.message?.startsWith("checker: compiling") ||
+                       submissionStatus.message?.startsWith("checker: running") ||
+                       submissionStatus.message?.startsWith("benchmark: compiling") ||
+                       submissionStatus.message?.startsWith("benchmark: running") ||
+                       submissionStatus.message?.startsWith("benchmark: test_result") ||
+                       submissionStatus.status === "CHECKING" ||
+                       submissionStatus.status === "BENCHMARKING" ? (
                         <Spinner size="sm" color="blue.200" />
                       ) : (
                         <Icon
                           as={
                             submissionStatus.status === "ACCEPTED" ||
-                            (submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "complete: ACCEPTED"
-                              ))
+                            submissionStatus.message?.startsWith("complete: ACCEPTED")
                               ? CheckIcon
                               : WarningIcon
                           }
@@ -880,69 +875,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       )}
                       <VStack align="start" spacing={0}>
                         <Text fontSize="lg" fontWeight="semibold">
-                          {submissionStatus.message &&
-                          submissionStatus.message.startsWith(
-                            "status: CHECKING"
-                          )
-                            ? "Checking..."
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "status: BENCHMARKING"
-                              )
-                            ? "Running benchmarks..."
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "checker: compiling"
-                              )
-                            ? "Compiling..."
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "checker: running"
-                              )
-                            ? "Running tests..."
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "checker: complete"
-                              )
-                            ? "Tests complete"
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "benchmark: compiling"
-                              )
-                            ? "Running benchmarks..."
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "benchmark: running"
-                              )
-                            ? "Running benchmarks..."
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "benchmark: test_result"
-                              )
-                            ? "Running benchmarks..."
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "benchmark: success"
-                              )
-                            ? "Benchmark results"
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "complete: ACCEPTED"
-                              )
-                            ? "ACCEPTED"
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith(
-                                "complete: WRONG_ANSWER"
-                              )
-                            ? "Wrong answer"
-                            : submissionStatus.message &&
-                              submissionStatus.message.startsWith("error:")
-                            ? "Error"
-                            : submissionStatus.status === "CHECKING"
-                            ? "Checking..."
-                            : submissionStatus.status === "BENCHMARKING"
-                            ? "Running benchmarks..."
-                            : "Status: " + submissionStatus.status}
+                          {getStatusMessage(submissionStatus)}
                         </Text>
                       </VStack>
                     </HStack>
