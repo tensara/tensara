@@ -919,7 +919,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                               submissionStatus.message.startsWith(
                                 "benchmark: test_result"
                               )
-                            ? "Benchmark results..."
+                            ? "Running benchmarks..."
                             : submissionStatus.message &&
                               submissionStatus.message.startsWith(
                                 "benchmark: success"
@@ -929,7 +929,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                               submissionStatus.message.startsWith(
                                 "complete: ACCEPTED"
                               )
-                            ? "Submission accepted"
+                            ? "ACCEPTED"
                             : submissionStatus.message &&
                               submissionStatus.message.startsWith(
                                 "complete: WRONG_ANSWER"

@@ -11,8 +11,8 @@
 
 #include <cuda_runtime.h>
 
-static const size_t WARMUP_RUNS = 10;
-static const size_t MINIMUM_RUNS = 20;
+static const size_t WARMUP_RUNS = 3;
+static const size_t MINIMUM_RUNS = 10;
 static const double MINIMUM_TIME_SECS = 1.0;
 
 inline float median(std::vector<float> &v) {
@@ -92,9 +92,6 @@ class BenchmarkRunner {
         size_t flops = test_case.calculate_flops();
         std::vector<size_t> sizes = test_case.get_sizes();
 
-        test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
-        cudaDeviceSynchronize();
-
         auto start_time = std::chrono::high_resolution_clock::now();
         double elapsed = 0.0;
 
@@ -105,7 +102,7 @@ class BenchmarkRunner {
             cudaDeviceSynchronize();
         }
 
-        while (elapsed < MINIMUM_TIME_SECS) {
+        while (elapsed < MINIMUM_TIME_SECS && runtimes.size() < MINIMUM_RUNS) {
             cudaEventRecord(start);
             test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
             cudaEventRecord(stop);
