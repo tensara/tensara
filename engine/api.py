@@ -301,43 +301,43 @@ def checker_t4(item: dict):
     return checker("T4", item)
 
 
-@app.function(gpu="H100")
-@modal.web_endpoint(method="POST")
-def checker_h100(item: dict):
-    return checker("H100", item)
+# @app.function(gpu="H100")
+# @modal.web_endpoint(method="POST")
+# def checker_h100(item: dict):
+#     return checker("H100", item)
 
 
-@app.function(gpu="A100-80GB")
-@modal.web_endpoint(method="POST")
-def checker_a100(item: dict):
-    return checker("A100-80GB", item)
+# @app.function(gpu="A100-80GB")
+# @modal.web_endpoint(method="POST")
+# def checker_a100(item: dict):
+#     return checker("A100-80GB", item)
 
 
-@app.function(gpu="A10G")
-@modal.web_endpoint(method="POST")
-def checker_a10g(item: dict):
-    return checker("A10G", item)
+# @app.function(gpu="A10G")
+# @modal.web_endpoint(method="POST")
+# def checker_a10g(item: dict):
+#     return checker("A10G", item)
 
 
-@app.function(gpu="T4")
-@modal.web_endpoint(method="POST")
-def benchmark_t4(item: dict):
-    return benchmark("T4", item)
+# @app.function(gpu="T4")
+# @modal.web_endpoint(method="POST")
+# def benchmark_t4(item: dict):
+#     return benchmark("T4", item)
 
 
-@app.function(gpu="H100")
-@modal.web_endpoint(method="POST")
-def benchmark_h100(item: dict):
-    return benchmark("H100", item)
+# @app.function(gpu="H100")
+# @modal.web_endpoint(method="POST")
+# def benchmark_h100(item: dict):
+#     return benchmark("H100", item)
 
 
-@app.function(gpu="A100-80GB")
-@modal.web_endpoint(method="POST")
-def benchmark_a100(item: dict):
-    return benchmark("A100-80GB", item)
+# @app.function(gpu="A100-80GB")
+# @modal.web_endpoint(method="POST")
+# def benchmark_a100(item: dict):
+#     return benchmark("A100-80GB", item)
 
 
-@app.function(gpu="A10G")
-@modal.web_endpoint(method="POST")
-def benchmark_a10g(item: dict):
-    return benchmark("A10G", item)
+# @app.function(gpu="A10G")
+# @modal.web_endpoint(method="POST")
+# def benchmark_a10g(item: dict):
+#     return benchmark("A10G", item)

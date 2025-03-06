@@ -22,14 +22,6 @@ class VectorAdditionProblem(Problem):
         """Generate test cases for vector addition."""
         return [
             {
-                "name": "1K elements",
-                "dims": (1024,),
-                "create_inputs": lambda: (
-                    torch.rand(1024, device="cuda", dtype=torch.float32),
-                    torch.rand(1024, device="cuda", dtype=torch.float32)
-                )
-            },
-            {
                 "name": "1M elements",
                 "dims": (1000000,),
                 "create_inputs": lambda: (
@@ -37,6 +29,16 @@ class VectorAdditionProblem(Problem):
                     torch.rand(1000000, device="cuda", dtype=torch.float32)
                 )
             },
+
+            {
+                "name": "5M elements",
+                "dims": (5000000,),
+                "create_inputs": lambda: (
+                    torch.rand(5000000, device="cuda", dtype=torch.float32),
+                    torch.rand(5000000, device="cuda", dtype=torch.float32)
+                )
+            },
+
             {
                 "name": "10M elements",
                 "dims": (10000000,),
@@ -44,7 +46,33 @@ class VectorAdditionProblem(Problem):
                     torch.rand(10000000, device="cuda", dtype=torch.float32),
                     torch.rand(10000000, device="cuda", dtype=torch.float32)
                 )
+            },
+
+            {
+                "name": "50M elements",
+                "dims": (50000000,),
+                "create_inputs": lambda: (
+                    torch.rand(50000000, device="cuda", dtype=torch.float32),
+                    torch.rand(50000000, device="cuda", dtype=torch.float32)
+                )
+            },
+            {
+                "name": "100M elements",
+                "dims": (100000000,),
+                "create_inputs": lambda: (
+                    torch.rand(100000000, device="cuda", dtype=torch.float32),
+                    torch.rand(100000000, device="cuda", dtype=torch.float32)
+                )
+            },
+            {
+                "name": "1B elements",
+                "dims": (1000000000,),
+                "create_inputs": lambda: (
+                    torch.rand(1000000000, device="cuda", dtype=torch.float32),
+                    torch.rand(1000000000, device="cuda", dtype=torch.float32)
+                )
             }
+
         ]
     
     def verify_result(self, expected_output: torch.Tensor, actual_output: torch.Tensor) -> Tuple[bool, Dict[str, Any]]:
