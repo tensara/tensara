@@ -190,7 +190,6 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     mean_throughput = statistics.mean(memory_throughputs)
     max_throughput = max(memory_throughputs)
     
-    
 
     benchmark_result = {
         "test_id": test_case.get("id", 0),
