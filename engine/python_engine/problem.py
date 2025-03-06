@@ -20,7 +20,6 @@ class Problem(ABC):
     def reference_solution(self, *args, **kwargs) -> Any:
         """
         Reference implementation using PyTorch.
-        Must be implemented by subclasses.
         """
         pass
     

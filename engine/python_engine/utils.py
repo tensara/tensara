@@ -6,7 +6,7 @@ import problems
 import torch
 import time
 import ctypes
-
+import statistics
 
 def load_problem_module(problem_type: str) -> Problem:
     """
@@ -22,11 +22,9 @@ def load_problem_module(problem_type: str) -> Problem:
         HTTPException: If the problem type cannot be found
     """
     try:
-        # Convert problem_type to the appropriate attribute name
         module_name = f"problems.{problem_type}"
         module = importlib.import_module(module_name)
         
-        # Get the problem class from the problems module
         problem_class = getattr(module, problem_type)
         return problem_class()
     
@@ -192,7 +190,6 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     
 
     benchmark_result = {
-        "test_id": test_case.get("id", 0),
         "name": test_case.get("name", "Unknown"),
         "status": "PASSED",
         "iterations_run": len(runtimes),
@@ -204,7 +201,6 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
             "cv": runtime_cv
         },
         "performance_stats": {
-            "flops": flops,
             "mean_gflops": mean_gflops,
             "max_gflops": max_gflops, 
             "stdev_gflops": stdev_gflops,

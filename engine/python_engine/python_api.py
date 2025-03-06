@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from problem import Problem
 import gc
 from utils import load_problem_module, prepare_gpu, lower_bound_memory_throughput, run_dynamic_benchmark
-
+import statistics
 
 GPU_COMPUTE_CAPABILITIES = {
     "T4": "75",
@@ -386,13 +386,14 @@ def format_for_sse(data: dict) -> str:
     """Convert dictionary to SSE-compatible JSON string"""
     return "data: " + json.dumps(data) + "\n\n"
 
-@app.function(gpu="T4")
-@modal.web_endpoint(method="POST")
-def checker_t4(item: dict):
-    """Web endpoint for checking CUDA solutions on T4 GPU"""
+# Generic checker function that contains the common logic
+async def generic_checker(item: dict):
+    """Generic function for checking CUDA solutions on GPU"""
     solution_code = item["solution_code"]
     problem_name = item["problem"]
-    gpu = item["gpu"] if "gpu" in item else "T4"
+    # Use the GPU type from the request if provided, otherwise it will default
+    # to the GPU type specified in the app.function decorator
+    gpu = item.get("gpu")
 
     problem = load_problem_module(problem_name)
 
@@ -409,13 +410,13 @@ def checker_t4(item: dict):
         }
     )
 
-@app.function(gpu="T4")
-@modal.web_endpoint(method="POST")
-def benchmark_t4(item: dict):
-    """Web endpoint for benchmarking CUDA solutions on T4 GPU"""
+async def generic_benchmark(item: dict):
+    """Generic function for benchmarking CUDA solutions on GPU"""
     solution_code = item["solution_code"]
     problem_name = item["problem"]
-    gpu = item["gpu"] if "gpu" in item else "T4"
+    # Use the GPU type from the request if provided, otherwise it will default
+    # to the smallest GPU (T4)
+    gpu = item.get("gpu") or "T4"
 
     problem = load_problem_module(problem_name)
 
@@ -431,3 +432,45 @@ def benchmark_t4(item: dict):
             "Connection": "keep-alive"
         }
     )
+    
+# GPU-specific endpoints
+@app.function(gpu="T4")
+@modal.web_endpoint(method="POST")
+async def checker_t4(item: dict):
+    return await generic_checker(item)
+
+@app.function(gpu="A10G")
+@modal.web_endpoint(method="POST")
+async def checker_a10g(item: dict):
+    return await generic_checker(item)
+
+@app.function(gpu="H100")
+@modal.web_endpoint(method="POST")
+async def checker_h100(item: dict):
+    return await generic_checker(item)
+
+@app.function(gpu="A100-80GB")
+@modal.web_endpoint(method="POST")
+async def checker_a100_80gb(item: dict):
+    return await generic_checker(item)
+
+@app.function(gpu="T4")
+@modal.web_endpoint(method="POST")
+async def benchmark_t4(item: dict):
+    return await generic_benchmark(item)
+
+@app.function(gpu="A10G")
+@modal.web_endpoint(method="POST")
+async def benchmark_a10g(item: dict):
+    return await generic_benchmark(item)
+
+@app.function(gpu="H100")
+@modal.web_endpoint(method="POST")
+async def benchmark_h100(item: dict):
+    return await generic_benchmark(item)
+
+@app.function(gpu="A100-80GB")
+@modal.web_endpoint(method="POST")
+async def benchmark_a100_80gb(item: dict):
+    return await generic_benchmark(item)
+    
