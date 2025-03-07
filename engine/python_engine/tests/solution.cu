@@ -22,7 +22,7 @@ __global__ void reference_conv1d_kernel(float* A, float* B, float* C, size_t N, 
     }
 }
 
-extern "C" void reference_solution(float* A, float* B, float* C, size_t N, size_t K) {
+extern "C" void solution(float* A, float* B, float* C, size_t N, size_t K) {
     int block_size = 256;
     int num_blocks = (N + block_size - 1) / block_size;
     

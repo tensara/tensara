@@ -1,5 +1,5 @@
 {
-  "solution_code": "todo",
-  "problem": "problem_name",
+  "solution_code": "#include <cuda_runtime.h>\n\n__global__ void reference_conv1d_kernel(float* A, float* B, float* C, size_t N, size_t K) {\n    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;\n    \n    if (idx < N) {\n        float sum = 0.0f;\n        int offset = (K - 1) / 2;\n        \n        for (size_t j = 0; j < K; j++) {\n            int input_idx = idx + j - offset;\n            float input_val = 0.0f;\n            \n            if (input_idx >= 0 && input_idx < N) {\n                input_val = A[input_idx];\n            }\n            \n            sum += input_val * B[j];\n        }\n        \n        C[idx] = sum;\n    }\n}\n\nextern \"C\" void solution(float* A, float* B, float* C, size_t N, size_t K) {\n    int block_size = 256;\n    int num_blocks = (N + block_size - 1) / block_size;\n    \n    reference_conv1d_kernel<<<num_blocks, block_size>>>(A, B, C, N, K);\n    cudaDeviceSynchronize();\n}",
+  "problem": "conv_1d",
   "gpu": "T4"
 }

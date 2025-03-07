@@ -56,10 +56,10 @@ class conv_1d(Problem):
         """
         
         test_configs = [
-            ("Config 1", 65536, 8192),
-            ("Config 2", 32768, 8192),
-            ("Config 3", 131072, 8192),
-            ("Config 4", 524288, 8192)
+            ("Config 1", 65536, 8191),
+            ("Config 2", 32768, 8191),
+            ("Config 3", 131072, 8191),
+            ("Config 4", 524288, 8191)
         ]
         
         return [

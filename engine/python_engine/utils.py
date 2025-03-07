@@ -5,6 +5,143 @@ import torch
 import time
 import ctypes
 import statistics
+import json
+from fastapi.responses import StreamingResponse
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Dict
+
+
+
+GPU_COMPUTE_CAPABILITIES = {
+    "T4": "75",
+    "H100": "90",
+    "A100-80GB": "80",
+    "A10G": "86",
+}
+
+class NVCCError(Exception):
+    pass
+
+def get_nvidia_smi():
+    """Get nvidia-smi output"""
+    process = subprocess.run(["nvidia-smi"], capture_output=True, text=True)
+    return str(process.stdout)
+
+def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
+    """Get nvcc command for the given GPU, source files, and output file"""
+    srcs = [str(src) for src in srcs]
+    out = str(out)
+    sm = GPU_COMPUTE_CAPABILITIES[gpu]
+    
+    # Building the command similar to your Makefile
+    cmd = ["nvcc", "-std=c++20", "-O2", "-Xcompiler", "-fPIC"]
+    
+    # Add architecture flags
+    cmd.extend([f"-arch=compute_{sm}", f"-code=sm_{sm}"])
+    
+    # Add shared library flag since, we are building a shared library
+    if str(out).endswith('.so'):
+        cmd.append("-shared")
+    
+    # Add output file and source files
+    cmd.extend(["-o", out] + srcs)
+    
+    return cmd
+
+def run_nvcc(gpu: str, files: Dict[str, str], output_name: str) -> Path:
+    """Compile source files with nvcc and return the path to the compiled binary
+    
+    Args:
+        gpu (str): GPU type to use
+        files (dict[str, str]): Code files (file name -> content)
+        output_name (str): Output library name
+        
+    Returns:
+        Path: Path to the compiled shared library
+        
+    Raises:
+        NVCCError: If compilation fails
+    """
+    # Create a temporary file for output that won't be deleted
+    output_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".lib{output_name}.so")
+    output_file.close()
+    out_path = Path(output_file.name)
+    out_path.unlink()  # Remove the file so nvcc can create it
+    
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td)
+        
+        # Write the source files
+        for name, content in files.items():
+            (path / name).write_text(content)
+        
+        # For a shared library, we need the solution.cu file
+        src_path = path / "solution.cu"
+        
+        # Compile with nvcc
+        cmd = nvcc_command(gpu, [src_path], out_path)
+        process = subprocess.run(cmd, capture_output=True, text=True)
+        
+        # Check for compilation errors
+        if process.returncode != 0:
+            raise NVCCError(process.stderr)
+            
+    return out_path
+
+def setup_solution(problem, solution_code, gpu):
+    """Compile solution and set up CUDA library"""
+    files = {"solution.cu": solution_code}
+    lib_path = run_nvcc(gpu, files, "solution")
+    
+    # Load the compiled library
+    cuda_lib = ctypes.CDLL(str(lib_path))
+    
+    # Set function signature
+    func_sig = problem.get_function_signature()
+    cuda_lib.solution.argtypes = func_sig["argtypes"]
+    cuda_lib.solution.restype = func_sig["restype"]
+    
+    return cuda_lib
+
+
+def format_for_sse(data: dict) -> str:
+    """Convert dictionary to SSE-compatible JSON string"""
+    return "data: " + json.dumps(data) + "\n\n"
+
+def create_streaming_response(generator_func):
+    """Create a FastAPI StreamingResponse from a generator function"""
+    return StreamingResponse(
+        generator_func(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
+
+def format_benchmark_summary(benchmark_results):
+    """Format the benchmark summary statistics"""
+    passed_results = [r for r in benchmark_results if r["status"] == "PASSED"]
+    
+    if passed_results:
+        avg_gflops = statistics.mean([r["performance_stats"]["mean_gflops"] for r in passed_results])
+        max_gflops = max([r["performance_stats"]["max_gflops"] for r in passed_results])
+        avg_throughput = statistics.mean([r["memory_stats"]["mean_throughput_gbps"] for r in passed_results])
+    else:
+        avg_gflops = 0
+        max_gflops = 0
+        avg_throughput = 0
+    
+    return {
+        "avg_gflops": avg_gflops,
+        "max_gflops": max_gflops,
+        "avg_memory_throughput_gbps": avg_throughput,
+        "total_tests": len(benchmark_results),
+        "passed_tests": len(passed_results)
+    }
+
 
 def load_problem_module(problem_type: str) -> Problem:
     """
@@ -216,3 +353,4 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     }
     
     return benchmark_result
+

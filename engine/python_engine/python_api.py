@@ -9,15 +9,8 @@ from typing import Iterator, Dict
 from fastapi.responses import StreamingResponse
 from problem import Problem
 import gc
-from utils import load_problem_module, prepare_gpu, run_dynamic_benchmark
-import statistics
-
-GPU_COMPUTE_CAPABILITIES = {
-    "T4": "75",
-    "H100": "90",
-    "A100-80GB": "80",
-    "A10G": "86",
-}
+import utils
+import problems 
 
 DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
@@ -29,75 +22,6 @@ image = modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11").pip_insta
 )
 
 app = modal.App("tensara-python-engine", image=image)
-
-class NVCCError(Exception):
-    pass
-
-def get_nvidia_smi():
-    """Get nvidia-smi output"""
-    process = subprocess.run(["nvidia-smi"], capture_output=True, text=True)
-    return str(process.stdout)
-
-def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
-    """Get nvcc command for the given GPU, source files, and output file"""
-    srcs = [str(src) for src in srcs]
-    out = str(out)
-    sm = GPU_COMPUTE_CAPABILITIES[gpu]
-    
-    # Building the command similar to your Makefile
-    cmd = ["nvcc", "-std=c++20", "-O2", "-Xcompiler", "-fPIC"]
-    
-    # Add architecture flags
-    cmd.extend([f"-arch=compute_{sm}", f"-code=sm_{sm}"])
-    
-    # Add shared library flag since, we are building a shared library
-    if str(out).endswith('.so'):
-        cmd.append("-shared")
-    
-    # Add output file and source files
-    cmd.extend(["-o", out] + srcs)
-    
-    return cmd
-
-def run_nvcc(gpu: str, files: Dict[str, str], output_name: str) -> Path:
-    """Compile source files with nvcc and return the path to the compiled binary
-    
-    Args:
-        gpu (str): GPU type to use
-        files (dict[str, str]): Code files (file name -> content)
-        output_name (str): Output library name
-        
-    Returns:
-        Path: Path to the compiled shared library
-        
-    Raises:
-        NVCCError: If compilation fails
-    """
-    # Create a temporary file for output that won't be deleted
-    output_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".lib{output_name}.so")
-    output_file.close()
-    out_path = Path(output_file.name)
-    out_path.unlink()  # Remove the file so nvcc can create it
-    
-    with tempfile.TemporaryDirectory() as td:
-        path = Path(td)
-        
-        # Write the source files
-        for name, content in files.items():
-            (path / name).write_text(content)
-        
-        # For a shared library, we need the solution.cu file
-        src_path = path / "solution.cu"
-        
-        # Compile with nvcc
-        cmd = nvcc_command(gpu, [src_path], out_path)
-        process = subprocess.run(cmd, capture_output=True, text=True)
-        
-        # Check for compilation errors
-        if process.returncode != 0:
-            raise NVCCError(process.stderr)
-            
-    return out_path
 
 def run_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> Iterator[str]:
     """
@@ -112,7 +36,6 @@ def run_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> Iterat
     Returns:
         Iterator that yields JSON strings with test results
     """
-    lib_path = None
     
     try:
         # Send compilation status
@@ -122,21 +45,8 @@ def run_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> Iterat
             "solution.cu": solution_code
         }
 
-        # Compile the solution
-        lib_path = run_nvcc(gpu, files, "solution")
-        
-        # Send running status
-        yield json.dumps({"status": "running"})
+        cuda_lib = utils.setup_solution(problem, solution_code, gpu)
 
-        # Load the compiled library
-        cuda_lib = ctypes.CDLL(str(lib_path))
-        
-        # Set function signature
-        func_sig = problem.get_function_signature()
-        cuda_lib.solution.argtypes = func_sig["argtypes"]
-        cuda_lib.solution.restype = func_sig["restype"]
-        
-        # Get test cases
         test_cases = problem.generate_test_cases()
         total_tests = len(test_cases)
         test_results = []
@@ -231,7 +141,7 @@ def run_checker(problem: Problem, solution_code: str, gpu: str = "T4") -> Iterat
         }
         yield json.dumps(obj)
         
-    except NVCCError as e:
+    except utils.NVCCError as e:
         obj = {
             "status": "error",
             "error": "Compilation failed",
@@ -262,8 +172,7 @@ def run_benchmark(problem, solution_code, gpu="T4"):
         files = {
             "solution.cu": solution_code
         }
-        lib_path = run_nvcc(gpu, files, "solution")
-        
+        lib_path = utils.run_nvcc(gpu, files, "solution")
 
         yield json.dumps({"status": "running"})
 
@@ -284,7 +193,7 @@ def run_benchmark(problem, solution_code, gpu="T4"):
         benchmark_results = []
         
         # Prepare GPU for benchmarking (one-time setup at the beginning)
-        prepare_gpu()
+        utils.prepare_gpu()
         
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
@@ -308,7 +217,7 @@ def run_benchmark(problem, solution_code, gpu="T4"):
                 
                 
                 # Run the dynamic benchmark
-                benchmark_result = run_dynamic_benchmark(
+                benchmark_result = utils.run_dynamic_benchmark(
                     cuda_lib, 
                     problem, 
                     test_case, 
@@ -349,29 +258,9 @@ def run_benchmark(problem, solution_code, gpu="T4"):
                 }
         
         # Calculate overall statistics
-        passed_results = [r for r in benchmark_results if r["status"] == "PASSED"]
-        
-        if passed_results:
-            avg_gflops = statistics.mean([r["performance_stats"]["mean_gflops"] for r in passed_results])
-            max_gflops = max([r["performance_stats"]["max_gflops"] for r in passed_results])
-            avg_throughput = statistics.mean([r["memory_stats"]["mean_throughput_gbps"] for r in passed_results])
-        else:
-            avg_gflops = 0
-            max_gflops = 0
-            avg_throughput = 0
-        
-        # Final status message
-        yield {
-            "status": "complete",
-            "benchmark_results": benchmark_results,
-            "summary": {
-                "avg_gflops": avg_gflops,
-                "max_gflops": max_gflops,
-                "avg_memory_throughput_gbps": avg_throughput,
-                "total_tests": total_tests,
-                "passed_tests": len(passed_results)
-            }
-        }
+        benchmark_summary = utils.format_benchmark_summary(benchmark_results)
+        yield json.dumps(benchmark_summary)
+
     except Exception as e:
         # Handle any unexpected errors
         import traceback
@@ -380,10 +269,6 @@ def run_benchmark(problem, solution_code, gpu="T4"):
             "error": str(e),
             "traceback": traceback.format_exc()
         }
-
-def format_for_sse(data: dict) -> str:
-    """Convert dictionary to SSE-compatible JSON string"""
-    return "data: " + json.dumps(data) + "\n\n"
 
 # Generic checker function that contains the common logic
 async def generic_checker(item: dict):
@@ -394,20 +279,13 @@ async def generic_checker(item: dict):
     # to the smallest GPU (T4)
     gpu = item.get("gpu") or "T4"
 
-    problem = load_problem_module(problem_name)
+    problem = utils.load_problem_module(problem_name)
 
     def json_stream():
         for result in run_checker(problem, solution_code, gpu=gpu):
-            yield format_for_sse(result)
+            yield utils.format_for_sse(result)
 
-    return StreamingResponse(
-        json_stream(),
-        media_type="application/x-ndjson",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive"
-        }
-    )
+    return utils.create_streaming_response(json_stream)
 
 async def generic_benchmark(item: dict):
     """Generic function for benchmarking CUDA solutions on GPU"""
@@ -417,20 +295,13 @@ async def generic_benchmark(item: dict):
     # to the smallest GPU (T4)
     gpu = item.get("gpu") or "T4"
 
-    problem = load_problem_module(problem_name)
+    problem = utils.load_problem_module(problem_name)
 
     def json_stream():
         for result in run_benchmark(problem, solution_code, gpu=gpu):
-            yield format_for_sse(result)
+            yield utils.format_for_sse(result)
 
-    return StreamingResponse(
-        json_stream(),
-        media_type="application/x-ndjson",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive"
-        }
-    )
+    return utils.create_streaming_response(json_stream)
 
 # GPU-specific endpoints
 @app.function(gpu="T4")
