@@ -10,7 +10,7 @@ class matrix_multiplication(Problem):
     
     def __init__(self):
         super().__init__(
-            name="Matrix Multiplication",
+            name="matrix-multiplication",
             description="Implement a CUDA kernel for matrix multiplication: C = A * B"
         )
     
@@ -98,6 +98,8 @@ class matrix_multiplication(Problem):
     def get_function_signature(self) -> Dict[str, Any]:
         """
         Get the function signature for the matrix multiplication solution.
+        
+        IMPORTANT: Comments are required. Outline the FLOPs calculation.
         
         Returns:
             Dictionary with argtypes and restype for ctypes

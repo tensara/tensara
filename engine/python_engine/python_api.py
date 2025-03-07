@@ -6,11 +6,10 @@ import json
 import tempfile
 import subprocess
 from typing import Iterator, Dict
-from fastapi import Response
 from fastapi.responses import StreamingResponse
 from problem import Problem
 import gc
-from utils import load_problem_module, prepare_gpu, lower_bound_memory_throughput, run_dynamic_benchmark
+from utils import load_problem_module, prepare_gpu, run_dynamic_benchmark
 import statistics
 
 GPU_COMPUTE_CAPABILITIES = {
@@ -391,9 +390,9 @@ async def generic_checker(item: dict):
     """Generic function for checking CUDA solutions on GPU"""
     solution_code = item["solution_code"]
     problem_name = item["problem"]
-    # Use the GPU type from the request if provided, otherwise it will default
-    # to the GPU type specified in the app.function decorator
-    gpu = item.get("gpu")
+     # Use the GPU type from the request if provided, otherwise it will default
+    # to the smallest GPU (T4)
+    gpu = item.get("gpu") or "T4"
 
     problem = load_problem_module(problem_name)
 
@@ -432,7 +431,7 @@ async def generic_benchmark(item: dict):
             "Connection": "keep-alive"
         }
     )
-    
+
 # GPU-specific endpoints
 @app.function(gpu="T4")
 @modal.web_endpoint(method="POST")

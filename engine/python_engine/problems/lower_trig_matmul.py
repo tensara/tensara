@@ -4,53 +4,53 @@ from typing import List, Dict, Tuple, Any
 
 from problem import Problem
 
-class vector_addition(Problem):
-    """Vector addition problem."""
+
+class lower_trig_matmul(Problem):
+    """Lower triangular matrix multiplication problem."""
     
     def __init__(self):
         super().__init__(
-            name="vector-addition",
-            description="Implement a CUDA kernel for vector addition: C = A + B"
+            name="lower-trig-matmul",
+            description="Implement a CUDA kernel for matrix multiplication C = A * B where A and B are lower triangular matrices"
         )
     
     def reference_solution(self, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
         """
-        PyTorch implementation of vector addition.
+        PyTorch implementation of lower triangular matrix multiplication.
         
         Args:
-            A: First input tensor
-            B: Second input tensor
+            A: First input lower triangular matrix
+            B: Second input lower triangular matrix
             
         Returns:
-            Result of A + B
+            Result of A * B (also lower triangular)
         """
         with torch.no_grad():
-            return A + B
+            return torch.tril(torch.matmul(A, B))
     
     def generate_test_cases(self) -> List[Dict[str, Any]]:
         """
-        Generate test cases for vector addition.
+        Generate test cases for lower triangular matrix multiplication.
         
         Returns:
             List of test case dictionaries with varying sizes
         """
-        # Standard sizes for testing
+        # Standard sizes for testing matrix multiplication
         sizes = [
-            ("1M elements", 1_000_000),
-            ("5M elements", 5_000_000),
-            ("10M elements", 10_000_000),
-            ("50M elements", 50_000_000),
-            ("100M elements", 100_000_000),
-            ("1B elements", 1_000_000_000)
+            ("512x512", 512),
+            ("1024x1024", 1024),
+            ("2048x2048", 2048),
+            ("4096x4096", 4096),
+            ("8192x8192", 8192)
         ]
         
         return [
             {
                 "name": name,
-                "dims": (size,),
+                "dims": (size, size),
                 "create_inputs": lambda size=size: (
-                    torch.rand(size, device="cuda", dtype=torch.float32),
-                    torch.rand(size, device="cuda", dtype=torch.float32)
+                    torch.tril(torch.rand(size, size, device="cuda", dtype=torch.float32)),
+                    torch.tril(torch.rand(size, size, device="cuda", dtype=torch.float32))
                 )
             }
             for name, size in sizes
@@ -59,7 +59,7 @@ class vector_addition(Problem):
     def verify_result(self, expected_output: torch.Tensor, 
                      actual_output: torch.Tensor) -> Tuple[bool, Dict[str, Any]]:
         """
-        Verify if the vector addition result is correct.
+        Verify if the matrix multiplication result is correct.
         
         Args:
             expected_output: Output from reference solution
@@ -76,16 +76,20 @@ class vector_addition(Problem):
             max_diff = torch.max(torch.abs(diff)).item()
             mean_diff = torch.mean(torch.abs(diff)).item()
             
+            # Also check if output is lower triangular
+            is_lower_triangular = torch.allclose(actual_output, torch.tril(actual_output))
+            
             debug_info = {
                 "max_difference": max_diff,
-                "mean_difference": mean_diff
+                "mean_difference": mean_diff,
+                "is_lower_triangular": is_lower_triangular
             }
         
         return is_close, debug_info
     
     def get_function_signature(self) -> Dict[str, Any]:
         """
-        Get the function signature for the vector addition solution.
+        Get the function signature for the lower triangular matrix multiplication solution.
         
         Returns:
             Dictionary with argtypes and restype for ctypes
@@ -95,7 +99,7 @@ class vector_addition(Problem):
                 ctypes.POINTER(ctypes.c_float),  # input_a
                 ctypes.POINTER(ctypes.c_float),  # input_b
                 ctypes.POINTER(ctypes.c_float),  # output
-                ctypes.c_size_t                  # N
+                ctypes.c_size_t                  # N (matrix dimension)
             ],
             "restype": None
         }
@@ -103,6 +107,8 @@ class vector_addition(Problem):
     def get_flops(self, test_case: Dict[str, Any]) -> int:
         """
         Get the number of floating point operations for the problem.
+
+        IMPORTANT: Comments are required. Outline the FLOPs calculation.
         
         Args:
             test_case: The test case dictionary
@@ -110,9 +116,25 @@ class vector_addition(Problem):
         Returns:
             Number of floating point operations
         """
-        # Vector addition has 1 FLOP per element
+        # For an NxN triangular matrix, we have N(N+1)/2 non-zero elements
+        # For each element in the result matrix, we need to compute a dot product
+        # of corresponding row and column elements 
         N = test_case["dims"][0]
-        return N
+        
+        # Number of elements in triangular matrix
+        num_elements = (N * (N + 1)) // 2
+        
+        # For lower triangular matrices, each element in the result 
+        # requires fewer multiplications than a full matrix multiplication
+        # This is a conservative estimate that counts 2 FLOPs (mul + add) per element
+        total_flops = 0
+        for i in range(N):
+            for j in range(i + 1):  # Only lower triangle
+                # For each element C[i,j], we compute sum(A[i,k] * B[k,j]) for k from 0 to min(i,j)
+                dot_product_length = j + 1  # Only need to go up to j+1 terms
+                total_flops += 2 * dot_product_length  # mul + add for each term
+        
+        return total_flops
     
     def get_extra_params(self, test_case: Dict[str, Any]) -> List[Any]:
         """
@@ -122,7 +144,7 @@ class vector_addition(Problem):
             test_case: The test case dictionary
             
         Returns:
-            List containing the vector length N
+            List containing the matrix dimension N
         """
         N = test_case["dims"][0]
         return [N]
