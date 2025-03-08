@@ -53,6 +53,7 @@ import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
+import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -1350,10 +1351,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       },
                     }}
                   >
-                    <option value="T4">NVIDIA T4</option>
-                    <option value="H100">NVIDIA H100</option>
-                    <option value="A10G">NVIDIA A10G</option>
-                    <option value="A100-80GB">NVIDIA A100-80GB</option>
+                    {
+                      Object.entries(GPU_DISPLAY_NAMES)
+                        .filter(([key]) => key !== "all")
+                        .map(([key, value]) => (
+                          <option key={key} value={key}>{value}</option>
+                        ))
+                    }
                   </Select>
                 </Box>
                 <Box>

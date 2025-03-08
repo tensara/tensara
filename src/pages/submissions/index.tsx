@@ -31,6 +31,7 @@ import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { auth } from "~/server/auth";
+import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 
 type SortField = "createdAt" | "status" | "problem" | "performance";
 type SortOrder = "asc" | "desc";
@@ -44,13 +45,6 @@ interface SubmissionWithProblem extends Submission {
     username: string | null;
   };
 }
-
-const GPU_DISPLAY_NAMES: Record<string, string> = {
-  "T4": "NVIDIA T4",
-  "H100": "NVIDIA H100",
-  "A100-80GB": "NVIDIA A100-80GB",
-  "A10G": "NVIDIA A10G",
-};
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await auth(context.req, context.res);
@@ -222,11 +216,12 @@ const SubmissionsPage: NextPage = () => {
             _hover={{ borderColor: "gray.600" }}
             _focus={{ borderColor: "gray.500" }}
           >
-            <option value="all">All GPUs</option>
-            <option value="T4">NVIDIA T4</option>
-            <option value="H100">NVIDIA H100</option>
-            <option value="A10G">NVIDIA A10G</option>
-            <option value="A100-80GB">NVIDIA A100-80GB</option>
+            {
+              Object.entries(GPU_DISPLAY_NAMES)
+                .map(([key, value]) => (
+                  <option key={key} value={key}>{value}</option>
+                ))
+            }
           </Select>
 
           <Input
