@@ -54,7 +54,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { generateStarterCode, DataTypes } from "~/utils/starter";
+import { generateStarterCode, DataTypes, Parameter } from "~/utils/starter";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -576,7 +576,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   );
 
   const getStarterCode = useCallback(() => {
-    return generateStarterCode(problem?.parameters, selectedLanguage, selectedDataType);
+    return generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType);
   }, [problem?.parameters, selectedLanguage, selectedDataType]);
 
 
@@ -606,7 +606,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   }, [code, starterCode]);
 
   useEffect(() => {
-    const newStarterCode = generateStarterCode(problem?.parameters, selectedLanguage, selectedDataType);
+    const newStarterCode = generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType);
     if (newStarterCode) {
       setStarterCode(newStarterCode);
       
