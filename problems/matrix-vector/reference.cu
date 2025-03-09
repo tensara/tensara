@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 
-__global__ void reference_matrix_vector_multiply(float* A, float* B, float* C, size_t M, size_t K) {
+__global__ void reference_matrix_vector_multiply(const float* A, const float* B, float* C, size_t M, size_t K) {
     int row = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (row < M) {
@@ -12,7 +12,7 @@ __global__ void reference_matrix_vector_multiply(float* A, float* B, float* C, s
     }
 }
 
-extern "C" void reference_solution(float* input_a, float* input_b, float* output_c, size_t m, size_t k) {
+extern "C" void reference_solution(const float* input_a, const float* input_b, float* output_c, size_t m, size_t k) {
     const int BLOCK_SIZE = 256;
     
     int gridSize = (m + BLOCK_SIZE - 1) / BLOCK_SIZE;

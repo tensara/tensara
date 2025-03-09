@@ -4,6 +4,42 @@ title: "GEMM with Bias and ReLU"
 difficulty: "MEDIUM"
 author: "sarthak"
 tags: ["cuda-basics", "parallel-computing", "neural-networks"]
+parameters:
+  - name: "A"
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+
+  - name: "W" 
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+
+  - name: "b" 
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+
+  - name: "C" 
+    type: "[VAR]"
+    pointer: "true"
+    const: "false"
+
+  - name: "B"
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+
+  - name: "N"
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+    
+  - name: "M" 
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+  
 ---
 
 Perform a matrix multiplication followed by bias addition and ReLU activation:
@@ -26,3 +62,6 @@ $$
 
 ## Output:
 - Matrix $\text{C}$ of size $\text{B} \times \text{M}$
+
+## Notes:
+- All matrices $\text{A}$, $\text{W}$, and $\text{C}$ are stored in row-major order

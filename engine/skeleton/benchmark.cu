@@ -35,7 +35,7 @@ template <typename T> class BenchmarkRunner {
     cudaEvent_t start, stop;
     std::vector<T *> h_inputs;
     std::vector<T *> h_outputs;
-    std::vector<T *> d_inputs;
+    std::vector<const T *> d_inputs;
     std::vector<T *> d_outputs;
 
   public:
@@ -64,8 +64,8 @@ template <typename T> class BenchmarkRunner {
 
         for (size_t i = 0; i < test_case.input_shapes().size(); i++) {
             size_t size = test_case.input_shapes()[i]->size();
-            cudaMalloc(&d_inputs[i], size * sizeof(T));
-            cudaMemcpy(d_inputs[i], h_inputs[i], size * sizeof(T), cudaMemcpyHostToDevice);
+            cudaMalloc(const_cast<T**>(&d_inputs[i]), size * sizeof(T));
+            cudaMemcpy(const_cast<T*>(d_inputs[i]), h_inputs[i], size * sizeof(T), cudaMemcpyHostToDevice);
         }
 
         for (size_t i = 0; i < test_case.output_shapes().size(); i++) {
@@ -81,7 +81,7 @@ template <typename T> class BenchmarkRunner {
             delete[] ptr;
 
         for (auto ptr : d_inputs)
-            cudaFree(ptr);
+            cudaFree(const_cast<T*>(ptr));
         for (auto ptr : d_outputs)
             cudaFree(ptr);
 

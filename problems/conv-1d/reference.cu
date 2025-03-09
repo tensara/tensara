@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 
-__global__ void reference_conv1d_kernel(float* A, float* B, float* C, size_t N, size_t K) {
+__global__ void reference_conv1d_kernel(const float* A, const float* B, float* C, size_t N, size_t K) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (idx < N) {
@@ -22,7 +22,7 @@ __global__ void reference_conv1d_kernel(float* A, float* B, float* C, size_t N, 
     }
 }
 
-extern "C" void reference_solution(float* A, float* B, float* C, size_t N, size_t K) {
+extern "C" void reference_solution(const float* A, const float* B, float* C, size_t N, size_t K) {
     int block_size = 256;
     int num_blocks = (N + block_size - 1) / block_size;
     

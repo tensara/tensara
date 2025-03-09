@@ -4,6 +4,41 @@ title: "2D Convolution"
 difficulty: "EASY" 
 author: "sarthak"
 tags: ["cuda-basics", "parallel-computing", "image-processing"]
+parameters:
+  - name: "A"
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+
+  - name: "B" 
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+
+  - name: "C" 
+    type: "[VAR]"
+    pointer: "true"
+    const: "false"
+
+  - name: "H"
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+    
+  - name: "W" 
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+  
+  - name: "Kh"
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+    
+  - name: "Kw" 
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
 ---
 
 Perform 2D convolution between an input image and a kernel:
@@ -22,5 +57,6 @@ The convolution operation slides the 2D kernel over the input image, computing t
 - Matrix $\text{C}$ of size $\text{H} \times \text{W}$ (convolved image)
 
 ## Notes:
+- All matrices $\text{A}$, $\text{B}$, and $\text{C}$ are stored in row-major order
 - Use zero padding at the boundaries where the kernel extends beyond the input image
 - The kernel is centered at each position, with $(K_h-1)/2$ rows and $(K_w-1)/2$ columns on each side

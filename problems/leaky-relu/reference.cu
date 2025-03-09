@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 
-__global__ void reference_leaky_relu_kernel(float* input, float* output, size_t n, size_t m, float alpha) {
+__global__ void reference_leaky_relu_kernel(const float* input, float* output, size_t n, size_t m, float alpha) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t idy = blockIdx.y * blockDim.y + threadIdx.y;
     
@@ -11,7 +11,7 @@ __global__ void reference_leaky_relu_kernel(float* input, float* output, size_t 
     }
 }
 
-extern "C" void reference_solution(float* input, float* output, size_t n, size_t m, float alpha) {
+extern "C" void reference_solution(const float* input, float* output, size_t n, size_t m, float alpha) {
     
     dim3 block_size(16, 16);
     dim3 num_blocks((n + block_size.x - 1) / block_size.x,

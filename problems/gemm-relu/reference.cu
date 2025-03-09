@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 
-__global__ void reference_gemm_relu_kernel(float* A, float* W, float* b, float* C, 
+__global__ void reference_gemm_relu_kernel(const float* A, const float* W, const float* b, float* C, 
                                          size_t B, size_t N, size_t M) {
     size_t row = blockIdx.y * blockDim.y + threadIdx.y;
     size_t col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -15,7 +15,7 @@ __global__ void reference_gemm_relu_kernel(float* A, float* W, float* b, float* 
     }
 }
 
-extern "C" void reference_solution(float* A, float* W, float* b, float* C,
+extern "C" void reference_solution(const float* A, const float* W, const float* b, float* C,
                                  size_t B, size_t N, size_t M) {
     dim3 block_size(16, 16);
     dim3 num_blocks((M + block_size.x - 1) / block_size.x,

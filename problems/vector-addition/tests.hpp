@@ -4,7 +4,7 @@
 template<typename T>
 class VectorAddTest: public TestCase<T> {
 public:
-    using kernel_func_t = void (*)(T*, T*, T*, size_t);
+    using kernel_func_t = void (*)(const T*, const T*, T*, size_t);
     
     explicit VectorAddTest(size_t n, unsigned int seed = 42) : rng_(seed) {
         this->problem_size_ = n;
@@ -12,8 +12,8 @@ public:
         
         auto vec_shape = std::vector<size_t>{n};
         this->inputs_ = {
-            std::make_shared<Tensor<T>>(vec_shape),
-            std::make_shared<Tensor<T>>(vec_shape)
+            std::make_shared<Tensor<const T>>(vec_shape),
+            std::make_shared<Tensor<const T>>(vec_shape)
         };
         this->outputs_ = {
             std::make_shared<Tensor<T>>(vec_shape)
@@ -43,7 +43,7 @@ public:
         return {this->problem_size_};
     }
 
-    void launch_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, 
+    void launch_kernel(const std::vector<const T*>& inputs, const std::vector<T*>& outputs, 
                       const std::vector<size_t>& sizes, void* kernel_func) override {
         auto typed_func = reinterpret_cast<kernel_func_t>(kernel_func);
         typed_func(inputs[0], inputs[1], outputs[0], sizes[0]);

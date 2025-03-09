@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 
-__global__ void reference_conv2d_kernel(float* A, float* B, float* C, size_t H, size_t W, size_t Kh, size_t Kw) {
+__global__ void reference_conv2d_kernel(const float* A, const float* B, float* C, size_t H, size_t W, size_t Kh, size_t Kw) {
     size_t row = blockIdx.y * blockDim.y + threadIdx.y;
     size_t col = blockIdx.x * blockDim.x + threadIdx.x;
     
@@ -28,7 +28,7 @@ __global__ void reference_conv2d_kernel(float* A, float* B, float* C, size_t H, 
     }
 }
 
-extern "C" void reference_solution(float* A, float* B, float* C, size_t H, size_t W, size_t Kh, size_t Kw) {
+extern "C" void reference_solution(const float* A, const float* B, float* C, size_t H, size_t W, size_t Kh, size_t Kw) {
     dim3 block_size(16, 16);
     dim3 num_blocks((W + block_size.x - 1) / block_size.x,
                     (H + block_size.y - 1) / block_size.y);

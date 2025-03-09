@@ -32,13 +32,12 @@ async function main() {
     const fileContents = readFileSync(problemPath, 'utf8');
     const { data: frontmatter, content } = matter(fileContents);
 
-    const requiredFields = ['slug', 'title', 'difficulty', 'author'];
+    const requiredFields = ['slug', 'title', 'difficulty', 'author', 'parameters'];
     const missingFields = requiredFields.filter(field => !frontmatter[field]);
     if (missingFields.length > 0) {
       throw new Error(`Problem ${slug} is missing required frontmatter: ${missingFields.join(', ')}`);
     }
 
-    const starterCode = safeReadFile(getStarterPath(slug)) || '';
     const tests = safeReadFile(getTestsPath(slug));
     const reference = safeReadFile(getReferencePath(slug));
 
@@ -50,9 +49,9 @@ async function main() {
         description: content,
         difficulty: frontmatter.difficulty,
         author: frontmatter.author,
-        starterCode: starterCode,
         tests: tests,
         reference: reference,
+        parameters: frontmatter.parameters,
       },
       create: {
         slug,
@@ -60,14 +59,16 @@ async function main() {
         description: content,
         difficulty: frontmatter.difficulty,
         author: frontmatter.author,
-        starterCode: starterCode,
         tests: tests,
         reference: reference,
+        parameters: frontmatter.parameters,
       }
     });
 
     console.log(`Synced problem: ${slug}`);
-    console.log(`  - Starter code: ${starterCode ? '✓' : '✗'}`);
+    console.log(`  - Title: ${frontmatter.title ? '✓' : '✗'}`);
+    console.log(`  - Difficulty: ${frontmatter.difficulty ? '✓' : '✗'}`);
+    console.log(`  - Parameters: ${frontmatter.parameters ? '✓' : '✗'}`);
     console.log(`  - Tests: ${tests ? '✓' : '✗'}`);
     console.log(`  - Reference: ${reference ? '✓' : '✗'}`);
   }

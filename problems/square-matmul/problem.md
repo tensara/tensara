@@ -4,6 +4,27 @@ title: "Square Matrix Multiplication"
 difficulty: "EASY"
 author: "sarthak"
 tags: ["cuda-basics", "parallel-computing"]
+parameters:
+  - name: "input_a"
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+  
+  - name: "input_b"
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+  
+  - name: "output_c"
+    type: "[VAR]"
+    pointer: "true"
+    const: "false"
+
+  - name: "n" 
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+    
 ---
 
 Perform multiplication of two square matrices:
@@ -17,3 +38,6 @@ $$
 
 ## Output
 - Matrix $C = AB$ of size $N \times N$
+
+## Notes:
+- All matrices $\text{A}$, $\text{B}$, and $\text{C}$ are stored in row-major order

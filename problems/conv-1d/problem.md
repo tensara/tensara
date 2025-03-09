@@ -4,6 +4,32 @@ title: "1D Convolution"
 difficulty: "EASY"
 author: "sarthak"
 tags: ["cuda-basics", "parallel-computing", "signal-processing"]
+parameters:
+  - name: "A"
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+
+  - name: "B" 
+    type: "[VAR]"
+    pointer: "true"
+    const: "true"
+
+  - name: "C" 
+    type: "[VAR]"
+    pointer: "true"
+    const: "false"
+
+  - name: "N"
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+    
+  - name: "K" 
+    type: "size_t"
+    pointer: "false"
+    constant: "false"
+    
 ---
 
 Perform 1D convolution between an input signal and a kernel:

@@ -36,13 +36,13 @@ bool run_test(TestCase<T> &test_case) {
 
     test_case.prepare_data(h_inputs.data(), h_outputs.data());
 
-    std::vector<T *> d_inputs(input_shapes.size());
+    std::vector<const T*> d_inputs(input_shapes.size());
     std::vector<T *> d_outputs(output_shapes.size());
     std::vector<T *> d_reference_outputs(output_shapes.size());
 
     for (size_t i = 0; i < input_shapes.size(); i++) {
-        cudaMalloc(&d_inputs[i], input_shapes[i]->size() * sizeof(T));
-        cudaMemcpy(d_inputs[i], h_inputs[i], input_shapes[i]->size() * sizeof(T), cudaMemcpyHostToDevice);
+        cudaMalloc(const_cast<T**>(&d_inputs[i]), input_shapes[i]->size() * sizeof(T));
+        cudaMemcpy(const_cast<T*>(d_inputs[i]), h_inputs[i], input_shapes[i]->size() * sizeof(T), cudaMemcpyHostToDevice);
     }
     for (size_t i = 0; i < output_shapes.size(); i++) {
         cudaMalloc(&d_outputs[i], output_shapes[i]->size() * sizeof(T));
@@ -68,7 +68,7 @@ bool run_test(TestCase<T> &test_case) {
 
     for (size_t i = 0; i < input_shapes.size(); i++) {
         delete[] h_inputs[i];
-        cudaFree(d_inputs[i]);
+        cudaFree(const_cast<T*>(d_inputs[i]));
     }
     for (size_t i = 0; i < output_shapes.size(); i++) {
         delete[] h_outputs[i];

@@ -54,6 +54,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { generateStarterCode, DataTypes } from "~/utils/starter";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -98,16 +99,17 @@ type Submission = {
 
 const LOCAL_STORAGE_PREFIX = "problem_solution_";
 
-const getSolutionKey = (slug: string) => `${LOCAL_STORAGE_PREFIX}${slug}`;
+const getSolutionKey = (slug: string, language: string, dataType: string) => 
+  `${LOCAL_STORAGE_PREFIX}${slug}_${language}_${dataType}`;
 
-const saveSolutionToStorage = (slug: string, code: string) => {
+const saveSolutionToStorage = (slug: string, code: string, language: string, dataType: string) => {
   if (typeof window === "undefined") return;
-  localStorage.setItem(getSolutionKey(slug), code);
+  localStorage.setItem(getSolutionKey(slug, language, dataType), code);
 };
 
-const loadSolutionFromStorage = (slug: string): string | null => {
+const loadSolutionFromStorage = (slug: string, language: string, dataType: string): string | null => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(getSolutionKey(slug));
+  return localStorage.getItem(getSolutionKey(slug, language, dataType));
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -176,6 +178,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const toast = useToast();
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [starterCode, setStarterCode] = useState("");
   const [submissionStatus, setSubmissionStatus] =
     useState<SubmissionStatus | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
@@ -187,6 +190,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isCodeDirty, setIsCodeDirty] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("cuda");
+  const [selectedDataType, setSelectedDataType] = useState<DataTypes>("float32");
   const isProcessing = useRef<boolean>(false);
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
@@ -570,37 +575,59 @@ export default function ProblemPage({ slug }: { slug: string }) {
     { enabled: !!slug }
   );
 
+  const getStarterCode = useCallback(() => {
+    return generateStarterCode(problem?.parameters, selectedLanguage, selectedDataType);
+  }, [problem?.parameters, selectedLanguage, selectedDataType]);
+
+
   useEffect(() => {
     if (!hasSetInitialCode && slug) {
-      const savedSolution = loadSolutionFromStorage(slug);
+      const savedSolution = loadSolutionFromStorage(slug, selectedLanguage, selectedDataType);
       if (savedSolution) {
         setCode(savedSolution);
         setHasSetInitialCode(true);
-      } else if (problem?.starterCode) {
-        setCode(problem.starterCode);
+      } else if (starterCode) {
+        setCode(starterCode);
         setHasSetInitialCode(true);
       }
     }
-  }, [slug, hasSetInitialCode, problem]);
+  }, [slug, hasSetInitialCode, problem, selectedLanguage, selectedDataType]);
 
   useEffect(() => {
     if (code && slug) {
-      saveSolutionToStorage(slug, code);
+      saveSolutionToStorage(slug, code, selectedLanguage, selectedDataType);
     }
   }, [code, slug]);
 
   useEffect(() => {
-    if (problem?.starterCode) {
-      setIsCodeDirty(code !== problem.starterCode);
+    if (starterCode) {
+      setIsCodeDirty(code !== starterCode);
     }
-  }, [code, problem?.starterCode]);
+  }, [code, starterCode]);
+
+  useEffect(() => {
+    const newStarterCode = generateStarterCode(problem?.parameters, selectedLanguage, selectedDataType);
+    if (newStarterCode) {
+      setStarterCode(newStarterCode);
+      
+      const savedSolution = loadSolutionFromStorage(slug, selectedLanguage, selectedDataType);
+      if (savedSolution) {
+        setCode(savedSolution);
+      } else {
+        setCode(newStarterCode);
+        if (slug) {
+          saveSolutionToStorage(slug, newStarterCode, selectedLanguage, selectedDataType);
+        }
+      }
+    }
+  }, [selectedLanguage, selectedDataType, problem?.parameters, slug]);
 
   const handleReset = () => {
-    if (problem?.starterCode) {
-      setCode(problem.starterCode);
-      // Clear localStorage
+    if (starterCode) {
+      setCode(starterCode);
+      // Clear localStorage only for current language/datatype combination
       if (slug) {
-        localStorage.removeItem(getSolutionKey(slug));
+        localStorage.removeItem(getSolutionKey(slug, selectedLanguage, selectedDataType));
       }
     }
   };
@@ -1369,6 +1396,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     bg="whiteAlpha.50"
                     borderColor="whiteAlpha.200"
                     _hover={{ borderColor: "whiteAlpha.300" }}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    value={selectedLanguage}
                     w="160px"
                     defaultValue="cuda"
                     borderRadius="full"
@@ -1394,7 +1423,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     borderColor="whiteAlpha.200"
                     _hover={{ borderColor: "whiteAlpha.300" }}
                     w="140px"
-                    defaultValue="float32"
+                    value={selectedDataType}
+                    onChange={(e) => setSelectedDataType(e.target.value as DataTypes)}
                     borderRadius="full"
                     sx={{
                       "& > option": {

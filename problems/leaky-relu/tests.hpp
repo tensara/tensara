@@ -4,7 +4,7 @@
 template<typename T>
 class LeakyReLUTest: public TestCase<T> {
 public:
-    using kernel_func_t = void (*)(T*, T*, size_t, size_t, T);
+    using kernel_func_t = void (*)(const T*, T*, size_t, size_t, T);
     
     LeakyReLUTest(size_t n, size_t m, T alpha, unsigned int seed = 42) : rng_(seed) {
         this->problem_size_ = n * m;
@@ -14,7 +14,7 @@ public:
         auto matrix_shape = std::vector<size_t>{n, m};
 
         this->inputs_ = {
-            std::make_shared<Tensor<T>>(matrix_shape)
+            std::make_shared<Tensor<const T>>(matrix_shape)
         };
         this->outputs_ = {
             std::make_shared<Tensor<T>>(matrix_shape)
@@ -46,7 +46,7 @@ public:
         return {n, m};
     }
 
-    void launch_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, 
+    void launch_kernel(const std::vector<const T*>& inputs, const std::vector<T*>& outputs, 
                       const std::vector<size_t>& sizes, void* kernel_func) override {
         auto typed_func = reinterpret_cast<kernel_func_t>(kernel_func);
         typed_func(inputs[0], outputs[0], sizes[0], sizes[1], alpha_);

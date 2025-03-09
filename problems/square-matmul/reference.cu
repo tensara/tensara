@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 
-__global__ void reference_matrix_multiply(float* A, float* B, float* C, size_t N) {
+__global__ void reference_matrix_multiply(const float* A, const float* B, float* C, size_t N) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -13,7 +13,7 @@ __global__ void reference_matrix_multiply(float* A, float* B, float* C, size_t N
     }
 }
 
-extern "C" void reference_solution(float* input_a, float* input_b, float* output_c, size_t n) {
+extern "C" void reference_solution(const float* input_a, const float* input_b, float* output_c, size_t n) {
     dim3 blockDim(16, 16);
     dim3 gridDim((n + blockDim.x - 1) / blockDim.x, 
                  (n + blockDim.y - 1) / blockDim.y);

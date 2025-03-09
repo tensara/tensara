@@ -89,8 +89,8 @@ model Problem {
   description String?
   difficulty  Difficulty
   author      String
+  parameters      Json  @default("[]")
 
-  starterCode String  @default("")
   tests       String? @db.Text
   reference   String? @db.Text
 

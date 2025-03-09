@@ -4,7 +4,7 @@
 template<typename T>
 class MatrixMultiplyTest: public TestCase<T> {
 public:
-    using kernel_func_t = void (*)(T*, T*, T*, size_t, size_t, size_t);
+    using kernel_func_t = void (*)(const T*, const T*, T*, size_t, size_t, size_t);
     
     MatrixMultiplyTest(size_t m, size_t n, size_t k, unsigned int seed = 42) : rng_(seed) {
         this->problem_size_ = m * n * k;
@@ -15,8 +15,8 @@ public:
         auto matrix_c_shape = std::vector<size_t>{m, n};
 
         this->inputs_ = {
-            std::make_shared<Tensor<T>>(matrix_a_shape),
-            std::make_shared<Tensor<T>>(matrix_b_shape)
+            std::make_shared<Tensor<const T>>(matrix_a_shape),
+            std::make_shared<Tensor<const T>>(matrix_b_shape)
         };
         this->outputs_ = {
             std::make_shared<Tensor<T>>(matrix_c_shape)
@@ -57,7 +57,7 @@ public:
         return {m, n, k};
     }
 
-    void launch_kernel(const std::vector<T*>& inputs, const std::vector<T*>& outputs, 
+    void launch_kernel(const std::vector<const T*>& inputs, const std::vector<T*>& outputs, 
                       const std::vector<size_t>& sizes, void* kernel_func) override {
         auto typed_func = reinterpret_cast<kernel_func_t>(kernel_func);
         typed_func(inputs[0], inputs[1], outputs[0], sizes[0], sizes[1], sizes[2]);
