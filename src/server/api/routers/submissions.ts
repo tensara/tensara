@@ -13,6 +13,10 @@ import { PrismaClient } from "@prisma/client";
 const leaderboardCache = new NodeCache({ stdTTL: 300 });
 let requestCounter = 0;
 
+// Add a new map for problem-specific leaderboard cache
+const problemLeaderboardCache = new NodeCache({ stdTTL: 300 });
+let problemRequestCounter = 0;
+
 // Type for our cached data
 type ProblemLeaderboard = {
   slug: string;
@@ -25,6 +29,16 @@ type ProblemLeaderboard = {
     username: string | null;
     runtime: number | null;
   }>;
+};
+
+// Add a type for problem leaderboard data
+type ProblemLeaderboardEntry = {
+  id: string;
+  username: string | null;
+  gflops: number;
+  runtime: number | null;
+  createdAt: Date;
+  gpuType: string | null;
 };
 
 // Warm up cache on server start
@@ -194,6 +208,54 @@ export const submissionsRouter = createTRPCRouter({
       leaderboardCache.set(cacheKey, data);
       return data;
     }),
+
+  getProblemLeaderboard: publicProcedure
+    .input(
+      z.object({
+        slug: z.string(),
+        gpuType: z.string().optional().default("all"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const cacheKey = `problem-leaderboard-${input.slug}-${input.gpuType}`;
+
+      // Check cache first
+      const cachedData = problemLeaderboardCache.get(cacheKey);
+      if (cachedData) {
+        console.log(
+          `[CACHE HIT] Problem leaderboard cache used for ${input.slug}, GPU: ${input.gpuType} (Request #${problemRequestCounter})`
+        );
+
+        problemRequestCounter++;
+        if (problemRequestCounter % 10 === 0) {
+          console.log(
+            `[CACHE REFRESH] Triggering background refresh for problem ${input.slug}, GPU: ${input.gpuType}`
+          );
+          void refreshProblemLeaderboardCache(
+            ctx,
+            input.slug,
+            input.gpuType,
+            cacheKey
+          );
+        }
+        return cachedData;
+      }
+
+      // Cache miss - compute data
+      console.log(
+        `[CACHE MISS] Computing problem leaderboard data for ${input.slug}, GPU: ${input.gpuType}`
+      );
+      const data = await computeProblemLeaderboardData(
+        ctx,
+        input.slug,
+        input.gpuType
+      );
+      console.log(
+        `[CACHE STORE] Storing new problem leaderboard data for ${input.slug}, GPU: ${input.gpuType}`
+      );
+      problemLeaderboardCache.set(cacheKey, data);
+      return data;
+    }),
 });
 
 async function computeLeaderboardData(
@@ -304,6 +366,101 @@ async function refreshLeaderboardCache(
   } catch (error) {
     console.error(
       `[CACHE REFRESH ERROR] Failed to refresh cache for GPU: ${gpuType}`,
+      error
+    );
+  }
+}
+
+// Function to compute problem leaderboard data
+async function computeProblemLeaderboardData(
+  ctx: { db: PrismaClient },
+  slug: string,
+  gpuType: string
+): Promise<ProblemLeaderboardEntry[]> {
+  // Get problem ID first
+  const problem = await ctx.db.problem.findUnique({
+    where: { slug },
+    select: { id: true, title: true },
+  });
+
+  if (!problem) return [];
+
+  // Get all submissions for this problem
+  const submissions = await ctx.db.submission.findMany({
+    where: {
+      problem: { slug },
+      status: "ACCEPTED",
+      gflops: { not: null },
+      ...(gpuType !== "all" ? { gpuType } : {}),
+    },
+    select: {
+      id: true,
+      gflops: true,
+      runtime: true,
+      gpuType: true,
+      createdAt: true,
+      user: {
+        select: {
+          username: true,
+        },
+      },
+    },
+    orderBy: { gflops: "desc" },
+  });
+
+  // Calculate best submission per user-GPU combination
+  const userGpuBestMap = new Map<string, (typeof submissions)[0]>();
+
+  for (const submission of submissions) {
+    if (!submission.gflops) continue;
+
+    const userGpuKey = `${submission.user.username ?? "Anonymous"}-${
+      submission.gpuType
+    }`;
+    const currentBest = userGpuBestMap.get(userGpuKey);
+
+    if (!currentBest || submission.gflops > currentBest.gflops!) {
+      userGpuBestMap.set(userGpuKey, submission);
+    }
+  }
+
+  // Return all best submissions sorted by GFLOPS
+  return Array.from(userGpuBestMap.values())
+    .sort((a, b) => b.gflops! - a.gflops!)
+    .map((sub) => ({
+      id: sub.id,
+      username: sub.user.username,
+      gflops: sub.gflops!,
+      runtime: sub.runtime,
+      createdAt: sub.createdAt,
+      gpuType: sub.gpuType,
+    }));
+}
+
+// Function to refresh problem cache in background
+async function refreshProblemLeaderboardCache(
+  ctx: { db: PrismaClient },
+  slug: string,
+  gpuType: string,
+  cacheKey: string
+) {
+  try {
+    console.log(
+      `[CACHE REFRESH START] Beginning refresh for problem ${slug}, GPU: ${gpuType}`
+    );
+    const startTime = Date.now();
+
+    const freshData = await computeProblemLeaderboardData(ctx, slug, gpuType);
+
+    const duration = Date.now() - startTime;
+    console.log(
+      `[CACHE REFRESH COMPLETE] Refreshed cache for problem ${slug}, GPU: ${gpuType} (took ${duration}ms)`
+    );
+
+    problemLeaderboardCache.set(cacheKey, freshData);
+  } catch (error) {
+    console.error(
+      `[CACHE REFRESH ERROR] Failed to refresh cache for problem ${slug}, GPU: ${gpuType}`,
       error
     );
   }
