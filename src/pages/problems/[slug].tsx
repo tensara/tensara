@@ -99,15 +99,24 @@ type Submission = {
 
 const LOCAL_STORAGE_PREFIX = "problem_solution_";
 
-const getSolutionKey = (slug: string, language: string, dataType: string) => 
+const getSolutionKey = (slug: string, language: string, dataType: string) =>
   `${LOCAL_STORAGE_PREFIX}${slug}_${language}_${dataType}`;
 
-const saveSolutionToStorage = (slug: string, code: string, language: string, dataType: string) => {
+const saveSolutionToStorage = (
+  slug: string,
+  code: string,
+  language: string,
+  dataType: string
+) => {
   if (typeof window === "undefined") return;
   localStorage.setItem(getSolutionKey(slug, language, dataType), code);
 };
 
-const loadSolutionFromStorage = (slug: string, language: string, dataType: string): string | null => {
+const loadSolutionFromStorage = (
+  slug: string,
+  language: string,
+  dataType: string
+): string | null => {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(getSolutionKey(slug, language, dataType));
 };
@@ -151,7 +160,10 @@ const getStatusMessage = (status: SubmissionStatus): string => {
     return "Running benchmarks...";
   } else if (status.message?.startsWith("checker: compiling")) {
     return "Compiling...";
-  } else if (status.message?.startsWith("checker: running") || status.message?.startsWith("checker: test_result")) {
+  } else if (
+    status.message?.startsWith("checker: running") ||
+    status.message?.startsWith("checker: test_result")
+  ) {
     return "Running tests...";
   } else if (status.message?.startsWith("checker: complete")) {
     return "Tests complete";
@@ -191,7 +203,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [isCodeDirty, setIsCodeDirty] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState("cuda");
-  const [selectedDataType, setSelectedDataType] = useState<DataTypes>("float32");
+  const [selectedDataType, setSelectedDataType] =
+    useState<DataTypes>("float32");
   const isProcessing = useRef<boolean>(false);
 
   const submissionsQuery = api.problems.getSubmissions.useQuery(
@@ -576,13 +589,17 @@ export default function ProblemPage({ slug }: { slug: string }) {
   );
 
   const getStarterCode = useCallback(() => {
-    return generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType);
-  }, [problem?.parameters, selectedLanguage, selectedDataType]);
-
+    const parameters: Parameter[] = [];
+    return generateStarterCode(parameters, selectedLanguage, selectedDataType);
+  }, [selectedLanguage, selectedDataType]);
 
   useEffect(() => {
     if (!hasSetInitialCode && slug) {
-      const savedSolution = loadSolutionFromStorage(slug, selectedLanguage, selectedDataType);
+      const savedSolution = loadSolutionFromStorage(
+        slug,
+        selectedLanguage,
+        selectedDataType
+      );
       if (savedSolution) {
         setCode(savedSolution);
         setHasSetInitialCode(true);
@@ -591,7 +608,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
         setHasSetInitialCode(true);
       }
     }
-  }, [slug, hasSetInitialCode, problem, selectedLanguage, selectedDataType]);
+  }, [
+    slug,
+    hasSetInitialCode,
+    selectedLanguage,
+    selectedDataType,
+    starterCode,
+  ]);
 
   useEffect(() => {
     if (code && slug) {
@@ -606,28 +629,43 @@ export default function ProblemPage({ slug }: { slug: string }) {
   }, [code, starterCode]);
 
   useEffect(() => {
-    const newStarterCode = generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType);
+    const newStarterCode = generateStarterCode(
+      [],
+      selectedLanguage,
+      selectedDataType
+    );
     if (newStarterCode) {
       setStarterCode(newStarterCode);
-      
-      const savedSolution = loadSolutionFromStorage(slug, selectedLanguage, selectedDataType);
+
+      const savedSolution = loadSolutionFromStorage(
+        slug,
+        selectedLanguage,
+        selectedDataType
+      );
       if (savedSolution) {
         setCode(savedSolution);
       } else {
         setCode(newStarterCode);
         if (slug) {
-          saveSolutionToStorage(slug, newStarterCode, selectedLanguage, selectedDataType);
+          saveSolutionToStorage(
+            slug,
+            newStarterCode,
+            selectedLanguage,
+            selectedDataType
+          );
         }
       }
     }
-  }, [selectedLanguage, selectedDataType, problem?.parameters, slug]);
+  }, [selectedLanguage, selectedDataType, slug]);
 
   const handleReset = () => {
     if (starterCode) {
       setCode(starterCode);
       // Clear localStorage only for current language/datatype combination
       if (slug) {
-        localStorage.removeItem(getSolutionKey(slug, selectedLanguage, selectedDataType));
+        localStorage.removeItem(
+          getSolutionKey(slug, selectedLanguage, selectedDataType)
+        );
       }
     }
   };
@@ -1378,13 +1416,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       },
                     }}
                   >
-                    {
-                      Object.entries(GPU_DISPLAY_NAMES)
-                        .filter(([key]) => key !== "all")
-                        .map(([key, value]) => (
-                          <option key={key} value={key}>{value}</option>
-                        ))
-                    }
+                    {Object.entries(GPU_DISPLAY_NAMES)
+                      .filter(([key]) => key !== "all")
+                      .map(([key, value]) => (
+                        <option key={key} value={key}>
+                          {value}
+                        </option>
+                      ))}
                   </Select>
                 </Box>
                 <Box>
@@ -1424,7 +1462,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     _hover={{ borderColor: "whiteAlpha.300" }}
                     w="140px"
                     value={selectedDataType}
-                    onChange={(e) => setSelectedDataType(e.target.value as DataTypes)}
+                    onChange={(e) =>
+                      setSelectedDataType(e.target.value as DataTypes)
+                    }
                     borderRadius="full"
                     sx={{
                       "& > option": {

@@ -17,14 +17,23 @@ interface BlogPostProps {
   content: string;
 }
 
-export default function BenchmarkingSolutionsPage({ title, date, content }: BlogPostProps) {
+export default function BenchmarkingSolutionsPage({
+  title,
+  date,
+  content,
+}: BlogPostProps) {
   const formattedDate = format(new Date(date), "MMMM d, yyyy");
 
   return (
     <Layout title={title}>
       <Container maxW="4xl" py={8}>
         <Box mb={10}>
-          <Heading as="h1" size="2xl" mb={4} fontFamily="Space Grotesk, sans-serif">
+          <Heading
+            as="h1"
+            size="2xl"
+            mb={4}
+            fontFamily="Space Grotesk, sans-serif"
+          >
             {title}
           </Heading>
           <Text fontSize="lg" color="gray.400">
@@ -63,7 +72,7 @@ export default function BenchmarkingSolutionsPage({ title, date, content }: Blog
                 <Box
                   as="pre"
                   p={6}
-                  bg="brand.secondary" 
+                  bg="brand.secondary"
                   borderRadius="xl"
                   overflowX="auto"
                   mb={6}
@@ -83,11 +92,14 @@ export default function BenchmarkingSolutionsPage({ title, date, content }: Blog
 }
 
 export const getStaticProps: GetStaticProps<BlogPostProps> = async () => {
-  const filePath = path.join(process.cwd(), "public/content/benchmarking-solutions.md");
+  const filePath = path.join(
+    process.cwd(),
+    "public/content/benchmarking-solutions.md"
+  );
   const fileContents = fs.readFileSync(filePath, "utf8");
 
   const { data, content } = matter(fileContents);
-  
+
   return {
     props: {
       title: data.title as string,

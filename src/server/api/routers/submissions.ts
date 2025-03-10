@@ -7,6 +7,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import NodeCache from "node-cache";
 import type { Problem, Submission, User } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 // Create cache with 5 minute TTL
 const leaderboardCache = new NodeCache({ stdTTL: 300 });
@@ -20,14 +21,14 @@ type ProblemLeaderboard = {
   topSubmissions: Array<{
     id: string;
     gflops: number;
-    gpuType: string;
+    gpuType: string | null;
     username: string | null;
     runtime: number | null;
   }>;
 };
 
 // Warm up cache on server start
-async function warmupCache(ctx: any) {
+async function warmupCache(ctx: { db: PrismaClient }) {
   console.log(`[CACHE WARMUP] Starting cache warmup for all GPU types`);
   const startTime = Date.now();
 
@@ -51,11 +52,13 @@ async function warmupCache(ctx: any) {
   }
 }
 
-// Call this when your server starts
-if (process.env.NODE_ENV === "production") {
-  const { db } = await import("~/server/db");
-  void warmupCache({ db });
-}
+// Export the function to be called elsewhere
+export const initializeLeaderboardCache = async () => {
+  if (process.env.NODE_ENV === "production") {
+    const { db } = await import("~/server/db");
+    void warmupCache({ db });
+  }
+};
 
 export const submissionsRouter = createTRPCRouter({
   // all submissions (public or not) for the current user
@@ -194,7 +197,7 @@ export const submissionsRouter = createTRPCRouter({
 });
 
 async function computeLeaderboardData(
-  ctx: any,
+  ctx: { db: PrismaClient },
   gpuType: string
 ): Promise<ProblemLeaderboard[]> {
   // Get all problems with their top submissions in a single query
@@ -240,7 +243,7 @@ async function computeLeaderboardData(
       submissions: Array<{
         id: string;
         gflops: number | null;
-        gpuType: string;
+        gpuType: string | null;
         runtime: number | null;
         user: { username: string | null };
       }>;
@@ -283,7 +286,7 @@ async function computeLeaderboardData(
 
 // Function to refresh cache in background
 async function refreshLeaderboardCache(
-  ctx: any,
+  ctx: { db: PrismaClient },
   gpuType: string,
   cacheKey: string
 ) {

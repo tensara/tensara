@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { env } from "~/env";
 
 // // Simulated evaluation delay
