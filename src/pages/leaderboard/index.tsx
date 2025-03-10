@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardBody,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
@@ -41,11 +41,13 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     transformer: superjson,
   });
 
-  // Prefetch problems
-  await helpers.problems.getAll.prefetch();
-
-  // Prefetch public submissions instead of all submissions
-  await helpers.submissions.getLeaderboardSubmissions.prefetch();
+  // Prefetch ALL GPU types during server-side render
+  const gpuTypes = ["all", "A100", "H100", "RTX4090"];
+  await Promise.all(
+    gpuTypes.map((gpuType) =>
+      helpers.submissions.getBestSubmissionsByProblem.prefetch({ gpuType })
+    )
+  );
 
   return {
     props: {
@@ -59,43 +61,18 @@ const LeaderboardIndexPage: NextPage = () => {
   const router = useRouter();
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
 
-  const { data: problems, isLoading: isProblemsLoading } =
-    api.problems.getAll.useQuery();
-
-  // Use the appropriate query based on auth status
-  const { data: submissions, isLoading: isSubmissionsLoading } = api.submissions.getLeaderboardSubmissions.useQuery();
-
-  // Process submissions to get the best submission per user per problem per GPU type
-  const getBestSubmissions = (problemSlug: string) => {
-    if (!submissions) return [];
-
-    const problemSubmissions = submissions.filter(
-      (submission) => submission.problem.slug === problemSlug
-    );
-
-    const userGpuBestMap = new Map<string, (typeof submissions)[0]>();
-
-    problemSubmissions.forEach((submission) => {
-      if (submission.status !== "ACCEPTED" || !submission.gflops) return;
-
-      if (selectedGpu !== "all" && submission.gpuType !== selectedGpu) return;
-
-      const userGpuKey = `${submission.user.username ?? "Anonymous"}-${
-        submission.gpuType
-      }`;
-      const currentBest = userGpuBestMap.get(userGpuKey);
-
-      if (!currentBest || submission.gflops > currentBest.gflops!) {
-        userGpuBestMap.set(userGpuKey, submission);
+  const { data: leaderboardData, isLoading } =
+    api.submissions.getBestSubmissionsByProblem.useQuery(
+      { gpuType: selectedGpu },
+      {
+        placeholderData: (prev) => prev,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        staleTime: 300000,
       }
-    });
-
-    return Array.from(userGpuBestMap.values()).sort(
-      (a, b) => (b.gflops ?? 0) - (a.gflops ?? 0)
     );
-  };
 
-  if (isProblemsLoading || isSubmissionsLoading) {
+  if (isLoading) {
     return (
       <Layout title="Leaderboard">
         <Box
@@ -126,21 +103,17 @@ const LeaderboardIndexPage: NextPage = () => {
               _hover={{ borderColor: "whiteAlpha.400" }}
               _focus={{ borderColor: "blue.500" }}
             >
-              {
-                Object.entries(GPU_DISPLAY_NAMES)
-                  .map(([key, value]) => (
-                    <option key={key} value={key}>{value}</option>
-                  ))
-              }
+              {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
+                <option key={key} value={key}>
+                  {value}
+                </option>
+              ))}
             </Select>
           </HStack>
 
           <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-            {problems?.map((problem) => {
-              const topSubmissions = getBestSubmissions(problem.slug).slice(
-                0,
-                3
-              );
+            {leaderboardData?.map((problem) => {
+              const topSubmissions = problem.topSubmissions;
 
               return (
                 <Card
@@ -222,7 +195,7 @@ const LeaderboardIndexPage: NextPage = () => {
                                 </Badge>
                               </Td>
                               <Td color="white">
-                                {submission.user.username ?? "Anonymous"}
+                                {submission.username ?? "Anonymous"}
                               </Td>
                               <Td>
                                 <Badge
