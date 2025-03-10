@@ -170,9 +170,11 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
               onChange={(e) => setSelectedGpu(e.target.value)}
               w="200px"
               bg="whiteAlpha.50"
+              borderColor="transparent"
+              _hover={{ borderColor: "gray.600" }}
+              _focus={{ borderColor: "gray.500" }}
               color="white"
             >
-              <option value="all">All GPUs</option>
               {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                 <option key={key} value={key}>
                   {value}
@@ -184,14 +186,14 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
           {leaderboardEntries && leaderboardEntries.length > 0 ? (
             <Box overflowX="auto">
               <Table variant="simple">
-                <Thead>
+                <Thead borderBottom="1px solid" borderColor="whiteAlpha.100">
                   <Tr>
-                    <Th>Rank</Th>
-                    <Th>User</Th>
-                    <Th>GPU</Th>
-                    <Th isNumeric>GFLOPS</Th>
-                    <Th isNumeric>Runtime (ms)</Th>
-                    <Th>Date</Th>
+                    <Th borderBottom="none">Rank</Th>
+                    <Th borderBottom="none">User</Th>
+                    <Th borderBottom="none">GPU</Th>
+                    <Th borderBottom="none" isNumeric>GFLOPS</Th>
+                    <Th borderBottom="none" isNumeric>Runtime (ms)</Th>
+                    <Th borderBottom="none">Date</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -201,8 +203,9 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                       onClick={() => router.push(`/submissions/${entry.id}`)}
                       cursor="pointer"
                       _hover={{ bg: "whiteAlpha.100" }}
+                      borderBottom="1px solid" borderColor="whiteAlpha.100"
                     >
-                      <Td>
+                      <Td borderBottom="none">
                         <Badge
                           colorScheme={
                             index === 0
@@ -217,15 +220,23 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           #{index + 1}
                         </Badge>
                       </Td>
-                      <Td>{entry.username ?? "Anonymous"}</Td>
-                      <Td>
+                      <Td borderBottom="none">{entry.username ?? "Anonymous"}</Td>
+                      <Td borderBottom="none">
                         <Badge colorScheme="purple">{entry.gpuType}</Badge>
                       </Td>
-                      <Td isNumeric color="green.300" fontWeight="bold">
+                      <Td isNumeric color="green.300" fontWeight="bold" borderBottom="none">
                         {(entry.gflops ?? 0).toFixed(2)}
                       </Td>
-                      <Td isNumeric>{entry.runtime?.toFixed(2) ?? "N/A"}</Td>
-                      <Td>{new Date(entry.createdAt).toLocaleDateString()}</Td>
+                      <Td isNumeric borderBottom="none">{entry.runtime?.toFixed(2) ?? "N/A"}</Td>
+                      <Td borderBottom="none">
+                        <Tooltip
+                          label={new Date(entry.createdAt).toLocaleString()}
+                        >
+                          <Text>
+                            {formatDistanceToNow(new Date(entry.createdAt))} ago
+                          </Text>
+                        </Tooltip>
+                      </Td>
                     </Tr>
                   ))}
                 </Tbody>
