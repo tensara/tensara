@@ -50,12 +50,32 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const id = context.params?.id as string;
 
   try {
+    // Prefetch submission data
     await helpers.submissions.getSubmissionById.prefetch({ id });
+
+    // Get submission data for metadata
+    const submission = await helpers.problems.getSubmissionStatus.fetch({
+      submissionId: id,
+    });
+
+    // Create an engaging social-friendly title
+    let pageTitle = `View submission ${id.substring(0, 8)}`;
+
+    if (submission) {
+      const problemName = submission.problem?.title ?? "problem";
+      pageTitle = `View ${problemName} submission`;
+
+      // Add performance if available
+      if (submission.gflops) {
+        pageTitle += ` (${submission.gflops.toFixed(2)} GFLOPS)`;
+      }
+    }
 
     return {
       props: {
         trpcState: helpers.dehydrate(),
         id,
+        pageTitle,
       },
     };
   } catch (error) {
@@ -64,6 +84,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         return {
           props: {
             error: "You don't have permission to view this submission",
+            pageTitle: `View submission ${id.substring(0, 8)}`,
           },
         };
       }
@@ -72,7 +93,29 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 };
 
-const SubmissionPage: NextPage<{ id: string }> = ({ id }) => {
+// Helper function for formatting status - moved outside component to be used in getServerSideProps
+const formatStatus = (status: string | null) => {
+  switch (status) {
+    case "ACCEPTED":
+      return "Accepted";
+    case "WRONG_ANSWER":
+      return "Wrong Answer";
+    case "ERROR":
+      return "Error";
+    case "CHECKING":
+      return "Checking";
+    case "BENCHMARKING":
+      return "Benchmarking";
+    default:
+      return status ?? "Unknown";
+  }
+};
+
+const SubmissionPage: NextPage<{
+  id: string;
+  pageTitle: string;
+  error?: string;
+}> = ({ id, pageTitle, error }) => {
   // const router = useRouter();
   const [code, setCode] = useState("");
   const { data: session } = useSession();
@@ -122,7 +165,7 @@ const SubmissionPage: NextPage<{ id: string }> = ({ id }) => {
 
   if (isLoading) {
     return (
-      <Layout title="Loading...">
+      <Layout title={pageTitle}>
         <Box
           display="flex"
           justifyContent="center"
@@ -137,7 +180,7 @@ const SubmissionPage: NextPage<{ id: string }> = ({ id }) => {
 
   if (!submission) {
     return (
-      <Layout title="Not Found">
+      <Layout title={pageTitle}>
         <Box p={8}>
           <Text>Submission not found</Text>
         </Box>
@@ -169,27 +212,10 @@ const SubmissionPage: NextPage<{ id: string }> = ({ id }) => {
     }
   };
 
-  const formatStatus = (status: string | null) => {
-    switch (status) {
-      case "ACCEPTED":
-        return "Accepted";
-      case "WRONG_ANSWER":
-        return "Wrong Answer";
-      case "ERROR":
-        return "Error";
-      case "CHECKING":
-        return "Checking";
-      case "BENCHMARKING":
-        return "Benchmarking";
-      default:
-        return status ?? "Unknown";
-    }
-  };
-
   const hasCode = "code" in submission;
 
   return (
-    <Layout title={`Submission ${id}`}>
+    <Layout title={pageTitle}>
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <VStack spacing={6} align="stretch">
           {/* Problem Link */}
