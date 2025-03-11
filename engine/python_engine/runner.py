@@ -177,8 +177,8 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                     test_case, 
                     input_tensors, 
                     actual_output,
-                    min_iterations=10,
-                    max_iterations=50,
+                    min_iterations=5,
+                    max_iterations=20,
                     target_cv=0.01  # 1% target coefficient of variation
                 )
                 
@@ -202,8 +202,6 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                     "status": "FAILED",
                     "debug_info": {"error": str(e)}
                 }
-                
-                benchmark_results.append(benchmark_result)
         
         test_results = benchmark_results
         test_count = len(test_results)

@@ -269,22 +269,16 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     
     if len(runtimes) > 1:
         mean_runtime = statistics.mean(runtimes)
-        stdev_runtime = statistics.stdev(runtimes)
-        min_runtime = min(runtimes)
     else:
         mean_runtime = runtimes[0]
-        stdev_runtime = 0
-        min_runtime = runtimes[0]
 
     mean_gflops = statistics.mean(gflops_measurements)
-    min_gflops = min(gflops_measurements)
     if len(gflops_measurements) > 1:
         stdev_gflops = statistics.stdev(gflops_measurements)
     else:
         stdev_gflops = 0
     
     benchmark_result = {
-        "test_id": test_case["test_id"],
         "name": test_case["name"],
         "status": "PASSED",
         "gflops": mean_gflops,
