@@ -144,27 +144,6 @@ def create_streaming_response(generator_func):
         }
     )
 
-def format_benchmark_summary(benchmark_results):
-    """Format the benchmark summary statistics"""
-    passed_results = [r for r in benchmark_results if r["status"] == "PASSED"]
-    
-    if passed_results:
-        avg_gflops = statistics.mean([r["performance_stats"]["mean_gflops"] for r in passed_results])
-        max_gflops = max([r["performance_stats"]["max_gflops"] for r in passed_results])
-        avg_throughput = statistics.mean([r["memory_stats"]["mean_throughput_gbps"] for r in passed_results])
-    else:
-        avg_gflops = 0
-        max_gflops = 0
-        avg_throughput = 0
-    
-    return {
-        "avg_gflops": avg_gflops,
-        "max_gflops": max_gflops,
-        "avg_memory_throughput_gbps": avg_throughput,
-        "total_tests": len(benchmark_results),
-        "passed_tests": len(passed_results)
-    }
-
 
 def load_problem_module(problem_type: str) -> Problem:
     """
@@ -207,9 +186,7 @@ def prepare_gpu():
     del warmup_tensor
     torch.cuda.empty_cache()
     
-    # Let the GPU rest please
-    time.sleep(1)
-
+    time.sleep(0.5)
 
 def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_output, 
                           min_iterations=5, max_iterations=15, target_cv=0.02):
