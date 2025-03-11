@@ -1,0 +1,5 @@
+{
+  "solution_code": "#include <cuda_runtime.h>\n\n__global__ void reference_matrix_multiply(float* A, float* B, float* C, size_t M, size_t N, size_t K) {\n    int row = blockIdx.y * blockDim.y + threadIdx.y;\n    int col = blockIdx.x * blockDim.x + threadIdx.x;\n\n    if (row < M && col < N) {\n        float sum = 0.0f;\n        for (int i = 0; i < K; i++) {\n            sum += A[row * K + i] * B[i * N + col];\n        }\n        C[row * N + col] = sum;\n    }\n}\n\nextern \"C\" void solution(float* input_a, float* input_b, float* output_c, size_t m, size_t n, size_t k) {\n    dim3 blockDim(16, 16);\n    dim3 gridDim((n + blockDim.x - 1) / blockDim.x, \n                 (m + blockDim.y - 1) / blockDim.y);\n\n    reference_matrix_multiply<<<gridDim, blockDim>>>(input_a, input_b, output_c, m, n, k);   \n}",
+  "problem": "matrix_multiplication",
+  "gpu": "T4"
+}
