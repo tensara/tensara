@@ -185,8 +185,6 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                 benchmark_results.append(benchmark_result)
                 
                 yield {
-                    "test_id": test_id,
-                    "name": test_name,
                     "status": "test_result",
                     "result": benchmark_result,
                     "totalTests": total_tests,

@@ -284,6 +284,8 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
         stdev_gflops = 0
     
     benchmark_result = {
+        "test_id": test_case["test_id"],
+        "name": test_case["name"],
         "status": "PASSED",
         "gflops": mean_gflops,
         "runtime_ms": mean_runtime * 1000,
