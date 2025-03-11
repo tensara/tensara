@@ -133,17 +133,6 @@ def read_bytes_as_cuda_lib(compiled_lib: bytes):
     
     return cuda_lib
 
-def create_streaming_response(generator_func):
-    """Create a FastAPI StreamingResponse from a generator function"""
-    return StreamingResponse(
-        generator_func(),
-        media_type="application/x-ndjson",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive"
-        }
-    )
-
 
 def load_problem_module(problem_type: str) -> Problem:
     """
