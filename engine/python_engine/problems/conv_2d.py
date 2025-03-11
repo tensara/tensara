@@ -63,9 +63,9 @@ class conv_2d(Problem):
             ("XLarge", 4096, 4096, 9, 9),
             ("XXLarge", 8192, 8192, 11, 11),
             ("XXXLarge", 16384, 16384, 13, 13),
-            ("Medium-LargeK", 1024, 1024, 32, 32),
-            ("Large-LargeK", 2048, 2048, 64, 64),
-            ("XLarge-LargeK", 4096, 4096, 128, 128)
+            ("Medium-LargeK", 1024, 1024, 31, 31),
+            ("Large-LargeK", 2048, 2048, 63, 63),
+            ("XLarge-LargeK", 4096, 4096, 127, 127)
         ]
         
         return [
