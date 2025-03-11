@@ -210,13 +210,13 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
 
         if test_count > 0:
             # Average mean GFLOPS
-            avg_gflops = statistics.mean([r["gflops"] for r in test_results])
+            avg_gflops = statistics.mean([r["result"]["gflops"] for r in test_results])
 
             # Average runtime in milliseconds
-            avg_runtime_ms = statistics.mean([r["runtime_ms"] for r in test_results])
+            avg_runtime_ms = statistics.mean([r["result"]["runtime_ms"] for r in test_results])
 
             # Calculate average standard deviation of GFLOPS within tests
-            avg_stdev_gflops = statistics.mean([r["stdev_gflops"] for r in test_results])
+            avg_stdev_gflops = statistics.mean([r["result"]["stdev_gflops"] for r in test_results])
         else:
             avg_gflops = 0
             avg_runtime_ms = 0
