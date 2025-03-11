@@ -142,10 +142,9 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
     """
     try:
         # Compile the solution
-        yield json.dumps({"status": "compiling"})
         problem = utils.load_problem_module(problem_name)
         cuda_lib = utils.read_bytes_as_cuda_lib(compiled_lib)
-        yield json.dumps({"status": "running"})
+        yield {"status": "running"}
         # Set function signature
         func_sig = problem.get_function_signature()
         cuda_lib.solution.argtypes = func_sig["argtypes"]
@@ -170,18 +169,9 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                 input_tensors = test_case["create_inputs"]()
                 expected_output = problem.reference_solution(*input_tensors).cpu()
                 actual_output = torch.zeros_like(expected_output, device='cuda')
-                
-                # Prepare pointers for CUDA
                 input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
                              for tensor in input_tensors]
-                output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
-                extra_params = problem.get_extra_params(test_case)
                 
-                # First run to verify correctness
-                cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
-                torch.cuda.synchronize()
-                
-                # Run the dynamic benchmark
                 benchmark_result = utils.run_dynamic_benchmark(
                     cuda_lib, 
                     problem, 
@@ -190,7 +180,7 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                     actual_output,
                     min_iterations=10,
                     max_iterations=50,
-                    target_cv=0.01  # 1% target coefficient of variation for high accuracy
+                    target_cv=0.01  # 1% target coefficient of variation
                 )
                 
                 benchmark_results.append(benchmark_result)
@@ -202,7 +192,7 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                 }
                 
                 # Clean up memory
-                del input_tensors, expected_output, actual_output, input_ptrs, output_ptr
+                del input_tensors, expected_output, actual_output, input_ptrs
                 gc.collect()
                 torch.cuda.empty_cache()
                 
