@@ -210,32 +210,6 @@ def prepare_gpu():
     # Let the GPU rest please
     time.sleep(1)
 
-def lower_bound_memory_throughput(input_tensors, output_tensor, runtime_seconds):
-    """
-    Calculate memory throughput for a CUDA kernel execution.
-    
-    Args:
-        input_tensors: List of input tensors
-        output_tensor: Output tensor
-        runtime_seconds: Runtime in seconds
-        
-    Returns:
-        memory_throughput_gbps: Memory throughput in GB/s
-    """
-    # Calculate bytes read (inputs)
-    input_bytes = sum(tensor.nelement() * tensor.element_size() for tensor in input_tensors)
-    
-    # Calculate bytes written (output)
-    output_bytes = output_tensor.nelement() * output_tensor.element_size()
-    
-    # Total bytes transferred
-    total_bytes = input_bytes + output_bytes
-    
-    # Calculate throughput in GB/s
-    memory_throughput_gbps = (total_bytes / runtime_seconds) / 1e9
-    
-    return memory_throughput_gbps, input_bytes, output_bytes
-
 
 def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_output, 
                           min_iterations=5, max_iterations=15, target_cv=0.02):
