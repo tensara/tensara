@@ -185,7 +185,7 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                 benchmark_results.append(benchmark_result)
                 
                 yield {
-                    "status": "benchmark_result",
+                    "status": "test_result",
                     "result": benchmark_result,
                     "totalTests": total_tests,
                 }
@@ -206,7 +206,7 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                 benchmark_results.append(benchmark_result)
                 
                 yield {
-                    "status": "benchmark_result",
+                    "status": "test_result",
                     "result": benchmark_result,
                     "totalTests": total_tests,
                 }
@@ -231,7 +231,7 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
         # Return final summary with additional metrics
         yield {
             "status": "success",
-            "benchmark_results": benchmark_results,
+            "test_results": test_results,
             "gflops": avg_gflops,
             "runtime_ms": avg_runtime_ms,
             "stdev_gflops": avg_stdev_gflops,
