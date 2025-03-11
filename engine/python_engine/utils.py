@@ -9,11 +9,9 @@ import torch
 import time
 import ctypes
 import statistics
-from fastapi.responses import StreamingResponse
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Dict
 
 
 
@@ -178,9 +176,10 @@ def prepare_gpu():
     time.sleep(0.5)
 
 def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_output, 
-                          min_iterations=5, max_iterations=15, target_cv=0.02):
+                          min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0):
     """
     Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
+    If kernel execution time exceeds threshold, run fixed number of iterations instead.
     
     Args:
         cuda_lib: CUDA library with the solution function
@@ -191,6 +190,7 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
         min_iterations: Minimum number of iterations to run
         max_iterations: Maximum number of iterations to run
         target_cv: Target coefficient of variation to achieve
+        long_kernel_threshold: Time in seconds above which CV convergence is skipped
         
     Returns:
         benchmark_result: Dictionary with benchmark results
@@ -208,11 +208,31 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
     torch.cuda.synchronize()
     
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    
+    start_event.record()
+    cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
+    end_event.record()
+    torch.cuda.synchronize()
+    
+    initial_runtime = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
+    
+    # Determine if this is a long-running kernel and how many iterations to run
+    is_long_kernel = initial_runtime >= long_kernel_threshold
+    
+    if is_long_kernel:
+        # For long kernels, use fixed number of iterations
+        target_iterations = (min_iterations + max_iterations) // 2
+    else:
+        # For short kernels, use CV-based convergence with max_iterations cap
+        target_iterations = max_iterations
+    
     # Collect runtime measurements
-    runtimes = []
-    gflops_measurements = []
+    runtimes = [initial_runtime]  # Include the initial runtime
+    gflops_measurements = [(flops / initial_runtime) / 1e9]  # Convert to GFLOPS
 
-    for iteration in range(max_iterations):
+    for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
         
@@ -226,7 +246,6 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
         end_event.record()
         torch.cuda.synchronize()
         
-        # Get elapsed time in seconds
         elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
         runtimes.append(elapsed_time)
         
@@ -234,9 +253,9 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
         gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
         gflops_measurements.append(gflops)
         
-        
         # Check if we've done enough iterations and the variance is low enough
-        if iteration + 1 >= min_iterations:
+        # Only do this check for short kernels
+        if not is_long_kernel and iteration + 1 >= min_iterations:
             mean_gflops = statistics.mean(gflops_measurements)
             
             # Can only calculate stdev with more than 1 sample
@@ -244,10 +263,7 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
                 stdev_gflops = statistics.stdev(gflops_measurements)
                 cv = stdev_gflops / mean_gflops if mean_gflops > 0 else float('inf')
                 
-                print(f"  Current CV: {cv:.4f} (target: {target_cv})")
-                
                 if cv < target_cv:
-                    print(f"  Reached target coefficient of variation after {iteration+1} iterations")
                     break
 
     
@@ -256,8 +272,9 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
         stdev_runtime = statistics.stdev(runtimes)
         min_runtime = min(runtimes)
     else:
-        mean_runtime = 0
+        mean_runtime = runtimes[0]
         stdev_runtime = 0
+        min_runtime = runtimes[0]
 
     mean_gflops = statistics.mean(gflops_measurements)
     min_gflops = min(gflops_measurements)
@@ -266,12 +283,8 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     else:
         stdev_gflops = 0
     
-    
-
     benchmark_result = {
-        "name": test_case.get("name", "Unknown"),
         "status": "PASSED",
-        "iterations_run": len(runtimes),
         "gflops_stats": {
             "mean_gflops": mean_gflops,
             "min_gflops": min_gflops, 

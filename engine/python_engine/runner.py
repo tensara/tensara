@@ -1,10 +1,9 @@
 import json
 import ctypes
-import time
 import torch
 import gc
 from typing import Iterator
-from problem import Problem
+import statistics
 import utils
 
 def run_checker(problem_name: str, compiled: bytes) -> Iterator[str]:
@@ -223,74 +222,41 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
                     "totalTests": total_tests,
                 }
         
-        # Calculate overall statistics - compute the average GFLOPS across all tests
         test_results = benchmark_results
         test_count = len(test_results)
-        avg_gflops = 0
-        
+
         if test_count > 0:
-            gflops_values = [result["performance_stats"]["mean_gflops"] 
-                            for result in test_results 
-                            if result["status"] == "PASSED" and "performance_stats" in result]
-            
-            if gflops_values:
-                avg_gflops = sum(gflops_values) / len(gflops_values)
-        
-        # Compute additional important aggregate metrics from run_dynamic_benchmark
-        all_runtime_stats = {}
-        all_performance_stats = {}
-        all_memory_stats = {}
-        
-        if test_count > 0:
-            # Collect all the important metrics
-            for result in test_results:
-                if result["status"] == "PASSED":
-                    # Get the detailed statistics
-                    if "runtime_stats" in result:
-                        for key, value in result["runtime_stats"].items():
-                            all_runtime_stats.setdefault(key, []).append(value)
-                    
-                    if "performance_stats" in result:
-                        for key, value in result["performance_stats"].items():
-                            all_performance_stats.setdefault(key, []).append(value)
-                    
-                    if "memory_stats" in result:
-                        for key, value in result["memory_stats"].items():
-                            all_memory_stats.setdefault(key, []).append(value)
-        
-        # Calculate aggregates for the important metrics
-        runtime_summary = {}
-        performance_summary = {}
-        memory_summary = {}
-        
-        # Process runtime stats
-        if all_runtime_stats:
-            for key, values in all_runtime_stats.items():
-                if key != "cv":  # CV doesn't make sense to average
-                    runtime_summary[f"avg_{key}"] = sum(values) / len(values)
-                    runtime_summary[f"min_{key}"] = min(values)
-                    runtime_summary[f"max_{key}"] = max(values)
-        
-        # Process performance stats
-        if all_performance_stats:
-            for key, values in all_performance_stats.items():
-                if key != "cv":  # CV doesn't make sense to average
-                    performance_summary[f"avg_{key}"] = sum(values) / len(values)
-                    performance_summary[f"min_{key}"] = min(values)
-                    performance_summary[f"max_{key}"] = max(values)
-        
-        # Process memory stats
-        if all_memory_stats:
-            for key, values in all_memory_stats.items():
-                memory_summary[f"avg_{key}"] = sum(values) / len(values)
-                memory_summary[f"min_{key}"] = min(values)
-                memory_summary[f"max_{key}"] = max(values)
-        
-        # Return the required format along with the detailed metrics
+            # Average mean GFLOPS
+            avg_gflops = statistics.mean([r["gflops_stats"]["mean_gflops"] for r in test_results])
+
+            # Average minimum GFLOPS
+            avg_min_gflops = statistics.mean([r["gflops_stats"]["min_gflops"] for r in test_results])
+
+            # Average runtime in milliseconds
+            avg_runtime_ms = statistics.mean([r["runtime_stats"]["mean_ms"] for r in test_results])
+
+            # Calculate variance in GFLOPS across tests
+            all_mean_gflops = [r["gflops_stats"]["mean_gflops"] for r in test_results]
+            gflops_variance = statistics.variance(all_mean_gflops) if len(all_mean_gflops) > 1 else 0
+
+            # Calculate average standard deviation of GFLOPS within tests
+            avg_stdev_gflops = statistics.mean([r["gflops_stats"]["stdev_gflops"] for r in test_results])
+        else:
+            avg_gflops = 0
+            avg_min_gflops = 0
+            avg_runtime_ms = 0
+            gflops_variance = 0
+            avg_stdev_gflops = 0
+
+        # Return final summary with additional metrics
         yield {
             "status": "success",
             "test_results": test_results,
             "average_gflops": avg_gflops,
+            "average_min_gflops": avg_min_gflops,
+            "average_runtime_ms": avg_runtime_ms,
+            "gflops_variance": gflops_variance,
+            "average_stdev_gflops": avg_stdev_gflops,
             "total_tests": test_count,
         }
     except Exception as e:
