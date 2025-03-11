@@ -216,36 +216,25 @@ def run_benchmark(problem_name: str, compiled_lib: bytes):
 
         if test_count > 0:
             # Average mean GFLOPS
-            avg_gflops = statistics.mean([r["gflops_stats"]["mean_gflops"] for r in test_results])
-
-            # Average minimum GFLOPS
-            avg_min_gflops = statistics.mean([r["gflops_stats"]["min_gflops"] for r in test_results])
+            avg_gflops = statistics.mean([r["gflops"] for r in test_results])
 
             # Average runtime in milliseconds
-            avg_runtime_ms = statistics.mean([r["runtime_stats"]["mean_ms"] for r in test_results])
-
-            # Calculate variance in GFLOPS across tests
-            all_mean_gflops = [r["gflops_stats"]["mean_gflops"] for r in test_results]
-            gflops_variance = statistics.variance(all_mean_gflops) if len(all_mean_gflops) > 1 else 0
+            avg_runtime_ms = statistics.mean([r["runtime_ms"] for r in test_results])
 
             # Calculate average standard deviation of GFLOPS within tests
-            avg_stdev_gflops = statistics.mean([r["gflops_stats"]["stdev_gflops"] for r in test_results])
+            avg_stdev_gflops = statistics.mean([r["stdev_gflops"] for r in test_results])
         else:
             avg_gflops = 0
-            avg_min_gflops = 0
             avg_runtime_ms = 0
-            gflops_variance = 0
             avg_stdev_gflops = 0
-
+            
         # Return final summary with additional metrics
         yield {
             "status": "success",
-            "test_results": test_results,
-            "average_gflops": avg_gflops,
-            "average_min_gflops": avg_min_gflops,
-            "average_runtime_ms": avg_runtime_ms,
-            "gflops_variance": gflops_variance,
-            "average_stdev_gflops": avg_stdev_gflops,
+            "benchmark_results": benchmark_results,
+            "gflops": avg_gflops,
+            "runtime_ms": avg_runtime_ms,
+            "stdev_gflops": avg_stdev_gflops,
             "total_tests": test_count,
         }
     except Exception as e:

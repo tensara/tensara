@@ -285,20 +285,18 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     
     benchmark_result = {
         "status": "PASSED",
-        "gflops_stats": {
-            "mean_gflops": mean_gflops,
-            "min_gflops": min_gflops, 
-            "stdev_gflops": stdev_gflops,
-        },
-        "runtime_stats": {
-            "mean_ms": mean_runtime * 1000,  
-            "min_ms": min_runtime * 1000,
-            "stdev_ms": stdev_runtime * 1000,
-        },
+        "gflops": mean_gflops,
+        "runtime_ms": mean_runtime * 1000,
+        "stdev_gflops": stdev_gflops,
     }
     
     return benchmark_result
 
+def convert_slug_to_module_name(slug: str) -> str:
+    """
+    Convert a problem slug to a module name
+    """
+    return slug.replace("-", "_")
 
 def async_wrap_iter(it):
     """

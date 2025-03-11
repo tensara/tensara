@@ -68,7 +68,7 @@ async def checker(gpu: str, request: Request):
         return 404
 
     solution_code = req["solution_code"]
-    problem_name = req["problem"]
+    problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
         yield {"status": "compiling"}
@@ -112,7 +112,7 @@ async def benchmark(gpu: str, request: Request):
         return 404
 
     solution_code = req["solution_code"]
-    problem_name = req["problem"]
+    problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
         yield {"status": "compiling"}

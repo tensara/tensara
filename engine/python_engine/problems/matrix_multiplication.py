@@ -39,19 +39,19 @@ class matrix_multiplication(Problem):
         # dims represents (M, N, K)
         test_matrices = [
             {
-                "name": "4092x4092 matrices",
+                "name": "4092x4092 x 4092x4092 matrices",
                 "dims": (4092, 4092, 4092),
             },
             {
-                "name": "8192x4096 matrices",
-                "dims": (8192, 8192, 4096),
+                "name": "8192x8192 x 8192x4092 matrices",
+                "dims": (8192, 4092, 8192),
             },
             {
-                "name": "4096x8192 matrices",
-                "dims": (4096, 4096, 8192),
+                "name": "4092x4092 x 4092x8192 matrices",
+                "dims": (4092, 8192, 4092),
             },
             {
-                "name": "8192x8192 matrices",
+                "name": "8192x8192 x 8192x8192 matrices",
                 "dims": (8192, 8192, 8192),
             }
         ]
