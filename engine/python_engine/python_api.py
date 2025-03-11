@@ -1,7 +1,13 @@
+import json
+import sys
+from threading import Thread
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
 import modal
 from pathlib import Path
 import utils
 import runner
+from problem import Problem
 
 DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
@@ -23,78 +29,114 @@ runtime_image = (
 )
 
 app = modal.App("tensara-python-engine", image=devel_image)
+web_app = FastAPI()
 
-# Generic checker function that contains the common logic
-async def generic_checker(item: dict):
-    """Generic function for checking CUDA solutions on GPU"""
-    solution_code = item["solution_code"]
-    problem_name = item["problem"]
-     # Use the GPU type from the request if provided, otherwise it will default
-    # to the smallest GPU (T4)
-    gpu = item.get("gpu") or "T4"
+def binary_runner(type: str, compiled_lib: bytes, problem_name: str):
+    gen = None
+    if type == "checker":
+        gen = runner.run_checker(problem_name, compiled_lib)
+    elif type == "benchmark":
+        gen = runner.run_benchmark(problem_name, compiled_lib)
+    else:
+        raise ValueError(f"Unknown binary type: {type}")
 
-    problem = utils.load_problem_module(problem_name)
+    for event in gen:
+        yield event
 
-    def json_stream():
-        for result in runner.run_checker(problem, solution_code, gpu=gpu):
-            yield utils.format_for_sse(result)
+gpu_runners = {
+    gpu: app.function(
+        image=runtime_image,
+        name=f"runner_{gpu}",
+        gpu=gpu,
+        enable_memory_snapshot=True,
+    )(binary_runner)
+    for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
+}
 
-    return utils.create_streaming_response(json_stream)
+for gpu in gpu_runners:
+    globals()[f"runner_{gpu}"] = gpu_runners[gpu]
 
-async def generic_benchmark(item: dict):
-    """Generic function for benchmarking CUDA solutions on GPU"""
-    solution_code = item["solution_code"]
-    problem_name = item["problem"]
-    # Use the GPU type from the request if provided, otherwise it will default
-    # to the smallest GPU (T4)
-    gpu = item.get("gpu") or "T4"
+def gen_wrapper(gen):
+    for event in gen:
+        yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
 
-    problem = utils.load_problem_module(problem_name)
+        
+@web_app.post("/checker-{gpu}")
+async def checker(gpu: str, request: Request):
+    req = await request.json()
+    if gpu not in gpu_runners:
+        return 404
 
-    def json_stream():
-        for result in runner.run_benchmark(problem, solution_code, gpu=gpu):
-            yield utils.format_for_sse(result)
+    solution_code = req["solution_code"]
+    problem_name = req["problem"]
 
-    return utils.create_streaming_response(json_stream)
+    def create_stream():
+        yield {"status": "compiling"}
 
-# GPU-specific endpoints
-@app.function(gpu="T4")
-@modal.web_endpoint(method="POST")
-async def checker_t4(item: dict):
-    return await generic_checker(item)
+        def compile_benchmark():
+            try:
+                utils.run_nvcc_and_return_bytes(gpu, solution_code, "solution")
+            except Exception:
+                pass
+        
+        bench_thr = Thread(target=compile_benchmark)
+        bench_thr.start()
 
-@app.function(gpu="A10G")
-@modal.web_endpoint(method="POST")
-async def checker_a10g(item: dict):
-    return await generic_checker(item)
+        try:
+            checker_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "checker")
+        except utils.NVCCError as e:
+            yield {
+                "status": "error",
+                "error": "Compilation failed",
+                "details": e.args[0],
+                "test_results": [],
+                "passed_tests": 0,
+                "total_tests": 0,
+            }
+            return
 
-@app.function(gpu="H100")
-@modal.web_endpoint(method="POST")
-async def checker_h100(item: dict):
-    return await generic_checker(item)
+        bench_thr.join()
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("checker", checker_compiled, problem_name)
+        for event in stream:
+            yield event
 
-@app.function(gpu="A100-80GB")
-@modal.web_endpoint(method="POST")
-async def checker_a100_80gb(item: dict):
-    return await generic_checker(item)
+    stream = utils.async_wrap_iter(gen_wrapper(create_stream()))
+    return StreamingResponse(stream, media_type="text/event-stream")
 
-@app.function(gpu="T4")
-@modal.web_endpoint(method="POST")
-async def benchmark_t4(item: dict):
-    return await generic_benchmark(item)
 
-@app.function(gpu="A10G")
-@modal.web_endpoint(method="POST")
-async def benchmark_a10g(item: dict):
-    return await generic_benchmark(item)
+@web_app.post("/benchmark-{gpu}")
+async def benchmark(gpu: str, request: Request):
+    req = await request.json()
+    if gpu not in gpu_runners:
+        return 404
 
-@app.function(gpu="H100")
-@modal.web_endpoint(method="POST")
-async def benchmark_h100(item: dict):
-    return await generic_benchmark(item)
+    solution_code = req["solution_code"]
+    problem_name = req["problem"]
 
-@app.function(gpu="A100-80GB")
-@modal.web_endpoint(method="POST")
-async def benchmark_a100_80gb(item: dict):
-    return await generic_benchmark(item)
+    def create_stream():
+        yield {"status": "compiling"}
+        
+        try:
+            benchmark_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "benchmark")
+        except utils.NVCCError as e:
+            yield { 
+                "status": "error",
+                "error": "Compilation failed",
+                "details": e.args[0],
+            }
+            return
+
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("benchmark", benchmark_compiled, problem_name)
+        for event in stream:
+            yield event
     
+    stream = utils.async_wrap_iter(gen_wrapper(create_stream()))
+    return StreamingResponse(stream, media_type="text/event-stream")
+
+
+@app.function()
+@modal.asgi_app()
+def fastapi_app():
+    return web_app

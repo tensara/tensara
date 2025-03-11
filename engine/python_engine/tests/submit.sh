@@ -28,12 +28,9 @@ EOF
 echo "Created request.json successfully."
 
 echo "Sending POST request to $api_endpoint..."
-response=$(curl -s -X POST \
+curl -s -X POST --no-buffer \
   -H "Content-Type: application/json" \
   -d @request.json \
-  "$api_endpoint")
-
-echo "Response:"
-echo "$response" | jq . 2>/dev/null || echo "$response"
+  "$api_endpoint"
 
 echo "Done."

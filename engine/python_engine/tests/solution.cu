@@ -1,31 +1,22 @@
 #include <cuda_runtime.h>
 
-__global__ void reference_conv1d_kernel(float* A, float* B, float* C, size_t N, size_t K) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if (idx < N) {
+__global__ void reference_matrix_multiply(float* A, float* B, float* C, size_t M, size_t N, size_t K) {
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (row < M && col < N) {
         float sum = 0.0f;
-        int offset = (K - 1) / 2;
-        
-        for (size_t j = 0; j < K; j++) {
-            int input_idx = idx + j - offset;
-            float input_val = 0.0f;
-            
-            if (input_idx >= 0 && input_idx < N) {
-                input_val = A[input_idx];
-            }
-            
-            sum += input_val * B[j];
+        for (int i = 0; i < K; i++) {
+            sum += A[row * K + i] * B[i * N + col];
         }
-        
-        C[idx] = sum;
+        C[row * N + col] = sum;
     }
 }
 
-extern "C" void solution(float* A, float* B, float* C, size_t N, size_t K) {
-    int block_size = 256;
-    int num_blocks = (N + block_size - 1) / block_size;
-    
-    reference_conv1d_kernel<<<num_blocks, block_size>>>(A, B, C, N, K);
-    cudaDeviceSynchronize();
+extern "C" void solution(float* input_a, float* input_b, float* output_c, size_t m, size_t n, size_t k) {
+    dim3 blockDim(16, 16);
+    dim3 gridDim((n + blockDim.x - 1) / blockDim.x, 
+                 (m + blockDim.y - 1) / blockDim.y);
+
+    reference_matrix_multiply<<<gridDim, blockDim>>>(input_a, input_b, output_c, m, n, k);   
 }

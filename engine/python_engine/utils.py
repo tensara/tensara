@@ -1,3 +1,7 @@
+import asyncio
+from functools import lru_cache, wraps
+import os
+import threading
 from fastapi import HTTPException
 import importlib
 from problem import Problem
@@ -5,7 +9,6 @@ import torch
 import time
 import ctypes
 import statistics
-import json
 from fastapi.responses import StreamingResponse
 import subprocess
 import tempfile
@@ -50,7 +53,27 @@ def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
     
     return cmd
 
-def run_nvcc(gpu: str, files: Dict[str, str], output_name: str) -> Path:
+def hash_dict(func):
+    """Transform mutable dictionnary
+    Into immutable
+    Useful to be compatible with cache
+    """
+
+    class HDict(dict):
+        def __hash__(self):
+            return hash(frozenset(self.items()))
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        args = tuple([HDict(arg) if isinstance(arg, dict) else arg for arg in args])
+        kwargs = {k: HDict(v) if isinstance(v, dict) else v for k, v in kwargs.items()}
+        return func(*args, **kwargs)
+
+    return wrapped
+
+@hash_dict
+@lru_cache(maxsize=512)  # each binary is ~1MB, so 512MB cache
+def run_nvcc_and_return_bytes(gpu: str, solution_code: str, output_name: str) -> bytes:
     """Compile source files with nvcc and return the path to the compiled binary
     
     Args:
@@ -74,8 +97,7 @@ def run_nvcc(gpu: str, files: Dict[str, str], output_name: str) -> Path:
         path = Path(td)
         
         # Write the source files
-        for name, content in files.items():
-            (path / name).write_text(content)
+        (path / "solution.cu").write_text(solution_code)
         
         # For a shared library, we need the solution.cu file
         src_path = path / "solution.cu"
@@ -87,28 +109,29 @@ def run_nvcc(gpu: str, files: Dict[str, str], output_name: str) -> Path:
         # Check for compilation errors
         if process.returncode != 0:
             raise NVCCError(process.stderr)
-            
-    return out_path
+    
+    bytes_of_file = out_path.read_bytes()
+    out_path.unlink()
+    return bytes_of_file
 
-def setup_solution(problem, solution_code, gpu):
-    """Compile solution and set up CUDA library"""
-    files = {"solution.cu": solution_code}
-    lib_path = run_nvcc(gpu, files, "solution")
-    
-    # Load the compiled library
-    cuda_lib = ctypes.CDLL(str(lib_path))
-    
-    # Set function signature
-    func_sig = problem.get_function_signature()
-    cuda_lib.solution.argtypes = func_sig["argtypes"]
-    cuda_lib.solution.restype = func_sig["restype"]
+
+def read_bytes_as_cuda_lib(compiled_lib: bytes):
+    """Read bytes of the solution code and compile it into a CUDA library"""
+    if isinstance(compiled_lib, bytes):
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.so')
+        temp_file_path = temp_file.name
+        try:
+            temp_file.write(compiled_lib)
+            temp_file.close()
+
+            cuda_lib = ctypes.CDLL(temp_file_path)
+        finally:
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+    else:
+        cuda_lib = ctypes.CDLL(compiled_lib)
     
     return cuda_lib
-
-
-def format_for_sse(data: dict) -> str:
-    """Convert dictionary to SSE-compatible JSON string"""
-    return "data: " + json.dumps(data) + "\n\n"
 
 def create_streaming_response(generator_func):
     """Create a FastAPI StreamingResponse from a generator function"""
@@ -178,7 +201,7 @@ def prepare_gpu():
     
     # Run a moderate workload to heat up the GPU to a stable temperature
     warmup_tensor = torch.rand(5000, 5000, device='cuda')
-    for _ in range(5):
+    for _ in range(10):
         torch.matmul(warmup_tensor, warmup_tensor.t())
     torch.cuda.synchronize()
     del warmup_tensor
@@ -248,11 +271,7 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     # Collect runtime measurements
     runtimes = []
     gflops_measurements = []
-    memory_throughputs = []
-    
-    print(f"Running dynamic benchmark with {min_iterations}-{max_iterations} iterations (target CV: {target_cv})")
-    
-    # Run iterations and collect measurements
+
     for iteration in range(max_iterations):
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
@@ -275,12 +294,6 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
         gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
         gflops_measurements.append(gflops)
         
-        # Calculate memory throughput
-        throughput, _, _ = lower_bound_memory_throughput(input_tensors, actual_output, elapsed_time)
-        memory_throughputs.append(throughput)
-        
-        # Print progress
-        print(f"  Iteration {iteration+1}: {elapsed_time*1000:.2f} ms, {gflops:.2f} GFLOPS, {throughput:.2f} GB/s")
         
         # Check if we've done enough iterations and the variance is low enough
         if iteration + 1 >= min_iterations:
@@ -296,61 +309,77 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
                 if cv < target_cv:
                     print(f"  Reached target coefficient of variation after {iteration+1} iterations")
                     break
-    
-    # Handle statistics
-    mean_runtime = statistics.mean(runtimes)
-    min_runtime = min(runtimes)  # Often a better indicator of peak performance
-    median_runtime = statistics.median(runtimes)
+
     
     if len(runtimes) > 1:
+        mean_runtime = statistics.mean(runtimes)
         stdev_runtime = statistics.stdev(runtimes)
-        runtime_cv = stdev_runtime / mean_runtime
+        min_runtime = min(runtimes)
     else:
+        mean_runtime = 0
         stdev_runtime = 0
-        runtime_cv = 0
-    
-    # Calculate GFLOPS statistics
+
     mean_gflops = statistics.mean(gflops_measurements)
-    max_gflops = max(gflops_measurements)
+    min_gflops = min(gflops_measurements)
     if len(gflops_measurements) > 1:
         stdev_gflops = statistics.stdev(gflops_measurements)
-        gflops_cv = stdev_gflops / mean_gflops
     else:
         stdev_gflops = 0
-        gflops_cv = 0
     
-    # Memory throughput statistics
-    mean_throughput = statistics.mean(memory_throughputs)
-    max_throughput = max(memory_throughputs)
     
 
     benchmark_result = {
         "name": test_case.get("name", "Unknown"),
         "status": "PASSED",
         "iterations_run": len(runtimes),
+        "gflops_stats": {
+            "mean_gflops": mean_gflops,
+            "min_gflops": min_gflops, 
+            "stdev_gflops": stdev_gflops,
+        },
         "runtime_stats": {
             "mean_ms": mean_runtime * 1000,  
             "min_ms": min_runtime * 1000,
-            "median_ms": median_runtime * 1000,
             "stdev_ms": stdev_runtime * 1000,
-            "cv": runtime_cv
         },
-        "performance_stats": {
-            "mean_gflops": mean_gflops,
-            "max_gflops": max_gflops, 
-            "stdev_gflops": stdev_gflops,
-            "cv": gflops_cv
-        },
-        "memory_stats": {
-            "mean_throughput_gbps": mean_throughput,
-            "max_throughput_gbps": max_throughput,
-        },
-        "all_measurements": {
-            "runtimes_ms": [rt * 1000 for rt in runtimes],
-            "gflops": gflops_measurements,
-            "throughputs_gbps": memory_throughputs
-        }
     }
     
     return benchmark_result
+
+
+def async_wrap_iter(it):
+    """
+    Wrap blocking iterator into an asynchronous one
+
+    From: https://stackoverflow.com/questions/62294385/synchronous-generator-in-asyncio
+    """
+    loop = asyncio.get_event_loop()
+    q = asyncio.Queue(1)
+    exception = None
+    _END = object()
+
+    async def yield_queue_items():
+        while True:
+            next_item = await q.get()
+            if next_item is _END:
+                break
+            yield next_item
+        if exception is not None:
+            # the iterator has raised, propagate the exception
+            raise exception
+
+    def iter_to_queue():
+        nonlocal exception
+        try:
+            for item in it:
+                # This runs outside the event loop thread, so we
+                # must use thread-safe API to talk to the queue.
+                asyncio.run_coroutine_threadsafe(q.put(item), loop).result()
+        except Exception as e:
+            exception = e
+        finally:
+            asyncio.run_coroutine_threadsafe(q.put(_END), loop).result()
+
+    threading.Thread(target=iter_to_queue).start()
+    return yield_queue_items()
 
