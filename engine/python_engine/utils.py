@@ -205,7 +205,7 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     flops = problem.get_flops(test_case)
     
     # Warm up run
-    cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
+    prepare_gpu()
     torch.cuda.synchronize()
     
     start_event = torch.cuda.Event(enable_timing=True)

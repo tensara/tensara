@@ -5,16 +5,14 @@ from typing import List, Dict, Tuple, Any, Optional
 class Problem(ABC):
     """Base class for defining CUDA problems."""
     
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str):
         """
         Initialize a CUDA problem.
         
         Args:
             name: Name of the problem
-            description: Problem description
         """
         self.name = name
-        self.description = description
     
     @abstractmethod
     def reference_solution(self, *args, **kwargs) -> Any:

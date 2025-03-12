@@ -10,8 +10,7 @@ class square_matmul(Problem):
     
     def __init__(self):
         super().__init__(
-            name="square-matmul",
-            description="Implement a CUDA kernel for multiplying two square matrices"
+            name="square-matmul"
         )
     
     def reference_solution(self, matrix_a: torch.Tensor, matrix_b: torch.Tensor) -> torch.Tensor:

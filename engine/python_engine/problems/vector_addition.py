@@ -9,8 +9,7 @@ class vector_addition(Problem):
     
     def __init__(self):
         super().__init__(
-            name="vector-addition",
-            description="Implement a CUDA kernel for vector addition: C = A + B"
+            name="vector-addition"
         )
     
     def reference_solution(self, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:

@@ -15,12 +15,14 @@ if [ ! -f "solution.cu" ]; then
 fi
 
 solution_code=$(cat solution.cu)
+problem_def=$(cat problem.py)
         
 echo "Creating request.json..."
 cat > request.json << EOF
 {
   "solution_code": $(printf '%s' "$solution_code" | jq -Rs .),
   "problem": "$problem_name",
+  "problem_def": $(printf '%s' "$problem_def" | jq -Rs .),
   "gpu": "T4"
 }
 EOF

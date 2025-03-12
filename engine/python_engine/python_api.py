@@ -8,13 +8,14 @@ from pathlib import Path
 import utils
 import runner
 from problem import Problem
+import os
 
 DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
 PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]"]
-LOCAL_SOURCE = ["problems", "utils", "runner", "problem"]
+LOCAL_SOURCE = ["utils", "runner", "problem"]
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
@@ -31,12 +32,12 @@ runtime_image = (
 app = modal.App("tensara-engine", image=devel_image)
 web_app = FastAPI()
 
-def binary_runner(type: str, compiled_lib: bytes, problem_name: str):
+def binary_runner(type: str, compiled_lib: bytes, problem_name: str, problem_def: str):
     gen = None
     if type == "checker":
         gen = runner.run_checker(problem_name, compiled_lib)
     elif type == "benchmark":
-        gen = runner.run_benchmark(problem_name, compiled_lib)
+        gen = runner.run_benchmark(problem_name, problem_def, compiled_lib)
     else:
         raise ValueError(f"Unknown binary type: {type}")
 
@@ -112,6 +113,7 @@ async def benchmark(gpu: str, request: Request):
         return 404
 
     solution_code = req["solution_code"]
+    problem_def = req["problem_def"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
@@ -128,7 +130,7 @@ async def benchmark(gpu: str, request: Request):
             return
 
         runner = gpu_runners[gpu]
-        stream = runner.remote_gen("benchmark", benchmark_compiled, problem_name)
+        stream = runner.remote_gen("benchmark", benchmark_compiled, problem_name, problem_def)
         for event in stream:
             yield event
     

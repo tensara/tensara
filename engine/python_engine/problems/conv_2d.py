@@ -10,8 +10,7 @@ class conv_2d(Problem):
     
     def __init__(self):
         super().__init__(
-            name="conv-2d",
-            description="Implement a CUDA kernel for 2D convolution with zero padding"
+            name="conv-2d"
         )
     
     def reference_solution(self, input_image: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:

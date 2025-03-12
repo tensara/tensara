@@ -10,8 +10,7 @@ class gemm_relu(Problem):
     
     def __init__(self):
         super().__init__(
-            name="gemm-relu",
-            description="Implement a CUDA kernel for matrix multiplication with bias addition and ReLU activation"
+            name="gemm-relu"
         )
     
     def reference_solution(self, input_matrix: torch.Tensor, weights: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:

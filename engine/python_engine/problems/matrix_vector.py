@@ -10,8 +10,7 @@ class matrix_vector(Problem):
     
     def __init__(self):
         super().__init__(
-            name="Matrix Vector Multiplication",
-            description="Implement a CUDA kernel for matrix-vector multiplication"
+            name="matrix-vector-multiplication"
         )
     
     def reference_solution(self, matrix: torch.Tensor, vector: torch.Tensor) -> torch.Tensor:

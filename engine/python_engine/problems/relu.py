@@ -10,8 +10,7 @@ class relu(Problem):
     
     def __init__(self):
         super().__init__(
-            name="relu",
-            description="Implement a CUDA kernel for ReLU activation function"
+            name="relu"
         )
     
     def reference_solution(self, input_matrix: torch.Tensor) -> torch.Tensor:

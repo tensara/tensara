@@ -10,8 +10,7 @@ class lower_trig_matmul(Problem):
     
     def __init__(self):
         super().__init__(
-            name="lower-trig-matmul",
-            description="Implement a CUDA kernel for matrix multiplication C = A * B where A and B are lower triangular matrices"
+            name="lower-trig-matmul"
         )
     
     def reference_solution(self, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:

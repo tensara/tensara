@@ -4,6 +4,8 @@ import gc
 from typing import Iterator
 import statistics
 import utils
+import os
+from pathlib import Path
 
 def run_checker(problem_name: str, compiled: bytes) -> Iterator[str]:
     """
@@ -128,19 +130,26 @@ def run_checker(problem_name: str, compiled: bytes) -> Iterator[str]:
         }
 
 
-def run_benchmark(problem_name: str, compiled_lib: bytes):
+def run_benchmark(problem_name: str, problem_def: str, compiled_lib: bytes):
     """
     Run benchmark on compiled CUDA solution
     
     Args:
         problem_name: Name of the problem
+        problem_def: Problem instance  
         compiled_lib: Compiled CUDA code for the submitted solution
     
     Yields:
         Dictionary objects with benchmark status updates
     """
     try:
-        # Compile the solution
+        problems_dir = Path("problems")
+        problems_dir.mkdir(parents=True, exist_ok=True)
+
+        problem_file_path = problems_dir / f"{problem_name}.py"
+        with open(problem_file_path, "w") as problem_file:
+            problem_file.write(problem_def)
+        
         problem = utils.load_problem_module(problem_name)
         cuda_lib = utils.read_bytes_as_cuda_lib(compiled_lib)
         yield {"status": "running"}

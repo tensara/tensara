@@ -10,8 +10,7 @@ class leaky_relu(Problem):
     
     def __init__(self):
         super().__init__(
-            name="leaky-relu",
-            description="Implement a CUDA kernel for Leaky ReLU activation function"
+            name="leaky-relu"
         )
     
     def reference_solution(self, input_matrix: torch.Tensor, alpha: float) -> torch.Tensor:
