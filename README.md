@@ -25,8 +25,8 @@ This is a modern web application built with the [T3 Stack](https://create.t3.gg/
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
-cd tensara-app
+git clone https://github.com/tensara/tensara
+cd tensara
 ```
 
 2. Install dependencies:
@@ -45,7 +45,7 @@ cp .env.example .env
 
 ### Database Setup
 
-You have two options for setting up the database:
+You have a few options for setting up the database:
 
 #### Option 1: Local PostgreSQL
 
@@ -113,9 +113,17 @@ DATABASE_URL="your_connection_string_here"
 
 # NextAuth configuration
 NEXTAUTH_SECRET="your_nextauth_secret"
+AUTH_GITHUB_ID=""
+AUTH_GITHUB_SECRET=""
 NEXTAUTH_URL="http://localhost:3000"
 
-# Add any other required environment variables here
+# Google Analytics ID (can be ignored until production)
+NEXT_PUBLIC_GA_ID=""
+
+MODAL_CHECKER_SLUG=""
+MODAL_BENCHMARK_SLUG=""
+
+MODAL_ENDPOINT=""
 ```
 
 ## 🛠 Tech Stack
