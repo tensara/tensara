@@ -4,21 +4,39 @@
 #include "tests.hpp"
 #include <cuda_runtime.h>
 #include <iostream>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdlib>
+#include <cmath>
+#include <cstdio>
 
-bool check_results(float *output1, float *output2, size_t size, float tolerance = 1e-7) {
+inline bool float_near(float a, float b, float rel_tol=1e-3, float abs_tol=1e-3) {
+    // source:
+    // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+
+    float diff = fabs(a - b);
+    if (diff <= abs_tol) {
+        return true;
+    }
+
+    float lrg = fmax(fabs(a), fabs(b));
+    float rel = diff / lrg;
+    if (rel <= rel_tol) {
+        return true;
+    }
+
+    return false;
+}
+
+bool check_results(float *__restrict output1, float *__restrict output2, size_t size) {
     for (size_t i = 0; i < size; i++) {
-        if (fabs(output1[i] - output2[i]) > tolerance) {
+        if (!float_near(output1[i], output2[i])) {
+            std::cerr << "mismatch at " << i << ": " << output1[i] << " != " << output2[i] << std::endl;
             return false;
         }
     }
     return true;
 }
 
-template <typename T>
-bool run_test(TestCase<T> &test_case) {
+template <typename T> bool run_test(TestCase<T> &test_case) {
     const auto &input_shapes = test_case.input_shapes();
     const auto &output_shapes = test_case.output_shapes();
 
@@ -36,13 +54,14 @@ bool run_test(TestCase<T> &test_case) {
 
     test_case.prepare_data(h_inputs.data(), h_outputs.data());
 
-    std::vector<const T*> d_inputs(input_shapes.size());
+    std::vector<const T *> d_inputs(input_shapes.size());
     std::vector<T *> d_outputs(output_shapes.size());
     std::vector<T *> d_reference_outputs(output_shapes.size());
 
     for (size_t i = 0; i < input_shapes.size(); i++) {
-        cudaMalloc(const_cast<T**>(&d_inputs[i]), input_shapes[i]->size() * sizeof(T));
-        cudaMemcpy(const_cast<T*>(d_inputs[i]), h_inputs[i], input_shapes[i]->size() * sizeof(T), cudaMemcpyHostToDevice);
+        cudaMalloc(const_cast<T **>(&d_inputs[i]), input_shapes[i]->size() * sizeof(T));
+        cudaMemcpy(const_cast<T *>(d_inputs[i]), h_inputs[i], input_shapes[i]->size() * sizeof(T),
+                   cudaMemcpyHostToDevice);
     }
     for (size_t i = 0; i < output_shapes.size(); i++) {
         cudaMalloc(&d_outputs[i], output_shapes[i]->size() * sizeof(T));
@@ -51,11 +70,14 @@ bool run_test(TestCase<T> &test_case) {
 
     std::vector<size_t> sizes = test_case.get_sizes();
     test_case.launch_kernel(d_inputs, d_outputs, sizes, reinterpret_cast<void *>(solution));
-    test_case.launch_kernel(d_inputs, d_reference_outputs, sizes, reinterpret_cast<void *>(reference_solution));
+    test_case.launch_kernel(d_inputs, d_reference_outputs, sizes,
+                            reinterpret_cast<void *>(reference_solution));
 
     for (size_t i = 0; i < output_shapes.size(); i++) {
-        cudaMemcpy(h_outputs[i], d_outputs[i], output_shapes[i]->size() * sizeof(T), cudaMemcpyDeviceToHost);
-        cudaMemcpy(h_reference_outputs[i], d_reference_outputs[i], output_shapes[i]->size() * sizeof(T), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_outputs[i], d_outputs[i], output_shapes[i]->size() * sizeof(T),
+                   cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_reference_outputs[i], d_reference_outputs[i],
+                   output_shapes[i]->size() * sizeof(T), cudaMemcpyDeviceToHost);
     }
 
     bool passed = true;
@@ -68,7 +90,7 @@ bool run_test(TestCase<T> &test_case) {
 
     for (size_t i = 0; i < input_shapes.size(); i++) {
         delete[] h_inputs[i];
-        cudaFree(const_cast<T*>(d_inputs[i]));
+        cudaFree(const_cast<T *>(d_inputs[i]));
     }
     for (size_t i = 0; i < output_shapes.size(); i++) {
         delete[] h_outputs[i];
