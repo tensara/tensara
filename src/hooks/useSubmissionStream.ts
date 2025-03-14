@@ -133,7 +133,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       console.error("Error parsing event data:", error, "Raw data:", eventData);
     }
   };
-
+  
   const handleStatusEvent = (data: SubmissionEventData): void => {
     setSubmissionStatus(prev => {
       if (!prev) return prev;

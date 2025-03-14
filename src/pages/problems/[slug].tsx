@@ -127,7 +127,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const toast = useToast();
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const isProcessing = useRef<boolean>(false);
 
   // Get problem data
   const { data: problem, isLoading } = api.problems.getById.useQuery(
@@ -146,7 +145,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   };
 
   // Use custom hooks
-  const { splitRatio, isDragging, handleMouseDown, handleMouseUp } = useSplitPanel();
+  const { splitRatio, handleMouseDown } = useSplitPanel();
   
   const { 
     code, 
@@ -156,14 +155,11 @@ export default function ProblemPage({ slug }: { slug: string }) {
     selectedDataType, 
     setSelectedDataType, 
     isCodeDirty, 
-    handleReset, 
-    starterCode 
-  } = useCodePersistence(slug, problem);
+    handleReset  } = useCodePersistence(slug, problem);
   
   const {
     isSubmitting,
     submissionStatus,
-    submissionId,
     isTestCaseTableOpen,
     isBenchmarking,
     setIsTestCaseTableOpen,
@@ -991,7 +987,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       int16
                     </option>
                   </Select>
-                </Box>
+                </Box>  
               </HStack>
 
               <HStack spacing={2} mt={{ base: 2, sm: 0 }}>
