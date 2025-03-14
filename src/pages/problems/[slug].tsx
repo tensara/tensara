@@ -150,10 +150,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
     isLoading: boolean;
     refetch: () => void;
   };
-
-  // Use custom hooks
+  // Split panel logic
   const { splitRatio, handleMouseDown } = useSplitPanel();
   
+  // Code persistence logic
   const { 
     code, 
     setCode, 
@@ -164,6 +164,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     isCodeDirty, 
     handleReset  } = useCodePersistence(slug, problem);
   
+  // Submission stream logic
   const {
     isSubmitting,
     submissionStatus,
