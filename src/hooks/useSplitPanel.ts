@@ -9,7 +9,7 @@ interface SplitPanelOptions {
 }
 
 export function useSplitPanel({
-  initialRatio = 35,
+  initialRatio = 40,
   minRatio = 35,
   maxRatio = 52,
   containerId = 'split-container'
