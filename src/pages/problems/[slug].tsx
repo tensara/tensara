@@ -1176,9 +1176,28 @@ export default function ProblemPage({ slug }: { slug: string }) {
             </VStack>
           ) : (
             <Box>
-              <Heading as="h1" size="lg" mb={2}>
-                {problem.title}
-              </Heading>
+              <HStack justify="space-between" align="center" mb={2}>
+                <Heading as="h1" size="lg">
+                  {problem.title}
+                </Heading>
+                <Button
+                  size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      window.location.href = "/problems";
+                    }}
+                    leftIcon={<Icon as={FiArrowLeft} />}
+                    borderRadius="full"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white",
+                    }}
+                  >
+                    Back to Problems
+                  </Button>
+              </HStack>
+              
               <HStack spacing={2} align="center" mb={6}>
                 <Badge
                   colorScheme={getDifficultyColor(problem.difficulty)}
@@ -1238,6 +1257,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   Leaderboard
                 </Button>
               </HStack>
+              
 
               <Box className="markdown" color="gray.100">
                 <ReactMarkdown
@@ -1447,24 +1467,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
               </HStack>
 
               <HStack spacing={2} mt={{ base: 2, sm: 0 }}>
-                {splitRatio < 45 && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      window.location.href = "/problems";
-                    }}
-                    leftIcon={<Icon as={FiArrowLeft} />}
-                    borderRadius="full"
-                    color="gray.300"
-                    _hover={{
-                      bg: "whiteAlpha.50",
-                      color: "white",
-                    }}
-                  >
-                    Back to Problems
-                  </Button>
-                )}
                 {isCodeDirty && (
                   <Button
                     size="md"
