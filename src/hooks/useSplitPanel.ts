@@ -11,7 +11,7 @@ interface SplitPanelOptions {
 export function useSplitPanel({
   initialRatio = 35,
   minRatio = 35,
-  maxRatio = 55,
+  maxRatio = 52,
   containerId = 'split-container'
 }: SplitPanelOptions = {}) {
   const [splitRatio, setSplitRatio] = useState<number>(initialRatio);

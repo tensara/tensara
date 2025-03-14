@@ -58,7 +58,6 @@ type ProblemLeaderboardEntry = {
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const slug = context.params?.slug as string;
-  const gpuType = (context.query.gpu as string) || "all";
 
   const helpers = createServerSideHelpers({
     router: appRouter,
