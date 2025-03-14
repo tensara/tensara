@@ -40,35 +40,7 @@ type SubmissionWithCustomFields = {
   errorDetails?: string;
 };
 
-// // Add this type definition near the other types at the top
-// const CheckerResultSchema = z.object({
-//   passed: z.boolean(),
-//   passed_tests: z.number().optional(),
-//   total_tests: z.number().optional(),
-//   error: z.string().optional(),
-//   details: z.string().optional(),
-//   test_results: z.array(z.unknown()).optional(),
-// });
 
-// type CheckerResult = z.infer<typeof CheckerResultSchema>;
-
-// Add this type for the submission update data
-type SubmissionUpdateData = {
-  status: SubmissionStatus;
-  passedTests: number;
-  totalTests: number;
-  errorMessage: string;
-  errorDetails: string;
-};
-
-type SuccessSubmissionUpdateData = {
-  status: SubmissionStatus;
-  runtime: number;
-  gflops: number;
-  passedTests: number;
-  totalTests: number;
-  benchmarkResults: BenchmarkTestResult[];
-};
 
 export const problemsRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
@@ -123,7 +95,7 @@ export const problemsRouter = createTRPCRouter({
       z.object({
         problemSlug: z.string(),
         code: z.string(),
-        language: z.enum(["cpp", "cuda", "python", "javascript", "typescript"]),
+        language: z.enum(["cpp", "cuda", "python"]),
         gpuType: z.string(),
       })
     )

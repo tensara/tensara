@@ -28,8 +28,13 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
+  Flex,
+  MenuList,
+  MenuButton,
+  MenuItem,
+  Menu,
 } from "@chakra-ui/react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { Layout } from "~/components/layout";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -54,63 +59,14 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { generateStarterCode, DataTypes, Parameter } from "~/utils/starter";
+import { BenchmarkTestResult, SubmissionStatus, Submission } from "~/types/problem";
+import { useCodePersistence } from "~/hooks/useCodePersistence";
+import { useSubmissionStream } from "~/hooks/useSubmissionStream";
+import { useSplitPanel } from "~/hooks/useSplitPanel";
+import { DataType, ProgrammingLanguage } from "~/types/misc";
+import { IS_DISABLED_LANGUAGE, LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
+import { DATA_TYPE_DISPLAY_NAMES, IS_DISABLED_DATA_TYPE } from "~/constants/datatypes";
 
-type BenchmarkTestResult = {
-  test_id: number;
-  runtime_ms: number;
-  gflops: number;
-  name: string;
-};
-
-type SubmissionStatus = {
-  status:
-    | "compiling"
-    | "CHECKING"
-    | "BENCHMARKING"
-    | "ACCEPTED"
-    | "WRONG_ANSWER"
-    | "ERROR"
-    | "SUBMISSIONS";
-  runtime: number | null;
-  gflops: number | null;
-  passedTests: number | null;
-  totalTests: number | null;
-  message: string | null;
-  errorMessage?: string;
-  errorDetails?: string;
-  benchmarkResults?: BenchmarkTestResult[];
-};
-
-type Submission = {
-  id: string;
-  status: string | null;
-  runtime: number | null;
-  gflops: number | null;
-  passedTests: number | null;
-  totalTests: number | null;
-  createdAt: Date;
-  problem: {
-    title: string;
-    slug: string;
-  };
-  gpuType: string;
-};
-
-const LOCAL_STORAGE_PREFIX = "problem_solution_";
-
-const getSolutionKey = (slug: string, language: string, dataType: string) => 
-  `${LOCAL_STORAGE_PREFIX}${slug}_${language}_${dataType}`;
-
-const saveSolutionToStorage = (slug: string, code: string, language: string, dataType: string) => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(getSolutionKey(slug, language, dataType), code);
-};
-
-const loadSolutionFromStorage = (slug: string, language: string, dataType: string): string | null => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(getSolutionKey(slug, language, dataType));
-};
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const helpers = createServerSideHelpers({
@@ -145,55 +101,47 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 const getStatusMessage = (status: SubmissionStatus): string => {
-  if (status.message?.startsWith("status: CHECKING")) {
-    return "Checking...";
-  } else if (status.message?.startsWith("status: BENCHMARKING")) {
-    return "Running benchmarks...";
-  } else if (status.message?.startsWith("checker: compiling")) {
-    return "Compiling...";
-  } else if (status.message?.startsWith("checker: running") || status.message?.startsWith("checker: test_result")) {
-    return "Running tests...";
-  } else if (status.message?.startsWith("checker: complete")) {
-    return "Tests complete";
-  } else if (
-    status.message?.startsWith("benchmark: compiling") ||
-    status.message?.startsWith("benchmark: running") ||
-    status.message?.startsWith("benchmark: test_result")
-  ) {
-    return "Running benchmarks...";
-  } else if (status.message?.startsWith("benchmark: success")) {
-    return "Benchmark results";
-  } else if (status.message?.startsWith("complete: ACCEPTED")) {
-    return "ACCEPTED";
-  } else if (status.message?.startsWith("complete: WRONG_ANSWER")) {
-    return "Wrong answer";
-  } else if (status.message?.startsWith("error:")) {
-    return "Error";
+  if (!status.message) return `Status: ${status.status}`;
+  
+  if (status.message.startsWith("status: CHECKING")) return "Checking...";
+  if (status.message.startsWith("complete: ACCEPTED")) return "ACCEPTED";
+  
+  const messageMap: Record<string, string> = {
+    "status: BENCHMARKING": "Running benchmarks...",
+    "checker: compiling": "Compiling...",
+    "checker: running": "Running tests...",
+    "checker: test_result": "Running tests...",
+    "checker: complete": "Tests complete",
+    "benchmark: compiling": "Running benchmarks...",
+    "benchmark: running": "Running benchmarks...",
+    "benchmark: test_result": "Running benchmarks...",
+    "benchmark: success": "Benchmark results",
+    "complete: ACCEPTED": "ACCEPTED",
+    "complete: WRONG_ANSWER": "Wrong answer",
+    "error:": "Error",
+  };
+  
+
+  for (const [prefix, message] of Object.entries(messageMap)) {
+    if (status.message.startsWith(prefix)) return message;
   }
+  
   return `Status: ${status.status}`;
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
-  const { data: session, status } = useSession();
+    const { data: session } = useSession();
   const toast = useToast();
-  const [code, setCode] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [starterCode, setStarterCode] = useState("");
-  const [submissionStatus, setSubmissionStatus] =
-    useState<SubmissionStatus | null>(null);
-  const [submissionId, setSubmissionId] = useState<string | null>(null);
-  const [hasSetInitialCode, setHasSetInitialCode] = useState(false);
-  const [isTestCaseTableOpen, setIsTestCaseTableOpen] = useState(false);
-  const [isBenchmarking, setIsBenchmarking] = useState(false);
-  const [splitRatio, setSplitRatio] = useState(35);
-  const [isDragging, setIsDragging] = useState(false);
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
-  const [isCodeDirty, setIsCodeDirty] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("cuda");
-  const [selectedDataType, setSelectedDataType] = useState<DataTypes>("float32");
-  const isProcessing = useRef<boolean>(false);
 
+  // Get problem data
+  const { data: problem, isLoading } = api.problems.getById.useQuery(
+    { slug },
+    { enabled: !!slug }
+  );
+
+  // Fetch submissions
   const submissionsQuery = api.problems.getSubmissions.useQuery(
     { problemSlug: slug },
     { enabled: !!slug }
@@ -202,14 +150,38 @@ export default function ProblemPage({ slug }: { slug: string }) {
     isLoading: boolean;
     refetch: () => void;
   };
+  // Split panel logic
+  const { splitRatio, handleMouseDown } = useSplitPanel();
+  
+  // Code persistence logic
+  const { 
+    code, 
+    setCode, 
+    selectedLanguage, 
+    setSelectedLanguage, 
+    selectedDataType, 
+    setSelectedDataType, 
+    isCodeDirty, 
+    handleReset  } = useCodePersistence(slug, problem);
+  
+  // Submission stream logic
+  const {
+    isSubmitting,
+    submissionStatus,
+    isTestCaseTableOpen,
+    isBenchmarking,
+    setIsTestCaseTableOpen,
+    processSubmission,
+    startSubmission,
+    setSubmissionStatus
+  } = useSubmissionStream(submissionsQuery.refetch);
 
+  // Create submission mutation
   const createSubmissionMutation = api.problems.createSubmission.useMutation({
     onSuccess: (data) => {
-      setSubmissionId(data.id);
-      // No need to call submitMutation here - we'll directly connect to the streaming endpoint
+      void processSubmission(data.id);
     },
-    onError: (error) => {
-      setIsSubmitting(false);
+    onError: (error) => { 
       setSubmissionStatus(null);
       toast({
         title: "Failed to create submission",
@@ -221,7 +193,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
     },
   });
 
-  const handleSubmit = () => {
+  // Handle submission
+  const handleSubmit = useCallback(() => {
     if (!session?.user) {
       toast({
         title: "Not signed in",
@@ -233,445 +206,24 @@ export default function ProblemPage({ slug }: { slug: string }) {
       return;
     }
 
-    setIsTestCaseTableOpen(false);
-    setIsBenchmarking(false);
-    setIsSubmitting(true);
-    setSubmissionStatus({
-      status: "CHECKING",
-      runtime: null,
-      gflops: null,
-      passedTests: null,
-      totalTests: null,
-      message: "status: CHECKING",
+    startSubmission();
+
+    createSubmissionMutation.mutate({
+      problemSlug: slug,
+      code: code,
+      language: selectedLanguage,
+      gpuType: selectedGpuType,
     });
-
-    createSubmissionMutation.mutate(
-      {
-        problemSlug: slug,
-        code,
-        language: "cuda",
-        gpuType: selectedGpuType,
-      },
-      {
-        onSuccess: (data) => {
-          // Wrap the async logic in a void function
-          void (async () => {
-            try {
-              const response = await fetch("/api/submissions/direct-submit", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ submissionId: data.id }),
-                cache: "no-store",
-                credentials: "same-origin",
-                keepalive: true,
-                signal: AbortSignal.timeout(300000),
-              });
-
-              if (!response.ok) {
-                throw new Error(
-                  `Direct submit API returned ${response.status}`
-                );
-              }
-
-              // Set up reader for streaming response
-              const reader = response.body?.getReader();
-              if (!reader) {
-                throw new Error("No response body from direct-submit");
-              }
-
-              // Process the stream
-              const decoder = new TextDecoder();
-              let buffer = "";
-
-              const MAX_RETRIES = 3;
-              let retryCount = 0;
-
-              const attemptConnection = async (): Promise<void> => {
-                try {
-                  while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                      console.log("[sse] Stream complete");
-                      break;
-                    }
-
-                    // Reset retry count on successful read
-                    retryCount = 0;
-
-                    const chunk = decoder.decode(value, { stream: true });
-                    buffer += chunk;
-
-                    // Process complete events in buffer
-                    const events = buffer.split("\n\n");
-                    buffer = events.pop() ?? ""; // Use nullish coalescing
-
-                    for (const event of events) {
-                      if (!event) continue;
-
-                      const eventLines = event.split("\n");
-                      let eventType = "message";
-                      let eventData = "";
-
-                      for (const line of eventLines) {
-                        if (line.startsWith("event: ")) {
-                          eventType = line.slice(7);
-                        } else if (line.startsWith("data: ")) {
-                          eventData = line.slice(6);
-                        }
-                      }
-
-                      if (!eventData) continue;
-
-                      try {
-                        // Parse and type the data
-                        const data = JSON.parse(eventData) as {
-                          status?: string;
-                          passedTests?: number;
-                          totalTests?: number;
-                          result?: {
-                            status?: string;
-                            test_id?: number;
-                            runtime_ms?: number;
-                            gflops?: number;
-                            name?: string;
-                          };
-                          runtime?: number;
-                          gflops?: number;
-                          error?: string;
-                          details?: string;
-                          benchmarkResults?: BenchmarkTestResult[];
-                        };
-
-                        console.log(`[sse] ${eventType} event:`, data);
-
-                        // Handle different event types
-                        if (eventType === "status") {
-                          setSubmissionStatus((prev) => {
-                            if (!prev) return prev;
-                            return {
-                              ...prev,
-                              status:
-                                (data.status as SubmissionStatus["status"]) ??
-                                prev.status,
-                              passedTests: data.passedTests ?? prev.passedTests,
-                              totalTests: data.totalTests ?? prev.totalTests,
-                              message:
-                                eventType +
-                                ": " +
-                                (data.status ?? prev.message),
-                            };
-                          });
-                        } else if (eventType === "checker") {
-                          if (data.status === "test_result" && data.result) {
-                            setSubmissionStatus((prev) => {
-                              if (!prev) {
-                                return {
-                                  status: "CHECKING",
-                                  runtime: null,
-                                  gflops: null,
-                                  passedTests:
-                                    data.result?.status === "PASSED" ? 1 : 0,
-                                  totalTests: data.totalTests ?? 1,
-                                  message: eventType + ": " + data.status,
-                                };
-                              }
-                              return {
-                                ...prev,
-                                passedTests:
-                                  (prev.passedTests ?? 0) +
-                                  (data.result?.status === "PASSED" ? 1 : 0),
-                                totalTests: data.totalTests ?? prev.totalTests,
-                                message: eventType + ": " + data.status,
-                              };
-                            });
-                          } else if (data.status && data.status !== "error") {
-                            // Handle other checker statuses like "compiling"
-                            setSubmissionStatus((prev) => {
-                              if (!prev) return prev;
-                              return {
-                                ...prev,
-                                message: eventType + ": " + data.status,
-                              };
-                            });
-                          } else if (data.status === "error") {
-                            setSubmissionStatus({
-                              status: "ERROR",
-                              runtime: null,
-                              gflops: null,
-                              passedTests: null,
-                              totalTests: null,
-                              message:
-                                eventType + ": " + (data.status ?? "ERROR"),
-                              errorMessage: data.error ?? undefined,
-                              errorDetails: data.details ?? undefined,
-                            });
-
-                            setIsSubmitting(false);
-                            submissionsQuery.refetch();
-
-                            toast({
-                              title: "Submission Error",
-                              description:
-                                data.error ??
-                                "An error occurred during submission",
-                              status: "error",
-                              duration: 5000,
-                              isClosable: true,
-                            });
-                            return;
-                          }
-                        } else if (eventType === "benchmark") {
-                          if (data.status === "test_result" && data.result) {
-                            setIsBenchmarking(true);
-                            setIsTestCaseTableOpen(true);
-                            setSubmissionStatus((prev) => {
-                              if (!prev) return prev;
-                              const benchmarkResult: BenchmarkTestResult = {
-                                test_id: data.result?.test_id ?? 0,
-                                runtime_ms: data.result?.runtime_ms ?? 0,
-                                gflops: data.result?.gflops ?? 0,
-                                name:
-                                  data.result?.name ??
-                                  `Test ${data.result?.test_id ?? 0}`,
-                              };
-                              return {
-                                ...prev,
-                                message: eventType + ": " + data.status,
-                                benchmarkResults: [
-                                  ...(prev.benchmarkResults ?? []),
-                                  benchmarkResult,
-                                ],
-                              };
-                            });
-                          } else if (data.status && data.status !== "error") {
-                            // Handle other benchmark statuses
-                            setSubmissionStatus((prev) => {
-                              if (!prev) return prev;
-                              return {
-                                ...prev,
-                                message: eventType + ": " + data.status,
-                              };
-                            });
-                          }
-                        } else if (eventType === "complete") {
-                          setSubmissionStatus({
-                            status:
-                              (data.status as SubmissionStatus["status"]) ??
-                              "ERROR",
-                            runtime: data.runtime ?? null,
-                            gflops: data.gflops ?? null,
-                            passedTests: data.passedTests ?? null,
-                            totalTests: data.totalTests ?? null,
-                            message:
-                              eventType + ": " + (data.status ?? "ERROR"),
-                            errorMessage: data.error ?? undefined,
-                            errorDetails: data.details ?? undefined,
-                            benchmarkResults:
-                              data.benchmarkResults ?? undefined,
-                          });
-
-                          setIsSubmitting(false);
-                          submissionsQuery.refetch();
-                          return;
-                        } else if (eventType === "error") {
-                          setSubmissionStatus({
-                            status: "ERROR",
-                            runtime: null,
-                            gflops: null,
-                            passedTests: null,
-                            totalTests: null,
-                            message:
-                              eventType + ": " + (data.status ?? "ERROR"),
-                            errorMessage: data.error ?? undefined,
-                            errorDetails: data.details ?? undefined,
-                          });
-
-                          setIsSubmitting(false);
-                          submissionsQuery.refetch();
-
-                          toast({
-                            title: "Submission Error",
-                            description:
-                              data.error ??
-                              "An error occurred during submission",
-                            status: "error",
-                            duration: 5000,
-                            isClosable: true,
-                          });
-                          return;
-                        }
-                      } catch (error) {
-                        console.error(
-                          "Error parsing event data:",
-                          error,
-                          "Raw data:",
-                          eventData
-                        );
-                      }
-                    }
-                  }
-
-                  // If we reach here, the stream ended normally
-                  setIsSubmitting(false);
-                } catch (error) {
-                  console.error("[sse] Stream error:", error);
-
-                  // Attempt retry if we haven't exceeded max retries
-                  if (retryCount < MAX_RETRIES) {
-                    retryCount++;
-                    console.log(
-                      `[sse] Retrying connection (${retryCount}/${MAX_RETRIES})...`
-                    );
-
-                    // Wait before retrying (exponential backoff)
-                    await new Promise((resolve) =>
-                      setTimeout(resolve, 1000 * Math.pow(2, retryCount))
-                    );
-
-                    return attemptConnection();
-                  } else {
-                    throw error; // Re-throw if max retries exceeded
-                  }
-                }
-              };
-
-              void attemptConnection();
-            } catch (error) {
-              console.error("[sse] Error:", error);
-              setIsSubmitting(false);
-
-              let errorMessage = "Failed to connect to submission service";
-              if (error instanceof Error) {
-                if (
-                  error.message.includes("QUIC_PROTOCOL_ERROR") ||
-                  error.message.includes("network error") ||
-                  error.message.includes("failed to fetch")
-                ) {
-                  errorMessage =
-                    "Network protocol error. This may be due to your connection or a server configuration issue. Please try again in a few moments.";
-                } else {
-                  errorMessage = error.message;
-                }
-              }
-
-              toast({
-                title: "Connection Error",
-                description: errorMessage,
-                status: "error",
-                duration: 5000,
-                isClosable: true,
-              });
-            }
-          })();
-        },
-      }
-    );
-  };
-
-  const { data: problem, isLoading } = api.problems.getById.useQuery(
-    { slug: slug },
-    { enabled: !!slug }
-  );
-
-  const getStarterCode = useCallback(() => {
-    return generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType);
-  }, [problem?.parameters, selectedLanguage, selectedDataType]);
-
-
-  useEffect(() => {
-    if (!hasSetInitialCode && slug) {
-      const savedSolution = loadSolutionFromStorage(slug, selectedLanguage, selectedDataType);
-      if (savedSolution) {
-        setCode(savedSolution);
-        setHasSetInitialCode(true);
-      } else if (starterCode) {
-        setCode(starterCode);
-        setHasSetInitialCode(true);
-      }
-    }
-  }, [slug, hasSetInitialCode, problem, selectedLanguage, selectedDataType]);
-
-  useEffect(() => {
-    if (code && slug) {
-      saveSolutionToStorage(slug, code, selectedLanguage, selectedDataType);
-    }
-  }, [code, slug]);
-
-  useEffect(() => {
-    if (starterCode) {
-      setIsCodeDirty(code !== starterCode);
-    }
-  }, [code, starterCode]);
-
-  useEffect(() => {
-    const newStarterCode = generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType);
-    if (newStarterCode) {
-      setStarterCode(newStarterCode);
-      
-      const savedSolution = loadSolutionFromStorage(slug, selectedLanguage, selectedDataType);
-      if (savedSolution) {
-        setCode(savedSolution);
-      } else {
-        setCode(newStarterCode);
-        if (slug) {
-          saveSolutionToStorage(slug, newStarterCode, selectedLanguage, selectedDataType);
-        }
-      }
-    }
-  }, [selectedLanguage, selectedDataType, problem?.parameters, slug]);
-
-  const handleReset = () => {
-    if (starterCode) {
-      setCode(starterCode);
-      // Clear localStorage only for current language/datatype combination
-      if (slug) {
-        localStorage.removeItem(getSolutionKey(slug, selectedLanguage, selectedDataType));
-      }
-    }
-  };
-
-  // Move these handlers to useCallback
-  const handleMouseDown = useCallback(() => {
-    setIsDragging(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }, []);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    document.body.style.cursor = "default";
-    document.body.style.userSelect = "auto";
-  }, []);
-
-  useEffect(() => {
-    if (isDragging) {
-      // Move handleMouseMove inside useEffect
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!isDragging) return;
-
-        const container = document.getElementById("split-container");
-        if (!container) return;
-
-        const containerRect = container.getBoundingClientRect();
-        const newRatio =
-          ((e.clientX - containerRect.left) / containerRect.width) * 100;
-
-        // Adjust max ratio to 55% to ensure submit button stays visible
-        const clampedRatio = Math.min(Math.max(newRatio, 35), 55);
-        setSplitRatio(clampedRatio);
-      };
-
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-
-      return () => {
-        window.removeEventListener("mousemove", handleMouseMove);
-        window.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseUp]);
+  }, [
+    session?.user, 
+    slug, 
+    code, 
+    selectedLanguage, 
+    selectedGpuType, 
+    createSubmissionMutation, 
+    startSubmission, 
+    toast
+  ]);
 
   if (isLoading) {
     return (
@@ -697,6 +249,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       </Layout>
     );
   }
+
 
   return (
     <Layout title={problem.title}>
@@ -1041,7 +594,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                 </Thead>
                                 <Tbody>
                                   {submissionStatus.benchmarkResults?.map(
-                                    (result) => (
+                                    (result: BenchmarkTestResult) => (
                                       <Tr
                                         key={result.test_id}
                                         _hover={{ bg: "whiteAlpha.100" }}
@@ -1176,9 +729,27 @@ export default function ProblemPage({ slug }: { slug: string }) {
             </VStack>
           ) : (
             <Box>
-              <Heading as="h1" size="lg" mb={2}>
-                {problem.title}
-              </Heading>
+              <HStack justify="space-between" align="center" mb={2}>
+                <Heading as="h1" size="lg">
+                  {problem.title}
+                </Heading>
+                <Button
+                  size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      window.location.href = "/problems";
+                    }}
+                    leftIcon={<Icon as={FiArrowLeft} />}
+                    borderRadius="full"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white",
+                    }}
+                  >
+                    Back to Problems
+                  </Button>
+              </HStack>
               <HStack spacing={2} align="center" mb={6}>
                 <Badge
                   colorScheme={getDifficultyColor(problem.difficulty)}
@@ -1346,137 +917,153 @@ export default function ProblemPage({ slug }: { slug: string }) {
           minH={{ base: "50vh", md: "auto" }}
           pl={{ base: 0, md: 4 }}
         >
-          <VStack w="100%" h="100%" spacing={4}>
+          <VStack w="100%" h="100%" spacing={3}>
             <HStack
               w="100%"
               justify="space-between"
-              spacing={4}
-              flexDirection={{ base: "column", sm: "row" }}
-              alignItems={{ base: "flex-start", sm: "center" }}
+              gap={4}
+              flexWrap="wrap-reverse"
+              alignItems="flex-end"
             >
-              <HStack
-                spacing={2}
-                flexWrap={{ base: "wrap", lg: "nowrap" }}
-                gap={2}
+              <Flex 
+                direction={{ base: "column", sm: "row" }}
+                gap={3}
+                align="flex-end"
+                wrap="nowrap"
+                flex="1"
+                marginBottom={{ base: 0, sm: 2.5 }}
               >
-                <Box>
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                {/* GPU Type Dropdown */}
+                <Box minW="160px">
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1} fontWeight="medium">
                     GPU Type
                   </Text>
-                  <Select
-                    size="sm"
-                    bg="whiteAlpha.50"
-                    borderColor="whiteAlpha.200"
-                    _hover={{ borderColor: "whiteAlpha.300" }}
-                    w="160px"
-                    value={selectedGpuType}
-                    onChange={(e) => setSelectedGpuType(e.target.value)}
-                    borderRadius="full"
-                    sx={{
-                      "& > option": {
-                        bg: "gray.800",
-                      },
-                    }}
-                  >
-                    {
-                      Object.entries(GPU_DISPLAY_NAMES)
+                  <Menu placement="bottom">
+                    <MenuButton
+                      as={Button}
+                      size="sm"
+                      bg="whiteAlpha.200"
+                      borderColor="whiteAlpha.100"
+                      color="white"
+                      _hover={{ bg: "whiteAlpha.300" }}
+                      _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
+                      borderRadius="md"
+                      height="32px"
+                      width="100%"
+                    >
+                    {GPU_DISPLAY_NAMES[selectedGpuType]}
+                    </MenuButton>
+                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="160px" fontSize="sm">
+                      {Object.entries(GPU_DISPLAY_NAMES)
                         .filter(([key]) => key !== "all")
                         .map(([key, value]) => (
-                          <option key={key} value={key}>{value}</option>
-                        ))
-                    }
-                  </Select>
+                          <MenuItem 
+                            key={key} 
+                            value={key}
+                            onClick={() => setSelectedGpuType(key)}
+                            bg={selectedGpuType === key ? "whiteAlpha.300" : "transparent"}
+                            _hover={{ bg: "whiteAlpha.200" }}
+                            fontWeight={selectedGpuType === key ? "bold" : "medium"}
+                          >
+                            {value}
+                          </MenuItem>
+                        ))}
+                    </MenuList>
+                  </Menu>
                 </Box>
-                <Box>
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                {/* Language Dropdown */}
+                <Box minW="130px">
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1} fontWeight="medium">
                     Language
                   </Text>
-                  <Select
-                    size="sm"
-                    bg="whiteAlpha.50"
-                    borderColor="whiteAlpha.200"
-                    _hover={{ borderColor: "whiteAlpha.300" }}
-                    onChange={(e) => setSelectedLanguage(e.target.value)}
-                    value={selectedLanguage}
-                    w="160px"
-                    defaultValue="cuda"
-                    borderRadius="full"
-                    sx={{
-                      "& > option": {
-                        bg: "gray.800",
-                      },
-                    }}
-                  >
-                    <option value="cuda">CUDA C++</option>
-                    <option value="python" disabled>
-                      Python (Triton)
-                    </option>
-                  </Select>
+                  <Menu placement="bottom">
+                    <MenuButton
+                      as={Button}
+                      size="sm"
+                      bg="whiteAlpha.200"
+                      borderColor="whiteAlpha.100"
+                      color="white"
+                      _hover={{ bg: "whiteAlpha.300" }}
+                      _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
+                      borderRadius="md"
+                      height="32px"
+                      width="100%"
+                    >
+                    {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
+                    </MenuButton>
+                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="60px" fontSize="sm">
+                      {Object.entries(LANGUAGE_DISPLAY_NAMES)
+                        .map(([key, value]) => (
+                          <MenuItem 
+                            key={key} 
+                            value={key}
+                            onClick={() => setSelectedLanguage(key as ProgrammingLanguage)}
+                            bg={selectedLanguage === key ? "whiteAlpha.300" : "transparent"}
+                            _hover={{ bg: "whiteAlpha.200" }}
+                            fontWeight={selectedLanguage === key ? "bold" : "medium"}
+                            isDisabled={IS_DISABLED_LANGUAGE[key as string]}
+                          >
+                            {value}
+                          </MenuItem>
+                        ))}
+                    </MenuList>
+                  </Menu>
                 </Box>
-                <Box>
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                  
+                {/* Data Type Dropdown */}
+                <Box minW="80px">
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1} fontWeight="medium">
                     Data Type
                   </Text>
-                  <Select
-                    size="sm"
-                    bg="whiteAlpha.50"
-                    borderColor="whiteAlpha.200"
-                    _hover={{ borderColor: "whiteAlpha.300" }}
-                    w="140px"
-                    value={selectedDataType}
-                    onChange={(e) => setSelectedDataType(e.target.value as DataTypes)}
-                    borderRadius="full"
-                    sx={{
-                      "& > option": {
-                        bg: "gray.800",
-                      },
-                    }}
-                  >
-                    <option value="float32">float32</option>
-                    <option value="float16" disabled>
-                      float16
-                    </option>
-                    <option value="int32" disabled>
-                      int32
-                    </option>
-                    <option value="int16" disabled>
-                      int16
-                    </option>
-                  </Select>
+                  <Menu placement="bottom">
+                    <MenuButton
+                      as={Button}
+                      size="sm"
+                      bg="whiteAlpha.200"
+                      borderColor="whiteAlpha.100"
+                      color="white"
+                      _hover={{ bg: "whiteAlpha.300" }}
+                      _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
+                      borderRadius="md"
+                      height="32px"
+                      width="100%"
+                    >
+                    {DATA_TYPE_DISPLAY_NAMES[selectedDataType]}
+                    </MenuButton>
+                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="60px" fontSize="sm">
+                      {Object.entries(DATA_TYPE_DISPLAY_NAMES)
+                        .map(([key, value]) => (
+                          <MenuItem 
+                            key={key} 
+                            value={key}
+                            onClick={() => setSelectedDataType(key as DataType)}
+                            bg={selectedDataType === key ? "whiteAlpha.300" : "transparent"}
+                            _hover={{ bg: "whiteAlpha.200" }}
+                            fontWeight={selectedDataType === key ? "bold" : "medium"}
+                            isDisabled={IS_DISABLED_DATA_TYPE[key as DataType]}
+                          >
+                            {value}
+                          </MenuItem>
+                        ))}
+                    </MenuList>
+                  </Menu>
                 </Box>
-              </HStack>
-
-              <HStack spacing={2} mt={{ base: 2, sm: 0 }}>
-                {splitRatio < 45 && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      window.location.href = "/problems";
-                    }}
-                    leftIcon={<Icon as={FiArrowLeft} />}
-                    borderRadius="full"
-                    color="gray.300"
-                    _hover={{
-                      bg: "whiteAlpha.50",
-                      color: "white",
-                    }}
-                  >
-                    Back to Problems
-                  </Button>
-                )}
+              </Flex>
+                
+              {/* Action Buttons */}
+              <HStack spacing={2} mt={{ base: 1, sm: 3 }} marginRight={2}>
                 {isCodeDirty && (
                   <Button
-                    size="md"
+                    size="sm"
                     variant="ghost"
                     onClick={() => setIsResetModalOpen(true)}
                     borderRadius="full"
-                    height="40px"
+                    height="36px"
                     fontSize="sm"
-                    fontWeight="semibold"
+                    fontWeight="medium"
                     color="gray.300"
                     _hover={{
-                      bg: "whiteAlpha.50",
+                      bg: "whiteAlpha.100",
                       color: "white",
                     }}
                   >
@@ -1484,25 +1071,25 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   </Button>
                 )}
                 <Button
-                  bg="rgba(34, 197, 94, 0.1)"
+                  bg="rgba(34, 197, 94, 0.15)"
                   color="rgb(34, 197, 94)"
-                  size="md"
+                  size="sm"
                   onClick={handleSubmit}
                   isLoading={isSubmitting}
                   loadingText="Submit"
                   spinner={<></>}
                   disabled={isSubmitting}
                   borderRadius="full"
-                  height="40px"
+                  height="36px"
                   fontSize="sm"
-                  fontWeight="semibold"
-                  px={8}
+                  fontWeight="bold"
+                  px={6}
                   _hover={{
-                    bg: "rgba(34, 197, 94, 0.2)",
+                    bg: "rgba(34, 197, 94, 0.25)",
                     transform: "translateY(-1px)",
                   }}
                   _active={{
-                    bg: "rgba(34, 197, 94, 0.25)",
+                    bg: "rgba(34, 197, 94, 0.3)",
                   }}
                   transition="all 0.2s"
                 >
@@ -1510,13 +1097,16 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 </Button>
               </HStack>
             </HStack>
-
+                
+            {/* Code Editor */}
             <Box
               w="100%"
-              h={{ base: "400px", md: "100%" }}
+              h={{ base: "400px", md: "calc(100% - 48px)" }}
               bg="gray.800"
               borderRadius="xl"
               overflow="hidden"
+              border="1px solid"
+              borderColor="whiteAlpha.200"
             >
               <Editor
                 height="100%"
@@ -1538,6 +1128,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
           </VStack>
         </Box>
       </Box>
+
 
       <Modal
         isOpen={isResetModalOpen}
