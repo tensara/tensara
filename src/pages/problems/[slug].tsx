@@ -60,7 +60,7 @@ import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { BenchmarkTestResult, SubmissionStatus, Submission } from "~/types/problem";
-import { useCodePersistence } from "~/components/problem/useCodePersistence";
+import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSplitPanel } from "~/hooks/useSplitPanel";
 import { DataType, ProgrammingLanguage } from "~/types/misc";
@@ -953,7 +953,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     >
                     {GPU_DISPLAY_NAMES[selectedGpuType]}
                     </MenuButton>
-                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="120px" fontSize="sm">
+                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="160px" fontSize="sm">
                       {Object.entries(GPU_DISPLAY_NAMES)
                         .filter(([key]) => key !== "all")
                         .map(([key, value]) => (
@@ -963,6 +963,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             onClick={() => setSelectedGpuType(key)}
                             bg={selectedGpuType === key ? "whiteAlpha.300" : "transparent"}
                             _hover={{ bg: "whiteAlpha.200" }}
+                            fontWeight={selectedGpuType === key ? "bold" : "medium"}
                           >
                             {value}
                           </MenuItem>
@@ -999,6 +1000,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             onClick={() => setSelectedLanguage(key as ProgrammingLanguage)}
                             bg={selectedLanguage === key ? "whiteAlpha.300" : "transparent"}
                             _hover={{ bg: "whiteAlpha.200" }}
+                            fontWeight={selectedLanguage === key ? "bold" : "medium"}
                             isDisabled={IS_DISABLED_LANGUAGE[key as string]}
                           >
                             {value}
@@ -1037,6 +1039,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             onClick={() => setSelectedDataType(key as DataType)}
                             bg={selectedDataType === key ? "whiteAlpha.300" : "transparent"}
                             _hover={{ bg: "whiteAlpha.200" }}
+                            fontWeight={selectedDataType === key ? "bold" : "medium"}
                             isDisabled={IS_DISABLED_DATA_TYPE[key as DataType]}
                           >
                             {value}
