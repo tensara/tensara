@@ -62,6 +62,9 @@ const MAX_CONSISTENCY_BONUS = 0.2; // Maximum 20% bonus
 // Define the type for problem submissions
 const problemSubmissions = new Map<string, SubmissionBasic[]>();
 
+// Define a normalization factor
+const SCORE_NORMALIZATION_FACTOR = 1000;
+
 // Calculate an improved score taking into account multiple factors
 async function calculateEnhancedScore(
   ctx: { db: PrismaClient },
@@ -210,6 +213,9 @@ async function calculateEnhancedScore(
 
   // Apply consistency bonus to total score
   totalScore *= consistencyBonus;
+
+  // Normalize the total score to a smaller range
+  totalScore /= SCORE_NORMALIZATION_FACTOR; // Normalize the score
 
   return totalScore;
 }

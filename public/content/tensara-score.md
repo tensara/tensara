@@ -120,6 +120,20 @@ $$
 
 The consistency bonus is applied to your total score and can provide up to a 20% boost for users who submit solutions on many different days throughout the month.
 
+## Normalization of Scores
+
+To ensure that the Tensara scores remain within a manageable range and do not become excessively large, we apply a normalization factor to the final score. 
+
+The normalization factor is set to **1000**, meaning that after calculating the total score based on various performance metrics, we divide the final score by **1000**. This adjustment helps maintain a consistent scoring scale, making it easier for users to understand and compare their scores.
+
+For example, if a user's calculated score is **13777.5**, the normalized score would be:
+
+$$
+\text{Normalized Score} = \frac{\text{Total Score}}{1000} = \frac{13777.5}{1000} = 13.78
+$$
+
+This normalization process ensures that scores reflect user performance without resulting in unwieldy numbers.
+
 ## Example Calculation
 
 Consider a user who:
@@ -136,8 +150,11 @@ $$
 \text{Score}_{\text{improved EXTREME}} &= 150 \times 4.0 \times (1 + (0.5 \times 0.5)) \times 11 = 9900 \\
 \text{Score}_{\text{HARD}} &= 150 \times 2.5 \times 7 = 2625 \\
 \text{ConsistencyBonus} &= 1 + \left(0.2 \times \frac{15}{30}\right) = 1.1 \\
-\text{TotalScore} &= (9900 + 2625) \times 1.1 = 13777.5
+\text{TotalScore} &= (9900 + 2625) \times 1.1 = 13777.5 \\
+\text{Normalized Score} &= \frac{\text{Total Score}}{1000} = \frac{13777.5}{1000} = 13.78
 \end{align*}
 $$
+
+This shows how the final score is adjusted to keep it within a manageable range.
 
 This comprehensive scoring system ensures that users are rewarded not just for raw computational performance, but for tackling difficult problems, being early solvers, continuously improving their solutions, and maintaining consistent activity on the platform. 
