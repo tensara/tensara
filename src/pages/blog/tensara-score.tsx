@@ -37,6 +37,14 @@ export default function TensaraScorePage({
 
   return (
     <Layout title={title}>
+      <Global
+        styles={css`
+          html {
+            overflow-y: hidden;
+          }
+        `}
+      />
+
       <Container maxW="4xl" py={8}>
         <Box mb={10}>
           <Heading
