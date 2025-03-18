@@ -1,10 +1,11 @@
-import { Box, Container, Heading, Text, VStack, Link } from "@chakra-ui/react";
+import { Box, Container, Heading, Text, VStack } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
+import Link from "next/link";
 import fs from "fs";
 import path from "path";
+import type { GetStaticProps } from "next";
 import matter from "gray-matter";
 import { format } from "date-fns";
-import { GetStaticProps } from "next";
 
 interface BlogPost {
   slug: string;
@@ -20,10 +21,10 @@ export default function BlogIndex({ posts }: BlogIndexProps) {
   return (
     <Layout title="Blog">
       <Container maxW="4xl" py={8}>
-        <Heading 
-          as="h1" 
-          size="2xl" 
-          mb={8} 
+        <Heading
+          as="h1"
+          size="2xl"
+          mb={8}
           fontFamily="Space Grotesk, sans-serif"
         >
           Blog
@@ -31,7 +32,7 @@ export default function BlogIndex({ posts }: BlogIndexProps) {
 
         <VStack spacing={6} align="stretch">
           {posts.map((post) => (
-            <Box 
+            <Box
               key={post.slug}
               as={Link}
               href={`/blog/${post.slug}`}
@@ -61,15 +62,14 @@ export default function BlogIndex({ posts }: BlogIndexProps) {
 export const getStaticProps: GetStaticProps<BlogIndexProps> = async () => {
   const contentDirectory = path.join(process.cwd(), "public/content");
   const filenames = fs.readdirSync(contentDirectory);
-  
+
   const posts = filenames
     .filter((filename) => filename.endsWith(".md"))
     .map((filename) => {
       const filePath = path.join(contentDirectory, filename);
       const fileContents = fs.readFileSync(filePath, "utf8");
-      const { data, content } = matter(fileContents);
-      
-      
+      const { data } = matter(fileContents);
+
       return {
         slug: filename.replace(".md", ""),
         title: data.title as string,
@@ -78,10 +78,10 @@ export const getStaticProps: GetStaticProps<BlogIndexProps> = async () => {
     })
     .sort((a, b) => {
       const dateA = new Date(String(a.date));
-      const dateB = new Date(String(b.date)); 
+      const dateB = new Date(String(b.date));
       return dateB.getTime() - dateA.getTime();
     });
-  
+
   return {
     props: {
       posts,

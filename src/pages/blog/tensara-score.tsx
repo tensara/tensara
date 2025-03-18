@@ -10,6 +10,7 @@ import rehypeHighlight from "rehype-highlight";
 import type { GetStaticProps } from "next";
 import matter from "gray-matter";
 import { format } from "date-fns";
+import { Global, css } from "@emotion/react";
 
 interface BlogPostProps {
   title: string;
@@ -17,12 +18,22 @@ interface BlogPostProps {
   content: string;
 }
 
-export default function BenchmarkingSolutionsPage({
+export default function TensaraScorePage({
   title,
   date,
   content,
 }: BlogPostProps) {
-  const formattedDate = format(new Date(date), "MMMM d, yyyy");
+  let formattedDate = "";
+  try {
+    if (date) {
+      const dateObj = new Date(date);
+      if (!isNaN(dateObj.getTime())) {
+        formattedDate = format(dateObj, "MMMM d, yyyy");
+      }
+    }
+  } catch (error) {
+    console.error("Error formatting date:", error);
+  }
 
   return (
     <Layout title={title}>
@@ -41,7 +52,12 @@ export default function BenchmarkingSolutionsPage({
           </Text>
         </Box>
 
-        <Box className="markdown" color="gray.100">
+        <Box
+          className="markdown"
+          color="gray.100"
+          overflowX="hidden"
+          width="100%"
+        >
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex, rehypeHighlight]}
@@ -76,6 +92,14 @@ export default function BenchmarkingSolutionsPage({
                   borderRadius="xl"
                   overflowX="auto"
                   mb={6}
+                  maxWidth="100%"
+                  width="100%"
+                  sx={{
+                    "& code": {
+                      overflowWrap: "break-word",
+                      whiteSpace: "pre-wrap",
+                    },
+                  }}
                   borderWidth="1px"
                   borderColor="whiteAlpha.100"
                   {...props}
@@ -92,10 +116,7 @@ export default function BenchmarkingSolutionsPage({
 }
 
 export const getStaticProps: GetStaticProps<BlogPostProps> = async () => {
-  const filePath = path.join(
-    process.cwd(),
-    "public/content/benchmarking-solutions.md"
-  );
+  const filePath = path.join(process.cwd(), "public/content/tensara-score.md");
   const fileContents = fs.readFileSync(filePath, "utf8");
 
   const { data, content } = matter(fileContents);

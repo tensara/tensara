@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
   createTRPCRouter,
-  protectedProcedure,
+  protectedProcedure as _protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { Prisma, PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 
 // Define interfaces for submission and problem data
 interface SubmissionData {
@@ -48,6 +48,9 @@ const DIFFICULTY_MULTIPLIERS: Record<string, number> = {
 // Maximum percentage improvement bonus (if new solution is 100% better)
 const MAX_IMPROVEMENT_BONUS = 0.5;
 
+// Minimum improvement threshold to be considered significant (5%)
+const MIN_IMPROVEMENT_THRESHOLD = 0.05;
+
 // First N solvers get a bonus
 const FIRST_SOLVE_COUNT = 5;
 const FIRST_SOLVE_BONUS = 10;
@@ -55,6 +58,9 @@ const FIRST_SOLVE_BONUS = 10;
 // Consistency bonus parameters
 const CONSISTENCY_WINDOW_DAYS = 30; // Look at last 30 days
 const MAX_CONSISTENCY_BONUS = 0.2; // Maximum 20% bonus
+
+// Define the type for problem submissions
+const problemSubmissions = new Map<string, SubmissionBasic[]>();
 
 // Calculate an improved score taking into account multiple factors
 async function calculateEnhancedScore(
@@ -83,15 +89,15 @@ async function calculateEnhancedScore(
     orderBy: {
       createdAt: "asc", // Sorted by time to determine first solutions
     },
-  })) as unknown as SubmissionData[];
+  })) as SubmissionData[];
 
   if (submissions.length === 0) return 0;
 
   // Track best submission GFLOPS per problem
-  const bestProblemSubmissions = new Map();
-
-  // Group by problem for calculating first-solvers
-  const problemSubmissions = new Map();
+  const bestProblemSubmissions = new Map<
+    string,
+    { gflops: number; score: number }
+  >();
 
   // Get all submissions for each problem to determine relative position
   await Promise.all(
@@ -110,7 +116,7 @@ async function calculateEnhancedScore(
           orderBy: {
             createdAt: "asc",
           },
-        })) as unknown as SubmissionBasic[];
+        })) as SubmissionBasic[];
 
         problemSubmissions.set(problemId, allProblemSubs);
       }
@@ -142,11 +148,13 @@ async function calculateEnhancedScore(
 
     // 1. Base score with difficulty multiplier
     const difficultyMultiplier =
-      DIFFICULTY_MULTIPLIERS[problem.difficulty] || 1.0;
+      DIFFICULTY_MULTIPLIERS[problem.difficulty] ?? 1.0;
     let submissionScore = gflops * difficultyMultiplier;
 
     // 2. Check if this is an improvement over previous best for this problem
-    const previousBest = bestProblemSubmissions.get(problemId);
+    const previousBest = bestProblemSubmissions.get(problemId) as
+      | { gflops: number; score: number }
+      | undefined;
 
     if (previousBest) {
       if (gflops > previousBest.gflops) {
@@ -155,14 +163,22 @@ async function calculateEnhancedScore(
           1,
           (gflops - previousBest.gflops) / previousBest.gflops
         );
-        // Apply diminishing returns for repeated solutions unless significant improvement
-        const improvementBonus = improvementPercentage * MAX_IMPROVEMENT_BONUS;
-        submissionScore =
-          gflops * difficultyMultiplier * (1 + improvementBonus);
-        bestProblemSubmissions.set(problemId, {
-          gflops,
-          score: submissionScore,
-        });
+
+        // Only count as improvement if it meets the minimum threshold
+        if (improvementPercentage >= MIN_IMPROVEMENT_THRESHOLD) {
+          // Apply diminishing returns for repeated solutions unless significant improvement
+          const improvementBonus =
+            improvementPercentage * MAX_IMPROVEMENT_BONUS;
+          submissionScore =
+            gflops * difficultyMultiplier * (1 + improvementBonus);
+          bestProblemSubmissions.set(problemId, {
+            gflops,
+            score: submissionScore,
+          });
+        } else {
+          // Improvement less than threshold, don't update score
+          continue;
+        }
       } else {
         // Not an improvement, don't count this submission
         continue;
@@ -172,18 +188,20 @@ async function calculateEnhancedScore(
       bestProblemSubmissions.set(problemId, { gflops, score: submissionScore });
 
       // 3. Check if user was among first N solvers
-      const allSubs = problemSubmissions.get(problemId) || [];
-      const userPos = allSubs.findIndex(
-        (s: SubmissionBasic) => s.userId === userId
-      );
+      const allSubs = problemSubmissions.get(problemId) ?? [];
+      if (Array.isArray(allSubs)) {
+        const userPos = allSubs.findIndex(
+          (s: SubmissionBasic) => s.userId === userId
+        );
 
-      if (userPos >= 0 && userPos < FIRST_SOLVE_COUNT) {
-        // Apply bonus for being among first solvers (higher bonus for earlier solvers)
-        const firstSolveMultiplier =
-          1 +
-          (FIRST_SOLVE_BONUS * (FIRST_SOLVE_COUNT - userPos)) /
-            FIRST_SOLVE_COUNT;
-        submissionScore *= firstSolveMultiplier;
+        if (userPos >= 0 && userPos < FIRST_SOLVE_COUNT) {
+          // Apply bonus for being among first solvers (higher bonus for earlier solvers)
+          const firstSolveMultiplier =
+            1 +
+            (FIRST_SOLVE_BONUS * (FIRST_SOLVE_COUNT - userPos)) /
+              FIRST_SOLVE_COUNT;
+          submissionScore *= firstSolveMultiplier;
+        }
       }
     }
 
@@ -255,7 +273,7 @@ export const usersRouter = createTRPCRouter({
 
       // Find current user's rank
       const userRank = allUserScores.findIndex((u) => u.id === user.id) + 1;
-      const userScore = allUserScores.find((u) => u.id === user.id)?.score || 0;
+      const userScore = allUserScores.find((u) => u.id === user.id)?.score ?? 0;
 
       // Get recent submissions
       const recentSubmissions = await ctx.db.submission.findMany({

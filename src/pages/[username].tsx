@@ -1,3 +1,4 @@
+import React from "react";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -25,7 +26,7 @@ import {
   Tr,
   Th,
   Td,
-  Link,
+  Link as ChakraLink,
   Button,
   SimpleGrid,
   Tooltip,
@@ -71,13 +72,6 @@ function ActivityCalendar({
 }) {
   const weeks = 52; // Full year (52 weeks)
   const days = 7;
-  const [blue200, blue300, blue400, blue500, blue600] = useToken("colors", [
-    "blue.200",
-    "blue.300",
-    "blue.400",
-    "blue.500",
-    "blue.600",
-  ]);
 
   // Group data by date
   const dateMap: Record<string, number> = {};
@@ -117,25 +111,27 @@ function ActivityCalendar({
       // Start from 1 year ago, move forward
       date.setDate(today.getDate() - ((weeks - w - 1) * 7 + (days - d - 1)));
 
-      const dateStr = date.toISOString().split("T")[0];
-      const count = dateMap[dateStr as keyof typeof dateMap] || 0;
+      const dateStr = date.toISOString().split("T")[0]!;
+      const count = dateMap[dateStr] ?? 0;
 
       // Determine color based on count
       let bgColor = "whiteAlpha.100";
       if (count > 0) {
-        if (count === 1) bgColor = blue200;
-        else if (count === 2) bgColor = blue300;
-        else if (count === 3) bgColor = blue400;
-        else if (count === 4) bgColor = blue500;
-        else bgColor = blue600;
+        if (count === 1) bgColor = "blue.200";
+        else if (count === 2) bgColor = "blue.300";
+        else if (count === 3) bgColor = "blue.400";
+        else if (count === 4) bgColor = "blue.500";
+        else bgColor = "blue.600";
       }
 
       // Add to grid - column-major ordering
-      calendarGrid[d]![w]! = {
-        date: dateStr as string,
-        count,
-        bgColor,
-      };
+      if (calendarGrid[d]) {
+        calendarGrid[d]![w] = {
+          date: dateStr,
+          count,
+          bgColor,
+        };
+      }
     }
   }
 
@@ -250,11 +246,11 @@ function ActivityCalendar({
                     borderRadius="sm"
                     bg="whiteAlpha.100"
                   />
-                  <Box w="10px" h="10px" borderRadius="sm" bg={blue200} />
-                  <Box w="10px" h="10px" borderRadius="sm" bg={blue300} />
-                  <Box w="10px" h="10px" borderRadius="sm" bg={blue400} />
-                  <Box w="10px" h="10px" borderRadius="sm" bg={blue500} />
-                  <Box w="10px" h="10px" borderRadius="sm" bg={blue600} />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.200" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.300" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.400" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.500" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.600" />
                 </HStack>
                 <Text fontSize="xs" color="whiteAlpha.700" ml={2}>
                   More
@@ -322,9 +318,9 @@ export default function UserProfile() {
     isLoading,
     error: apiError,
   } = api.users.getByUsername.useQuery(
-    { username: username as string },
+    { username: typeof username === "string" ? username : "" },
     {
-      enabled: !!username,
+      enabled: !!username && typeof username === "string",
       retry: false,
       refetchOnWindowFocus: false,
     }
@@ -340,7 +336,9 @@ export default function UserProfile() {
   }
 
   return (
-    <Layout title={`${username}'s Profile`}>
+    <Layout
+      title={`${typeof username === "string" ? username : "User"}'s Profile`}
+    >
       <Container maxW="container.xl" py={4}>
         {apiError ? (
           <Alert
@@ -358,7 +356,8 @@ export default function UserProfile() {
               User Not Found
             </AlertTitle>
             <AlertDescription maxWidth="sm">
-              The user {username} doesn't exist or has been removed.
+              The user {typeof username === "string" ? username : "User"}{" "}
+              doesn&apos;t exist or has been removed.
             </AlertDescription>
             <Button
               mt={4}
@@ -384,8 +383,10 @@ export default function UserProfile() {
                 <Box p={6} textAlign="center">
                   <Skeleton isLoaded={!isLoading} borderRadius="full" mx="auto">
                     <Image
-                      src={userData?.image || "https://via.placeholder.com/150"}
-                      alt={`${username}'s profile`}
+                      src={userData?.image ?? "https://via.placeholder.com/150"}
+                      alt={`${
+                        typeof username === "string" ? username : "User"
+                      }'s profile`}
                       borderRadius="full"
                       boxSize={{ base: "150px", md: "180px" }}
                       border="4px solid"
@@ -401,7 +402,7 @@ export default function UserProfile() {
                       width={isLoading ? "200px" : "auto"}
                     >
                       <Heading color="white" size="lg">
-                        {userData?.username || username}
+                        {userData?.username ?? username}
                       </Heading>
                     </Skeleton>
 
@@ -483,7 +484,7 @@ export default function UserProfile() {
                             fontWeight="bold"
                             mb={1}
                           >
-                            {userData?.stats?.submissions || 0}
+                            {userData?.stats?.submissions ?? 0}
                           </Text>
                           <Flex
                             justifyContent="center"
@@ -512,7 +513,7 @@ export default function UserProfile() {
                             fontWeight="bold"
                             mb={1}
                           >
-                            {userData?.stats?.solvedProblems || 0}
+                            {userData?.stats?.solvedProblems ?? 0}
                           </Text>
                           <Flex
                             justifyContent="center"
@@ -544,7 +545,7 @@ export default function UserProfile() {
                         fontWeight="bold"
                         mb={1}
                       >
-                        {userData?.stats?.score || 0}
+                        {userData?.stats?.score ?? 0}
                       </Text>
                       <Flex
                         justifyContent="center"
@@ -620,9 +621,11 @@ export default function UserProfile() {
                 <Box p={4}>
                   {isLoading ? (
                     <VStack spacing={4} align="stretch">
-                      {[...Array(3)].map((_, i) => (
-                        <Skeleton key={i} height="60px" borderRadius="md" />
-                      ))}
+                      {Array(3).map(
+                        (_: undefined, i: number): JSX.Element => (
+                          <Skeleton key={i} height="60px" borderRadius="md" />
+                        )
+                      )}
                     </VStack>
                   ) : userData?.recentSubmissions &&
                     userData.recentSubmissions.length > 0 ? (
@@ -644,9 +647,12 @@ export default function UserProfile() {
                                 href={`/problems/${submission.problemId}`}
                                 passHref
                               >
-                                <Link color="blue.300" fontWeight="medium">
+                                <ChakraLink
+                                  color="blue.300"
+                                  fontWeight="medium"
+                                >
                                   {submission.problemName}
-                                </Link>
+                                </ChakraLink>
                               </NextLink>
                             </Td>
                             <Td color="whiteAlpha.800">{submission.date}</Td>
@@ -705,7 +711,9 @@ export default function UserProfile() {
                   userData.recentSubmissions.length > 0 && (
                     <Box p={4} textAlign="center">
                       <NextLink
-                        href={`/submissions?username=${username}`}
+                        href={`/submissions?username=${
+                          typeof username === "string" ? username : "User"
+                        }`}
                         passHref
                       >
                         <Button
