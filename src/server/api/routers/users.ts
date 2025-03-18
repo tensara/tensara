@@ -217,7 +217,7 @@ async function calculateEnhancedScore(
   // Normalize the total score to a smaller range
   totalScore /= SCORE_NORMALIZATION_FACTOR; // Normalize the score
 
-  return totalScore;
+  return parseFloat(totalScore.toFixed(2)); // Return as a float to avoid trailing zeros
 }
 
 export const usersRouter = createTRPCRouter({
@@ -336,6 +336,8 @@ export const usersRouter = createTRPCRouter({
         };
       });
 
+      console.log({ userScore });
+
       return {
         username: user.username,
         name: user.name,
@@ -345,7 +347,7 @@ export const usersRouter = createTRPCRouter({
           submissions: submissionsCount,
           solvedProblems,
           ranking: userRank,
-          score: Math.round(userScore),
+          score: userScore,
         },
         recentSubmissions: recentSubmissions.map((sub) => ({
           id: sub.id,

@@ -545,7 +545,9 @@ export default function UserProfile() {
                         fontWeight="bold"
                         mb={1}
                       >
-                        {userData?.stats?.score ?? 0}
+                        {userData?.stats?.score
+                          ? userData.stats.score.toFixed(2)
+                          : 0}
                       </Text>
                       <Flex
                         justifyContent="center"
