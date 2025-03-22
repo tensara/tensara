@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardBody,
 } from "@chakra-ui/react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
@@ -57,7 +57,6 @@ export const getServerSideProps: GetServerSideProps = async (_context) => {
 };
 
 const LeaderboardIndexPage: NextPage = () => {
-  const { data: session } = useSession();
   const router = useRouter();
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
 

@@ -1,13 +1,12 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import type { PrismaClient } from "@prisma/client";
 import {
   createTRPCRouter,
-  protectedProcedure,
   publicProcedure,
+  protectedProcedure,
 } from "~/server/api/trpc";
-import { TRPCError } from "@trpc/server";
 import NodeCache from "node-cache";
-import type { Problem, Submission, User } from "@prisma/client";
-import { PrismaClient } from "@prisma/client";
 
 // Create cache with 5 minute TTL
 const leaderboardCache = new NodeCache({ stdTTL: 300 });
