@@ -947,7 +947,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       color="white"
                       _hover={{ bg: "whiteAlpha.300" }}
                       _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="md"
+                      borderRadius="lg"
+                      rightIcon={<ChevronDownIcon />}
                       height="32px"
                       width="100%"
                     >
@@ -985,7 +986,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       color="white"
                       _hover={{ bg: "whiteAlpha.300" }}
                       _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="md"
+                      borderRadius="lg"
+                      rightIcon={<ChevronDownIcon />}
                       height="32px"
                       width="100%"
                     >
@@ -1024,9 +1026,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       color="white"
                       _hover={{ bg: "whiteAlpha.300" }}
                       _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="md"
+                      borderRadius="lg"
                       height="32px"
                       width="100%"
+                      rightIcon={<ChevronDownIcon />}
                     >
                     {DATA_TYPE_DISPLAY_NAMES[selectedDataType]}
                     </MenuButton>
