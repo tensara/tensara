@@ -179,6 +179,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
                 benchmark_result = utils.run_dynamic_benchmark(
                     cuda_lib, 
                     problem, 
+                    test_id,
                     test_case, 
                     input_tensors, 
                     actual_output,

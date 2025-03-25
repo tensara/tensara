@@ -195,7 +195,7 @@ def prepare_gpu():
     
     time.sleep(0.5)
 
-def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_output, 
+def run_dynamic_benchmark(cuda_lib, problem, test_id, test_case, input_tensors, actual_output, 
                           min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0):
     """
     Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
@@ -300,6 +300,7 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     
     benchmark_result = {
         "name": test_case["name"],
+        "test_id": test_id,
         "status": "PASSED",
         "gflops": mean_gflops,
         "runtime_ms": mean_runtime * 1000,
