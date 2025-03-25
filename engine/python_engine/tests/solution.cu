@@ -1,22 +1,22 @@
 #include <cuda_runtime.h>
 
-__global__ void reference_matrix_multiply(const float* A, const float* B, float* C, size_t M, size_t N, size_t K) {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (row < M && col < N) {
-        float sum = 0.0f;
-        for (int i = 0; i < K; i++) {
-            sum += A[row * K + i] * B[i * N + col];
-        }
-        C[row * N + col] = sum;
+__global__ void leaky_relu_kernel(const float* input, float* output, size_t n, size_t m, float alpha) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t idy = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (idx < n && idy < m) {
+        size_t index = idy * n + idx;
+        float val = input[index];
+        output[index] = val > 0.0f ? val : alpha * val;
     }
 }
 
-extern "C" void solution(const float* input_a, const float* input_b, float* output_c, size_t m, size_t n, size_t k) {
-    dim3 blockDim(16, 16);
-    dim3 gridDim((n + blockDim.x - 1) / blockDim.x, 
-                 (m + blockDim.y - 1) / blockDim.y);
-
-    reference_matrix_multiply<<<gridDim, blockDim>>>(input_a, input_b, output_c, m, n, k);   
+extern "C" void solution(const float* input, float* output, size_t n, size_t m, float alpha) {
+    
+    dim3 block_size(16, 16);
+    dim3 num_blocks((n + block_size.x - 1) / block_size.x,
+                    (m + block_size.y - 1) / block_size.y);
+    
+    leaky_relu_kernel<<<num_blocks, block_size>>>(input, output, n, m, alpha);
+    cudaDeviceSynchronize();
 }

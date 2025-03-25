@@ -53,7 +53,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes, dtype: str
 
                 # Prepare pointers for CUDA
                 input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
-                             for tensor in input_tensors]
+                             for tensor in input_tensors if isinstance(tensor, torch.Tensor)]
                 output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
                 extra_params = problem.get_extra_params(test_case)
 
@@ -175,8 +175,6 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
                 input_tensors = test_case["create_inputs"]()
                 expected_output = problem.reference_solution(*input_tensors).cpu()
                 actual_output = torch.zeros_like(expected_output, device='cuda')
-                input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
-                             for tensor in input_tensors]
                 
                 benchmark_result = utils.run_dynamic_benchmark(
                     cuda_lib, 
@@ -198,7 +196,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
                 }
                 
                 # Clean up memory
-                del input_tensors, expected_output, actual_output, input_ptrs
+                del input_tensors, expected_output, actual_output
                 gc.collect()
                 torch.cuda.empty_cache()
                 
@@ -231,7 +229,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
         yield {
             "status": "success",
             "test_results": test_results,
-            "gflops": avg_gflops,
+            "average_gflops": avg_gflops,
             "runtime_ms": avg_runtime_ms,
             "stdev_gflops": avg_stdev_gflops,
             "total_tests": test_count,

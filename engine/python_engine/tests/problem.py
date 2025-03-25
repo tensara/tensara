@@ -5,72 +5,63 @@ from typing import List, Dict, Tuple, Any
 from problem import Problem
 
 
-class matrix_multiplication(Problem):
-    """Matrix multiplication problem."""
+class leaky_relu(Problem):
+    """Leaky ReLU activation function problem."""
     
     def __init__(self):
         super().__init__(
-            name="matrix-multiplication"
+            name="leaky-relu"
         )
     
-    def reference_solution(self, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    def reference_solution(self, input_matrix: torch.Tensor, alpha: float) -> torch.Tensor:
         """
-        PyTorch implementation of matrix multiplication.
+        PyTorch implementation of Leaky ReLU.
         
         Args:
-            A: First input matrix
-            B: Second input matrix
+            input_matrix: Input matrix of shape (M, N)
+            alpha: Slope for negative values
             
         Returns:
-            Result of A * B
+            Result of Leaky ReLU activation
         """
         with torch.no_grad():
-            return torch.matmul(A, B)
+            return torch.nn.functional.leaky_relu(input_matrix, alpha)
     
     def generate_test_cases(self, dtype: torch.dtype) -> List[Dict[str, Any]]:
         """
-        Generate test cases for matrix multiplication.
+        Generate test cases for Leaky ReLU.
         
         Returns:
-            List of test case dictionaries with varying matrix dimensions
+            List of test case dictionaries with varying sizes and alpha values
         """
-        # Matrix dimensions: (M, K) × (K, N) = (M, N)
-        # dims represents (M, N, K)
-        test_matrices = [
-            {
-                "name": "4092x4092 x 4092x4092 matrices",
-                "dims": (4092, 4092, 4092),
-            },
-            {
-                "name": "8192x8192 x 8192x4092 matrices",
-                "dims": (8192, 4092, 8192),
-            },
-            {
-                "name": "4092x4092 x 4092x8192 matrices",
-                "dims": (4092, 8192, 4092),
-            },
-            {
-                "name": "8192x8192 x 8192x8192 matrices",
-                "dims": (8192, 8192, 8192),
-            }
+        # Test case configurations with specific matrix sizes and alpha values
+        matrix_sizes = [
+            (4096, 4096),
+            (6144, 4096)
         ]
         
-        return [
-            {
-                "name": matrix["name"],
-                "dims": matrix["dims"],
-                "create_inputs": lambda m=matrix["dims"]: (
-                    torch.rand(m[0], m[2], device="cuda", dtype=dtype),
-                    torch.rand(m[2], m[1], device="cuda", dtype=dtype)
-                )
-            }
-            for matrix in test_matrices
-        ]
+        alpha_values = [0.01, 0.05, 0.1, 0.2]
+        
+        test_cases = []
+        for m, n in matrix_sizes:
+            for alpha in alpha_values:
+                test_cases.append({
+                    "name": f"Matrix {m}x{n}, alpha={alpha}",
+                    "rows": m,
+                    "cols": n,
+                    "alpha": alpha,
+                    "create_inputs": lambda m=m, n=n, alpha=alpha: (
+                        torch.rand((m, n), device="cuda", dtype=dtype) * 20000.0 - 10000.0,  # uniform [-10000, 10000]
+                        alpha
+                    )
+                })
+        
+        return test_cases
     
     def verify_result(self, expected_output: torch.Tensor, 
                      actual_output: torch.Tensor, dtype: torch.dtype) -> Tuple[bool, Dict[str, Any]]:
         """
-        Verify if the matrix multiplication result is correct.
+        Verify if the Leaky ReLU result is correct.
         
         Args:
             expected_output: Output from reference solution
@@ -79,7 +70,7 @@ class matrix_multiplication(Problem):
         Returns:
             Tuple of (is_correct, debug_info)
         """
-        is_close = torch.allclose(actual_output, expected_output, rtol=1e-4, atol=1e-8)
+        is_close = torch.allclose(actual_output, expected_output, rtol=1e-5, atol=1e-5)
         
         debug_info = {}
         if not is_close:
@@ -87,30 +78,50 @@ class matrix_multiplication(Problem):
             max_diff = torch.max(torch.abs(diff)).item()
             mean_diff = torch.mean(torch.abs(diff)).item()
             
+            # Find indices of largest differences
+            flat_diff = diff.flatten()
+            _, top_indices = torch.topk(torch.abs(flat_diff), min(5, flat_diff.numel()))
+            
+            # Convert flat indices back to 2D coordinates
+            m, n = expected_output.shape
+            sample_diffs = {}
+            for i, idx in enumerate(top_indices):
+                row = idx.item() // n
+                col = idx.item() % n
+                sample_diffs[f"pos_{i}_({row},{col})"] = {
+                    "expected": expected_output[row, col].item(),
+                    "actual": actual_output[row, col].item(),
+                    "diff": diff[row, col].item()
+                }
+            
+            # Check for differences in activation pattern
+            expected_positives = (expected_output > 0).sum().item()
+            actual_positives = (actual_output > 0).sum().item()
+            
             debug_info = {
                 "max_difference": max_diff,
-                "mean_difference": mean_diff
+                "mean_difference": mean_diff,
+                "expected_positives": expected_positives,
+                "actual_positives": actual_positives,
+                "sample_differences": sample_diffs
             }
         
         return is_close, debug_info
     
     def get_function_signature(self) -> Dict[str, Any]:
         """
-        Get the function signature for the matrix multiplication solution.
-        
-        IMPORTANT: Comments are required. Outline the FLOPs calculation.
+        Get the function signature for the Leaky ReLU solution.
         
         Returns:
             Dictionary with argtypes and restype for ctypes
         """
         return {
             "argtypes": [
-                ctypes.POINTER(ctypes.c_float),  # matrix_a
-                ctypes.POINTER(ctypes.c_float),  # matrix_b
-                ctypes.POINTER(ctypes.c_float),  # matrix_c (output)
-                ctypes.c_size_t,                 # M (rows in A and C)
-                ctypes.c_size_t,                 # N (columns in B and C)
-                ctypes.c_size_t                  # K (columns in A, rows in B)
+                ctypes.POINTER(ctypes.c_float),  # input_matrix
+                ctypes.POINTER(ctypes.c_float),  # output_matrix
+                ctypes.c_size_t,                 # rows (M)
+                ctypes.c_size_t,                 # columns (N)
+                ctypes.c_float                   # alpha
             ],
             "restype": None
         }
@@ -121,14 +132,19 @@ class matrix_multiplication(Problem):
         
         Args:
             test_case: The test case dictionary
+
+        IMPORTANT: Comments are required. Outline the FLOPs calculation.
             
         Returns:
             Number of floating point operations
         """
-        # Matrix multiplication FLOPS = 2 * M * N * K
-        # (One multiply and one add for each cell in the result, done K times)
-        M, N, K = test_case["dims"]
-        return 2 * M * N * K
+        M = test_case["rows"]
+        N = test_case["cols"]
+        
+        # M*N FLOPs:
+        # - Each element requires 1 comparison and at most 1 multiplication
+        # - We count this as 1 FLOP per element as per the test case
+        return M * N
     
     def get_extra_params(self, test_case: Dict[str, Any]) -> List[Any]:
         """
@@ -138,7 +154,9 @@ class matrix_multiplication(Problem):
             test_case: The test case dictionary
             
         Returns:
-            List containing the dimensions M, N, K
+            List containing the rows M, columns N, and alpha value
         """
-        M, N, K = test_case["dims"]
-        return [M, N, K]
+        M = test_case["rows"]
+        N = test_case["cols"]
+        alpha = test_case["alpha"]
+        return [M, N, alpha]

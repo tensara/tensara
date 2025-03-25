@@ -217,7 +217,7 @@ def run_dynamic_benchmark(cuda_lib, problem, test_case, input_tensors, actual_ou
     """
     # Prepare pointers for CUDA
     input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
-                 for tensor in input_tensors]
+        for tensor in input_tensors if isinstance(tensor, torch.Tensor)]
     output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
     extra_params = problem.get_extra_params(test_case)
     
