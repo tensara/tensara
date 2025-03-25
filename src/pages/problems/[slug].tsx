@@ -934,27 +934,29 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 marginBottom={{ base: 0, sm: 2.5 }}
               >
                 {/* GPU Type Dropdown */}
-                <Box minW="160px">
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1} fontWeight="medium">
+                <Box minW="130px">
+                  <Text fontSize="sm" color="whiteAlpha.600" mb={1} fontWeight="medium">
                     GPU Type
                   </Text>
                   <Menu placement="bottom">
                     <MenuButton
                       as={Button}
                       size="sm"
-                      bg="whiteAlpha.200"
+                      bg="whiteAlpha.50"
+                      borderWidth={1}
                       borderColor="whiteAlpha.100"
                       color="white"
-                      _hover={{ bg: "whiteAlpha.300" }}
+                      _hover={{ bg: "whiteAlpha.200" }}
                       _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="lg"
+                      borderRadius="2xl"
                       rightIcon={<ChevronDownIcon />}
                       height="32px"
                       width="100%"
+                      textAlign="left"
                     >
                     {GPU_DISPLAY_NAMES[selectedGpuType]}
                     </MenuButton>
-                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="160px" fontSize="sm">
+                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="100px" fontSize="sm" borderRadius="xl">
                       {Object.entries(GPU_DISPLAY_NAMES)
                         .filter(([key]) => key !== "all")
                         .map(([key, value]) => (
@@ -981,19 +983,21 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     <MenuButton
                       as={Button}
                       size="sm"
-                      bg="whiteAlpha.200"
+                      bg="whiteAlpha.50"
+                      borderWidth={1}
                       borderColor="whiteAlpha.100"
                       color="white"
-                      _hover={{ bg: "whiteAlpha.300" }}
+                      _hover={{ bg: "whiteAlpha.200" }}
                       _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="lg"
+                      borderRadius="2xl"
                       rightIcon={<ChevronDownIcon />}
                       height="32px"
                       width="100%"
+                      textAlign="left"
                     >
                     {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
                     </MenuButton>
-                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="60px" fontSize="sm">
+                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="130px" fontSize="sm" borderRadius="xl">
                       {Object.entries(LANGUAGE_DISPLAY_NAMES)
                         .map(([key, value]) => (
                           <MenuItem 
@@ -1013,7 +1017,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 </Box>
                   
                 {/* Data Type Dropdown */}
-                <Box minW="80px">
+                <Box minW="130px">
                   <Text fontSize="sm" color="whiteAlpha.700" mb={1} fontWeight="medium">
                     Data Type
                   </Text>
@@ -1021,19 +1025,21 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     <MenuButton
                       as={Button}
                       size="sm"
-                      bg="whiteAlpha.200"
+                      bg="whiteAlpha.50"
+                      borderWidth={1}
                       borderColor="whiteAlpha.100"
                       color="white"
-                      _hover={{ bg: "whiteAlpha.300" }}
+                      _hover={{ bg: "whiteAlpha.200" }}
                       _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="lg"
+                      borderRadius="2xl"
                       height="32px"
                       width="100%"
                       rightIcon={<ChevronDownIcon />}
+                      textAlign="left"
                     >
                     {DATA_TYPE_DISPLAY_NAMES[selectedDataType]}
                     </MenuButton>
-                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="60px" fontSize="sm">
+                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="130px" fontSize="sm" borderRadius="xl">
                       {Object.entries(DATA_TYPE_DISPLAY_NAMES)
                         .map(([key, value]) => (
                           <MenuItem 
