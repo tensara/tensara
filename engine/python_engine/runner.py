@@ -7,27 +7,31 @@ import utils
 import os
 from pathlib import Path
 
-def run_checker(problem_name: str, compiled: bytes) -> Iterator[str]:
+
+def run_checker(problem_name: str, problem_def: str, compiled: bytes, dtype: str) -> Iterator[str]:
     """
     Check a submitted CUDA solution against the reference implementation
     and stream results as they become available
     
     Args:
         problem_name: Name of the problem
+        problem_def: Problem instance
         compiled: Compiled CUDA code for the submitted solution
+        dtype: Data type for the problem
         
     Returns:
         Iterator that yields JSON strings with test results
     """
     
     try:
-        problem = utils.load_problem_module(problem_name)
+        dtype = utils.DTYPE_MAP[dtype]
+        problem = utils.load_problem_module(problem_name, problem_def)
         cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
         func_sig = problem.get_function_signature()
         cuda_lib.solution.argtypes = func_sig["argtypes"]
         cuda_lib.solution.restype = func_sig["restype"]
 
-        test_cases = problem.generate_test_cases()
+        test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
         test_results = []
         passed_tests = 0
@@ -58,7 +62,7 @@ def run_checker(problem_name: str, compiled: bytes) -> Iterator[str]:
                 torch.cuda.synchronize()
 
                 # Move to CPU for comparison
-                is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
+                is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
 
                 # Clean up memory
                 del input_tensors, expected_output, actual_output, input_ptrs, output_ptr
@@ -130,28 +134,22 @@ def run_checker(problem_name: str, compiled: bytes) -> Iterator[str]:
         }
 
 
-def run_benchmark(problem_name: str, problem_def: str, compiled_lib: bytes):
+def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: str):
     """
     Run benchmark on compiled CUDA solution
     
     Args:
         problem_name: Name of the problem
         problem_def: Problem instance  
-        compiled_lib: Compiled CUDA code for the submitted solution
+        compiled: Compiled CUDA code for the submitted solution
     
     Yields:
         Dictionary objects with benchmark status updates
     """
     try:
-        problems_dir = Path("problems")
-        problems_dir.mkdir(parents=True, exist_ok=True)
-
-        problem_file_path = problems_dir / f"{problem_name}.py"
-        with open(problem_file_path, "w") as problem_file:
-            problem_file.write(problem_def)
-        
-        problem = utils.load_problem_module(problem_name)
-        cuda_lib = utils.read_bytes_as_cuda_lib(compiled_lib)
+        dtype = utils.DTYPE_MAP[dtype]
+        problem = utils.load_problem_module(problem_name, problem_def)
+        cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
         yield {"status": "running"}
         # Set function signature
         func_sig = problem.get_function_signature()
@@ -159,7 +157,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled_lib: bytes):
         cuda_lib.solution.restype = func_sig["restype"]
             
         # Get test cases from the problem
-        test_cases = problem.generate_test_cases()
+        test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
         
         # Initialize statistics

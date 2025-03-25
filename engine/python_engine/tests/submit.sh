@@ -23,7 +23,8 @@ cat > request.json << EOF
   "solution_code": $(printf '%s' "$solution_code" | jq -Rs .),
   "problem": "$problem_name",
   "problem_def": $(printf '%s' "$problem_def" | jq -Rs .),
-  "gpu": "T4"
+  "gpu": "T4",
+  "dtype": "float32"
 }
 EOF
 
