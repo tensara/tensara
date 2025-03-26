@@ -27,6 +27,8 @@ GPU_COMPUTE_CAPABILITIES = {
     "H100": "90",
     "A100-80GB": "80",
     "A10G": "86",
+    "L40S": "89",
+    "L4": "89"
 }
 
 class NVCCError(Exception):

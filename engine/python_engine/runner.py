@@ -46,7 +46,17 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes, dtype: str
                 input_tensors = test_case["create_inputs"]()
                 
                 # Get the reference solution and move it to CPU
-                expected_output = problem.reference_solution(*input_tensors).cpu()
+                with torch.autocast("cuda", enabled=False, dtype=dtype):
+                    old_tf32_setting = torch.backends.cuda.matmul.allow_tf32
+                    old_cudnn_tf32_setting = torch.backends.cudnn.allow_tf32
+                    
+                    torch.backends.cuda.matmul.allow_tf32 = False
+                    torch.backends.cudnn.allow_tf32 = False
+
+                    expected_output = problem.reference_solution(*input_tensors).cpu()
+
+                    torch.backends.cuda.matmul.allow_tf32 = old_tf32_setting
+                    torch.backends.cudnn.allow_tf32 = old_cudnn_tf32_setting
 
                 # Create actual_output with the same shape as expected_output
                 actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
