@@ -249,7 +249,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       {
         problemSlug: slug,
         code,
-        language: "cuda",
+        language: selectedLanguage as "cuda" | "python",
         gpuType: selectedGpuType,
       },
       {

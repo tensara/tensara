@@ -6,18 +6,22 @@ import statistics
 import utils
 import os
 from pathlib import Path
+import importlib.util
+import tempfile
+import shutil
 
-
-def run_checker(problem_name: str, problem_def: str, compiled: bytes, dtype: str) -> Iterator[str]:
+def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str) -> Iterator[str]:
     """
-    Check a submitted CUDA solution against the reference implementation
+    Check a submitted solution against the reference implementation
     and stream results as they become available
     
     Args:
         problem_name: Name of the problem
         problem_def: Problem instance
-        compiled: Compiled CUDA code for the submitted solution
+        compiled: Compiled CUDA code for the submitted solution (only for CUDA)
+        solution: Source code of the solution (only for Triton)
         dtype: Data type for the problem
+        language: Programming language of the solution ("cuda" or "python")
         
     Returns:
         Iterator that yields JSON strings with test results
@@ -26,10 +30,33 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes, dtype: str
     try:
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
-        cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
-        func_sig = problem.get_function_signature()
-        cuda_lib.solution.argtypes = func_sig["argtypes"]
-        cuda_lib.solution.restype = func_sig["restype"]
+
+        if language == "cuda":
+            if not compiled:
+                raise ValueError("Compiled bytes required for CUDA submissions")
+                
+            cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
+            func_sig = problem.get_function_signature()
+            cuda_lib.solution.argtypes = func_sig["argtypes"]
+            cuda_lib.solution.restype = func_sig["restype"]
+            solution_func = cuda_lib.solution
+        elif language == "python":
+            if not solution:
+                raise ValueError("Source code required for Triton submissions")
+            
+            temp_dir = tempfile.mkdtemp()
+            temp_path = os.path.join(temp_dir, "triton_solution.py")
+            
+            # This is needed because @jit has to read the source code
+            with open(temp_path, 'w') as f:
+                f.write(solution)
+                
+            spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            solution_func = module.solution
+        else:
+            raise ValueError(f"Unsupported language: {language}")
 
         test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
@@ -61,21 +88,26 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes, dtype: str
                 # Create actual_output with the same shape as expected_output
                 actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
 
-                # Prepare pointers for CUDA
-                input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
-                             for tensor in input_tensors if isinstance(tensor, torch.Tensor)]
-                output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
-                extra_params = problem.get_extra_params(test_case)
+                if language == "cuda":
+                    input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
+                                for tensor in input_tensors if isinstance(tensor, torch.Tensor)]
+                    output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
+                    extra_params = problem.get_extra_params(test_case)
 
-                # Call the CUDA solution
-                cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
+                    solution_func(*(input_ptrs + [output_ptr] + extra_params))
+                else:
+                    extra_params = problem.get_extra_params(test_case)
+                    solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+
                 torch.cuda.synchronize()
 
                 # Move to CPU for comparison
                 is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
 
                 # Clean up memory
-                del input_tensors, expected_output, actual_output, input_ptrs, output_ptr
+                del input_tensors, expected_output, actual_output
+                if language == "cuda":
+                    del input_ptrs, output_ptr
                 gc.collect()
                 torch.cuda.empty_cache()
 
@@ -124,6 +156,9 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes, dtype: str
                     "totalTests": total_tests,
                 }
         
+        if language == "python":
+            shutil.rmtree(temp_dir)
+
         # Final status message
         yield {
             "status": "complete",
@@ -143,8 +178,18 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes, dtype: str
             "total_tests": 0,
         }
 
+    except Exception as e:
+        yield {
+            "status": "error",
+            "error": str(e.__class__.__name__),
+            "details": str(e),
+            "test_results": [],
+            "passed_tests": 0,
+            "total_tests": 0,
+        }
 
-def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: str):
+
+def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
     """
     Run benchmark on compiled CUDA solution
     
@@ -152,6 +197,9 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
         problem_name: Name of the problem
         problem_def: Problem instance  
         compiled: Compiled CUDA code for the submitted solution
+        solution: Source code of the solution (only for Triton)
+        dtype: Data type for the problem
+        language: Programming language of the solution ("cuda" or "python")
     
     Yields:
         Dictionary objects with benchmark status updates
@@ -159,15 +207,40 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
     try:
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
-        cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
+
+        if language == "cuda":
+            if not compiled:
+                raise ValueError("Compiled bytes required for CUDA submissions")
+                
+            cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
+            func_sig = problem.get_function_signature()
+            cuda_lib.solution.argtypes = func_sig["argtypes"]
+            cuda_lib.solution.restype = func_sig["restype"]
+            solution_func = cuda_lib.solution
+        elif language == "python":
+            if not solution:
+                raise ValueError("Source code required for Triton submissions")
+            
+            temp_dir = tempfile.mkdtemp()
+            temp_path = os.path.join(temp_dir, "triton_solution.py")
+            
+            # This is needed because @jit has to read the source code
+            with open(temp_path, 'w') as f:
+                f.write(solution)
+                
+            spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            solution_func = module.solution
+        else:
+            raise ValueError(f"Unsupported language: {language}")
+
         yield {"status": "running"}
-        # Set function signature
-        func_sig = problem.get_function_signature()
-        cuda_lib.solution.argtypes = func_sig["argtypes"]
-        cuda_lib.solution.restype = func_sig["restype"]
             
         # Get test cases from the problem
         test_cases = problem.generate_test_cases(dtype)
+        print(test_cases)
+        print("total tests: ", len(test_cases))
         total_tests = len(test_cases)
         
         # Initialize statistics
@@ -178,6 +251,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
         
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
+            print("test_id: ", test_id)
             test_name = test_case["name"]
             
             try:
@@ -187,12 +261,13 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
                 actual_output = torch.zeros_like(expected_output, device='cuda')
                 
                 benchmark_result = utils.run_dynamic_benchmark(
-                    cuda_lib, 
+                    solution_func, 
                     problem, 
                     test_id,
                     test_case, 
                     input_tensors, 
                     actual_output,
+                    language=language,
                     min_iterations=5,
                     max_iterations=20,
                     target_cv=0.01  # 1% target coefficient of variation
@@ -235,7 +310,10 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes, dtype: s
             avg_gflops = 0
             avg_runtime_ms = 0
             avg_stdev_gflops = 0
-            
+        
+        if language == "python":
+            shutil.rmtree(temp_dir)
+
         # Return final summary with additional metrics
         yield {
             "status": "success",
