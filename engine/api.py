@@ -1,130 +1,93 @@
-import modal
-
 import json
-from pathlib import Path
+import sys
 from threading import Thread
-
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
+import modal
+from pathlib import Path
+import utils
+import runner
+from problem import Problem
+import os
 
-from util import GPU_COMPUTE_CAPABILITIES, SKELETON_FILES
-from util import run_nvcc_bytes, NVCCError, async_wrap_iter
-from runner import run_checker, run_benchmark
+DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
+RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
+CURR_DIR = Path(__file__).parent
 
-SCALEDOWN_WINDOW = 30  # seconds before container is stopped
-
-SKELETON_DIR = Path(__file__).parent / "skeleton"
-
-DEVEL_IMG_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
-RUNTIME_IMG_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
-
-PIP_PACKAGES = ["fastapi[standard]"]
-LOCAL_PACKAGES = ["util", "runner"]
+PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]"]
+LOCAL_SOURCE = ["utils", "runner", "problem"]
 
 devel_image = (
-    modal.Image.from_registry(DEVEL_IMG_NAME, add_python="3.11")
+    modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
     .pip_install(PIP_PACKAGES)
-    .add_local_python_source(*LOCAL_PACKAGES)
+    .add_local_python_source(*LOCAL_SOURCE)
 )
-
-for path in SKELETON_FILES:
-    devel_image = devel_image.add_local_file(SKELETON_DIR / path, "/skeleton/" + path)
 
 runtime_image = (
-    modal.Image.from_registry(RUNTIME_IMG_NAME, add_python="3.11")
+    modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
     .pip_install(PIP_PACKAGES)
-    .add_local_python_source(*LOCAL_PACKAGES)
+    .add_local_python_source(*LOCAL_SOURCE)
 )
-
 
 app = modal.App("tensara", image=devel_image)
 web_app = FastAPI()
 
-
-def gen_wrapper(gen):
-    for event in gen:
-        yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
-
-
-"""
-Explanation: modal gets mad if we do what we're about to do to a
-function in a different module (file). Of course these need
-to be generators because modal doesn't seem to look at the actual
-return value of the functions to check if it was a generator??
-
-Like simply doing return run_checker(compiled) doesn't work
-"""
-
-
-def binary_runner(binary_name: str, compiled: bytes):
+def binary_runner(type: str, compiled_lib: bytes, problem_name: str, problem_def: str, dtype: str):
     gen = None
-
-    if binary_name == "checker":
-        gen = run_checker(compiled)
-    elif binary_name == "benchmark":
-        gen = run_benchmark(compiled)
+    if type == "checker":
+        gen = runner.run_checker(problem_name, problem_def, compiled_lib, dtype)
+    elif type == "benchmark":
+        gen = runner.run_benchmark(problem_name, problem_def, compiled_lib, dtype)
     else:
-        raise ValueError(f"Unknown binary name: {binary_name}")
+        raise ValueError(f"Unknown binary type: {type}")
 
     for event in gen:
         yield event
-
 
 gpu_runners = {
     gpu: app.function(
         image=runtime_image,
         name=f"runner_{gpu}",
         gpu=gpu,
-        scaledown_window=SCALEDOWN_WINDOW,
         enable_memory_snapshot=True,
     )(binary_runner)
-    for gpu in GPU_COMPUTE_CAPABILITIES.keys()
+    for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
 }
-
-"""
-Explanation: modal gets mad if we create a app.function but that
-function with that name isn't a global of this module. so, we
-loop through those functions and add them to the globals dict
-"""
-
 
 for gpu in gpu_runners:
     globals()[f"runner_{gpu}"] = gpu_runners[gpu]
 
+def gen_wrapper(gen):
+    for event in gen:
+        yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
 
+        
 @web_app.post("/checker-{gpu}")
 async def checker(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
         return 404
 
-    files = {
-        "reference.cu": req["reference_code"],
-        "solution.cu": req["solution_code"],
-        "tests.hpp": req["tests_code"],
-    }
+    solution_code = req["solution_code"]
+    problem_def = req["problem_def"]
+    dtype = req["dtype"]
+    problem_name = utils.convert_slug_to_module_name(req["problem"])
 
-    bench_files = {k: v for k, v in files.items() if k != "reference.cu"}
-
-    def my_stream():
+    def create_stream():
         yield {"status": "compiling"}
 
-        # compile benchmark in parallel to store it in the cache
-        # so when it comes time for benchmark, we don't have to wait
         def compile_benchmark():
             try:
-                run_nvcc_bytes(gpu, bench_files, "benchmark")
+                utils.run_nvcc_and_return_bytes(gpu, solution_code, "solution")
             except Exception:
-                # we don't care if it fails here, since checker
-                # will fail anyway, and report the error
                 pass
-
+        
         bench_thr = Thread(target=compile_benchmark)
         bench_thr.start()
 
         try:
-            checker_compiled = run_nvcc_bytes(gpu, files, "checker")
-        except NVCCError as e:
+            checker_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "checker")
+        except utils.NVCCError as e:
             yield {
                 "status": "error",
                 "error": "Compilation failed",
@@ -136,41 +99,45 @@ async def checker(gpu: str, request: Request):
             return
 
         bench_thr.join()
-
         runner = gpu_runners[gpu]
-        stream = runner.remote_gen("checker", checker_compiled)
+        stream = runner.remote_gen("checker", checker_compiled, problem_name, problem_def, dtype)
         for event in stream:
             yield event
 
-    stream = async_wrap_iter(gen_wrapper(my_stream()))
+    stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
 
 
 @web_app.post("/benchmark-{gpu}")
 async def benchmark(gpu: str, request: Request):
-    item = await request.json()
+    req = await request.json()
     if gpu not in gpu_runners:
         return 404
 
-    files = {
-        "solution.cu": item["solution_code"],
-        "tests.hpp": item["tests_code"],
-    }
+    solution_code = req["solution_code"]
+    problem_def = req["problem_def"]
+    dtype = req["dtype"]
+    problem_name = utils.convert_slug_to_module_name(req["problem"])
 
-    def my_stream():
+    def create_stream():
         yield {"status": "compiling"}
+        
         try:
-            benchmark_compiled = run_nvcc_bytes(gpu, files, "benchmark")
-        except NVCCError as e:
-            yield {"status": "error", "error": "Compilation failed", "details": e.args[0]}
+            benchmark_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "benchmark")
+        except utils.NVCCError as e:
+            yield { 
+                "status": "error",
+                "error": "Compilation failed",
+                "details": e.args[0],
+            }
             return
 
         runner = gpu_runners[gpu]
-        stream = runner.remote_gen("benchmark", benchmark_compiled)
+        stream = runner.remote_gen("benchmark", benchmark_compiled, problem_name, problem_def, dtype)
         for event in stream:
             yield event
-
-    stream = async_wrap_iter(gen_wrapper(my_stream()))
+    
+    stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
 
 

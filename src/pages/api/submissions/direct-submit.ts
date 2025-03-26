@@ -125,9 +125,10 @@ export default async function handler(
         },
         body: JSON.stringify({
           solution_code: submission.code,
-          tests_code: submission.problem.tests,
-          reference_code: submission.problem.reference,
+          problem: submission.problem.slug,
+          problem_def: submission.problem.definition,
           gpu_type: submission.gpuType,
+          dtype: "float32",
         }),
       }
     );
@@ -329,8 +330,10 @@ export default async function handler(
         },
         body: JSON.stringify({
           solution_code: submission.code,
-          tests_code: submission.problem.tests,
+          problem: submission.problem.slug,
+          problem_def: submission.problem.definition,
           gpu_type: submission.gpuType,
+          dtype: "float32",
         }),
       }
     );
@@ -410,6 +413,7 @@ export default async function handler(
             // Update database based on event type
             if (response.status === "test_result" && response.result) {
               benchmarkResults.push(response.result);
+              console.log("Benchmark results", benchmarkResults);
 
               await db.submission.update({
                 where: { id: submission.id },
