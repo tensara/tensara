@@ -167,12 +167,7 @@ def load_problem_module(problem_type: str, problem_def: str = None) -> Problem:
             
             problem_class = getattr(module, problem_type)
             return problem_class()
-        else:
-            # assuming the problems folder is setup
-            module_name = f"problems.{problem_type}"
-            module = importlib.import_module(module_name)
-            problem_class = getattr(module, problem_type)
-            return problem_class()
+
     
     except Exception as e:
         raise HTTPException(
