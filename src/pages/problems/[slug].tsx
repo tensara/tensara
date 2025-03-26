@@ -1408,7 +1408,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     }}
                   >
                     <option value="cuda">CUDA C++</option>
-                    <option value="python" disabled>
+                    <option value="python">
                       Python (Triton)
                     </option>
                   </Select>
@@ -1520,10 +1520,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
             >
               <Editor
                 height="100%"
-                defaultLanguage="cpp"
                 theme="vs-dark"
                 value={code}
                 onChange={(value) => setCode(value ?? "")}
+                language={selectedLanguage === "cuda" ? "cpp" : "python"}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 14,
