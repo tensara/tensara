@@ -181,7 +181,7 @@ const getStatusMessage = (status: SubmissionStatus): string => {
   } else if (status.message?.startsWith("error:")) {
     return "Error";
   }
-  return `Status: ${status.status}`;
+  return `${status.status}`;
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
