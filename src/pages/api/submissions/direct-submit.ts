@@ -129,6 +129,7 @@ export default async function handler(
           problem_def: submission.problem.definition,
           gpu_type: submission.gpuType,
           dtype: "float32",
+          language: submission.language,
         }),
       }
     );
@@ -334,6 +335,7 @@ export default async function handler(
           problem_def: submission.problem.definition,
           gpu_type: submission.gpuType,
           dtype: "float32",
+          language: submission.language,
         }),
       }
     );
