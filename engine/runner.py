@@ -68,6 +68,8 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
 
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
+            if has_failed:
+                break
             test_name = test_case["name"]
             try:
                 input_tensors = test_case["create_inputs"]()
