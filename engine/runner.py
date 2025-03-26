@@ -239,8 +239,6 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
             
         # Get test cases from the problem
         test_cases = problem.generate_test_cases(dtype)
-        print(test_cases)
-        print("total tests: ", len(test_cases))
         total_tests = len(test_cases)
         
         # Initialize statistics
@@ -251,7 +249,6 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
         
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
-            print("test_id: ", test_id)
             test_name = test_case["name"]
             
             try:
