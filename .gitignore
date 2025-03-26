@@ -1,4 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+engine/tests/problem.py
+engine/tests/solution.cu
 
 engine/extracted_python_code
 # dependencies
