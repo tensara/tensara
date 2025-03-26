@@ -14,6 +14,7 @@ DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
+
 PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton"]
 LOCAL_SOURCE = ["utils", "runner", "problem"]
 
@@ -127,6 +128,7 @@ async def benchmark(gpu: str, request: Request):
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]
+
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 

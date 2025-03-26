@@ -136,18 +136,30 @@ export function Header() {
       <>
         {status === "authenticated" ? (
           <HStack spacing={4}>
-            <HStack spacing={3}>
-              <Image
-                src={session.user?.image ?? ""}
-                alt="Profile"
-                w={8}
-                h={8}
-                rounded="full"
-              />
-              <Text color="white" fontSize="sm">
-                {session.user?.username}
-              </Text>
-            </HStack>
+            <Link href={`/${session.user?.username}`} passHref legacyBehavior>
+              <HStack
+                as="a"
+                spacing={3}
+                py={2}
+                px={3}
+                borderRadius="lg"
+                _hover={{
+                  bg: "whiteAlpha.200",
+                  cursor: "pointer",
+                }}
+              >
+                <Image
+                  src={session.user?.image ?? ""}
+                  alt="Profile"
+                  w={8}
+                  h={8}
+                  rounded="full"
+                />
+                <Text color="white" fontSize="sm">
+                  {session.user?.username}
+                </Text>
+              </HStack>
+            </Link>
             <Button
               variant="ghost"
               size="sm"

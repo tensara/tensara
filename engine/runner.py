@@ -164,10 +164,12 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             "status": "error",
             "error": str(e.__class__.__name__),
             "details": traceback.format_exc(),
+
             "test_results": [],
             "passed_tests": 0,
             "total_tests": 0,
         }
+
 
 
 def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
@@ -291,6 +293,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
         
         if language == "python":
             shutil.rmtree(temp_dir)
+
 
         # Return final summary with additional metrics
         yield {

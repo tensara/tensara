@@ -15,6 +15,7 @@ fi
 problem_name="$1"
 api_endpoint="${2:-https://api.example.com/submit}"
 
+
 if $python_mode; then
   solution_file="solution.py"
   language="python"

@@ -1,29 +1,157 @@
-# Create T3 App
+# Tensara App
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+Tensara is a competitive programming platform specifically designed for CUDA kernel optimization challenges, similar to Codeforces but focused on GPU computing. It provides developers with a space to compete, learn, and improve their CUDA programming skills through real-world optimization problems.
 
-## What's next? How do I make an app with this?
+### Key Features
+- 🚀 Compete in CUDA kernel optimization challenges
+- 💻 Practice problems like Matrix Multiplication, Leaky ReLU, and other GPU computing tasks
+- 📊 Real-time performance benchmarking and scoring
+- 📈 Leaderboards to track your ranking against other developers
+- 🔍 View and learn from other developers' optimized solutions
+- ⚡ Automated testing and performance measurement
+- 📱 Browse problems and standings from any device
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+This is a modern web application built with the [T3 Stack](https://create.t3.gg/), combining the power of Next.js, tRPC, Prisma, and more.
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## 🚀 Getting Started
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+### Prerequisites
 
-## Learn More
+- Node.js 18+ and npm/yarn/pnpm
+- PostgreSQL (for local development) or a Supabase account
+- Git
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+### Environment Setup
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+1. Clone the repository:
+```bash
+git clone https://github.com/tensara/tensara
+cd tensara
+```
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn
+# or
+pnpm install
+```
 
-## How do I deploy this?
+3. Set up your environment variables by copying the example file:
+```bash
+cp .env.example .env
+```
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+### Database Setup
+
+You have a few options for setting up the database:
+
+#### Option 1: Local PostgreSQL
+
+1. Install PostgreSQL on your machine if you haven't already:
+   - macOS (using Homebrew): `brew install postgresql`
+   - Linux: `sudo apt-get install postgresql`
+   - Windows: Download from [PostgreSQL website](https://www.postgresql.org/download/windows/)
+
+2. Start PostgreSQL service:
+   - macOS: `brew services start postgresql`
+   - Linux: `sudo service postgresql start`
+   - Windows: It should start automatically as a service
+
+3. Create a new database:
+```bash
+createdb tensara_db
+```
+
+4. Update your `.env` file with local PostgreSQL connection string:
+```
+DATABASE_URL="postgresql://your_username@localhost:5432/tensara_db"
+```
+
+#### Option 2: Supabase (Hosted PostgreSQL)
+
+1. Create a new project on [Supabase](https://supabase.com)
+
+2. Once your project is created, go to Settings > Database to find your connection string
+
+3. Update your `.env` file with the Supabase connection string:
+```
+DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres"
+```
+
+### Final Setup Steps
+
+1. Push the database schema:
+```bash
+npx prisma db push
+```
+
+2. Generate Prisma Client:
+```bash
+npx prisma generate
+```
+
+3. Start the development server:
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+```
+
+Your app should now be running at [http://localhost:3000](http://localhost:3000)!
+
+## 📝 Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Database connection string
+DATABASE_URL="your_connection_string_here"
+
+# NextAuth configuration
+NEXTAUTH_SECRET="your_nextauth_secret"
+AUTH_GITHUB_ID=""
+AUTH_GITHUB_SECRET=""
+NEXTAUTH_URL="http://localhost:3000"
+
+# Google Analytics ID (can be ignored until production)
+NEXT_PUBLIC_GA_ID=""
+
+MODAL_CHECKER_SLUG=""
+MODAL_BENCHMARK_SLUG=""
+
+MODAL_ENDPOINT=""
+```
+
+## 🛠 Tech Stack
+
+- [Next.js](https://nextjs.org) - React framework
+- [NextAuth.js](https://next-auth.js.org) - Authentication
+- [Prisma](https://prisma.io) - Database ORM
+- [Chakra UI](https://v2.chakra-ui.com/) - Styling
+- [tRPC](https://trpc.io) - End-to-end typesafe APIs
+
+## 📚 Learn More
+
+To learn more about the [T3 Stack](https://create.t3.gg/), check out:
+
+- [T3 Documentation](https://create.t3.gg/)
+- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available)
+
+## 🚀 Deployment
+
+For deployment instructions, follow our guides for:
+- [Vercel](https://create.t3.gg/en/deployment/vercel)
+- [Netlify](https://create.t3.gg/en/deployment/netlify)
+- [Docker](https://create.t3.gg/en/deployment/docker)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
