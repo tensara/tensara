@@ -33,7 +33,7 @@ runtime_image = (
     .add_local_python_source(*LOCAL_SOURCE)
 )
 
-app = modal.App("tensara-engine", image=devel_image)
+app = modal.App("tensara", image=devel_image)
 web_app = FastAPI()
 
 def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_name: str, problem_def: str, dtype: str, language: str):
