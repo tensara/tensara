@@ -66,6 +66,7 @@ import { useSplitPanel } from "~/hooks/useSplitPanel";
 import { DataType, ProgrammingLanguage } from "~/types/misc";
 import { IS_DISABLED_LANGUAGE, LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { DATA_TYPE_DISPLAY_NAMES, IS_DISABLED_DATA_TYPE } from "~/constants/datatypes";
+import { Problem } from "@prisma/client";
 
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -151,7 +152,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
   };
   // Split panel logic
   const { splitRatio, handleMouseDown } = useSplitPanel();
-  
   // Code persistence logic
   const { 
     code, 
@@ -161,7 +161,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     selectedDataType, 
     setSelectedDataType, 
     isCodeDirty, 
-    handleReset  } = useCodePersistence(slug, problem);
+    handleReset  } = useCodePersistence(slug, problem as Problem);
   
   // Submission stream logic
   const {

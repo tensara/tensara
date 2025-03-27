@@ -4,11 +4,11 @@ import { generateStarterCode } from '~/utils/starter';
 import { ProgrammingLanguage, DataType } from '~/types/misc'; 
 import { Parameter } from '~/types/problem';
 import { DEFAULT_LANGUAGE, DEFAULT_DATA_TYPE } from '~/constants/problem';
-
+import { Problem } from "@prisma/client";
 
 export function useCodePersistence(
   slug: string | undefined, 
-  problem: any, 
+  problem: Problem, 
   initialLanguage: ProgrammingLanguage = DEFAULT_LANGUAGE, 
   initialDataType: DataType = DEFAULT_DATA_TYPE
 ) {
