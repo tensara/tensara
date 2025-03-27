@@ -27,7 +27,27 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       });
 
       if (!response.ok) {
-        throw new Error(`Direct submit API returned ${response.status}`);
+        if (response.status === 429) {
+          const errorMessage = await response.json();
+          setIsSubmitting(false);
+
+          setSubmissionStatus({
+            status: "ERROR",
+            runtime: null,
+            gflops: null,
+            passedTests: null,
+            totalTests: null,
+            message: "Rate limit exceeded",
+            errorMessage: errorMessage.error || "Rate limit exceeded",
+            errorDetails: errorMessage.error || "Rate limit exceeded",
+          });
+
+          return;                  
+        } else {
+          throw new Error(
+            `Direct submit API returned ${response.status}`
+          );
+        }
       }
 
       const reader = response.body?.getReader();
