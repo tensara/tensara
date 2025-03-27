@@ -1,27 +1,8 @@
-export type DataTypes = "float16" | "float32" | "int32" | "int16";
+import { Parameter } from "~/types/problem";
+import { DataType } from "~/types/misc";
+import { CPP_TYPES, PYTHON_TYPES } from "~/constants/datatypes";
 
-const CPP_TYPES: Record<DataTypes, string> = {
-  "float32": "float",
-  "float16": "double",
-  "int32": "int",
-  "int16": "short"
-} as const;
-
-const PYTHON_TYPES: Record<DataTypes, string> = {
-  "float32": "float",
-  "float16": "float16",
-  "int32": "int",
-  "int16": "int16"
-} as const;
-
-export interface Parameter {
-  name: string
-  type: string
-  const: string
-  pointer: string
-}
-
-export const generateStarterCode = (parameters: Parameter[], language: string, dataType: DataTypes) => {
+export const generateStarterCode = (parameters: Parameter[], language: string, dataType: DataType) => {
   if (language === "cuda") {
     const names = parameters.map((parameter: Parameter) => parameter.pointer === "true" ? parameter.name : null).filter(Boolean);
     const paramStr = parameters.map((parameter: Parameter) => 

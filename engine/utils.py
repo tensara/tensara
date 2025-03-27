@@ -214,9 +214,14 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         benchmark_result: Dictionary with benchmark results
     """
     # Prepare pointers for CUDA
-    input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
-        for tensor in input_tensors if isinstance(tensor, torch.Tensor)]
-    output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
+    if language == "cuda":
+        input_ptrs = []
+        for tensor, argtype in zip(input_tensors, solution_func.argtypes[:len(input_tensors)]):
+            if isinstance(tensor, torch.Tensor):
+                input_ptrs.append(ctypes.cast(tensor.data_ptr(), argtype))
+            else:
+                input_ptrs.append(argtype(tensor))
+        output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
     extra_params = problem.get_extra_params(test_case)
     
     # Calculate FLOPS for this test case

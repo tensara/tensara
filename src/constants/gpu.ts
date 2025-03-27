@@ -7,5 +7,3 @@ export const GPU_DISPLAY_NAMES: Record<string, string> = {
   "L40S": "NVIDIA L40S",
   "L4": "NVIDIA L4"
 } as const;
-
-export const GPU_TYPES = ["T4", "H100", "A100-80GB", "A10G", "L40S", "L4"] as const; 

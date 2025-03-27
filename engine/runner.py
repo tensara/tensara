@@ -91,8 +91,12 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
 
             if language == "cuda":
-                input_ptrs = [ctypes.cast(tensor.data_ptr(), ctypes.POINTER(ctypes.c_float)) 
-                            for tensor in input_tensors if isinstance(tensor, torch.Tensor)]
+                input_ptrs = []
+                for tensor, argtype in zip(input_tensors, solution_func.argtypes[:len(input_tensors)]):
+                    if isinstance(tensor, torch.Tensor):
+                        input_ptrs.append(ctypes.cast(tensor.data_ptr(), argtype))
+                    else:
+                        input_ptrs.append(argtype(tensor))
                 output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
                 extra_params = problem.get_extra_params(test_case)
 
