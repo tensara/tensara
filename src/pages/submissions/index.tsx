@@ -31,9 +31,9 @@ import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { auth } from "~/server/auth";
-import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { GPU_DISPLAY_NAMES, LANGUAGE_DISPLAY_NAMES } from "~/constants/gpu";
 
-type SortField = "createdAt" | "status" | "problem" | "performance";
+type SortField = "createdAt" | "status" | "problem" | "performance" | "gpuType" | "language";
 type SortOrder = "asc" | "desc";
 
 interface SubmissionWithProblem extends Submission {
@@ -82,6 +82,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 const SubmissionsPage: NextPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [gpuFilter, setGpuFilter] = useState<string>("all");
+  const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -137,12 +138,14 @@ const SubmissionsPage: NextPage = () => {
         statusFilter === "all" || submission.status === statusFilter;
       const matchesGpu =
         gpuFilter === "all" || submission.gpuType === gpuFilter;
+      const matchesLanguage =
+        languageFilter === "all" || submission.language === languageFilter;
       const matchesSearch =
         searchQuery === "" ||
         submission.problem.title
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesGpu && matchesSearch;
+      return matchesStatus && matchesGpu && matchesLanguage && matchesSearch;
     })
     .sort((a: SubmissionWithProblem, b: SubmissionWithProblem) => {
       const order = sortOrder === "asc" ? 1 : -1;
@@ -161,6 +164,10 @@ const SubmissionsPage: NextPage = () => {
           const aPerf = a.gflops ?? 0;
           const bPerf = b.gflops ?? 0;
           return (aPerf - bPerf) * order;
+        case "gpuType":
+          return (a.gpuType ?? "").localeCompare(b.gpuType ?? "") * order;
+        case "language":
+          return a.language.localeCompare(b.language) * order;
         default:
           return 0;
       }
@@ -193,7 +200,7 @@ const SubmissionsPage: NextPage = () => {
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            w="200px"
+            w="250px"
             bg="whiteAlpha.50"
             borderColor="transparent"
             _hover={{ borderColor: "gray.600" }}
@@ -210,7 +217,7 @@ const SubmissionsPage: NextPage = () => {
           <Select
             value={gpuFilter}
             onChange={(e) => setGpuFilter(e.target.value)}
-            w="200px"
+            w="250px"
             bg="whiteAlpha.50"
             borderColor="transparent"
             _hover={{ borderColor: "gray.600" }}
@@ -223,12 +230,27 @@ const SubmissionsPage: NextPage = () => {
                 ))
             }
           </Select>
+          <Select
+            value={languageFilter}
+            onChange={(e) => setLanguageFilter(e.target.value)}
+            w="275px"
+            bg="whiteAlpha.50"
+            borderColor="transparent"
+            _hover={{ borderColor: "gray.600" }}
+            _focus={{ borderColor: "gray.500" }}
+          >
+            {
+              Object.entries(LANGUAGE_DISPLAY_NAMES)
+                .map(([key, value]) => (
+                  <option key={key} value={key}>{value}</option>
+                ))
+            }
+          </Select>
 
           <Input
             placeholder="Search by problem name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            w="300px"
             bg="whiteAlpha.50"
             _focus={{ borderColor: "gray.500" }}
           />
@@ -318,10 +340,35 @@ const SubmissionsPage: NextPage = () => {
                   <HStack
                     spacing={2}
                     cursor="pointer"
-                    onClick={() => handleSort("createdAt")}
+                    onClick={() => handleSort("gpuType")}
                   >
                     <Text>GPU</Text>
-                    {sortField === "createdAt" && (
+                    {sortField === "gpuType" && (
+                      <IconButton
+                        aria-label={`Sort ${
+                          sortOrder === "asc" ? "descending" : "ascending"
+                        }`}
+                        icon={
+                          sortOrder === "asc" ? (
+                            <ChevronUpIcon />
+                          ) : (
+                            <ChevronDownIcon />
+                          )
+                        }
+                        size="xs"
+                        variant="ghost"
+                      />
+                    )}
+                  </HStack>
+                </Th>
+                <Th borderBottom="1px solid" borderColor="whiteAlpha.200">
+                  <HStack
+                    spacing={2}
+                    cursor="pointer"
+                    onClick={() => handleSort("language")}
+                  >
+                    <Text>Language</Text>
+                    {sortField === "language" && (
                       <IconButton
                         aria-label={`Sort ${
                           sortOrder === "asc" ? "descending" : "ascending"
@@ -370,14 +417,14 @@ const SubmissionsPage: NextPage = () => {
               {filteredAndSortedSubmissions?.map((submission) => (
                 <Tr
                   key={submission.id}
-                  _hover={{ bg: "whiteAlpha.50", cursor: "pointer" }}
+                  _hover={{ bg: "whiteAlpha.50" }}
                   transition="background-color 0.2s"
-                  onClick={() => router.push(`/submissions/${submission.id}`)}
                 >
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <ChakraLink
                       as={Link}
                       href={`/problems/${submission.problem.slug}`}
+                      style={{  display: 'block', cursor: 'pointer' }}
                       color="blue.400"
                       _hover={{ color: "blue.300" }}
                     >
@@ -385,35 +432,63 @@ const SubmissionsPage: NextPage = () => {
                     </ChakraLink>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    <Badge colorScheme={getStatusColor(submission.status)}>
-                      {formatStatus(submission.status)}
-                    </Badge>
+                    <Link
+                      href={`/submissions/${submission.id}`}
+                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                    >
+                      <Badge colorScheme={getStatusColor(submission.status)}>
+                        {formatStatus(submission.status)}
+                      </Badge>
+                    </Link>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    {submission.status === "ACCEPTED" ? (
+                    <Link
+                      href={`/submissions/${submission.id}`}
+                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                    >
+                      {submission.status === "ACCEPTED" ? (
+                        <Tooltip
+                          label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}
+                        >
+                          <Text fontWeight="medium">
+                            {submission.gflops?.toFixed(2)} GFLOPS
+                          </Text>
+                        </Tooltip>
+                      ) : (
+                        <Text color="whiteAlpha.700">-</Text>
+                      )}
+                    </Link>
+                  </Td>
+                  <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                    <Link
+                      href={`/submissions/${submission.id}`}
+                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                    >
+                      {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
+                    </Link>
+                  </Td>
+                  <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                    <Link
+                      href={`/submissions/${submission.id}`}
+                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                    >
+                      {LANGUAGE_DISPLAY_NAMES[submission.language]}
+                    </Link>
+                  </Td>
+                  <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
+                    <Link
+                      href={`/submissions/${submission.id}`}
+                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                    >
                       <Tooltip
-                        label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}
+                        label={new Date(submission.createdAt).toLocaleString()}
                       >
-                        <Text fontWeight="medium">
-                          {submission.gflops?.toFixed(2)} GFLOPS
+                        <Text>
+                          {formatDistanceToNow(new Date(submission.createdAt))}{" "}
+                          ago
                         </Text>
                       </Tooltip>
-                    ) : (
-                      <Text color="whiteAlpha.700">-</Text>
-                    )}
-                  </Td>
-                  <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
-                  </Td>
-                  <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
-                    <Tooltip
-                      label={new Date(submission.createdAt).toLocaleString()}
-                    >
-                      <Text>
-                        {formatDistanceToNow(new Date(submission.createdAt))}{" "}
-                        ago
-                      </Text>
-                    </Tooltip>
+                    </Link>
                   </Td>
                 </Tr>
               ))}
