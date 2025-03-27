@@ -20,6 +20,18 @@ export interface BenchmarkTestResult {
   gflops: number;
   name: string;
 }
+
+export type DebugInfo = {
+  max_difference?: number;
+  mean_difference?: number;
+  sample_differences?: Record<string, {
+    expected: number;
+    actual: number;
+    diff: number;
+  }>;
+  message?: string;
+};
+
 export type SubmissionStatusType = 
   | "compiling"
   | "CHECKING"

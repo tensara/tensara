@@ -1,12 +1,6 @@
 import { Parameter } from "~/types/problem";
 import { DataType } from "~/types/misc";
-
-const CPP_TYPES: Record<DataType, string> = {
-  "float32": "float",
-  "float16": "double",
-  "int32": "int",
-  "int16": "short"
-} as const;
+import { CPP_TYPES, PYTHON_TYPES } from "~/constants/datatypes";
 
 export const generateStarterCode = (parameters: Parameter[], language: string, dataType: DataType) => {
   if (language === "cuda") {
@@ -19,6 +13,19 @@ export const generateStarterCode = (parameters: Parameter[], language: string, d
 // Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
 extern "C" void solution(${paramStr}) {    
 }`
+  }
+  if (language === "python") {
+    const names = parameters.map((parameter: Parameter) => parameter.pointer === "true" ? parameter.name : null).filter(Boolean);
+    const paramStr = parameters.map((parameter: Parameter) => 
+      `${parameter.name}: ${parameter.pointer === "true" ? "torch.Tensor" : (parameter.type === "[VAR]" ? PYTHON_TYPES[dataType] : "int")}`
+    ).join(", ");
+    return `import torch
+import triton
+import triton.language as tl
+
+# Note: ${names.join(", ")} are all ${dataType} device tensors
+def solution(${paramStr}):
+  `
   }
   return "";
 };

@@ -59,7 +59,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { BenchmarkTestResult, SubmissionStatus, Submission } from "~/types/problem";
+import { BenchmarkTestResult, SubmissionStatus, Submission, DebugInfo } from "~/types/problem";
 import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSplitPanel } from "~/hooks/useSplitPanel";
@@ -125,8 +125,7 @@ const getStatusMessage = (status: SubmissionStatus): string => {
   for (const [prefix, message] of Object.entries(messageMap)) {
     if (status.message.startsWith(prefix)) return message;
   }
-  
-  return `Status: ${status.status}`;
+  return `${status.status}`;
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
@@ -594,7 +593,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                 </Thead>
                                 <Tbody>
                                   {submissionStatus.benchmarkResults?.map(
-                                    (result: BenchmarkTestResult) => (
+                                    (result) => (
                                       <Tr
                                         key={result.test_id}
                                         _hover={{ bg: "whiteAlpha.100" }}
@@ -703,7 +702,85 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     </SimpleGrid>
                   )}
 
-                  {submissionStatus.errorMessage &&
+                  {submissionStatus.status === "WRONG_ANSWER" && (
+                      <Box bg="red.900" p={6} borderRadius="xl">
+                        {submissionStatus.errorMessage && (
+                          <Text color="red.200" fontWeight="semibold" mb={3}>
+                            {submissionStatus.errorMessage}
+                          </Text>
+                        )}
+                        {submissionStatus.errorDetails && (() => {
+                          try {
+                            const debugInfo = JSON.parse(submissionStatus.errorDetails) as DebugInfo;
+                            console.log(debugInfo);
+                            return (
+                              <VStack spacing={4} align="stretch">
+                                {debugInfo.message && (
+                                  <Text color="red.100">{debugInfo.message}</Text>
+                                )}
+                                {debugInfo.max_difference && (
+                                  <Box>
+                                    <Text color="red.200" fontSize="sm">Maximum Difference:</Text>
+                                    <Text color="red.100">{debugInfo.max_difference}</Text>
+                                  </Box>
+                                )}
+                                {debugInfo.mean_difference && (
+                                  <Box>
+                                    <Text color="red.200" fontSize="sm">Mean Difference:</Text>
+                                    <Text color="red.100">{debugInfo.mean_difference}</Text>
+                                  </Box>
+                                )}
+                                {debugInfo.sample_differences && Object.keys(debugInfo.sample_differences).length > 0 && (
+                                  <Box>
+                                    <Text color="red.200" fontSize="sm" mb={2}>Sample Differences:</Text>
+                                    <Box maxH="200px" overflowY="auto">
+                                      <Table size="sm" variant="unstyled">
+                                        <Thead position="sticky" top={0}>
+                                          <Tr>
+                                            <Th color="red.200">Index</Th>
+                                            <Th color="red.200" isNumeric>Expected</Th>
+                                            <Th color="red.200" isNumeric>Actual</Th>
+                                            <Th color="red.200" isNumeric>Difference</Th>
+                                          </Tr>
+                                        </Thead>
+                                        <Tbody>
+                                          {Object.entries(debugInfo.sample_differences).slice(0, 50).map(([key, value]) => (
+                                            <Tr key={key}>
+                                              <Td color="red.100">{key}</Td>
+                                              <Td color="red.100" isNumeric>{value.expected.toFixed(7)}</Td>
+                                              <Td color="red.100" isNumeric>{value.actual.toFixed(7)}</Td>
+                                              <Td color="red.100" isNumeric>{value.diff.toFixed(7)}</Td>
+                                            </Tr>
+                                          ))}
+                                        </Tbody>
+                                      </Table>
+                                    </Box>
+                                  </Box>
+                                )}
+                              </VStack>
+                            );
+                          } catch (e) {
+                            return (
+                              <Code
+                                display="block"
+                                whiteSpace="pre-wrap"
+                                p={4}
+                                bg="red.800"
+                                color="red.100"
+                                borderRadius="lg"
+                                fontSize="sm"
+                                fontFamily="mono"
+                              >
+                                {submissionStatus.errorDetails}
+                              </Code>
+                            );
+                          }
+                        })()}
+                      </Box>
+                    )}
+
+                  {submissionStatus.status !== "WRONG_ANSWER" &&
+                    submissionStatus.errorMessage &&
                     submissionStatus.errorDetails && (
                       <Box bg="red.900" p={6} borderRadius="xl">
                         <Text color="red.200" fontWeight="semibold" mb={3}>
@@ -729,27 +806,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
             </VStack>
           ) : (
             <Box>
-              <HStack justify="space-between" align="center" mb={2}>
-                <Heading as="h1" size="lg">
-                  {problem.title}
-                </Heading>
-                <Button
-                  size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      window.location.href = "/problems";
-                    }}
-                    leftIcon={<Icon as={FiArrowLeft} />}
-                    borderRadius="full"
-                    color="gray.300"
-                    _hover={{
-                      bg: "whiteAlpha.50",
-                      color: "white",
-                    }}
-                  >
-                    Back to Problems
-                  </Button>
-              </HStack>
+              <Heading as="h1" size="lg" mb={2}>
+                {problem.title}
+              </Heading>
               <HStack spacing={2} align="center" mb={6}>
                 <Badge
                   colorScheme={getDifficultyColor(problem.difficulty)}
@@ -917,162 +976,119 @@ export default function ProblemPage({ slug }: { slug: string }) {
           minH={{ base: "50vh", md: "auto" }}
           pl={{ base: 0, md: 4 }}
         >
-          <VStack w="100%" h="100%" spacing={3}>
+          <VStack w="100%" h="100%" spacing={4}>
             <HStack
               w="100%"
               justify="space-between"
-              gap={4}
-              flexWrap="wrap-reverse"
-              alignItems="flex-end"
+              spacing={4}
+              flexDirection={{ base: "column", sm: "row" }}
+              alignItems={{ base: "flex-start", sm: "center" }}
             >
-              <Flex 
-                direction={{ base: "column", sm: "row" }}
-                gap={3}
-                align="flex-end"
-                wrap="nowrap"
-                flex="1"
-                marginBottom={{ base: 0, sm: 2.5 }}
+              <HStack
+                spacing={2}
+                flexWrap={{ base: "wrap", lg: "nowrap" }}
+                gap={2}
               >
-                {/* GPU Type Dropdown */}
-                <Box minW="130px">
-                  <Text fontSize="sm" color="whiteAlpha.600" mb={1} fontWeight="medium">
+                <Box>
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
                     GPU Type
                   </Text>
-                  <Menu placement="bottom">
-                    <MenuButton
-                      as={Button}
-                      size="sm"
-                      bg="whiteAlpha.50"
-                      borderWidth={1}
-                      borderColor="whiteAlpha.100"
-                      color="white"
-                      _hover={{ bg: "whiteAlpha.200" }}
-                      _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="2xl"
-                      rightIcon={<ChevronDownIcon />}
-                      height="32px"
-                      width="100%"
-                      textAlign="left"
-                    >
-                    {GPU_DISPLAY_NAMES[selectedGpuType]}
-                    </MenuButton>
-                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="100px" fontSize="sm" borderRadius="xl">
-                      {Object.entries(GPU_DISPLAY_NAMES)
+                  <Select
+                    size="sm"
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                    _hover={{ borderColor: "whiteAlpha.300" }}
+                    w="160px"
+                    value={selectedGpuType}
+                    onChange={(e) => setSelectedGpuType(e.target.value)}
+                    borderRadius="full"
+                    sx={{
+                      "& > option": {
+                        bg: "gray.800",
+                      },
+                    }}
+                  >
+                    {
+                      Object.entries(GPU_DISPLAY_NAMES)
                         .filter(([key]) => key !== "all")
                         .map(([key, value]) => (
-                          <MenuItem 
-                            key={key} 
-                            value={key}
-                            onClick={() => setSelectedGpuType(key)}
-                            bg={selectedGpuType === key ? "whiteAlpha.300" : "transparent"}
-                            _hover={{ bg: "whiteAlpha.200" }}
-                            fontWeight={selectedGpuType === key ? "bold" : "medium"}
-                          >
-                            {value}
-                          </MenuItem>
-                        ))}
-                    </MenuList>
-                  </Menu>
+                          <option key={key} value={key}>{value}</option>
+                        ))
+                    }
+                  </Select>
                 </Box>
-                {/* Language Dropdown */}
-                <Box minW="130px">
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1} fontWeight="medium">
+                <Box>
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
                     Language
                   </Text>
-                  <Menu placement="bottom">
-                    <MenuButton
-                      as={Button}
-                      size="sm"
-                      bg="whiteAlpha.50"
-                      borderWidth={1}
-                      borderColor="whiteAlpha.100"
-                      color="white"
-                      _hover={{ bg: "whiteAlpha.200" }}
-                      _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="2xl"
-                      rightIcon={<ChevronDownIcon />}
-                      height="32px"
-                      width="100%"
-                      textAlign="left"
-                    >
-                    {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
-                    </MenuButton>
-                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="130px" fontSize="sm" borderRadius="xl">
-                      {Object.entries(LANGUAGE_DISPLAY_NAMES)
-                        .map(([key, value]) => (
-                          <MenuItem 
-                            key={key} 
-                            value={key}
-                            onClick={() => setSelectedLanguage(key as ProgrammingLanguage)}
-                            bg={selectedLanguage === key ? "whiteAlpha.300" : "transparent"}
-                            _hover={{ bg: "whiteAlpha.200" }}
-                            fontWeight={selectedLanguage === key ? "bold" : "medium"}
-                            isDisabled={IS_DISABLED_LANGUAGE[key as string]}
-                          >
-                            {value}
-                          </MenuItem>
-                        ))}
-                    </MenuList>
-                  </Menu>
+                  <Select
+                    size="sm"
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                    _hover={{ borderColor: "whiteAlpha.300" }}
+                    onChange={(e) => setSelectedLanguage(e.target.value as ProgrammingLanguage)}
+                    value={selectedLanguage}
+                    w="160px"
+                    defaultValue="cuda"
+                    borderRadius="full"
+                    sx={{
+                      "& > option": {
+                        bg: "gray.800",
+                      },
+                    }}
+                  >
+                    <option value="cuda">CUDA C++</option>
+                    <option value="python">
+                      Python (Triton)
+                    </option>
+                  </Select>
                 </Box>
-                  
-                {/* Data Type Dropdown */}
-                <Box minW="130px">
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1} fontWeight="medium">
+                <Box>
+                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
                     Data Type
                   </Text>
-                  <Menu placement="bottom">
-                    <MenuButton
-                      as={Button}
-                      size="sm"
-                      bg="whiteAlpha.50"
-                      borderWidth={1}
-                      borderColor="whiteAlpha.100"
-                      color="white"
-                      _hover={{ bg: "whiteAlpha.200" }}
-                      _active={{ borderColor: "whiteAlpha.400", bg: "whiteAlpha.300" }}
-                      borderRadius="2xl"
-                      height="32px"
-                      width="100%"
-                      rightIcon={<ChevronDownIcon />}
-                      textAlign="left"
-                    >
-                    {DATA_TYPE_DISPLAY_NAMES[selectedDataType]}
-                    </MenuButton>
-                    <MenuList bg="gray.800" borderColor="whiteAlpha.300" minW="130px" fontSize="sm" borderRadius="xl">
-                      {Object.entries(DATA_TYPE_DISPLAY_NAMES)
-                        .map(([key, value]) => (
-                          <MenuItem 
-                            key={key} 
-                            value={key}
-                            onClick={() => setSelectedDataType(key as DataType)}
-                            bg={selectedDataType === key ? "whiteAlpha.300" : "transparent"}
-                            _hover={{ bg: "whiteAlpha.200" }}
-                            fontWeight={selectedDataType === key ? "bold" : "medium"}
-                            isDisabled={IS_DISABLED_DATA_TYPE[key as DataType]}
-                          >
-                            {value}
-                          </MenuItem>
-                        ))}
-                    </MenuList>
-                  </Menu>
+                  <Select
+                    size="sm"
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                    _hover={{ borderColor: "whiteAlpha.300" }}
+                    w="140px"
+                    value={selectedDataType}
+                    onChange={(e) => setSelectedDataType(e.target.value as DataType)}
+                    borderRadius="full"
+                    sx={{
+                      "& > option": {
+                        bg: "gray.800",
+                      },
+                    }}
+                  >
+                    <option value="float32">float32</option>
+                    <option value="float16" disabled>
+                      float16
+                    </option>
+                    <option value="int32" disabled>
+                      int32
+                    </option>
+                    <option value="int16" disabled>
+                      int16
+                    </option>
+                  </Select>
                 </Box>
-              </Flex>
-                
-              {/* Action Buttons */}
-              <HStack spacing={2} mt={{ base: 1, sm: 3 }} marginRight={2}>
+              </HStack>
+
+              <HStack spacing={2} mt={{ base: 2, sm: 0 }}>
                 {isCodeDirty && (
                   <Button
-                    size="sm"
+                    size="md"
                     variant="ghost"
                     onClick={() => setIsResetModalOpen(true)}
                     borderRadius="full"
-                    height="36px"
+                    height="40px"
                     fontSize="sm"
-                    fontWeight="medium"
+                    fontWeight="semibold"
                     color="gray.300"
                     _hover={{
-                      bg: "whiteAlpha.100",
+                      bg: "whiteAlpha.50",
                       color: "white",
                     }}
                   >
@@ -1080,25 +1096,25 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   </Button>
                 )}
                 <Button
-                  bg="rgba(34, 197, 94, 0.15)"
+                  bg="rgba(34, 197, 94, 0.1)"
                   color="rgb(34, 197, 94)"
-                  size="sm"
+                  size="md"
                   onClick={handleSubmit}
                   isLoading={isSubmitting}
                   loadingText="Submit"
                   spinner={<></>}
                   disabled={isSubmitting}
                   borderRadius="full"
-                  height="36px"
+                  height="40px"
                   fontSize="sm"
-                  fontWeight="bold"
-                  px={6}
+                  fontWeight="semibold"
+                  px={8}
                   _hover={{
-                    bg: "rgba(34, 197, 94, 0.25)",
+                    bg: "rgba(34, 197, 94, 0.2)",
                     transform: "translateY(-1px)",
                   }}
                   _active={{
-                    bg: "rgba(34, 197, 94, 0.3)",
+                    bg: "rgba(34, 197, 94, 0.25)",
                   }}
                   transition="all 0.2s"
                 >
@@ -1106,23 +1122,20 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 </Button>
               </HStack>
             </HStack>
-                
-            {/* Code Editor */}
+
             <Box
               w="100%"
-              h={{ base: "400px", md: "calc(100% - 48px)" }}
+              h={{ base: "400px", md: "100%" }}
               bg="gray.800"
               borderRadius="xl"
               overflow="hidden"
-              border="1px solid"
-              borderColor="whiteAlpha.200"
             >
               <Editor
                 height="100%"
-                defaultLanguage="cpp"
                 theme="vs-dark"
                 value={code}
                 onChange={(value) => setCode(value ?? "")}
+                language={selectedLanguage === "cuda" ? "cpp" : "python"}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 14,
@@ -1137,7 +1150,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
           </VStack>
         </Box>
       </Box>
-
 
       <Modal
         isOpen={isResetModalOpen}
