@@ -63,6 +63,17 @@ type BenchmarkTestResult = {
   name: string;
 };
 
+type DebugInfo = {
+  max_difference?: number;
+  mean_difference?: number;
+  sample_differences?: Record<string, {
+    expected: number;
+    actual: number;
+    diff: number;
+  }>;
+  message?: string;
+};
+
 type SubmissionStatus = {
   status:
     | "compiling"
@@ -170,7 +181,7 @@ const getStatusMessage = (status: SubmissionStatus): string => {
   } else if (status.message?.startsWith("error:")) {
     return "Error";
   }
-  return `Status: ${status.status}`;
+  return `${status.status}`;
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
@@ -249,7 +260,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       {
         problemSlug: slug,
         code,
-        language: "cuda",
+        language: selectedLanguage as "cuda" | "python",
         gpuType: selectedGpuType,
       },
       {
@@ -1150,7 +1161,85 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     </SimpleGrid>
                   )}
 
-                  {submissionStatus.errorMessage &&
+                  {submissionStatus.status === "WRONG_ANSWER" && (
+                      <Box bg="red.900" p={6} borderRadius="xl">
+                        {submissionStatus.errorMessage && (
+                          <Text color="red.200" fontWeight="semibold" mb={3}>
+                            {submissionStatus.errorMessage}
+                          </Text>
+                        )}
+                        {submissionStatus.errorDetails && (() => {
+                          try {
+                            const debugInfo = JSON.parse(submissionStatus.errorDetails) as DebugInfo;
+                            console.log(debugInfo);
+                            return (
+                              <VStack spacing={4} align="stretch">
+                                {debugInfo.message && (
+                                  <Text color="red.100">{debugInfo.message}</Text>
+                                )}
+                                {debugInfo.max_difference && (
+                                  <Box>
+                                    <Text color="red.200" fontSize="sm">Maximum Difference:</Text>
+                                    <Text color="red.100">{debugInfo.max_difference}</Text>
+                                  </Box>
+                                )}
+                                {debugInfo.mean_difference && (
+                                  <Box>
+                                    <Text color="red.200" fontSize="sm">Mean Difference:</Text>
+                                    <Text color="red.100">{debugInfo.mean_difference}</Text>
+                                  </Box>
+                                )}
+                                {debugInfo.sample_differences && Object.keys(debugInfo.sample_differences).length > 0 && (
+                                  <Box>
+                                    <Text color="red.200" fontSize="sm" mb={2}>Sample Differences:</Text>
+                                    <Box maxH="200px" overflowY="auto">
+                                      <Table size="sm" variant="unstyled">
+                                        <Thead position="sticky" top={0}>
+                                          <Tr>
+                                            <Th color="red.200">Index</Th>
+                                            <Th color="red.200" isNumeric>Expected</Th>
+                                            <Th color="red.200" isNumeric>Actual</Th>
+                                            <Th color="red.200" isNumeric>Difference</Th>
+                                          </Tr>
+                                        </Thead>
+                                        <Tbody>
+                                          {Object.entries(debugInfo.sample_differences).slice(0, 50).map(([key, value]) => (
+                                            <Tr key={key}>
+                                              <Td color="red.100">{key}</Td>
+                                              <Td color="red.100" isNumeric>{value.expected.toFixed(7)}</Td>
+                                              <Td color="red.100" isNumeric>{value.actual.toFixed(7)}</Td>
+                                              <Td color="red.100" isNumeric>{value.diff.toFixed(7)}</Td>
+                                            </Tr>
+                                          ))}
+                                        </Tbody>
+                                      </Table>
+                                    </Box>
+                                  </Box>
+                                )}
+                              </VStack>
+                            );
+                          } catch (e) {
+                            return (
+                              <Code
+                                display="block"
+                                whiteSpace="pre-wrap"
+                                p={4}
+                                bg="red.800"
+                                color="red.100"
+                                borderRadius="lg"
+                                fontSize="sm"
+                                fontFamily="mono"
+                              >
+                                {submissionStatus.errorDetails}
+                              </Code>
+                            );
+                          }
+                        })()}
+                      </Box>
+                    )}
+
+                  {submissionStatus.status !== "WRONG_ANSWER" &&
+                    submissionStatus.errorMessage &&
                     submissionStatus.errorDetails && (
                       <Box bg="red.900" p={6} borderRadius="xl">
                         <Text color="red.200" fontWeight="semibold" mb={3}>
@@ -1408,7 +1497,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     }}
                   >
                     <option value="cuda">CUDA C++</option>
-                    <option value="python" disabled>
+                    <option value="python">
                       Python (Triton)
                     </option>
                   </Select>
@@ -1447,24 +1536,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
               </HStack>
 
               <HStack spacing={2} mt={{ base: 2, sm: 0 }}>
-                {splitRatio < 45 && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      window.location.href = "/problems";
-                    }}
-                    leftIcon={<Icon as={FiArrowLeft} />}
-                    borderRadius="full"
-                    color="gray.300"
-                    _hover={{
-                      bg: "whiteAlpha.50",
-                      color: "white",
-                    }}
-                  >
-                    Back to Problems
-                  </Button>
-                )}
                 {isCodeDirty && (
                   <Button
                     size="md"
@@ -1520,10 +1591,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
             >
               <Editor
                 height="100%"
-                defaultLanguage="cpp"
                 theme="vs-dark"
                 value={code}
                 onChange={(value) => setCode(value ?? "")}
+                language={selectedLanguage === "cuda" ? "cpp" : "python"}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 14,

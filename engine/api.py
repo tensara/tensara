@@ -14,17 +14,22 @@ DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
-PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]"]
+
+PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton"]
 LOCAL_SOURCE = ["utils", "runner", "problem"]
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
+    .apt_install(["build-essential", "gcc", "g++"])
+    .env({"CC": "gcc"})
     .pip_install(PIP_PACKAGES)
     .add_local_python_source(*LOCAL_SOURCE)
 )
 
 runtime_image = (
     modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
+    .apt_install(["build-essential", "gcc", "g++"])
+    .env({"CC": "gcc"})
     .pip_install(PIP_PACKAGES)
     .add_local_python_source(*LOCAL_SOURCE)
 )
@@ -32,12 +37,12 @@ runtime_image = (
 app = modal.App("tensara", image=devel_image)
 web_app = FastAPI()
 
-def binary_runner(type: str, compiled_lib: bytes, problem_name: str, problem_def: str, dtype: str):
+def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_name: str, problem_def: str, dtype: str, language: str):
     gen = None
     if type == "checker":
-        gen = runner.run_checker(problem_name, problem_def, compiled_lib, dtype)
+        gen = runner.run_checker(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
     elif type == "benchmark":
-        gen = runner.run_benchmark(problem_name, problem_def, compiled_lib, dtype)
+        gen = runner.run_benchmark(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
     else:
         raise ValueError(f"Unknown binary type: {type}")
 
@@ -71,6 +76,7 @@ async def checker(gpu: str, request: Request):
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]
+    language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
@@ -82,25 +88,30 @@ async def checker(gpu: str, request: Request):
             except Exception:
                 pass
         
-        bench_thr = Thread(target=compile_benchmark)
-        bench_thr.start()
 
-        try:
-            checker_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "checker")
-        except utils.NVCCError as e:
-            yield {
-                "status": "error",
-                "error": "Compilation failed",
-                "details": e.args[0],
-                "test_results": [],
-                "passed_tests": 0,
-                "total_tests": 0,
-            }
-            return
+        if language == "cuda":
+            bench_thr = Thread(target=compile_benchmark)
+            bench_thr.start()
 
-        bench_thr.join()
+            try:
+                checker_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "checker")
+            except utils.NVCCError as e:
+                yield {
+                    "status": "error",
+                    "error": "Compilation failed",
+                    "details": e.args[0],
+                    "test_results": [],
+                    "passed_tests": 0,
+                    "total_tests": 0,
+                }
+                return
+
+            bench_thr.join()
+        else:
+            checker_compiled = None
+
         runner = gpu_runners[gpu]
-        stream = runner.remote_gen("checker", checker_compiled, problem_name, problem_def, dtype)
+        stream = runner.remote_gen("checker", checker_compiled, solution_code, problem_name, problem_def, dtype, language)
         for event in stream:
             yield event
 
@@ -117,23 +128,28 @@ async def benchmark(gpu: str, request: Request):
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]
+
+    language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
         yield {"status": "compiling"}
-        
-        try:
-            benchmark_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "benchmark")
-        except utils.NVCCError as e:
-            yield { 
-                "status": "error",
-                "error": "Compilation failed",
-                "details": e.args[0],
-            }
-            return
+
+        if language == "cuda":
+            try:
+                benchmark_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "benchmark")
+            except utils.NVCCError as e:
+                yield { 
+                    "status": "error",
+                    "error": "Compilation failed",
+                    "details": e.args[0],
+                }
+                return
+        else:
+            benchmark_compiled = None
 
         runner = gpu_runners[gpu]
-        stream = runner.remote_gen("benchmark", benchmark_compiled, problem_name, problem_def, dtype)
+        stream = runner.remote_gen("benchmark", benchmark_compiled, solution_code, problem_name, problem_def, dtype, language)
         for event in stream:
             yield event
     

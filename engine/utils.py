@@ -167,7 +167,6 @@ def load_problem_module(problem_type: str, problem_def: str = None) -> Problem:
             
             problem_class = getattr(module, problem_type)
             return problem_class()
-
     
     except Exception as e:
         raise HTTPException(
@@ -192,18 +191,20 @@ def prepare_gpu():
     
     time.sleep(0.5)
 
-def run_dynamic_benchmark(cuda_lib, problem, test_id, test_case, input_tensors, actual_output, 
-                          min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0):
+
+def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tensors, actual_output, 
+                          language="cuda", min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0):
     """
     Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
     If kernel execution time exceeds threshold, run fixed number of iterations instead.
     
     Args:
-        cuda_lib: CUDA library with the solution function
+        solution_func: CUDA library with the solution function
         problem: Problem definition with verification methods
         test_case: The specific test case to benchmark
         input_tensors: Input tensors for the CUDA function
         actual_output: Output tensor for the CUDA function
+        language: Programming language of the solution ("cuda" or "python")
         min_iterations: Minimum number of iterations to run
         max_iterations: Maximum number of iterations to run
         target_cv: Target coefficient of variation to achieve
@@ -229,7 +230,10 @@ def run_dynamic_benchmark(cuda_lib, problem, test_id, test_case, input_tensors, 
     end_event = torch.cuda.Event(enable_timing=True)
     
     start_event.record()
-    cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
+    if language == "cuda":
+        solution_func(*(input_ptrs + [output_ptr] + extra_params))
+    elif language == "python":
+        solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
     end_event.record()
     torch.cuda.synchronize()
     
@@ -257,7 +261,10 @@ def run_dynamic_benchmark(cuda_lib, problem, test_id, test_case, input_tensors, 
         start_event.record()
         
         # Run the kernel
-        cuda_lib.solution(*(input_ptrs + [output_ptr] + extra_params))
+        if language == "cuda":
+            solution_func(*(input_ptrs + [output_ptr] + extra_params))
+        elif language == "python":
+            solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
         
         # End timing
         end_event.record()
@@ -283,20 +290,19 @@ def run_dynamic_benchmark(cuda_lib, problem, test_id, test_case, input_tensors, 
                 if cv < target_cv:
                     break
 
-    
     if len(runtimes) > 1:
         mean_runtime = statistics.mean(runtimes)
     else:
         mean_runtime = runtimes[0]
 
     mean_gflops = statistics.mean(gflops_measurements)
-    
+
     benchmark_result = {
         "name": test_case["name"],
         "test_id": test_id,
         "status": "PASSED",
         "gflops": mean_gflops,
-        "runtime_ms": mean_runtime * 1000,
+        "runtime_ms": mean_runtime * 1000
     }
     
     return benchmark_result

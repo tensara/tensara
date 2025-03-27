@@ -129,6 +129,7 @@ export default async function handler(
           problem_def: submission.problem.definition,
           gpu_type: submission.gpuType,
           dtype: "float32",
+          language: submission.language,
         }),
       }
     );
@@ -173,6 +174,8 @@ export default async function handler(
     let totalTests = 0;
     let partialMessage = "";
     let checkerPassed = false;
+    let errorMessage = "";
+    let errorDetails = "";
 
     const processedTestIds = new Set<number>();
 
@@ -205,6 +208,16 @@ export default async function handler(
                 test_id: number;
                 name: string;
                 status: string;
+                debug_info?: {
+                  max_difference?: number;
+                  mean_difference?: number;
+                  sample_differences?: Record<string, {
+                    expected: number;
+                    actual: number;
+                    diff: number;
+                  }>;
+                  message?: string;
+                };
               }>;
               passed_tests?: number;
               total_tests?: number;
@@ -253,14 +266,30 @@ export default async function handler(
                   `Using local test counts: passed=${passedTests}, total=${totalTests}`
                 );
               }
-
-              await db.submission.update({
-                where: { id: submission.id },
-                data: {
-                  passedTests,
-                  totalTests,
-                },
-              });
+              if (checkerPassed) {
+                await db.submission.update({
+                  where: { id: submission.id },
+                  data: {
+                    passedTests,
+                    totalTests,
+                  },
+                });
+              } else {
+                const failedTest = response.test_results?.find(
+                  (t) => t.status === "FAILED"
+                );
+                errorMessage = `Failed on test ${failedTest?.test_id} (${failedTest?.name})`;
+                errorDetails = JSON.stringify(failedTest?.debug_info);
+                await db.submission.update({
+                  where: { id: submission.id },
+                  data: {
+                    passedTests,
+                    totalTests,
+                    errorMessage,
+                    errorDetails,
+                  },
+                });
+              }
             } else if (response.status === "error") {
               await db.submission.update({
                 where: { id: submission.id },
@@ -300,6 +329,8 @@ export default async function handler(
         status: SubmissionStatus.WRONG_ANSWER,
         passedTests,
         totalTests,
+        error: errorMessage,
+        details: errorDetails,
       });
 
       res.end();
@@ -334,6 +365,7 @@ export default async function handler(
           problem_def: submission.problem.definition,
           gpu_type: submission.gpuType,
           dtype: "float32",
+          language: submission.language,
         }),
       }
     );
