@@ -2,6 +2,13 @@ import { type NextPage } from "next";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import {
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Code,
+  Td,
   Box,
   VStack,
   HStack,
@@ -30,7 +37,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { auth } from "~/server/auth";
 import { TRPCError } from "@trpc/server";
-
+import { DebugInfo } from "~/types/problem";
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
@@ -54,15 +61,15 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     await helpers.submissions.getSubmissionById.prefetch({ id });
 
     // Get submission data for metadata
-    const submission = await helpers.problems.getSubmissionStatus.fetch({
-      submissionId: id,
+    const submission = await helpers.submissions.getSubmissionById.fetch({
+      id,
     });
 
     // Create an engaging social-friendly title
     let pageTitle = `View submission ${id.substring(0, 8)}`;
 
     if (submission) {
-      const problemName = submission.problem?.title ?? "problem";
+      const problemName = submission.problem.title ?? "problem";
       pageTitle = `View ${problemName} submission`;
 
       // Add performance if available
@@ -125,8 +132,8 @@ const SubmissionPage: NextPage<{
     data: submission,
     isLoading,
     refetch,
-  } = api.problems.getSubmissionStatus.useQuery(
-    { submissionId: id },
+  } = api.submissions.getSubmissionById.useQuery(
+    { id },
     { enabled: !!id }
   );
 
@@ -189,7 +196,7 @@ const SubmissionPage: NextPage<{
   }
 
   const handleTogglePublic = () => {
-    if (submission.id) {
+    if (submission?.id) {
       togglePublicMutation.mutate({
         submissionId: submission.id,
         isPublic: !submission.isPublic,
@@ -218,115 +225,263 @@ const SubmissionPage: NextPage<{
     <Layout title={pageTitle}>
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <VStack spacing={6} align="stretch">
-          {/* Problem Link */}
-          <Box>
-            <ChakraLink
-              as={Link}
-              href={`/problems/${submission.problem.slug}`}
-              color="blue.400"
-            >
-              ← Back to {submission.problem.title}
-            </ChakraLink>
-          </Box>
-
           {/* Submission Status */}
-          <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
-            <VStack spacing={4} align="stretch">
-              <HStack spacing={3}>
-                <Icon
-                  as={
-                    submission.status === "ACCEPTED"
-                      ? CheckIcon
-                      : submission.status === "WRONG_ANSWER" ||
-                        submission.status === "ERROR"
-                      ? WarningIcon
-                      : TimeIcon
-                  }
-                  boxSize={6}
-                  color={`${getStatusColor(submission.status)}.400`}
-                />
-                <Text fontSize="xl" fontWeight="bold">
-                  {formatStatus(submission.status)}
-                </Text>
-                <Badge
-                  colorScheme={getStatusColor(submission.status)}
-                  fontSize="sm"
-                >
-                  {submission.language}
-                </Badge>
+          <Box 
+            bg="whiteAlpha.50" 
+            borderWidth="1px"
+            borderColor="whiteAlpha.200"
+            p={8} 
+            borderRadius="2xl"
+            position="relative"
+            overflow="hidden"
+          >
+            <VStack spacing={8} align="stretch">
+              {/* Header with Problem and User Info */}
+              <HStack justify="space-between" align="flex-start" wrap="wrap" spacing={6}>
+                <VStack align="flex-start" spacing={3} flex="1">
+                  <VStack align="flex-start" spacing={1}>
+                    <ChakraLink 
+                      as={Link} 
+                      href={`/problems/${submission.problem.slug}`}
+                      _hover={{ textDecoration: 'none' }}
+                    >
+                      <Text 
+                        fontSize="3xl" 
+                        fontWeight="bold" 
+                        letterSpacing="tight"
+                      >
+                        {submission.problem.title}
+                      </Text>
+                    </ChakraLink>
+                    <HStack spacing={3}>
+                      <Text 
+                        fontSize="sm" 
+                        color="whiteAlpha.700"
+                        letterSpacing="wider"
+                        textTransform="uppercase"
+                        bg="whiteAlpha.200"
+                        px={3}
+                        py={1}
+                        borderRadius="full"
+                      >
+                        {submission.language}
+                      </Text>
+                      <Text 
+                        fontSize="sm" 
+                        color="whiteAlpha.700"
+                        letterSpacing="wider"
+                        textTransform="uppercase"
+                        bg="whiteAlpha.200"
+                        px={3}
+                        py={1}
+                        borderRadius="full"
+                      >
+                        {submission.gpuType}
+                      </Text>
+                    </HStack>
+                  </VStack>
+                  <HStack spacing={3} align="center">
+                    <Text color="whiteAlpha.700">Submitted by</Text>
+                    <ChakraLink 
+                      as={Link} 
+                      href={`/${submission.user.username}`}
+                      _hover={{ textDecoration: 'none' }}
+                    >
+                      <Text 
+                        color="blue.500" 
+                        fontWeight="medium"
+                      >
+                        {submission.user.username ?? "Unknown User"}
+                      </Text>
+                    </ChakraLink>
+                    <Text color="whiteAlpha.500" fontSize="sm">
+                      • {new Date(submission.createdAt).toLocaleString()}
+                    </Text>
+                  </HStack>
+                </VStack>
+
+                {/* Status Badge */}
+                <Box>
+                  <HStack 
+                    bg={`${getStatusColor(submission.status)}.900`} 
+                    borderWidth="1px"
+                    borderColor={`${getStatusColor(submission.status)}.700`}
+                    px={4}
+                    py={3}
+                    borderRadius="xl"
+                    spacing={3}
+                  >
+                    <Icon
+                      as={
+                        submission.status === "ACCEPTED"
+                          ? CheckIcon
+                          : submission.status === "WRONG_ANSWER" ||
+                            submission.status === "ERROR"
+                          ? WarningIcon
+                          : TimeIcon
+                      }
+                      boxSize={5}
+                      color={`${getStatusColor(submission.status)}.200`}
+                    />
+                    <Text 
+                      fontSize="md" 
+                      fontWeight="bold" 
+                      color={`${getStatusColor(submission.status)}.100`}
+                      letterSpacing="wide"
+                    >
+                      {formatStatus(submission.status)}
+                    </Text>
+                  </HStack>
+                </Box>
               </HStack>
 
-              {/* Public/Private Toggle (only for submission owner) */}
-              {isOwner && (
-                <FormControl display="flex" alignItems="center">
-                  <FormLabel htmlFor="public-toggle" mb="0">
-                    Make submission public
-                  </FormLabel>
-                  <Switch
-                    id="public-toggle"
-                    isChecked={submission.isPublic}
-                    onChange={handleTogglePublic}
-                    colorScheme="blue"
-                  />
-                </FormControl>
-              )}
-
-              {/* Metrics */}
-              <HStack spacing={6} wrap="wrap">
-                {submission.runtime !== null && (
-                  <Box>
-                    <Text color="whiteAlpha.700" fontSize="sm">
-                      Runtime
-                    </Text>
-                    <Text fontSize="lg" fontWeight="semibold">
-                      {submission.runtime.toFixed(2)} ms
-                    </Text>
-                  </Box>
-                )}
-                {submission.gflops !== null && (
-                  <Box>
-                    <Text color="whiteAlpha.700" fontSize="sm">
-                      Performance
-                    </Text>
-                    <Text fontSize="lg" fontWeight="semibold">
-                      {submission.gflops.toFixed(2)} GFLOPS
-                    </Text>
-                  </Box>
-                )}
-                {submission.passedTests !== null &&
-                  submission.totalTests !== null && (
-                    <Box>
-                      <Text color="whiteAlpha.700" fontSize="sm">
-                        Test Cases
+              {/* Metrics Grid */}
+              <Box 
+                bg="whiteAlpha.50" 
+                borderWidth="1px"
+                borderColor="whiteAlpha.100"
+                p={6} 
+                borderRadius="xl"
+                position="relative"
+                overflow="hidden"
+              >
+                <HStack spacing={12} wrap="wrap" justify="space-around">
+                  {submission.runtime !== null && (
+                    <VStack align="center" spacing={1}>
+                      <Text color="whiteAlpha.600" fontSize="sm" fontWeight="medium" letterSpacing="wide">
+                        RUNTIME
                       </Text>
-                      <Text fontSize="lg" fontWeight="semibold">
-                        {submission.passedTests}/{submission.totalTests} passed
+                      <Text fontSize="2xl" fontWeight="bold" color={`${getStatusColor(submission.status)}.400`}>
+                        {submission.runtime.toFixed(2)}
+                        <Text as="span" fontSize="sm" color="whiteAlpha.600" ml={1}>ms</Text>
                       </Text>
-                    </Box>
+                    </VStack>
                   )}
-              </HStack>
+                  {submission.gflops !== null && (
+                    <VStack align="center" spacing={1}>
+                      <Text color="whiteAlpha.600" fontSize="sm" fontWeight="medium" letterSpacing="wide">
+                        PERFORMANCE
+                      </Text>
+                      <Text fontSize="2xl" fontWeight="bold" color={`${getStatusColor(submission.status)}.400`}>
+                        {submission.gflops.toFixed(2)}
+                        <Text as="span" fontSize="sm" color="whiteAlpha.600" ml={1}>GFLOPS</Text>
+                      </Text>
+                    </VStack>
+                  )}
+                  {submission.passedTests !== null && submission.totalTests !== null && (
+                    <VStack align="center" spacing={1}>
+                      <Text color="whiteAlpha.600" fontSize="sm" fontWeight="medium" letterSpacing="wide">
+                        TEST CASES
+                      </Text>
+                      <Text fontSize="2xl" fontWeight="bold" color={`${getStatusColor(submission.status)}.400`}>
+                        {submission.passedTests}/{submission.totalTests}
+                        <Text as="span" fontSize="sm" color="whiteAlpha.600" ml={1}>passed</Text>
+                      </Text>
+                    </VStack>
+                  )}
+                </HStack>
+              </Box>
 
               {/* Error Message */}
-              {submission.errorMessage && (
-                <Box bg="red.900" p={4} borderRadius="lg">
-                  <Text color="red.200" fontWeight="semibold" mb={2}>
-                    Error Message:
-                  </Text>
-                  <Text color="red.100" whiteSpace="pre-wrap">
-                    {submission.errorMessage}
-                  </Text>
-                  {submission.errorDetails && (
-                    <>
-                      <Text color="red.200" fontWeight="semibold" mt={4} mb={2}>
-                        Error Details:
+              {submission.status === "WRONG_ANSWER" && (
+                  <Box bg="red.900" p={6} borderRadius="xl">
+                    {submission.errorMessage && (
+                      <Text color="red.200" fontWeight="semibold" mb={3}>
+                        {submission.errorMessage}
                       </Text>
-                      <Text color="red.100" whiteSpace="pre-wrap">
-                        {submission.errorDetails}
-                      </Text>
-                    </>
-                  )}
-                </Box>
-              )}
+                    )}
+                    {submission.errorDetails && (() => {
+                      try {
+                        const debugInfo = JSON.parse(submission.errorDetails) as DebugInfo;
+                        console.log(debugInfo);
+                        return (
+                          <VStack spacing={4} align="stretch">
+                            {debugInfo.message && (
+                              <Text color="red.100">{debugInfo.message}</Text>
+                            )}
+                            {debugInfo.max_difference && (
+                              <Box>
+                                <Text color="red.200" fontSize="sm">Maximum Difference:</Text>
+                                <Text color="red.100">{debugInfo.max_difference}</Text>
+                              </Box>
+                            )}
+                            {debugInfo.mean_difference && (
+                              <Box>
+                                <Text color="red.200" fontSize="sm">Mean Difference:</Text>
+                                <Text color="red.100">{debugInfo.mean_difference}</Text>
+                              </Box>
+                            )}
+                            {debugInfo.sample_differences && Object.keys(debugInfo.sample_differences).length > 0 && (
+                              <Box>
+                                <Text color="red.200" fontSize="sm" mb={2}>Sample Differences:</Text>
+                                <Box maxH="200px" overflowY="auto">
+                                  <Table size="sm" variant="unstyled">
+                                    <Thead position="sticky" top={0}>
+                                      <Tr>
+                                        <Th color="red.200">Index</Th>
+                                        <Th color="red.200" isNumeric>Expected</Th>
+                                        <Th color="red.200" isNumeric>Actual</Th>
+                                        <Th color="red.200" isNumeric>Difference</Th>
+                                      </Tr>
+                                    </Thead>
+                                    <Tbody>
+                                      {Object.entries(debugInfo.sample_differences).slice(0, 50).map(([key, value]) => (
+                                        <Tr key={key}>
+                                          <Td color="red.100">{key}</Td>
+                                          <Td color="red.100" isNumeric>{value.expected.toFixed(10)}</Td>
+                                          <Td color="red.100" isNumeric>{value.actual.toFixed(10)}</Td>
+                                          <Td color="red.100" isNumeric>{value.diff.toFixed(10)}</Td>
+                                        </Tr>
+                                      ))}
+                                    </Tbody>
+                                  </Table>
+                                </Box>
+                              </Box>
+                            )}
+                          </VStack>
+                        );
+                      } catch (e) {
+                        return (
+                          <Code
+                            display="block"
+                            whiteSpace="pre-wrap"
+                            p={4}
+                            bg="red.800"
+                            color="red.100"
+                            borderRadius="lg"
+                            fontSize="sm"
+                            fontFamily="mono"
+                          >
+                            {submission.errorDetails}
+                          </Code>
+                        );
+                      }
+                    })()}
+                  </Box>
+                )}
+
+              {submission.status !== "WRONG_ANSWER" &&
+                submission.errorMessage &&
+                submission.errorDetails && (
+                  <Box bg="red.900" p={6} borderRadius="xl">
+                    <Text color="red.200" fontWeight="semibold" mb={3}>
+                      Error Details ({submission.errorMessage})
+                    </Text>
+                    <Code
+                      display="block"
+                      whiteSpace="pre-wrap"
+                      p={4}
+                      bg="red.800"
+                      color="red.100"
+                      borderRadius="lg"
+                      fontSize="sm"
+                      fontFamily="mono"
+                    >
+                      {submission.errorDetails ??
+                        submission.errorMessage}
+                    </Code>
+                  </Box>
+                )}
 
               {/* Benchmark Results */}
               {submission.benchmarkResults && (
@@ -412,10 +567,33 @@ const SubmissionPage: NextPage<{
           </Box>
 
           {/* Code Editor */}
-          <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
-            <Text mb={4} fontWeight="semibold">
-              Submitted Code
-            </Text>
+          <Box 
+            bg="whiteAlpha.50" 
+            borderWidth="1px"
+            borderColor="whiteAlpha.200"
+            p={8} 
+            borderRadius="2xl"
+            position="relative"
+            overflow="hidden"
+          >
+            <HStack justify="space-between" align="center" mb={4}>
+              <Text fontWeight="semibold">
+                Submitted Code
+              </Text>
+              {isOwner && (
+                <HStack spacing={2}>
+                  <Text fontSize="sm" color="whiteAlpha.600">Public</Text>
+                  <Switch
+                    id="public-toggle"
+                    isChecked={submission.isPublic}
+                    onChange={handleTogglePublic}
+                    colorScheme="blue"
+                    size="sm"
+                  />
+                </HStack>
+              )}
+            </HStack>
+
             {!hasCode ? (
               <Alert status="info" variant="solid" mb={4}>
                 <AlertIcon />
@@ -429,7 +607,7 @@ const SubmissionPage: NextPage<{
               <Box h="600px" borderRadius="lg" overflow="hidden">
                 <Editor
                   height="100%"
-                  defaultLanguage="cpp"
+                  language={submission.language === "cuda" ? "cpp" : submission.language}
                   value={code}
                   theme="vs-dark"
                   options={{
