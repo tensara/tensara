@@ -166,7 +166,7 @@ const SubmissionPage: NextPage<{
   useEffect(() => {
     // Using optional chaining to safely access code which might not be present
     if (submission && "code" in submission) {
-      setCode(submission.code as string);
+      setCode(submission.code);
     }
   }, [submission]);
 

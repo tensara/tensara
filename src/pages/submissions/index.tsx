@@ -31,7 +31,8 @@ import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { auth } from "~/server/auth";
-import { GPU_DISPLAY_NAMES, LANGUAGE_DISPLAY_NAMES } from "~/constants/gpu";
+import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 type SortField = "createdAt" | "status" | "problem" | "performance" | "gpuType" | "language";
 type SortOrder = "asc" | "desc";

@@ -34,6 +34,7 @@ type SubmissionWithCustomFields = {
   passedTests: number | null;
   totalTests: number | null;
   runtime: number | null;
+  language: string | null;
   gflops: number | null;
   benchmarkResults: BenchmarkTestResult[] | null;
   errorMessage?: string;

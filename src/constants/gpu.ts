@@ -7,9 +7,3 @@ export const GPU_DISPLAY_NAMES: Record<string, string> = {
   "L40S": "L40S",
   "L4": "L4"
 } as const;
-
-export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
-  "all": "All Languages",
-  "python": "Python",
-  "cuda": "CUDA C++",
-} as const;

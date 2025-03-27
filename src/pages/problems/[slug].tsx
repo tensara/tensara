@@ -346,20 +346,20 @@ export default function ProblemPage({ slug }: { slug: string }) {
                           cursor="pointer"
                           _hover={{ bg: "whiteAlpha.100" }}
                         >
-                          <HStack justify="space-between" mb={2}>
+                          <HStack justify="space-between">
                             <HStack>
                               <Icon
                                 as={
                                   submission.status === "ACCEPTED"
                                     ? CheckIcon
-                                    : submission.status === "WRONG_ANSWER"
+                                    : submission.status === "WRONG_ANSWER" || submission.status === "ERROR"
                                     ? WarningIcon
                                     : TimeIcon
                                 }
                                 color={
                                   submission.status === "ACCEPTED"
                                     ? "green.400"
-                                    : submission.status === "WRONG_ANSWER"
+                                    : submission.status === "WRONG_ANSWER" || submission.status === "ERROR"
                                     ? "red.400"
                                     : "blue.400"
                                 }
@@ -369,8 +369,21 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                   ? "Accepted"
                                   : submission.status === "WRONG_ANSWER"
                                   ? "Wrong Answer"
+                                  : submission.status === "ERROR"
+                                  ? "Error"
                                   : submission.status}
                               </Text>
+                              <Badge
+                                ml={2}
+                                px={2}
+                                rounded="full"
+                                variant="outline"
+                                borderColor="whiteAlpha.200"
+                                color="gray.300"
+                                fontSize="xs"
+                              >
+                                {submission.language === "cuda" ? "CUDA" : "Python"}
+                              </Badge>
                               <Badge
                                 ml={2}
                                 px={2}
@@ -384,12 +397,19 @@ export default function ProblemPage({ slug }: { slug: string }) {
                               </Badge>
                             </HStack>
                             <Text color="whiteAlpha.700" fontSize="sm">
-                              {new Date(submission.createdAt).toLocaleString()}
+                              {new Date(submission.createdAt).toLocaleString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric", 
+                                minute: "2-digit",
+                                hour12: true
+                              })}
                             </Text>
                           </HStack>
                           {submission.gflops !== null &&
                             submission.runtime !== null && (
-                              <SimpleGrid columns={2} spacing={4}>
+                              <SimpleGrid columns={2} spacing={4} mt={2}>
                                 <Box>
                                   <Text color="whiteAlpha.600" fontSize="sm">
                                     Performance

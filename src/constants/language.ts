@@ -1,4 +1,5 @@
 export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
+  "all": "All Languages",
   "cuda": "CUDA C++",
   "python": "Python (Triton)",
 } as const;
