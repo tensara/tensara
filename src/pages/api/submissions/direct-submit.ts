@@ -2,6 +2,7 @@ import { type NextApiRequest, type NextApiResponse } from "next";
 import { db } from "~/server/db";
 import { env } from "~/env";
 import { auth } from "~/server/auth";
+import { checkRateLimit } from "~/hooks/useRateLimit";
 
 const SubmissionStatus = {
   CHECKING: "CHECKING",
@@ -34,6 +35,12 @@ export default async function handler(
   const session = await auth(req, res);
   if (!session) {
     res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const rateLimit = await checkRateLimit(session.user.id);
+  if (!rateLimit.allowed) {
+    res.status(rateLimit.statusCode || 429).json({ error: rateLimit.error });
     return;
   }
 
