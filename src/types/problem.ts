@@ -58,6 +58,7 @@ export interface Submission {
   status: string | null;
   runtime: number | null;
   gflops: number | null;
+  language: string | null;
   passedTests: number | null;
   totalTests: number | null;
   createdAt: Date;
