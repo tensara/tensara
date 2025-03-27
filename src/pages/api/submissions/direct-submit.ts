@@ -38,9 +38,19 @@ export default async function handler(
     return;
   }
 
+  const { submissionId } = req.body as { submissionId: string };
+
+  if (!submissionId) {
+    res.status(400).json({ error: "Missing submissionId" });
+    return;
+  }
+
   const rateLimit = await checkRateLimit(session.user.id);
   if (!rateLimit.allowed) {
-    res.status(rateLimit.statusCode || 429).json({ error: rateLimit.error });
+    await db.submission.deleteMany({
+      where: { id: submissionId }
+    });
+    res.status(rateLimit.statusCode ?? 429).json({ error: rateLimit.error });
     return;
   }
 
@@ -75,13 +85,6 @@ export default async function handler(
       console.warn("Failed to flush response:", error);
     }
   };
-
-  const { submissionId } = req.body as { submissionId: string };
-
-  if (!submissionId) {
-    res.status(400).json({ error: "Missing submissionId" });
-    return;
-  }
 
   const heartbeat = setInterval(() => {
     try {

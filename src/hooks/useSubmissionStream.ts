@@ -2,6 +2,10 @@ import { useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { SubmissionStatus, SubmissionEventData, SubmissionStatusType, BenchmarkTestResult } from '~/types/problem';
 
+type RateLimitResponse = {
+  error: string;
+}
+
 export function useSubmissionStream(refetchSubmissions: () => void) {
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -28,7 +32,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
       if (!response.ok) {
         if (response.status === 429) {
-          const errorMessage = await response.json();
+          const errorMessage = await response.json() as RateLimitResponse;
           setIsSubmitting(false);
 
           setSubmissionStatus({
