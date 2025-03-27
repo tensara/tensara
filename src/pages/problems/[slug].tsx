@@ -48,6 +48,7 @@ import {
   WarningIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  InfoIcon,
 } from "@chakra-ui/icons";
 import { FiArrowLeft, FiTrendingUp } from "react-icons/fi";
 import { Icon } from "@chakra-ui/react";
@@ -67,6 +68,9 @@ import { DataType, ProgrammingLanguage } from "~/types/misc";
 import { IS_DISABLED_LANGUAGE, LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { DATA_TYPE_DISPLAY_NAMES, IS_DISABLED_DATA_TYPE } from "~/constants/datatypes";
 import { Problem } from "@prisma/client";
+import { GpuInfoModal } from "~/components/GpuInfoModal";
+import { DEVICE_QUERY_GPU_MAP } from "~/constants/deviceQuery";
+import { LanguageInfoModal } from "~/components/LanguageInfoModal";
 
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -373,28 +377,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                   ? "Error"
                                   : submission.status}
                               </Text>
-                              <Badge
-                                ml={2}
-                                px={2}
-                                rounded="full"
-                                variant="outline"
-                                borderColor="whiteAlpha.200"
-                                color="gray.300"
-                                fontSize="xs"
-                              >
-                                {submission.language === "cuda" ? "CUDA" : "Python"}
-                              </Badge>
-                              <Badge
-                                ml={2}
-                                px={2}
-                                rounded="full"
-                                variant="outline"
-                                borderColor="whiteAlpha.200"
-                                color="gray.300"
-                                fontSize="xs"
-                              >
-                                {submission.gpuType}
-                              </Badge>
+                              <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
+                                {submission.language === "cuda" ? "CUDA" : "Python"} • {GPU_DISPLAY_NAMES[submission.gpuType]}
+                              </Text>
                             </HStack>
                             <Text color="whiteAlpha.700" fontSize="sm">
                               {new Date(submission.createdAt).toLocaleString("en-US", {
@@ -1010,8 +995,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 gap={2}
               >
                 <Box>
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                  <Text fontSize="sm" color="whiteAlpha.700">
                     GPU Type
+                    <GpuInfoModal />
                   </Text>
                   <Select
                     size="sm"
@@ -1038,8 +1024,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   </Select>
                 </Box>
                 <Box>
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                  <Text fontSize="sm" color="whiteAlpha.700">
                     Language
+                    <LanguageInfoModal />
                   </Text>
                   <Select
                     size="sm"
@@ -1064,8 +1051,18 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   </Select>
                 </Box>
                 <Box>
-                  <Text fontSize="sm" color="whiteAlpha.700" mb={1}>
+                  <Text fontSize="sm" color="whiteAlpha.700">
                     Data Type
+                    {/* dummy button to align -- terrible hack */}
+                    <IconButton
+                      aria-label="Data Type Information"
+                      icon={<InfoIcon />}
+                      size="sm"
+                      variant="ghost"
+                      color="transparent"
+                      visibility="hidden"
+                      bg="transparent"
+                    />
                   </Text>
                   <Select
                     size="sm"
