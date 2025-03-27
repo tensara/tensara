@@ -115,7 +115,7 @@ async def checker(gpu: str, request: Request):
         for event in stream:
             yield event
 
-    stream = utils.async_wrap_iter(gen_wrapper(create_stream()))
+    stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
 
 
@@ -153,7 +153,7 @@ async def benchmark(gpu: str, request: Request):
         for event in stream:
             yield event
     
-    stream = utils.async_wrap_iter(gen_wrapper(create_stream()))
+    stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
 
 

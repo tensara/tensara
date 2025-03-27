@@ -283,13 +283,9 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
 
             # Average runtime in milliseconds
             avg_runtime_ms = statistics.mean([r["runtime_ms"] for r in test_results])
-
-            # Calculate average standard deviation of GFLOPS within tests
-            avg_stdev_gflops = statistics.mean([r["stdev_gflops"] for r in test_results])
         else:
             avg_gflops = 0
             avg_runtime_ms = 0
-            avg_stdev_gflops = 0
         
         if language == "python":
             shutil.rmtree(temp_dir)
@@ -301,7 +297,6 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
             "test_results": test_results,
             "average_gflops": avg_gflops,
             "runtime_ms": avg_runtime_ms,
-            "stdev_gflops": avg_stdev_gflops,
             "total_tests": test_count,
         }
     except Exception as e:

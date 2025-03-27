@@ -167,12 +167,6 @@ def load_problem_module(problem_type: str, problem_def: str = None) -> Problem:
             
             problem_class = getattr(module, problem_type)
             return problem_class()
-        else:
-            # assuming the problems folder is setup
-            module_name = f"problems.{problem_type}"
-            module = importlib.import_module(module_name)
-            problem_class = getattr(module, problem_type)
-            return problem_class()
     
     except Exception as e:
         raise HTTPException(
@@ -302,18 +296,13 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         mean_runtime = runtimes[0]
 
     mean_gflops = statistics.mean(gflops_measurements)
-    if len(gflops_measurements) > 1:
-        stdev_gflops = statistics.stdev(gflops_measurements)
-    else:
-        stdev_gflops = 0
 
     benchmark_result = {
         "name": test_case["name"],
         "test_id": test_id,
         "status": "PASSED",
         "gflops": mean_gflops,
-        "runtime_ms": mean_runtime * 1000,
-        "stdev_gflops": stdev_gflops,
+        "runtime_ms": mean_runtime * 1000
     }
     
     return benchmark_result
