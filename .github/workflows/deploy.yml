@@ -11,7 +11,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [modal]
+    needs: modal
 
     steps:
       - name: Configure SSH
