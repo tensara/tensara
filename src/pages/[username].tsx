@@ -144,15 +144,12 @@ function ActivityCalendar({
     }
   }
 
-  console.log(dateMap);
-
   // Get total submissions in the date range
   const totalCount = Object.values(dateMap).reduce(
     (sum, count) => sum + count,
     0
   );
 
-  console.log(totalCount);
   // Calculate available years (from join year to current year)
   const currentYear = today.getFullYear();
   const availableYears = [];
