@@ -470,8 +470,9 @@ export default async function handler(
   } catch (error) {
     console.error("Error in direct-submit handler:", error);
 
-    sendSSE("error", {
+    sendSSE(SubmissionError.ERROR, {
       error: error instanceof Error ? error.message : "Unknown error",
+      message: error instanceof Error ? error.message : "Unknown error",
       details: error instanceof Error ? error.stack : undefined,
     });
 
