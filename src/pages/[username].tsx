@@ -257,7 +257,7 @@ function ActivityCalendar({
         </Box>
 
         {/* Main calendar area */}
-        <Box flex="1" ml={2}>
+        <Box flex="1" ml={2} key={selectedYear} transition="opacity 0.9s ease" opacity={1} animation="fadeIn 0.9s">
           {/* Month labels */}
           <Flex mb={1} width="100%" ml={4}>
             {months.map((month, i) => (
