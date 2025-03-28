@@ -12,9 +12,6 @@ const SubmissionStatus = {
   ERROR: "ERROR",
 } as const;
 
-type SubmissionStatus =
-  (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
-
 type BenchmarkTestResult = {
   test_id: number;
   name: string;
