@@ -67,7 +67,6 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
         total_tests = len(test_cases)
         test_results = []
         passed_tests = 0
-        has_failed = False
 
         yield {"status": "CHECKING"}
 
@@ -83,9 +82,6 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                     "details": f"Execution exceeded time limit of {time_limit:.2f}s (took {time.time() - start_time:.2f}s)"
                 }
                 return
-                
-            if has_failed:
-                break
 
             test_name = test_case["name"]
             input_tensors = test_case["create_inputs"]()
@@ -141,22 +137,25 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             gc.collect()
             torch.cuda.empty_cache()
 
-            if is_correct:
-                status = "PASSED"
-                passed_tests += 1
-            else:
-                status = "FAILED"
-                
-                has_failed = True
-                
             test_result = {
                 "test_id": test_id,
                 "name": test_name,
-                "status": status
             }
-            
-            if status == "FAILED":
+
+            if is_correct:
+                test_result["status"] = "PASSED"
+                passed_tests += 1
+            else:
+                test_result["status"] = "FAILED"
                 test_result["debug_info"] = debug_info
+                test_results.append(test_result)
+                yield {
+                    "status": "WRONG_ANSWER",
+                    "test_results": test_results,
+                    "passed_tests": passed_tests,
+                    "total_tests": total_tests,
+                }
+                return
                 
             test_results.append(test_result)
             
@@ -170,19 +169,11 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             shutil.rmtree(temp_dir)
 
         # Final status message
-        if not has_failed:
-            yield {
-                "status": "CHECKED",
-                "test_results": test_results,
-                "total_tests": total_tests
-            }
-        else:
-            yield {
-                "status": "WRONG_ANSWER",
-                "test_results": test_results,
-                "passed_tests": passed_tests,
-                "total_tests": total_tests,
-            }
+        yield {
+            "status": "CHECKED",
+            "test_results": test_results,
+            "total_tests": total_tests
+        }
 
 
     except utils.NVCCError as e:
