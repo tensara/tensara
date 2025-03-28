@@ -322,8 +322,8 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
         yield {
             "status": "BENCHMARKED",
             "test_results": test_results,
-            "average_gflops": avg_gflops,
-            "runtime_ms": avg_runtime_ms,
+            "avg_gflops": avg_gflops,
+            "avg_runtime_ms": avg_runtime_ms,
             "total_tests": test_count,
         }
     

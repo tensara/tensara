@@ -3,22 +3,12 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import { auth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
-import { SubmissionError } from "~/types/submission";
+import { SubmissionError, SubmissionStatus } from "~/types/submission";
+import type { BenchmarkedResponse, BenchmarkResultResponse, CheckedResponse, SubmissionErrorType, TestResultResponse, WrongAnswerResponse } from "~/types/submission";
 
-const SubmissionStatus = {
-  CHECKING: "CHECKING",
-  BENCHMARKING: "BENCHMARKING",
-  ACCEPTED: "ACCEPTED",
-  WRONG_ANSWER: "WRONG_ANSWER",
-  ERROR: "ERROR",
-} as const;
-
-type BenchmarkTestResult = {
-  test_id: number;
-  name: string;
-  runtime_ms: number;
-  gflops: number;
-};
+function isSubmissionError(status: string): status is SubmissionErrorType {
+  return Object.values(SubmissionError).includes(status as SubmissionErrorType);
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -123,9 +113,8 @@ export default async function handler(
       },
     });
 
-    sendSSE("status", {
+    sendSSE(SubmissionStatus.IN_QUEUE, {
       id: submission.id,
-      status: SubmissionStatus.CHECKING,
     });
 
     console.log("Starting checker process");
@@ -147,18 +136,18 @@ export default async function handler(
       }
     );
 
-    // should go under "ERROR"
     if (!checkerResponse.ok) {
       const errorText = await checkerResponse.text();
-      sendSSE("error", {
+      sendSSE(SubmissionError.ERROR, {
         error: `Checker API returned ${checkerResponse.status}`,
+        message: `Checker API returned ${checkerResponse.status}`,
         details: errorText,
       });
 
       await db.submission.update({
         where: { id: submission.id },
         data: {
-          status: SubmissionStatus.ERROR,
+          status: SubmissionError.ERROR,
           errorMessage: `Checker API returned ${checkerResponse.status}`,
           errorDetails: errorText,
         },
@@ -169,14 +158,15 @@ export default async function handler(
     }
 
     const reader = checkerResponse.body?.getReader();
-    // should go under "ERROR"
     if (!reader) {
-      sendSSE("error", { error: "No response body from checker" });
+      sendSSE(SubmissionError.ERROR, { 
+        error: "No response body from checker",
+      });
 
       await db.submission.update({
         where: { id: submission.id },
         data: {
-          status: SubmissionStatus.ERROR,
+          status: SubmissionError.ERROR,
           errorMessage: "No response body from checker",
         },
       });
@@ -185,13 +175,9 @@ export default async function handler(
       return;
     }
 
-    // we need to make this modular because it is reused in the benchmark 
     let passedTests = 0;
     let totalTests = 0;
     let partialMessage = "";
-    let checkerPassed = false;
-    let errorMessage = "";
-    let errorDetails = "";
 
     const processedTestIds = new Set<number>();
 
@@ -210,63 +196,52 @@ export default async function handler(
           if (!message?.startsWith("data: ")) continue;
 
           try {
-            const response = JSON.parse(message.slice(6).trim()) as {
+            const response_json = message.slice(6).trim();
+            const parsed = JSON.parse(response_json) as {
               status: string;
-              result?: {
-                test_id: number;
-                name: string;
-                status: string;
-              };
-              passed?: boolean;
-              error?: string;
-              details?: string;
-              test_results?: Array<{
-                test_id: number;
-                name: string;
-                status: string;
-                debug_info?: {
-                  max_difference?: number;
-                  mean_difference?: number;
-                  sample_differences?: Record<string, {
-                    expected: number;
-                    actual: number;
-                    diff: number;
-                  }>;
-                  message?: string;
-                };
-              }>;
-              passed_tests?: number;
-              total_tests?: number;
             };
+            const response_status = parsed.status;
 
-            sendSSE("checker", response);
-
-            if (response.status === "test_result" && response.result) {
-              if (!processedTestIds.has(response.result.test_id)) {
-                console.log(
-                  `Processing test result for test ID ${response.result.test_id}`
-                );
-                processedTestIds.add(response.result.test_id);
-
-                totalTests++;
-                if (response.result.status === "PASSED") {
-                  passedTests++;
+            if (response_status === SubmissionStatus.TEST_RESULT) {
+              const response = JSON.parse(response_json) as TestResultResponse;
+              sendSSE(response_status, response);
+              if (response.result) {
+                if (!processedTestIds.has(response.result.test_id)) {
+                  processedTestIds.add(response.result.test_id);
+                  totalTests++;
+                  if (response.result.status === "PASSED") {
+                    passedTests++;
+                  }
+                  await db.submission.update({
+                    where: { id: submission.id },
+                    data: {
+                      passedTests,
+                      totalTests,
+                    },
+                  });
                 }
-
-                await db.submission.update({
-                  where: { id: submission.id },
-                  data: {
-                    passedTests,
-                    totalTests,
-                  },
-                });
-              } else {
-                console.log(
-                  `Skipping duplicate test result for test ID ${response.result.test_id}`
-                );
               }
-            } else if (response.status === "complete") {
-              checkerPassed = response.passed ?? false;
+            } else if (response_status === SubmissionStatus.WRONG_ANSWER) {
+              const response = JSON.parse(response_json) as WrongAnswerResponse;
+              sendSSE(response_status, response);
+              const failedTest = response.test_results?.find(
+                (t: TestResultResponse) => t.result.status === "FAILED"
+              );
+              const errorMessage = `Failed on test ${failedTest?.result.test_id} (${failedTest?.result.name})`;
+              const errorDetails = JSON.stringify(failedTest?.result.debug_info);
+              await db.submission.update({
+                where: { id: submission.id },
+                data: {
+                  passedTests,
+                  totalTests,
+                  errorMessage,
+                  errorDetails,
+                },
+              });
+            } else if (response_status === SubmissionStatus.CHECKED) {
+              const response = JSON.parse(response_json) as CheckedResponse;
+              sendSSE(response_status, response);
+              const checkerPassed = response.passed_tests === response.total_tests;
 
               if (
                 response.total_tests !== undefined &&
@@ -290,27 +265,20 @@ export default async function handler(
                     totalTests,
                   },
                 });
-              } else {
-                const failedTest = response.test_results?.find(
-                  (t) => t.status === "FAILED"
-                );
-                errorMessage = `Failed on test ${failedTest?.test_id} (${failedTest?.name})`;
-                errorDetails = JSON.stringify(failedTest?.debug_info);
-                await db.submission.update({
-                  where: { id: submission.id },
-                  data: {
-                    passedTests,
-                    totalTests,
-                    errorMessage,
-                    errorDetails,
-                  },
-                });
               }
-            } else if (response.status === "error") {
+            } else if (isSubmissionError(response_status)) {
+              const response = JSON.parse(response_json) as {
+              status: SubmissionErrorType;
+              error: string;
+              details: string;
+            };
+
+              sendSSE(response_status, response);
+
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
-                  status: SubmissionStatus.ERROR,
+                  status: response_status,
                   errorMessage: response.error ?? "Unknown error",
                   errorDetails: response.details ?? "",
                   passedTests,
@@ -320,6 +288,8 @@ export default async function handler(
 
               res.end();
               return;
+            } else {
+              sendSSE(response_status, {});
             }
           } catch (e) {
             console.error("Failed to parse checker SSE data:", e);
@@ -331,28 +301,6 @@ export default async function handler(
       reader.releaseLock();
     }
 
-    if (!checkerPassed) {
-      await db.submission.update({
-        where: { id: submission.id },
-        data: {
-          status: SubmissionStatus.WRONG_ANSWER,
-          passedTests,
-          totalTests,
-        },
-      });
-
-      sendSSE("complete", {
-        status: SubmissionStatus.WRONG_ANSWER,
-        passedTests,
-        totalTests,
-        error: errorMessage,
-        details: errorDetails,
-      });
-
-      res.end();
-      return;
-    }
-
     await db.submission.update({
       where: { id: submission.id },
       data: {
@@ -362,8 +310,7 @@ export default async function handler(
       },
     });
 
-    sendSSE("status", {
-      status: SubmissionStatus.BENCHMARKING,
+    sendSSE(SubmissionStatus.BENCHMARKING, {
       passedTests,
       totalTests,
     });
@@ -388,15 +335,16 @@ export default async function handler(
 
     if (!benchmarkResponse.ok) {
       const errorText = await benchmarkResponse.text();
-      sendSSE("error", {
+      sendSSE(SubmissionError.ERROR, {
         error: `Benchmark API returned ${benchmarkResponse.status}`,
+        message: `Benchmark API returned ${benchmarkResponse.status}`,
         details: errorText,
       });
 
       await db.submission.update({
         where: { id: submission.id },
         data: {
-          status: SubmissionStatus.ERROR,
+          status: SubmissionError.ERROR,
           errorMessage: `Benchmark API returned ${benchmarkResponse.status}`,
           errorDetails: errorText,
         },
@@ -408,12 +356,15 @@ export default async function handler(
 
     const benchmarkReader = benchmarkResponse.body?.getReader();
     if (!benchmarkReader) {
-      sendSSE("error", { error: "No response body from benchmark" });
+      sendSSE(SubmissionError.ERROR, { 
+        error: "No response body from benchmark",
+        message: "No response body from benchmark",
+      });
 
       await db.submission.update({
         where: { id: submission.id },
         data: {
-          status: SubmissionStatus.ERROR,
+          status: SubmissionError.ERROR,
           errorMessage: "No response body from benchmark",
         },
       });
@@ -422,8 +373,7 @@ export default async function handler(
       return;
     }
 
-    let benchmarkResults: BenchmarkTestResult[] = [];
-    let averageGflops = 0;
+    const benchmarkResults:BenchmarkResultResponse["result"][] = [];
     partialMessage = "";
 
     try {
@@ -441,82 +391,64 @@ export default async function handler(
           if (!message?.startsWith("data: ")) continue;
 
           try {
-            const response = JSON.parse(message.slice(6).trim()) as {
+            const response_json = message.slice(6).trim();
+            const parsed = JSON.parse(response_json) as {
               status: string;
-              result?: {
-                test_id: number;
-                name: string;
-                runtime_ms: number;
-                gflops: number;
-              };
-              test_results?: BenchmarkTestResult[];
-              average_gflops?: number;
-              error?: string;
-              details?: string;
             };
+            const response_status = parsed.status;
 
-            // Forward event to client
-            sendSSE("benchmark", response);
+            if (response_status === SubmissionStatus.BENCHMARK_RESULT) {
+              const response = JSON.parse(response_json) as BenchmarkResultResponse;
+              if (response.result) {
+                sendSSE(response_status, response);
+                benchmarkResults.push(response.result);
+                await db.submission.update({
+                  where: { id: submission.id },
+                  data: {
+                    benchmarkResults,
+                  },
+                });
+              }
+            } else if (response_status === SubmissionStatus.BENCHMARKED) {
+              const response = JSON.parse(response_json) as BenchmarkedResponse;
+              if (response.avg_gflops && response.avg_runtime_ms) {
+                const averageGflops = response.avg_gflops;
+                const averageRuntime = response.avg_runtime_ms;
 
-            // Update database based on event type
-            if (response.status === "test_result" && response.result) {
-              benchmarkResults.push(response.result);
-              console.log("Benchmark results", benchmarkResults);
+                await db.submission.update({
+                  where: { id: submission.id },
+                  data: {
+                    status: SubmissionStatus.ACCEPTED,
+                    runtime: averageRuntime,
+                    gflops: averageGflops,
+                    benchmarkResults,
+                  },
+                });
 
-              await db.submission.update({
-                where: { id: submission.id },
-                data: {
-                  benchmarkResults,
-                },
-              });
-            } else if (
-              response.status === "success" &&
-              response.test_results &&
-              response.average_gflops
-            ) {
-              benchmarkResults = response.test_results;
-              averageGflops = response.average_gflops;
-
-              const runtime =
-                benchmarkResults.reduce((acc, r) => acc + r.runtime_ms, 0) /
-                benchmarkResults.length;
-
-              await db.submission.update({
-                where: { id: submission.id },
-                data: {
-                  status: SubmissionStatus.ACCEPTED,
-                  runtime,
+                sendSSE(SubmissionStatus.ACCEPTED, {
+                  runtime: averageRuntime,
                   gflops: averageGflops,
                   benchmarkResults,
-                },
-              });
-
-              sendSSE("complete", {
-                status: SubmissionStatus.ACCEPTED,
-                runtime,
-                gflops: averageGflops,
-                benchmarkResults,
-                passedTests,
-                totalTests,
-              });
-
-              res.end();
-              return;
-            } else if (response.status === "error") {
+                });
+              }
+            }
+           
+            else if (isSubmissionError(response_status)) {
+              const response = JSON.parse(response_json) as {
+                status: SubmissionErrorType;
+                error: string;
+                details: string;
+              };
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
-                  status: SubmissionStatus.ERROR,
+                  status: response_status,
                   errorMessage: response.error ?? "Unknown error",
                   errorDetails: response.details ?? "",
                 },
               });
 
-              sendSSE("error", {
-                error: response.error ?? "Unknown error",
-                details: response.details ?? "",
-              });
-
+              sendSSE(response_status, response);
               res.end();
               return;
             }
@@ -534,8 +466,9 @@ export default async function handler(
   } catch (error) {
     console.error("Error in direct-submit handler:", error);
 
-    sendSSE("error", {
+    sendSSE(SubmissionError.ERROR, {
       error: error instanceof Error ? error.message : "Unknown error",
+      message: error instanceof Error ? error.message : "Unknown error",
       details: error instanceof Error ? error.stack : undefined,
     });
 
@@ -544,7 +477,7 @@ export default async function handler(
         await db.submission.update({
           where: { id: submissionId },
           data: {
-            status: SubmissionStatus.ERROR,
+            status: SubmissionError.ERROR,
             errorMessage:
               error instanceof Error ? error.message : "Unknown error occurred",
             errorDetails: error instanceof Error ? error.stack ?? "" : "",

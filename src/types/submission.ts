@@ -24,8 +24,8 @@ export type SubmissionErrorType = (typeof SubmissionError)[keyof typeof Submissi
 
 export type ErrorResponse = {
     status: SubmissionErrorType,
-    message: String,
-    details: String,
+    message: string,
+    details: string,
 }
 
 export type TestResultResponse = {
@@ -68,8 +68,8 @@ export type BenchmarkResultResponse = {
 export type BenchmarkedResponse = {
   status: "BENCHMARKED",
   test_results: BenchmarkResultResponse[],
-  average_gflops: number,
-  runtime_ms: number,
+  avg_gflops: number,
+  avg_runtime_ms: number,
   total_tests: number
 }
 
