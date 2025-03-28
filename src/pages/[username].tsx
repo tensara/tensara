@@ -26,7 +26,6 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
-  Select,
   Menu,
   MenuButton,
   MenuItem,
@@ -47,7 +46,7 @@ import NextLink from "next/link";
 import { api } from "~/utils/api";
 import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
-import { ChevronDownIcon } from "@chakra-ui/icons";
+import { CheckIcon, ChevronDownIcon } from "@chakra-ui/icons";
 
 // Define the type for activity data
 interface ActivityItem {
@@ -170,7 +169,7 @@ function ActivityCalendar({
 
   
   const availableYears = [];
-  for (let year = currentYear; year >= currentYear - 2; year--) {
+  for (let year = currentYear; year >= joinedYear; year--) {
     availableYears.push(year);
   }
 
@@ -199,7 +198,7 @@ function ActivityCalendar({
             width="100px"
             bg="gray.700"
             color="white"
-            borderRadius="2xl"
+            borderRadius="lg"
             borderColor="gray.600"
             borderWidth="1px"
             fontWeight="medium"
@@ -212,7 +211,7 @@ function ActivityCalendar({
           <MenuList
             bg="gray.700"
             borderColor="gray.600"
-            borderRadius="md"
+            borderRadius="lg"
             boxShadow="lg"
             py={1}
             minW="100px"
@@ -222,13 +221,16 @@ function ActivityCalendar({
                 key={year}
                 value={year}
                 onClick={() => handleYearChange(year)}
-                bg="gray.700"
+                bg={selectedYear === year ? "blue.900" : "gray.700"}
+                borderRadius="lg"
                 color="white"
                 _hover={{ bg: "gray.600" }}
-                _focus={{ bg: "gray.600" }}
                 fontSize="sm"
               >
-                {year}
+                <Text>{year}</Text>
+                {selectedYear === year && (
+                  <Icon as={CheckIcon} ml="auto" boxSize={3} />
+                )}
               </MenuItem>
             ))}
           </MenuList>
