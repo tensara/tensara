@@ -305,7 +305,6 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
     benchmark_result = {
         "name": test_case["name"],
         "test_id": test_id,
-        "status": "PASSED",
         "gflops": mean_gflops,
         "runtime_ms": mean_runtime * 1000
     }

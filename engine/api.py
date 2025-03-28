@@ -80,7 +80,7 @@ async def checker(gpu: str, request: Request):
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
-        yield {"status": "compiling"}
+        yield {"status": "COMPILING"}
 
         def compile_benchmark():
             try:
@@ -97,12 +97,9 @@ async def checker(gpu: str, request: Request):
                 checker_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "checker")
             except utils.NVCCError as e:
                 yield {
-                    "status": "error",
-                    "error": "Compilation failed",
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
                     "details": e.args[0],
-                    "test_results": [],
-                    "passed_tests": 0,
-                    "total_tests": 0,
                 }
                 return
 
@@ -133,15 +130,13 @@ async def benchmark(gpu: str, request: Request):
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
-        yield {"status": "compiling"}
-
         if language == "cuda":
             try:
                 benchmark_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "benchmark")
             except utils.NVCCError as e:
                 yield { 
-                    "status": "error",
-                    "error": "Compilation failed",
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
                     "details": e.args[0],
                 }
                 return
