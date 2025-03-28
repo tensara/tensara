@@ -5,7 +5,8 @@ import torch
 class Problem(ABC):
     """Base class for defining problems."""
     
-    def __init__(self, name: str):
+    
+    def __init__(self, name: str, time_limit: int = 100):
         """
         Initialize a problem.
         
@@ -13,6 +14,7 @@ class Problem(ABC):
             name: Name of the problem
         """
         self.name = name
+        self.time_limit = time_limit
     
     @abstractmethod
     def reference_solution(self, *args, **kwargs) -> Any:

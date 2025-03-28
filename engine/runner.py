@@ -10,6 +10,8 @@ import importlib.util
 import tempfile
 import shutil
 import traceback
+import time
+
 
 def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str) -> Iterator[str]:
     """
@@ -29,8 +31,10 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
     """
     
     try:
+
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
+        
 
         if language == "cuda":
             if not compiled:
@@ -67,10 +71,25 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
 
         yield {"status": "running"}
 
+        start_time = time.time()
+        time_limit = problem.time_limit
+
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
+            if time.time() - start_time > time_limit:
+                yield {
+                    "status": "error",
+                    "error": "Time Limit Exceeded",
+                    "details": "Execution exceeded time limit",
+                    "test_results": test_results,
+                    "passed_tests": passed_tests,
+                    "total_tests": total_tests,
+                }
+                return
+                
             if has_failed:
                 break
+
             test_name = test_case["name"]
             input_tensors = test_case["create_inputs"]()
             
@@ -106,6 +125,17 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                 solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
 
             torch.cuda.synchronize()
+
+            if time.time() - start_time > time_limit:
+                yield {
+                    "status": "error",
+                    "error": "Time Limit Exceeded",
+                    "details": "Execution exceeded time limit",
+                    "test_results": test_results,
+                    "passed_tests": passed_tests,
+                    "total_tests": total_tests,
+                }
+                return
 
             # Move to CPU for comparison
             is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
