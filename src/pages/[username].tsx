@@ -27,6 +27,10 @@ import {
   AlertTitle,
   AlertDescription,
   Select,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import {
@@ -43,6 +47,7 @@ import NextLink from "next/link";
 import { api } from "~/utils/api";
 import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
+import { ChevronDownIcon } from "@chakra-ui/icons";
 
 // Define the type for activity data
 interface ActivityItem {
@@ -187,24 +192,47 @@ function ActivityCalendar({
         </HStack>
         
         {/* Year dropdown */}
-        <Select
-          size="sm"
-          width="100px"
-          value={selectedYear}
-          onChange={(e) => handleYearChange(parseInt(e.target.value))}
-          bg="gray.700"
-          borderRadius="2xl"
-          borderColor="gray.600"
-          color="white"
-          _hover={{ borderColor: "blue.300" }}
-          _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px var(--chakra-colors-blue-300)" }}
-        >
-          {availableYears.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </Select>
+        <Menu>
+          <MenuButton
+            as={Button}
+            size="sm"
+            width="100px"
+            bg="gray.700"
+            color="white"
+            borderRadius="2xl"
+            borderColor="gray.600"
+            borderWidth="1px"
+            fontWeight="medium"
+            _hover={{ borderColor: "blue.300", bg: "gray.650" }}
+            _active={{ bg: "gray.650" }}
+            rightIcon={<ChevronDownIcon color="blue.300" />}
+          >
+            {selectedYear}
+          </MenuButton>
+          <MenuList
+            bg="gray.700"
+            borderColor="gray.600"
+            borderRadius="md"
+            boxShadow="lg"
+            py={1}
+            minW="100px"
+          >
+            {availableYears.map((year) => (
+              <MenuItem
+                key={year}
+                value={year}
+                onClick={() => handleYearChange(year)}
+                bg="gray.700"
+                color="white"
+                _hover={{ bg: "gray.600" }}
+                _focus={{ bg: "gray.600" }}
+                fontSize="sm"
+              >
+                {year}
+              </MenuItem>
+            ))}
+          </MenuList>
+        </Menu>
       </HStack>
 
       <Flex position="relative">
