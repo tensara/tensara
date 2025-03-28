@@ -328,18 +328,12 @@ export const usersRouter = createTRPCRouter({
         take: 5,
       });
 
-      // Get activity data for heatmap (last 6 months)
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
       // Get all submission dates grouped by day
       const submissionDates = await ctx.db.submission.groupBy({
         by: ["createdAt"],
         where: {
           userId: user.id,
-          createdAt: {
-            gte: sixMonthsAgo,
-          },
         },
         _count: {
           id: true,

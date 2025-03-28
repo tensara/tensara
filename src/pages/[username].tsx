@@ -26,6 +26,7 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
+  Select,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import {
@@ -72,14 +73,13 @@ function ActivityCalendar({
 }) {
   const weeks = 52; 
   const days = 7;
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Default to current year
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); 
   const today = new Date();
   const currentYear = today.getFullYear();
 
   const dateMap: Record<string, number> = {};
   data.forEach((item) => {
     const itemYear = parseInt(item.date.split('-')[0] ?? "0");
-    
     if (itemYear === selectedYear) {
       dateMap[item.date] = (dateMap[item.date] ?? 0) + item.count;
     }
@@ -165,7 +165,7 @@ function ActivityCalendar({
 
   
   const availableYears = [];
-  for (let year = currentYear; year >= joinedYear; year--) {
+  for (let year = currentYear; year >= currentYear - 2; year--) {
     availableYears.push(year);
   }
 
@@ -175,7 +175,7 @@ function ActivityCalendar({
 
   return (
     <Box>
-      <HStack mb={4}>
+      <HStack mb={4} justifyContent="space-between">
         <HStack spacing={3}>
           <Icon as={FaFire} color="blue.300" w={5} h={5} />
           <Text fontSize="sm" color="whiteAlpha.800">
@@ -185,6 +185,26 @@ function ActivityCalendar({
             submissions {timeDisplayText}
           </Text>
         </HStack>
+        
+        {/* Year dropdown */}
+        <Select
+          size="sm"
+          width="100px"
+          value={selectedYear}
+          onChange={(e) => handleYearChange(parseInt(e.target.value))}
+          bg="gray.700"
+          borderRadius="2xl"
+          borderColor="gray.600"
+          color="white"
+          _hover={{ borderColor: "blue.300" }}
+          _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px var(--chakra-colors-blue-300)" }}
+        >
+          {availableYears.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </Select>
       </HStack>
 
       <Flex position="relative">
@@ -209,7 +229,7 @@ function ActivityCalendar({
         {/* Main calendar area */}
         <Box flex="1" ml={2}>
           {/* Month labels */}
-          <Flex mb={1} width="100%">
+          <Flex mb={1} width="100%" ml={4}>
             {months.map((month, i) => (
               <Text
                 key={month + i}
@@ -289,34 +309,6 @@ function ActivityCalendar({
             </Flex>
           </Box>
         </Box>
-
-        {/* Year selection on the right side */}
-        <VStack 
-          spacing={2} 
-          ml={4} 
-          align="flex-start" 
-          bg="gray.700" 
-          borderRadius="lg" 
-          p={2}
-          alignSelf="flex-start"
-          mt={6} /* To align with the grid */
-        >
-          {availableYears.map((year) => (
-            <Button
-              key={year}
-              size="xs"
-              fontSize="xs"
-              width="70px"
-              justifyContent="flex-start"
-              colorScheme={selectedYear === year ? "blue" : "gray"}
-              bg={selectedYear === year ? "brand.navbar" : "gray.700"}
-              onClick={() => handleYearChange(year)}
-              variant={selectedYear === year ? "solid" : "ghost"}
-            >
-              {year}
-            </Button>
-          ))}
-        </VStack>
       </Flex>
     </Box>
   );
