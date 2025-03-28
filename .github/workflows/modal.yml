@@ -2,10 +2,14 @@ name: Deploy to Modal
 
 on:
   workflow_call:
+    secrets:
+      MODAL_TOKEN_ID:
+        required: true
+      MODAL_TOKEN_SECRET:
+        required: true
 
 jobs:
   modal:
-    environment: tensara
     runs-on: ubuntu-latest
     env:
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
@@ -19,6 +23,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: 'pip'  # Enable pip caching
 
       - name: Install Modal
         run: |
