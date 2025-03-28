@@ -49,6 +49,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   InfoIcon,
+  CloseIcon,
 } from "@chakra-ui/icons";
 import { FiArrowLeft, FiTrendingUp } from "react-icons/fi";
 import { Icon } from "@chakra-ui/react";
@@ -60,7 +61,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { BenchmarkTestResult, SubmissionStatus, Submission, DebugInfo } from "~/types/problem";
+import { BenchmarkTestResult, Submission, DebugInfo } from "~/types/problem";
 import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSplitPanel } from "~/hooks/useSplitPanel";
@@ -71,7 +72,9 @@ import { Problem } from "@prisma/client";
 import { GpuInfoModal } from "~/components/GpuInfoModal";
 import { DEVICE_QUERY_GPU_MAP } from "~/constants/deviceQuery";
 import { LanguageInfoModal } from "~/components/LanguageInfoModal";
+import { SubmissionError, SubmissionErrorType, SubmissionStatus, SubmissionStatusType } from "~/types/submission";
 
+type ViewType = "submissions" | "problem" | "result";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const helpers = createServerSideHelpers({
@@ -105,32 +108,39 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 };
 
-const getStatusMessage = (status: SubmissionStatus): string => {
-  if (!status.message) return `Status: ${status.status}`;
-  
-  if (status.message.startsWith("status: CHECKING")) return "Checking...";
-  if (status.message.startsWith("complete: ACCEPTED")) return "ACCEPTED";
-  
-  const messageMap: Record<string, string> = {
-    "status: BENCHMARKING": "Running benchmarks...",
-    "checker: compiling": "Compiling...",
-    "checker: running": "Running tests...",
-    "checker: test_result": "Running tests...",
-    "checker: complete": "Tests complete",
-    "benchmark: compiling": "Running benchmarks...",
-    "benchmark: running": "Running benchmarks...",
-    "benchmark: test_result": "Running benchmarks...",
-    "benchmark: success": "Benchmark results",
-    "complete: ACCEPTED": "ACCEPTED",
-    "complete: WRONG_ANSWER": "Wrong answer",
-    "error:": "Error",
-  };
-  
+const getStatusMessage = (status: (SubmissionStatusType | SubmissionErrorType)): string => {
 
-  for (const [prefix, message] of Object.entries(messageMap)) {
-    if (status.message.startsWith(prefix)) return message;
+  switch (status) {
+    case SubmissionStatus.IN_QUEUE:
+      return "In queue";
+    case SubmissionStatus.COMPILING:
+      return "Compiling...";
+    case SubmissionStatus.CHECKING:
+      return "Running tests...";
+    case SubmissionStatus.CHECKED:
+      return "Tests complete!";
+    case SubmissionStatus.BENCHMARKING:
+      return "Running benchmarks...";
+    case SubmissionStatus.BENCHMARKED:
+      return "Benchmark complete!";
+    case SubmissionStatus.ACCEPTED:
+      return "ACCEPTED";
+    case SubmissionStatus.WRONG_ANSWER:
+      return "Wrong Answer";
+    case SubmissionError.ERROR:
+      return "Error";
+    case SubmissionError.COMPILE_ERROR:
+      return "Compile Error";
+    case SubmissionError.RUNTIME_ERROR:
+      return "Runtime Error";
+    case SubmissionError.TIME_LIMIT_EXCEEDED:
+      return "Time Limit Exceeded";
+    case SubmissionError.RATE_LIMIT_EXCEEDED:
+      return "Rate Limit Exceeded";
+    default:
+      return status;
   }
-  return `${status.status}`;
+
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
@@ -138,6 +148,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const toast = useToast();
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [viewType, setViewType] = useState<ViewType>("problem");
 
   // Get problem data
   const { data: problem, isLoading } = api.problems.getById.useQuery(
@@ -170,13 +181,19 @@ export default function ProblemPage({ slug }: { slug: string }) {
   // Submission stream logic
   const {
     isSubmitting,
-    submissionStatus,
+    metaStatus,
+    metaResponse,
+    testResults,
+    benchmarkResults,
+    submissionId,
     isTestCaseTableOpen,
     isBenchmarking,
     setIsTestCaseTableOpen,
     processSubmission,
     startSubmission,
-    setSubmissionStatus
+    setMetaStatus,
+    totalTests,
+    getTypedResponse
   } = useSubmissionStream(submissionsQuery.refetch);
 
   // Create submission mutation
@@ -185,7 +202,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       void processSubmission(data.id);
     },
     onError: (error) => { 
-      setSubmissionStatus(null);
+      setMetaStatus(SubmissionError.ERROR);
       toast({
         title: "Failed to create submission",
         description: error.message,
@@ -273,29 +290,20 @@ export default function ProblemPage({ slug }: { slug: string }) {
           mb={{ base: 4, md: 0 }}
           maxH={{ base: "auto", md: "100%" }}
         >
-          {submissionStatus ? (
+          {metaStatus ? (
             <VStack spacing={4} align="stretch" p={6}>
               <HStack justify="space-between">
                 <Heading size="md">
-                  {submissionStatus.status === "SUBMISSIONS"
+                  {viewType === "submissions"
                     ? "My Submissions"
                     : "Submission Results"}
                 </Heading>
                 <HStack>
-                  {submissionStatus.status !== "SUBMISSIONS" && (
+                  {viewType !== "submissions" && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
-                        setSubmissionStatus({
-                          status: "SUBMISSIONS",
-                          runtime: null,
-                          gflops: null,
-                          passedTests: null,
-                          totalTests: null,
-                          message: null,
-                        })
-                      }
+                      onClick={() => setViewType("submissions")}
                       leftIcon={<TimeIcon />}
                       borderRadius="full"
                       color="gray.300"
@@ -311,7 +319,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      setSubmissionStatus(null);
+                      setViewType("problem");
                     }}
                     leftIcon={<Icon as={FiArrowLeft} />}
                     borderRadius="full"
@@ -326,7 +334,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 </HStack>
               </HStack>
 
-              {submissionStatus.status === "SUBMISSIONS" ? (
+              {viewType === "submissions" ? (
                 <VStack spacing={4} align="stretch">
                   {submissionsQuery.isLoading ? (
                     <Box display="flex" justifyContent="center" p={4}>
@@ -422,83 +430,49 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 <>
                   <Box
                     bg={
-                      submissionStatus.status === "ACCEPTED" ||
-                      submissionStatus.message?.startsWith("complete: ACCEPTED")
-                        ? "green.900"
-                        : submissionStatus.message?.startsWith(
-                            "status: CHECKING"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "checker: compiling"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "checker: running"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "benchmark: compiling"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "benchmark: running"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "benchmark: test_result"
-                          ) ||
-                          submissionStatus.status === "CHECKING" ||
-                          submissionStatus.status === "BENCHMARKING"
+                      metaStatus === "ACCEPTED" ? "green.900"
+                        : (metaStatus === "IN_QUEUE" ||
+                          metaStatus === "COMPILING" ||
+                          metaStatus === "CHECKING" ||
+                          metaStatus === "CHECKED" ||
+                          metaStatus === "BENCHMARKING" ||
+                          metaStatus === "BENCHMARKED"
                         ? "blue.900"
-                        : "red.900"
+                        : "red.900")
                     }
                     p={4}
                     borderRadius="xl"
                   >
                     <HStack spacing={3}>
-                      {submissionStatus.message?.startsWith(
-                        "status: CHECKING"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "checker: compiling"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "checker: running"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "benchmark: compiling"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "benchmark: running"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "benchmark: test_result"
-                      ) ||
-                      submissionStatus.status === "CHECKING" ||
-                      submissionStatus.status === "BENCHMARKING" ? (
+                      {metaStatus === "IN_QUEUE" ||
+                      metaStatus === "COMPILING" ||
+                      metaStatus === "CHECKING" ||
+                      metaStatus === "CHECKED" ||
+                      metaStatus === "BENCHMARKING" ||
+                      metaStatus === "BENCHMARKED" ? (
                         <Spinner size="sm" color="blue.200" />
                       ) : (
                         <Icon
                           as={
-                            submissionStatus.status === "ACCEPTED" ||
-                            submissionStatus.message?.startsWith(
-                              "complete: ACCEPTED"
-                            )
-                              ? CheckIcon
-                              : WarningIcon
+                            metaStatus === "ACCEPTED"
+                            ? CheckIcon : 
+                            (metaStatus === "WRONG_ANSWER"
+                            ? CloseIcon
+                            : WarningIcon)
                           }
                           boxSize={6}
                         />
                       )}
                       <VStack align="start" spacing={0}>
                         <Text fontSize="lg" fontWeight="semibold">
-                          {getStatusMessage(submissionStatus)}
+                          {getStatusMessage(metaStatus)}
                         </Text>
                       </VStack>
                     </HStack>
                   </Box>
 
-                  {submissionStatus.passedTests !== null &&
-                    submissionStatus.status !== "WRONG_ANSWER" &&
-                    !submissionStatus.message?.startsWith(
-                      "complete: WRONG_ANSWER"
-                    ) && (
+                  {metaStatus === SubmissionStatus.ACCEPTED &&
+                    metaResponse && (
                       <Box
                         bg="whiteAlpha.50"
                         borderRadius="xl"
@@ -567,8 +541,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                               <Box
                                 h="100%"
                                 w={`${
-                                  (submissionStatus.passedTests /
-                                    (submissionStatus.totalTests ?? 10)) *
+                                  (testResults.length /
+                                    (totalTests ?? 10)) *
                                   100
                                 }%`}
                                 bg="green.500"
@@ -597,10 +571,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                   </Tr>
                                 </Thead>
                                 <Tbody>
-                                  {submissionStatus.benchmarkResults?.map(
+                                  {benchmarkResults.map(
                                     (result) => (
                                       <Tr
-                                        key={result.test_id}
+                                        key={result.result.test_id}
                                         _hover={{ bg: "whiteAlpha.100" }}
                                       >
                                         <Td py={3}>
@@ -610,38 +584,38 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                               color="green.300"
                                               boxSize={4}
                                             />
-                                            <Text>{result.name}</Text>
+                                            <Text>{result.result.name}</Text>
                                           </HStack>
                                         </Td>
                                         <Td py={3} isNumeric>
                                           <Text>
-                                            {result.runtime_ms.toFixed(2)} ms
+                                            {result.result.runtime_ms.toFixed(2)} ms
                                           </Text>
                                         </Td>
                                         <Td py={3} isNumeric>
                                           <Text>
-                                            {result.gflops.toFixed(2)} GFLOPS
+                                            {result.result.gflops.toFixed(2)} GFLOPS
                                           </Text>
                                         </Td>
                                       </Tr>
                                     )
                                   )}
-                                  {submissionStatus.status != "BENCHMARKING" &&
-                                    submissionStatus.totalTests !== null &&
-                                    submissionStatus.benchmarkResults &&
-                                    submissionStatus.totalTests >
-                                      submissionStatus.benchmarkResults
+                                  {metaStatus !== "BENCHMARKING" &&
+                                    totalTests !== null &&
+                                    benchmarkResults &&
+                                    totalTests >
+                                      benchmarkResults
                                         .length &&
                                     Array.from(
                                       {
                                         length:
-                                          submissionStatus.totalTests -
-                                          submissionStatus.benchmarkResults
+                                          totalTests -
+                                          benchmarkResults
                                             .length,
                                       },
                                       (_, i) => {
                                         const testId =
-                                          (submissionStatus.benchmarkResults
+                                          (benchmarkResults
                                             ?.length ?? 0) +
                                           i +
                                           1;
@@ -686,14 +660,14 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       </Box>
                     )}
 
-                  {submissionStatus.status === "ACCEPTED" && (
+                  {metaStatus === SubmissionStatus.ACCEPTED && (
                     <SimpleGrid columns={2} spacing={4}>
                       <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
                         <Text color="whiteAlpha.700" mb={1}>
                           Performance
                         </Text>
                         <Text fontSize="2xl" fontWeight="bold">
-                          {submissionStatus.gflops?.toFixed(2)} GFLOPS
+                          {getTypedResponse(SubmissionStatus.ACCEPTED)?.average_gflops?.toFixed(2)} GFLOPS
                         </Text>
                       </Box>
                       <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
@@ -701,15 +675,15 @@ export default function ProblemPage({ slug }: { slug: string }) {
                           Runtime
                         </Text>
                         <Text fontSize="2xl" fontWeight="bold">
-                          {submissionStatus.runtime?.toFixed(2)}ms
+                          {getTypedResponse(SubmissionStatus.ACCEPTED)?.runtime_ms?.toFixed(2)}ms
                         </Text>
                       </Box>
                     </SimpleGrid>
                   )}
 
-                  {submissionStatus.status === "WRONG_ANSWER" && (
+                  {metaStatus === SubmissionStatus.WRONG_ANSWER && (
                       <Box bg="red.900" p={6} borderRadius="xl">
-                        {submissionStatus.errorMessage && (
+                        {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.errorMessage && (
                           <Text color="red.200" fontWeight="semibold" mb={3}>
                             {submissionStatus.errorMessage}
                           </Text>
@@ -784,9 +758,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       </Box>
                     )}
 
-                  {submissionStatus.status !== "WRONG_ANSWER" &&
-                    submissionStatus.errorMessage &&
-                    submissionStatus.errorDetails && (
+                  {metaStatus !== SubmissionStatus.WRONG_ANSWER && metaStatus === SubmissionStatus.ERROR &&
+                    getTypedResponse(SubmissionError.ERROR)?.message &&
+                    getTypedResponse(SubmissionError.ERROR)?.details && (
                       <Box bg="red.900" p={6} borderRadius="xl">
                         <Text color="red.200" fontWeight="semibold" mb={3}>
                           Error Details
@@ -801,8 +775,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                           fontSize="sm"
                           fontFamily="mono"
                         >
-                          {submissionStatus.errorDetails ??
-                            submissionStatus.errorMessage}
+                          {getTypedResponse(SubmissionError.ERROR)?.details ??
+                            getTypedResponse(SubmissionError.ERROR)?.message}
                         </Code>
                       </Box>
                     )}
@@ -829,16 +803,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   px={3}
                   py={1}
                   fontSize="xs"
-                  onClick={() =>
-                    setSubmissionStatus({
-                      status: "SUBMISSIONS",
-                      runtime: null,
-                      gflops: null,
-                      passedTests: null,
-                      totalTests: null,
-                      message: null,
-                    })
-                  }
+                  onClick={() => setViewType("submissions")}
                   leftIcon={<TimeIcon boxSize={3} />}
                   borderRadius="full"
                   borderColor="whiteAlpha.200"

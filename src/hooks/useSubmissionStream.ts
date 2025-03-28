@@ -1,18 +1,44 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { SubmissionStatus, SubmissionEventData, SubmissionStatusType, BenchmarkTestResult } from '~/types/problem';
+import { SubmissionStatusType, SubmissionErrorType, ErrorResponse, WrongAnswerResponse, CheckedResponse, BenchmarkedResponse, TestResultResponse, BenchmarkResultResponse, SubmissionError, SubmissionStatus, AcceptedResponse } from '~/types/submission';
 
-type RateLimitResponse = {
-  error: string;
-}
+// Define a type mapping from status to response type
+type ResponseTypeMap = {
+  [SubmissionStatus.ACCEPTED]: AcceptedResponse;
+  [SubmissionStatus.BENCHMARKED]: BenchmarkedResponse;
+  [SubmissionStatus.CHECKED]: CheckedResponse;
+  [SubmissionStatus.WRONG_ANSWER]: WrongAnswerResponse;
+  [SubmissionError.ERROR]: ErrorResponse;
+  [SubmissionError.COMPILE_ERROR]: ErrorResponse;
+  [SubmissionError.RUNTIME_ERROR]: ErrorResponse;
+  [SubmissionError.TIME_LIMIT_EXCEEDED]: ErrorResponse;
+  [SubmissionError.RATE_LIMIT_EXCEEDED]: ErrorResponse;
+};
 
 export function useSubmissionStream(refetchSubmissions: () => void) {
   const toast = useToast();
+  // higher level status and response
+  const [metaStatus, setMetaStatus] = useState<SubmissionStatusType | SubmissionErrorType | null>(null);
+  const [metaResponse, setMetaResponse] = useState<ResponseTypeMap[keyof ResponseTypeMap] | null>(null);
+  const [totalTests, setTotalTests] = useState<number>(0);
+
+  const [testResults, setTestResults] = useState<TestResultResponse[]>([]);
+  const [benchmarkResults, setBenchmarkResults] = useState<BenchmarkResultResponse[]>([]);
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] = useState<boolean>(false);
   const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
+
+  // Type-safe accessor for metaResponse based on current metaStatus
+  const getTypedResponse = <T extends SubmissionStatusType | SubmissionErrorType>(
+    status: T
+  ): T extends keyof ResponseTypeMap ? ResponseTypeMap[T] | null : null => {
+    if (metaStatus === status) {
+      return metaResponse as any;
+    }
+    return null as any;
+  };
 
   const processSubmission = useCallback(async (id: string) => {
     setSubmissionId(id);
@@ -32,20 +58,14 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
       if (!response.ok) {
         if (response.status === 429) {
-          const errorMessage = await response.json() as RateLimitResponse;
+          const errorMessage = await response.json() as ErrorResponse;
           setIsSubmitting(false);
-
-          setSubmissionStatus({
-            status: "ERROR",
-            runtime: null,
-            gflops: null,
-            passedTests: null,
-            totalTests: null,
-            message: "Rate limit exceeded",
-            errorMessage: errorMessage.error || "Rate limit exceeded",
-            errorDetails: errorMessage.error || "Rate limit exceeded",
+          setMetaStatus(SubmissionError.ERROR);
+          setMetaResponse({
+            status: SubmissionError.RATE_LIMIT_EXCEEDED,
+            message: errorMessage.message || "Rate limit exceeded",
+            details: errorMessage.details || "Rate limit exceeded",
           });
-
           return;                  
         } else {
           throw new Error(
@@ -135,165 +155,56 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       }
     }
 
-    if (!eventData) return;
-
-    try {
-      const data = JSON.parse(eventData) as SubmissionEventData;
-      console.log(`[sse] ${eventType} event:`, data);
-
-      // Handle different event types
-      if (eventType === "status") {
-        handleStatusEvent(data);
-      } else if (eventType === "checker") {
-        handleCheckerEvent(data);
-      } else if (eventType === "benchmark") {
-        handleBenchmarkEvent(data);
-      } else if (eventType === "complete") {
-        handleCompleteEvent(data);
-      } else if (eventType === "error") {
-        handleErrorEvent(data);
-      }
-    } catch (error) {
-      console.error("Error parsing event data:", error, "Raw data:", eventData);
+    switch (eventType) {
+      case "IN_QUEUE":
+      case "COMPILING":
+      case "CHECKING":
+      case "BENCHMARKING":
+        setMetaStatus(eventType as SubmissionStatusType);
+        break;
+      case "TEST_RESULT":
+        const data = JSON.parse(eventData) as TestResultResponse;
+        setTestResults(prev => [...prev, data]);
+        setTotalTests(data.total_tests);
+        break;
+      case "WRONG_ANSWER":
+        const wrongAnswerData = JSON.parse(eventData) as WrongAnswerResponse;
+        setMetaStatus(SubmissionStatus.WRONG_ANSWER);
+        setMetaResponse(wrongAnswerData);
+        break;
+      case "CHECKED":
+        const checkedData = JSON.parse(eventData) as CheckedResponse;
+        setMetaStatus(SubmissionStatus.CHECKED);
+        setMetaResponse(checkedData);
+        break;
+      case "BENCHMARKED":
+        const benchmarkedData = JSON.parse(eventData) as BenchmarkedResponse;
+        setMetaStatus(SubmissionStatus.BENCHMARKED);
+        setMetaResponse(benchmarkedData);
+        break;
+      case "BENCHMARK_RESULT":
+        const benchmarkResultData = JSON.parse(eventData) as BenchmarkResultResponse;
+        setBenchmarkResults(prev => [...prev, benchmarkResultData]);
+        setTotalTests(benchmarkResultData.total_tests);
+        break;
+      case "ACCEPTED":
+        setMetaStatus(SubmissionStatus.ACCEPTED);
+        setMetaResponse(JSON.parse(eventData) as AcceptedResponse);
+        break;
+      case "ERROR":
+      case "RATE_LIMIT_EXCEEDED":
+      case "COMPILE_ERROR": 
+      case "RUNTIME_ERROR":
+      case "TIME_LIMIT_EXCEEDED":
+        setMetaStatus(eventType as SubmissionErrorType);
+        setMetaResponse(JSON.parse(eventData) as ErrorResponse);
+        break;
+      default:
+        break;
     }
+
   };
   
-  const handleStatusEvent = (data: SubmissionEventData): void => {
-    setSubmissionStatus(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        status: (data.status as SubmissionStatusType) ?? prev.status,
-        passedTests: data.passedTests ?? prev.passedTests,
-        totalTests: data.totalTests ?? prev.totalTests,
-        message: "status: " + (data.status ?? prev.message),
-      };
-    });
-  };
-
-  const handleCheckerEvent = (data: SubmissionEventData): void => {
-    if (data.status === "test_result" && data.result) {
-      setSubmissionStatus(prev => {
-        if (!prev) {
-          return {
-            status: "CHECKING",
-            runtime: null,
-            gflops: null,
-            passedTests: data.result?.status === "PASSED" ? 1 : 0,
-            totalTests: data.totalTests ?? 1,
-            message: "checker: " + data.status,
-          };
-        }
-        return {
-          ...prev,
-          passedTests: (prev.passedTests ?? 0) + (data.result?.status === "PASSED" ? 1 : 0),
-          totalTests: data.totalTests ?? prev.totalTests,
-          message: "checker: " + data.status,
-        };
-      });
-    } else if (data.status && data.status !== "error") {
-      setSubmissionStatus(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          message: "checker: " + data.status,
-        };
-      });
-    } else if (data.status === "error") {
-      setSubmissionStatus({
-        status: "ERROR",
-        runtime: null,
-        gflops: null,
-        passedTests: null,
-        totalTests: null,
-        message: "checker: " + (data.status ?? "ERROR"),
-        errorMessage: data.error ?? undefined,
-        errorDetails: data.details ?? undefined,
-      });
-
-      setIsSubmitting(false);
-      refetchSubmissions();
-
-      toast({
-        title: "Submission Error",
-        description: data.error ?? "An error occurred during submission",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleBenchmarkEvent = (data: SubmissionEventData): void => {
-    if (data.status === "test_result" && data.result) {
-      setIsBenchmarking(true);
-      setIsTestCaseTableOpen(true);
-      setSubmissionStatus(prev => {
-        if (!prev) return prev;
-        const benchmarkResult: BenchmarkTestResult = {
-          test_id: data.result?.test_id ?? 0,
-          runtime_ms: data.result?.runtime_ms ?? 0,
-          gflops: data.result?.gflops ?? 0,
-          name: data.result?.name ?? `Test ${data.result?.test_id ?? 0}`,
-        };
-        return {
-          ...prev,
-          message: "benchmark: " + data.status,
-          benchmarkResults: [...(prev.benchmarkResults ?? []), benchmarkResult],
-        };
-      });
-    } else if (data.status && data.status !== "error") {
-      setSubmissionStatus(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          message: "benchmark: " + data.status,
-        };
-      });
-    }
-  };
-
-  const handleCompleteEvent = (data: SubmissionEventData): void => {
-    setSubmissionStatus({
-      status: (data.status as SubmissionStatusType) ?? "ERROR",
-      runtime: data.runtime ?? null,
-      gflops: data.gflops ?? null,
-      passedTests: data.passedTests ?? null,
-      totalTests: data.totalTests ?? null,
-      message: "complete: " + (data.status ?? "ERROR"),
-      errorMessage: data.error ?? undefined,
-      errorDetails: data.details ?? undefined,
-      benchmarkResults: data.benchmarkResults ?? [],
-    });
-
-    setIsSubmitting(false);
-    refetchSubmissions();
-  };
-
-  const handleErrorEvent = (data: SubmissionEventData): void => {
-    setSubmissionStatus({
-      status: "ERROR",
-      runtime: null,
-      gflops: null,
-      passedTests: null,
-      totalTests: null,
-      message: "error: " + (data.status ?? "ERROR"),
-      errorMessage: data.error ?? undefined,
-      errorDetails: data.details ?? undefined,
-    });
-
-    setIsSubmitting(false);
-    refetchSubmissions();
-
-    toast({
-      title: "Submission Error",
-      description: data.error ?? "An error occurred during submission",
-      status: "error",
-      duration: 5000,
-      isClosable: true,
-    });
-  };
-
   const handleStreamError = (error: unknown): void => {
     console.error("[sse] Error:", error);
     setIsSubmitting(false);
@@ -325,25 +236,23 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setIsTestCaseTableOpen(false);
     setIsBenchmarking(false);
     setIsSubmitting(true);
-    setSubmissionStatus({
-      status: "CHECKING",
-      runtime: null,
-      gflops: null,
-      passedTests: null,
-      totalTests: null,
-      message: "status: CHECKING",
-    });
+    setMetaStatus("IN_QUEUE");
   }, []);
 
   return {
     isSubmitting,
-    submissionStatus,
+    metaStatus,
+    metaResponse,
+    testResults,
+    benchmarkResults,
     submissionId,
     isTestCaseTableOpen,
     isBenchmarking,
     setIsTestCaseTableOpen,
     processSubmission,
     startSubmission,
-    setSubmissionStatus
+    setMetaStatus,
+    totalTests,
+    getTypedResponse,
   };
 }

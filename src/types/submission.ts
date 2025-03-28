@@ -16,6 +16,7 @@ export const SubmissionError = {
   RUNTIME_ERROR: "Runtime Error",
   TIME_LIMIT_EXCEEDED: "Time Limit Exceeded",
   ERROR: "Error", 
+  RATE_LIMIT_EXCEEDED: "Rate Limit Exceeded",
 } as const;
 
 export type SubmissionStatusType = (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
@@ -70,4 +71,12 @@ export type BenchmarkedResponse = {
   average_gflops: number,
   runtime_ms: number,
   total_tests: number
+}
+
+export type AcceptedResponse = {
+  status: "ACCEPTED",
+  benchmark_results: BenchmarkResultResponse[],
+  average_gflops: number,
+  runtime_ms: number,
+  total_tests: number,
 }

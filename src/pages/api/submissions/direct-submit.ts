@@ -3,6 +3,7 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import { auth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
+import { SubmissionError } from "~/types/submission";
 
 const SubmissionStatus = {
   CHECKING: "CHECKING",
@@ -47,7 +48,11 @@ export default async function handler(
     await db.submission.deleteMany({
       where: { id: submissionId }
     });
-    res.status(rateLimit.statusCode ?? 429).json({ error: rateLimit.error });
+    res.status(rateLimit.statusCode ?? 429).json({ 
+      status: SubmissionError.RATE_LIMIT_EXCEEDED,
+      message: rateLimit.error,
+      details: rateLimit.error,
+    });
     return;
   }
 
