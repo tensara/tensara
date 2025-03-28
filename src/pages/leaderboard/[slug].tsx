@@ -29,7 +29,7 @@ import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
-import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 
 type LeaderboardEntry = {
   id: string;
@@ -68,12 +68,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   // Prefetch problem data
   await helpers.problems.getById.prefetch({ slug });
 
-  // Prefetch all relevant GPU types for this problem
-  const gpuTypes = ["all", "A100", "H100", "RTX4090"];
-
   // Prefetch all GPU types for instant switching
   await Promise.all(
-    gpuTypes.map((gt) =>
+    gpuTypes.map((gt: string) =>
       helpers.submissions.getProblemLeaderboard.prefetch({
         slug,
         gpuType: gt,

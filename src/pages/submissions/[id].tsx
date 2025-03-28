@@ -145,7 +145,7 @@ const SubmissionPage: NextPage<{
 
   useEffect(() => {
     // Using optional chaining to safely access code which might not be present
-    if (submission && "code" in submission) {
+    if (submission && "code" in submission && typeof submission.code === "string") {
       setCode(submission.code);
     }
   }, [submission]);
@@ -184,7 +184,10 @@ const SubmissionPage: NextPage<{
     }
   };
 
+  // Check if the submission has code (is public or user is owner)
   const hasCode = "code" in submission;
+  const isPrivate = !submission.isPublic;
+  const canViewCode = hasCode && (!isPrivate || isOwner);
 
   return (
     <Layout title={pageTitle}>
@@ -351,7 +354,6 @@ const SubmissionPage: NextPage<{
                   {submission.errorDetails && (() => {
                     try {
                       const debugInfo = JSON.parse(submission.errorDetails) as DebugInfo;
-                      console.log(debugInfo);
                       return (
                         <VStack spacing={4} align="stretch">
                           {debugInfo.message && (
@@ -553,7 +555,7 @@ const SubmissionPage: NextPage<{
               )}
             </HStack>
 
-            {!hasCode ? (
+            {!canViewCode ? (
               <Alert status="info" variant="solid" mb={4}>
                 <AlertIcon />
                 <AlertDescription>
