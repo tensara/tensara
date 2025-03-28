@@ -71,7 +71,20 @@ interface ActivityItem {
   count: number;
 }
 
-// Activity calendar heatmap component
+// Helper function to get ordinal suffix for dates (1st, 2nd, 3rd, etc.)
+function getOrdinalSuffix(day: number): string {
+  if (day > 3 && day < 21) return "th";
+  switch (day % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
 function ActivityCalendar({
   data,
   joinedYear,
@@ -79,19 +92,23 @@ function ActivityCalendar({
   data: ActivityItem[];
   joinedYear: number;
 }) {
-  const weeks = 52; // Full year (52 weeks)
+  const weeks = 52; 
   const days = 7;
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Default to current year
+  const today = new Date();
+  const currentYear = today.getFullYear();
 
-  // Group data by date
   const dateMap: Record<string, number> = {};
   data.forEach((item) => {
-    dateMap[item.date] = (dateMap[item.date] ?? 0) + item.count;
+    const itemYear = parseInt(item.date.split('-')[0] ?? "0");
+    
+    if (itemYear === selectedYear) {
+      dateMap[item.date] = (dateMap[item.date] ?? 0) + item.count;
+    }
   });
 
-  // Define grid cell type
   type GridCell = { date: string; count: number; bgColor: string };
 
-  // Create calendar grid in a column-major format like GitHub
   const calendarGrid: GridCell[][] = Array(days)
     .fill(null)
     .map(() =>
@@ -100,30 +117,46 @@ function ActivityCalendar({
         .map(() => ({ date: "", count: 0, bgColor: "whiteAlpha.100" }))
     );
 
-  const today = new Date();
-  const dayNames = ["Mon", "Wed", "Fri", "Sun"]; // Show fewer day labels to save space
+  
+  const dayNames = ["Mon", "Wed", "Fri", "Sun"];
 
-  // Get month labels
   const months: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const date = new Date();
-    date.setDate(1); // First of month
-    date.setMonth(today.getMonth() - 11 + i); // Start from 11 months ago
-    months.push(date.toLocaleString("default", { month: "short" }));
+  
+  if (selectedYear === currentYear) {
+    for (let i = 0; i < 12; i++) {
+      const date = new Date();
+      date.setDate(1);
+      date.setMonth(today.getMonth() - 11 + i);
+      months.push(date.toLocaleString("default", { month: "short" }));
+    }
+  } else {
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(selectedYear, i, 1);
+      months.push(date.toLocaleString("default", { month: "short" }));
+    }
   }
 
-  // Fill the grid with data for the past year
+  const isCurrentYear = selectedYear === currentYear;
+  
   for (let w = 0; w < weeks; w++) {
     for (let d = 0; d < days; d++) {
-      const date = new Date();
-      // Calculate date: most recent contributions on the right side
-      // Start from 1 year ago, move forward
-      date.setDate(today.getDate() - ((weeks - w - 1) * 7 + (days - d - 1)));
-
+      let date;
+      
+      if (isCurrentYear) {
+        date = new Date();
+        date.setDate(today.getDate() - ((weeks - w - 1) * 7 + (days - d - 1)));
+      } else {
+        date = new Date(selectedYear, 0, 1);
+        const dayOfWeek = date.getDay();
+        
+        date.setDate(date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+        
+        date.setDate(date.getDate() + (w * 7) + d);
+      }
+      
       const dateStr = date.toISOString().split("T")[0]!;
       const count = dateMap[dateStr] ?? 0;
 
-      // Determine color based on count
       let bgColor = "whiteAlpha.100";
       if (count > 0) {
         if (count < 3) bgColor = "green.100";
@@ -133,7 +166,6 @@ function ActivityCalendar({
         else bgColor = "green.700";
       }
 
-      // Add to grid - column-major ordering
       if (calendarGrid[d]) {
         calendarGrid[d]![w] = {
           date: dateStr,
@@ -144,59 +176,36 @@ function ActivityCalendar({
     }
   }
 
-  // Get total submissions in the date range
   const totalCount = Object.values(dateMap).reduce(
     (sum, count) => sum + count,
     0
   );
+  
+  const timeDisplayText = selectedYear === currentYear 
+    ? "in the last year" 
+    : `in ${selectedYear}`;
 
-  // Calculate available years (from join year to current year)
-  const currentYear = today.getFullYear();
+  
   const availableYears = [];
   for (let year = currentYear; year >= joinedYear; year--) {
     availableYears.push(year);
   }
 
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+  };
 
   return (
     <Box>
-      <HStack justify="space-between" mb={4}>
+      <HStack mb={4}>
         <HStack spacing={3}>
           <Icon as={FaFire} color="blue.300" w={5} h={5} />
           <Text fontSize="sm" color="whiteAlpha.800">
             <Text as="span" fontWeight="bold" fontSize="md" color="white">
               {totalCount}
             </Text>{" "}
-            submissions in the last year
+            submissions {timeDisplayText}
           </Text>
-        </HStack>
-        
-        {/* Year Tabs */}
-        <HStack spacing={1} bg="gray.700" borderRadius="lg" p={1}>
-          {availableYears.slice(0, 3).map((year, i) => (
-            <Button
-              key={year}
-              size="xs"
-              fontSize="xs"
-              colorScheme={i === 0 ? "blue" : "gray"}
-              variant={i === 0 ? "solid" : "outline"}
-              height="24px"
-              bg={i === 0 ? "brand.navbar" : "gray.700"}
-            >
-              {year}
-            </Button>
-          ))}
-          {availableYears.length > 3 && (
-            <Button
-              size="xs"
-              fontSize="xs"
-              variant="ghost"
-              colorScheme="gray"
-              height="24px"
-            >
-              More
-            </Button>
-          )}
         </HStack>
       </HStack>
 
@@ -302,24 +311,37 @@ function ActivityCalendar({
             </Flex>
           </Box>
         </Box>
+
+        {/* Year selection on the right side */}
+        <VStack 
+          spacing={2} 
+          ml={4} 
+          align="flex-start" 
+          bg="gray.700" 
+          borderRadius="lg" 
+          p={2}
+          alignSelf="flex-start"
+          mt={6} /* To align with the grid */
+        >
+          {availableYears.map((year) => (
+            <Button
+              key={year}
+              size="xs"
+              fontSize="xs"
+              width="70px"
+              justifyContent="flex-start"
+              colorScheme={selectedYear === year ? "blue" : "gray"}
+              bg={selectedYear === year ? "brand.navbar" : "gray.700"}
+              onClick={() => handleYearChange(year)}
+              variant={selectedYear === year ? "solid" : "ghost"}
+            >
+              {year}
+            </Button>
+          ))}
+        </VStack>
       </Flex>
     </Box>
   );
-}
-
-// Helper function to get ordinal suffix for dates (1st, 2nd, 3rd, etc.)
-function getOrdinalSuffix(day: number): string {
-  if (day > 3 && day < 21) return "th";
-  switch (day % 10) {
-    case 1:
-      return "st";
-    case 2:
-      return "nd";
-    case 3:
-      return "rd";
-    default:
-      return "th";
-  }
 }
 
 export default function UserProfile() {
