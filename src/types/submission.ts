@@ -22,6 +22,13 @@ export const SubmissionError = {
 export type SubmissionStatusType = (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
 export type SubmissionErrorType = (typeof SubmissionError)[keyof typeof SubmissionError];
 
+export type TestResult = {
+  test_id: number,
+  name: string,
+  status: string,
+  debug_info?: string,
+}
+
 export type ErrorResponse = {
     status: SubmissionErrorType,
     message: string,
@@ -30,18 +37,13 @@ export type ErrorResponse = {
 
 export type TestResultResponse = {
   status: "TEST_RESULT",
-  result: {
-    test_id: number,
-    name: string,
-    status: string,
-    debug_info?: string,
-  },
+  result: TestResult,
   total_tests: number,
 }
 
 export type CheckedResponse = {
   status: "CHECKED",
-  test_results: TestResultResponse[],
+  test_results: TestResult[],
   passed_tests: number,
   total_tests: number,
 }
@@ -60,7 +62,7 @@ export type WrongAnswerResponse = {
   },
   passed_tests: number,
   total_tests: number,
-  test_results: TestResultResponse[]
+  test_results: TestResult[]
 }
   
 export type BenchmarkResultResponse = {
@@ -85,7 +87,7 @@ export type BenchmarkedResponse = {
 export type AcceptedResponse = {
   status: "ACCEPTED",
   benchmark_results: BenchmarkResultResponse[],
-  average_gflops: number,
-  runtime_ms: number,
+  avg_gflops: number,
+  avg_runtime_ms: number,
   total_tests: number,
 }

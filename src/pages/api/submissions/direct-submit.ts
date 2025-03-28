@@ -4,7 +4,7 @@ import { env } from "~/env";
 import { auth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
 import { SubmissionError, SubmissionStatus } from "~/types/submission";
-import type { BenchmarkedResponse, BenchmarkResultResponse, CheckedResponse, SubmissionErrorType, TestResultResponse, WrongAnswerResponse } from "~/types/submission";
+import type { BenchmarkedResponse, BenchmarkResultResponse, CheckedResponse, SubmissionErrorType, TestResult, TestResultResponse, WrongAnswerResponse } from "~/types/submission";
 
 function isSubmissionError(status: string): status is SubmissionErrorType {
   return Object.values(SubmissionError).includes(status as SubmissionErrorType);
@@ -94,7 +94,6 @@ export default async function handler(
       },
     });
 
-    console.log("Submission found", submission);
     if (!submission) {
       res.status(404).json({ error: "Submission not found" });
       return;
@@ -204,7 +203,7 @@ export default async function handler(
 
             if (response_status === SubmissionStatus.TEST_RESULT) {
               const response = JSON.parse(response_json) as TestResultResponse;
-              sendSSE(response_status, response);
+              
               if (response.result) {
                 if (!processedTestIds.has(response.result.test_id)) {
                   processedTestIds.add(response.result.test_id);
@@ -219,43 +218,22 @@ export default async function handler(
                       totalTests,
                     },
                   });
+                  sendSSE(response_status, response);
                 }
               }
-            } else if (response_status === SubmissionStatus.WRONG_ANSWER) {
-              const response = JSON.parse(response_json) as WrongAnswerResponse;
-              sendSSE(response_status, response);
-              const failedTest = response.test_results?.find(
-                (t: TestResultResponse) => t.result.status === "FAILED"
-              );
-              const errorMessage = `Failed on test ${failedTest?.result.test_id} (${failedTest?.result.name})`;
-              const errorDetails = JSON.stringify(failedTest?.result.debug_info);
-              await db.submission.update({
-                where: { id: submission.id },
-                data: {
-                  passedTests,
-                  totalTests,
-                  errorMessage,
-                  errorDetails,
-                },
-              });
             } else if (response_status === SubmissionStatus.CHECKED) {
               const response = JSON.parse(response_json) as CheckedResponse;
-              sendSSE(response_status, response);
               const checkerPassed = response.passed_tests === response.total_tests;
 
               if (
                 response.total_tests !== undefined &&
                 response.passed_tests !== undefined
               ) {
-                console.log(
-                  `Using complete message test counts: passed=${response.passed_tests}, total=${response.total_tests}`
-                );
+                
                 totalTests = response.total_tests;
                 passedTests = response.passed_tests;
               } else {
-                console.log(
-                  `Using local test counts: passed=${passedTests}, total=${totalTests}`
-                );
+                
               }
               if (checkerPassed) {
                 await db.submission.update({
@@ -266,6 +244,29 @@ export default async function handler(
                   },
                 });
               }
+              sendSSE(response_status, response);
+            } else if (response_status === SubmissionStatus.WRONG_ANSWER) {
+              const response = JSON.parse(response_json) as WrongAnswerResponse;
+              const failedTest = response.test_results?.find(
+                (t: TestResult) => t.status === "FAILED"
+              );
+              const errorMessage = `Failed on test ${failedTest?.test_id} (${failedTest?.name})`;
+              const errorDetails = JSON.stringify(failedTest?.debug_info);
+              await db.submission.update({
+                where: { id: submission.id },
+                data: {
+                  passedTests,
+                  totalTests,
+                  errorMessage,
+                  errorDetails,
+                },
+              });
+
+              sendSSE(response_status, response);
+
+              res.end();
+              return;
+              
             } else if (isSubmissionError(response_status)) {
               const response = JSON.parse(response_json) as {
               status: SubmissionErrorType;
@@ -335,11 +336,6 @@ export default async function handler(
 
     if (!benchmarkResponse.ok) {
       const errorText = await benchmarkResponse.text();
-      sendSSE(SubmissionError.ERROR, {
-        error: `Benchmark API returned ${benchmarkResponse.status}`,
-        message: `Benchmark API returned ${benchmarkResponse.status}`,
-        details: errorText,
-      });
 
       await db.submission.update({
         where: { id: submission.id },
@@ -350,23 +346,29 @@ export default async function handler(
         },
       });
 
+      sendSSE(SubmissionError.ERROR, {
+        error: `Benchmark API returned ${benchmarkResponse.status}`,
+        message: `Benchmark API returned ${benchmarkResponse.status}`,
+        details: errorText,
+      });
+
       res.end();
       return;
     }
 
     const benchmarkReader = benchmarkResponse.body?.getReader();
     if (!benchmarkReader) {
-      sendSSE(SubmissionError.ERROR, { 
-        error: "No response body from benchmark",
-        message: "No response body from benchmark",
-      });
-
       await db.submission.update({
         where: { id: submission.id },
         data: {
           status: SubmissionError.ERROR,
           errorMessage: "No response body from benchmark",
         },
+      });
+
+      sendSSE(SubmissionError.ERROR, { 
+        error: "No response body from benchmark",
+        message: "No response body from benchmark",
       });
 
       res.end();
@@ -400,7 +402,6 @@ export default async function handler(
             if (response_status === SubmissionStatus.BENCHMARK_RESULT) {
               const response = JSON.parse(response_json) as BenchmarkResultResponse;
               if (response.result) {
-                sendSSE(response_status, response);
                 benchmarkResults.push(response.result);
                 await db.submission.update({
                   where: { id: submission.id },
@@ -408,6 +409,7 @@ export default async function handler(
                     benchmarkResults,
                   },
                 });
+                sendSSE(response_status, response);
               }
             } else if (response_status === SubmissionStatus.BENCHMARKED) {
               const response = JSON.parse(response_json) as BenchmarkedResponse;
@@ -426,9 +428,10 @@ export default async function handler(
                 });
 
                 sendSSE(SubmissionStatus.ACCEPTED, {
-                  runtime: averageRuntime,
-                  gflops: averageGflops,
-                  benchmarkResults,
+                  avg_runtime_ms: averageRuntime,
+                  avg_gflops: averageGflops,
+                  benchmark_results: benchmarkResults,
+                  total_tests: benchmarkResults.length,
                 });
               }
             }
@@ -466,12 +469,6 @@ export default async function handler(
   } catch (error) {
     console.error("Error in direct-submit handler:", error);
 
-    sendSSE(SubmissionError.ERROR, {
-      error: error instanceof Error ? error.message : "Unknown error",
-      message: error instanceof Error ? error.message : "Unknown error",
-      details: error instanceof Error ? error.stack : undefined,
-    });
-
     if (submissionId) {
       try {
         await db.submission.update({
@@ -487,6 +484,12 @@ export default async function handler(
         console.error("Failed to update submission with error:", dbError);
       }
     }
+
+    sendSSE(SubmissionError.ERROR, {
+      error: error instanceof Error ? error.message : "Unknown error",
+      message: error instanceof Error ? error.message : "Unknown error",
+      details: error instanceof Error ? error.stack : undefined,
+    });
 
     res.end();
   } finally {

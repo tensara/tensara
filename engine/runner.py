@@ -153,6 +153,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                     "debug_info": debug_info,
                     "passed_tests": passed_tests,
                     "total_tests": total_tests,
+                    "test_results": test_results,
                 }
                 return
                 
