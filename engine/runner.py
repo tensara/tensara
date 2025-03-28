@@ -72,7 +72,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
         yield {"status": "running"}
 
         start_time = time.time()
-        time_limit = problem.time_limit if problem.time_limit else 300
+        time_limit = problem.time_limit
 
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
