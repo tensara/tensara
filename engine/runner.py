@@ -80,7 +80,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                 yield {
                     "status": "error",
                     "error": "Time Limit Exceeded",
-                    "details": f"Execution exceeded time limit",
+                    "details": "Execution exceeded time limit",
                     "test_results": test_results,
                     "passed_tests": passed_tests,
                     "total_tests": total_tests,
@@ -130,7 +130,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                 yield {
                     "status": "error",
                     "error": "Time Limit Exceeded",
-                    "details": f"Execution exceeded time limit",
+                    "details": "Execution exceeded time limit",
                     "test_results": test_results,
                     "passed_tests": passed_tests,
                     "total_tests": total_tests,
