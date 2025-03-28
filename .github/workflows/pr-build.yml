@@ -7,7 +7,8 @@ on:
 jobs:
   pnpm-build:
     runs-on: ubuntu-latest
-    
+    environment: tensara
+
     steps:
     - uses: actions/checkout@v4
     
@@ -29,4 +30,3 @@ jobs:
         MODAL_ENDPOINT: ${{ secrets.MODAL_ENDPOINT }}
 
       run: pnpm install && pnpm run build
-      
