@@ -325,7 +325,7 @@ function getOrdinalSuffix(day: number): string {
 export default function UserProfile() {
   const router = useRouter();
   const { username } = router.query;
-  const { data: session } = useSession();
+  useSession();
 
   // Fetch user data with tRPC
   const {
