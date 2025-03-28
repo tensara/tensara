@@ -69,7 +69,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
         passed_tests = 0
         has_failed = False
 
-        yield {"status": "running"}
+        yield {"status": "CHECKING"}
 
         start_time = time.time()
         time_limit = problem.time_limit
@@ -78,12 +78,9 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
         for test_id, test_case in enumerate(test_cases, 1):
             if time.time() - start_time > time_limit:
                 yield {
-                    "status": "error",
-                    "error": "Time Limit Exceeded",
-                    "details": "Execution exceeded time limit",
-                    "test_results": test_results,
-                    "passed_tests": passed_tests,
-                    "total_tests": total_tests,
+                    "status": "TIME_LIMIT_EXCEEDED",
+                    "message": "Time Limit Exceeded",
+                    "details": f"Execution exceeded time limit of {time_limit:.2f}s (took {time.time() - start_time:.2f}s)"
                 }
                 return
                 
@@ -128,12 +125,9 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
 
             if time.time() - start_time > time_limit:
                 yield {
-                    "status": "error",
-                    "error": "Time Limit Exceeded",
-                    "details": "Execution exceeded time limit",
-                    "test_results": test_results,
-                    "passed_tests": passed_tests,
-                    "total_tests": total_tests,
+                    "status": "TIME_LIMIT_EXCEEDED",
+                    "message": "Time Limit Exceeded",
+                    "details": f"Execution exceeded time limit of {time_limit:.2f}s (took {time.time() - start_time:.2f}s)"
                 }
                 return
 
@@ -166,42 +160,49 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             test_results.append(test_result)
             
             yield {
-                "status": "test_result",
+                "status": "TEST_RESULT",
                 "result": test_result,
-                "totalTests": total_tests,
+                "total_tests": total_tests,
             }
                 
         if language == "python":
             shutil.rmtree(temp_dir)
 
         # Final status message
-        yield {
-            "status": "complete",
-            "passed": not has_failed,
-            "test_results": test_results,
-            "passed_tests": passed_tests,
-            "total_tests": total_tests,
-        }
+        if not has_failed:
+            yield {
+                "status": "CHECKED",
+                "test_results": test_results,
+                "total_tests": total_tests
+            }
+        else:
+            yield {
+                "status": "WRONG_ANSWER",
+                "test_results": test_results,
+                "passed_tests": passed_tests,
+                "total_tests": total_tests,
+            }
+
 
     except utils.NVCCError as e:
         yield {
-            "status": "error",
-            "error": "Compilation failed",
+            "status": "RUNTIME_ERROR",
+            "message": "NVCC: Compilation Failed",
             "details": e.args[0],
-            "test_results": [],
-            "passed_tests": 0,
-            "total_tests": 0,
+        }
+        
+    except RuntimeError as e:
+        yield {
+            "status": "RUNTIME_ERROR",
+            "message": str(e),
+            "details": traceback.format_exc(),
         }
 
     except Exception as e:
         yield {
-            "status": "error",
-            "error": str(e.__class__.__name__),
+            "status": "ERROR",
+            "message": str(e.__class__.__name__),
             "details": traceback.format_exc(),
-
-            "test_results": [],
-            "passed_tests": 0,
-            "total_tests": 0,
         }
 
 
@@ -252,7 +253,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
         else:
             raise ValueError(f"Unsupported language: {language}")
 
-        yield {"status": "running"}
+        yield {"status": "BENCHMARKING"}
             
         # Get test cases from the problem
         test_cases = problem.generate_test_cases(dtype)
@@ -290,9 +291,9 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
                 benchmark_results.append(benchmark_result)
                 
                 yield {
-                    "status": "test_result",
+                    "status": "BENCHMARK_RESULT",
                     "result": benchmark_result,
-                    "totalTests": total_tests,
+                    "total_tests": total_tests,
                 }
                 
                 # Clean up memory
@@ -301,12 +302,12 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
                 torch.cuda.empty_cache()
                 
             except Exception as e:
-                benchmark_result = {
-                    "test_id": test_id,
-                    "name": test_name,
-                    "status": "FAILED",
-                    "debug_info": {"error": str(e)}
+                yield {
+                    "status": "RUNTIME_ERROR",
+                    "message": str(e),
+                    "details": traceback.format_exc(),
                 }
+                return
         
         test_results = benchmark_results
         test_count = len(test_results)
@@ -327,16 +328,30 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
 
         # Return final summary with additional metrics
         yield {
-            "status": "success",
+            "status": "BENCHMARKED",
             "test_results": test_results,
             "average_gflops": avg_gflops,
             "runtime_ms": avg_runtime_ms,
             "total_tests": test_count,
         }
-    except Exception as e:
-        # Handle any unexpected errors
+    
+    except utils.NVCCError as e:
         yield {
-            "status": "error",
-            "error": str(e),
-            "traceback": traceback.format_exc()
+            "status": "RUNTIME_ERROR",
+            "message": "NVCC: Compilation Failed",
+            "details": e.args[0],
+        }
+        
+    except RuntimeError as e:
+        yield {
+            "status": "RUNTIME_ERROR",
+            "message": str(e),
+            "details": traceback.format_exc(),
+        }
+    
+    except Exception as e:
+        yield {
+            "status": "ERROR",
+            "message": str(e),
+            "details": traceback.format_exc()
         }

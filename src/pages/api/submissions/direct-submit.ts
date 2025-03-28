@@ -109,7 +109,8 @@ export default async function handler(
       res.status(403).json({ error: "Unauthorized" });
       return;
     }
-
+    
+    // TODO: 
     await db.submission.update({
       where: { id: submissionId },
       data: {
@@ -141,6 +142,7 @@ export default async function handler(
       }
     );
 
+    // should go under "ERROR"
     if (!checkerResponse.ok) {
       const errorText = await checkerResponse.text();
       sendSSE("error", {
@@ -162,6 +164,7 @@ export default async function handler(
     }
 
     const reader = checkerResponse.body?.getReader();
+    // should go under "ERROR"
     if (!reader) {
       sendSSE("error", { error: "No response body from checker" });
 
@@ -177,6 +180,7 @@ export default async function handler(
       return;
     }
 
+    // we need to make this modular because it is reused in the benchmark 
     let passedTests = 0;
     let totalTests = 0;
     let partialMessage = "";
