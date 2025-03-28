@@ -51,8 +51,15 @@ import {
   FiHash,
   FiExternalLink,
   FiX,
+  FiGithub,
+  FiBarChart2,
+  FiCpu,
+  FiUser,
+  FiZap,
+  FiTrendingUp,
+  FiArrowRight,
 } from "react-icons/fi";
-import { FaTrophy } from "react-icons/fa";
+import { FaTrophy, FaFire, FaMedal } from "react-icons/fa";
 import NextLink from "next/link";
 import { api } from "~/utils/api";
 
@@ -150,9 +157,44 @@ function ActivityCalendar({
 
   return (
     <Box>
-      <Text fontSize="sm" color="whiteAlpha.800" mb={3}>
-        {totalCount} submissions in the last year
-      </Text>
+      <HStack justify="space-between" mb={4}>
+        <HStack spacing={3}>
+          <Icon as={FaFire} color="blue.300" w={5} h={5} />
+          <Text fontSize="sm" color="whiteAlpha.800">
+            <Text as="span" fontWeight="bold" fontSize="md" color="white">
+              {totalCount}
+            </Text>{" "}
+            submissions in the last year
+          </Text>
+        </HStack>
+        
+        {/* Year Tabs */}
+        <HStack spacing={1} bg="gray.700" borderRadius="md" p={1}>
+          {availableYears.slice(0, 3).map((year, i) => (
+            <Button
+              key={year}
+              size="xs"
+              fontSize="xs"
+              colorScheme={i === 0 ? "blue" : "gray"}
+              variant={i === 0 ? "solid" : "ghost"}
+              height="24px"
+            >
+              {year}
+            </Button>
+          ))}
+          {availableYears.length > 3 && (
+            <Button
+              size="xs"
+              fontSize="xs"
+              variant="ghost"
+              colorScheme="gray"
+              height="24px"
+            >
+              More
+            </Button>
+          )}
+        </HStack>
+      </HStack>
 
       <Flex position="relative">
         {/* Left side with day labels */}
@@ -182,9 +224,7 @@ function ActivityCalendar({
                 key={month + i}
                 fontSize="xs"
                 color="whiteAlpha.700"
-                width={`${
-                  85 / months.length
-                }%`} /* Use 85% to leave space for year selector */
+                width={`${100 / months.length}%`}
                 textAlign="left"
               >
                 {month}
@@ -233,9 +273,9 @@ function ActivityCalendar({
               </HStack>
             ))}
 
-            {/* Less/More spectrum - aligned to grid */}
-            <Flex justifyContent="flex-end" pr="120px" mt={4} width="100%">
-              <Flex alignItems="center">
+            {/* Less/More spectrum - styled nicely */}
+            <Flex justify="flex-end" mt={4} width="100%">
+              <Flex alignItems="center" bg="gray.700" py={1} px={3} borderRadius="md">
                 <Text fontSize="xs" color="whiteAlpha.700" mr={2}>
                   Less
                 </Text>
@@ -259,34 +299,6 @@ function ActivityCalendar({
             </Flex>
           </Box>
         </Box>
-
-        {/* Year selector (inside the panel) */}
-        <VStack
-          align="flex-start"
-          spacing={2}
-          mt="45px"
-          position="absolute"
-          right={0}
-          top={0}
-          minWidth="100px"
-        >
-          {availableYears.map((year, i) => (
-            <Button
-              key={year}
-              variant="ghost"
-              size="xs"
-              fontSize="sm"
-              p={2}
-              height="auto"
-              width="100%"
-              color={i === 0 ? "blue.400" : "whiteAlpha.700"}
-              fontWeight={i === 0 ? "bold" : "normal"}
-              _hover={{ color: "blue.400", bg: "blue.900" }}
-            >
-              {year}
-            </Button>
-          ))}
-        </VStack>
       </Flex>
     </Box>
   );
@@ -330,48 +342,54 @@ export default function UserProfile() {
   const joinedYear = userData?.joinedAt
     ? new Date(userData.joinedAt).getFullYear()
     : new Date().getFullYear();
+    
+  // Mock streak data (in real app would come from API)
+  const currentStreak = 5;
+  const maxStreak = 18;
 
   if (!username) {
     return null; // Still loading the username parameter
   }
 
-  return (
-    <Layout
-      title={`${typeof username === "string" ? username : "User"}'s Profile`}
-    >
-      <Container maxW="container.xl" py={4}>
-        {apiError ? (
-          <Alert
-            status="error"
-            variant="solid"
-            borderRadius="xl"
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-            textAlign="center"
-            py={6}
+return (
+  <Layout
+    title={`${typeof username === "string" ? username : "User"}'s Profile`}
+  >
+    <Container maxW="container.xl" py={6}>
+      {apiError ? (
+        <Alert
+          status="error"
+          variant="solid"
+          borderRadius="xl"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          textAlign="center"
+          py={6}
+        >
+          <AlertIcon boxSize="40px" mr={0} />
+          <AlertTitle mt={4} mb={1} fontSize="lg">
+            User Not Found
+          </AlertTitle>
+          <AlertDescription maxWidth="sm">
+            The user {typeof username === "string" ? username : "User"}{" "}
+            doesn&apos;t exist or has been removed.
+          </AlertDescription>
+          <Button
+            mt={4}
+            colorScheme="white"
+            variant="outline"
+            onClick={() => router.push("/")}
           >
-            <AlertIcon boxSize="40px" mr={0} />
-            <AlertTitle mt={4} mb={1} fontSize="lg">
-              User Not Found
-            </AlertTitle>
-            <AlertDescription maxWidth="sm">
-              The user {typeof username === "string" ? username : "User"}{" "}
-              doesn&apos;t exist or has been removed.
-            </AlertDescription>
-            <Button
-              mt={4}
-              colorScheme="white"
-              variant="outline"
-              onClick={() => router.push("/")}
-            >
-              Return to Home
-            </Button>
-          </Alert>
-        ) : (
-          <Grid templateColumns={{ base: "1fr", md: "300px 1fr" }} gap={6}>
-            {/* Profile Card */}
-            <GridItem>
+            Return to Home
+          </Button>
+        </Alert>
+      ) : (
+        <Grid templateColumns={{ base: "1fr", md: "320px 1fr" }} gap={8}>
+          {/* Left Column */}
+          <GridItem>
+            <VStack spacing={5} align="stretch" height="100%">
+              {/* User Profile Card */}
               <Box
                 bg="gray.800"
                 borderRadius="xl"
@@ -379,24 +397,25 @@ export default function UserProfile() {
                 boxShadow="xl"
                 borderWidth="1px"
                 borderColor="blue.900"
+                w="100%"
+                position="relative"
               >
                 <Box p={6} textAlign="center">
                   <Skeleton isLoaded={!isLoading} borderRadius="full" mx="auto">
                     <Image
                       src={userData?.image ?? "https://via.placeholder.com/150"}
-                      alt={`${
-                        typeof username === "string" ? username : "User"
-                      }'s profile`}
+                      alt={`${typeof username === "string" ? username : "User"}'s profile`}
                       borderRadius="full"
-                      boxSize={{ base: "150px", md: "180px" }}
+                      boxSize="100px"
                       border="4px solid"
                       borderColor="blue.500"
                       mx="auto"
                       boxShadow="lg"
+                      bg="gray.700"
                     />
                   </Skeleton>
 
-                  <VStack mt={6} spacing={3}>
+                  <VStack mt={4} spacing={2}>
                     <Skeleton
                       isLoaded={!isLoading}
                       width={isLoading ? "200px" : "auto"}
@@ -422,9 +441,7 @@ export default function UserProfile() {
                                   month: "short",
                                 });
                                 const year = date.getFullYear();
-                                return `${day}${getOrdinalSuffix(
-                                  day
-                                )} ${month} ${year}`;
+                                return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
                               })()
                             : "Loading..."}
                         </Text>
@@ -441,7 +458,7 @@ export default function UserProfile() {
                         display="flex"
                         alignItems="center"
                         gap={2}
-                        boxShadow="sm"
+                        mt={2}
                       >
                         <Icon as={FiAward} />
                         {userData?.stats?.ranking
@@ -451,289 +468,418 @@ export default function UserProfile() {
                     </Skeleton>
                   </VStack>
                 </Box>
+              </Box>
 
-                <Divider borderColor="blue.900" />
-
-                {/* Stats Section */}
-                <Box p={4}>
-                  {/* <Heading
-                    size="sm"
-                    color="white"
-                    mb={5}
-                    textAlign="left"
-                    textTransform="uppercase"
+              {/* Stats Cards */}
+              <SimpleGrid columns={2} spacing={4} width="100%">
+                <Skeleton isLoaded={!isLoading}>
+                  <Box
+                    bg="gray.800"
+                    borderRadius="xl"
+                    py={4}
+                    px={4}
+                    textAlign="center"
+                    height="100%"
+                    borderWidth="1px"
+                    borderColor="blue.900"
+                    boxShadow="md"
+                    position="relative"
+                    overflow="hidden"
                   >
-                    Stats
-                  </Heading> */}
-
-                  {/* Stats Boxes */}
-                  <Box mb={4}>
-                    <SimpleGrid columns={2} spacing={4} width="100%">
-                      <Skeleton isLoaded={!isLoading}>
-                        <Box
-                          bg="blue.900"
-                          borderRadius="lg"
-                          py={3}
-                          px={3}
-                          textAlign="center"
-                          height="100%"
-                        >
-                          <Text
-                            fontSize="2xl"
-                            color="blue.300"
-                            fontWeight="bold"
-                            mb={1}
-                          >
-                            {userData?.stats?.submissions ?? 0}
-                          </Text>
-                          <Flex
-                            justifyContent="center"
-                            alignItems="center"
-                            color="whiteAlpha.700"
-                            fontSize="sm"
-                          >
-                            <Icon as={FiList} mr={1} boxSize={3} />
-                            <Text fontWeight={500}>Submissions</Text>
-                          </Flex>
-                        </Box>
-                      </Skeleton>
-
-                      <Skeleton isLoaded={!isLoading}>
-                        <Box
-                          bg="blue.900"
-                          borderRadius="lg"
-                          py={3}
-                          px={3}
-                          textAlign="center"
-                          height="100%"
-                        >
-                          <Text
-                            fontSize="2xl"
-                            color="blue.300"
-                            fontWeight="bold"
-                            mb={1}
-                          >
-                            {userData?.stats?.solvedProblems ?? 0}
-                          </Text>
-                          <Flex
-                            justifyContent="center"
-                            alignItems="center"
-                            color="whiteAlpha.700"
-                            fontSize="sm"
-                          >
-                            <Icon as={FiCode} mr={1} boxSize={3} />
-                            <Text fontWeight={500}>Problems</Text>
-                          </Flex>
-                        </Box>
-                      </Skeleton>
-                    </SimpleGrid>
-                  </Box>
-
-                  {/* Score */}
-                  <Skeleton isLoaded={!isLoading}>
+                    {/* Background subtle pattern */}
                     <Box
-                      bg="blue.800"
-                      borderRadius="lg"
-                      py={4}
-                      px={3}
-                      textAlign="center"
-                      boxShadow="md"
+                      position="absolute"
+                      top={0}
+                      left={0}
+                      right={0}
+                      bottom={0}
+                      opacity={0.05}
+                      bgGradient="radial(blue.400, transparent 70%)"
+                    />
+                    
+                    <Flex 
+                      direction="column" 
+                      justify="center" 
+                      align="center" 
+                      position="relative"
+                      height="100%"
                     >
+                      <Icon as={FiList} color="blue.300" boxSize={5} mb={1} />
                       <Text
-                        fontSize="3xl"
-                        color="yellow.400"
+                        fontSize="2xl"
+                        color="white"
                         fontWeight="bold"
-                        mb={1}
                       >
-                        {userData?.stats?.score
-                          ? userData.stats.score.toFixed(2)
-                          : 0}
+                        {userData?.stats?.submissions ?? 0}
                       </Text>
-                      <Flex
-                        justifyContent="center"
-                        alignItems="center"
+                      <Text
                         color="whiteAlpha.800"
                         fontSize="sm"
+                        fontWeight={500}
                       >
-                        <Icon
-                          as={FaTrophy}
-                          color="yellow.400"
-                          mr={1}
-                          boxSize={3}
-                        />
-                        <Text fontWeight={500}>Tensara Score</Text>
-                      </Flex>
-                    </Box>
-                  </Skeleton>
-                </Box>
-              </Box>
-            </GridItem>
-
-            {/* Right Column */}
-            <GridItem display="flex" flexDirection="column" gap={6}>
-              {/* Activity Graph */}
-              <Box
-                bg="gray.800"
-                borderRadius="xl"
-                overflow="hidden"
-                boxShadow="xl"
-                p={6}
-                borderWidth="1px"
-                borderColor="blue.900"
-              >
-                <Heading size="md" color="white" mb={4}>
-                  Activity
-                </Heading>
-
-                <Skeleton
-                  isLoaded={!isLoading}
-                  height={isLoading ? "120px" : "auto"}
-                >
-                  {userData?.activityData &&
-                    userData.activityData.length > 0 && (
-                      <ActivityCalendar
-                        data={userData.activityData as ActivityItem[]}
-                        joinedYear={joinedYear}
-                      />
-                    )}
+                        Submissions
+                      </Text>
+                    </Flex>
+                  </Box>
                 </Skeleton>
-              </Box>
 
-              {/* Recent Submissions */}
-              <Box
-                bg="gray.800"
-                borderRadius="xl"
-                overflow="hidden"
-                boxShadow="xl"
-                borderWidth="1px"
-                borderColor="blue.900"
-                flex="1"
-              >
+                <Skeleton isLoaded={!isLoading}>
+                  <Box
+                    bg="gray.800"
+                    borderRadius="xl"
+                    py={4}
+                    px={4}
+                    textAlign="center"
+                    height="100%"
+                    borderWidth="1px"
+                    borderColor="blue.900"
+                    boxShadow="md"
+                    position="relative"
+                    overflow="hidden"
+                  >
+                    {/* Background subtle pattern */}
+                    <Box
+                      position="absolute"
+                      top={0}
+                      left={0}
+                      right={0}
+                      bottom={0}
+                      opacity={0.05}
+                      bgGradient="radial(blue.400, transparent 70%)"
+                    />
+                    
+                    <Flex 
+                      direction="column" 
+                      justify="center" 
+                      align="center" 
+                      position="relative"
+                      height="100%"
+                    >
+                      <Icon as={FiCode} color="blue.300" boxSize={5} mb={1} />
+                      <Text
+                        fontSize="2xl"
+                        color="white"
+                        fontWeight="bold"
+                      >
+                        {userData?.stats?.solvedProblems ?? 0}
+                      </Text>
+                      <Text
+                        color="whiteAlpha.800"
+                        fontSize="sm"
+                        fontWeight={500}
+                      >
+                        Problems
+                      </Text>
+                    </Flex>
+                  </Box>
+                </Skeleton>
+              </SimpleGrid>
+
+              {/* Score Card */}
+              <Skeleton isLoaded={!isLoading} width="100%">
                 <Box
-                  p={5}
-                  bg="blue.900"
-                  borderBottom="1px solid"
-                  borderColor="blue.700"
+                  bg="gray.800"
+                  borderRadius="xl"
+                  py={5}
+                  px={5}
+                  position="relative"
+                  overflow="hidden"
+                  borderWidth="1px"
+                  borderColor="blue.900"
+                  boxShadow="xl"
                 >
+                  <Flex justify="center" mb={4}>
+                    <Icon 
+                      as={FaTrophy} 
+                      color="yellow.400" 
+                      boxSize={6} 
+                      mr={3}
+                    />
+                    <Heading size="md" color="white">
+                      Tensara Score
+                    </Heading>
+                  </Flex>
+                  
+                  <Text
+                    fontSize="5xl"
+                    color="yellow.400"
+                    fontWeight="bold"
+                    textShadow="0 0 10px rgba(236, 201, 75, 0.3)"
+                    textAlign="center"
+                  >
+                    {userData?.stats?.score
+                      ? userData.stats.score.toFixed(2)
+                      : 0}
+                  </Text>
+                </Box>
+              </Skeleton>
+              
+              {/* Languages Card */}
+              <Skeleton isLoaded={!isLoading} width="100%">
+                <Box
+                  bg="gray.800"
+                  borderRadius="xl"
+                  p={5}
+                  borderWidth="1px"
+                  borderColor="blue.900"
+                  boxShadow="md"
+                >
+                  <Flex justify="space-between" align="center" mb={4}>
+                    <Heading size="sm" color="white">
+                      Frameworks Used
+                    </Heading>
+                    <Icon as={FiBarChart2} color="blue.200" boxSize={5} />
+                  </Flex>
+
+                  <HStack spacing={2} flexWrap="wrap">
+                    <Tag size="md" borderRadius="full" mb={2}>
+                      <Box w="10px" h="10px" bg="purple.700" borderRadius="full" mr={2} />
+                      <TagLabel>Triton (48%)</TagLabel>
+                    </Tag>
+                    <Tag size="md" borderRadius="full" mb={2}>
+                      <Box w="10px" h="10px" bg="green.700" borderRadius="full" mr={2} />
+                      <TagLabel>Cuda (52%)</TagLabel>
+                    </Tag>
+                  </HStack>
+                </Box>
+              </Skeleton>
+            </VStack>
+          </GridItem>
+
+          {/* Right Column */}
+          <GridItem display="flex" flexDirection="column" gap={6}>
+            {/* Activity Graph */}
+            <Box
+              bg="gray.800"
+              borderRadius="xl"
+              overflow="hidden"
+              boxShadow="xl"
+              p={6}
+              borderWidth="1px"
+              borderColor="blue.900"
+              position="relative"
+            >
+              <Flex justify="space-between" align="center" mb={6}>
+                <HStack>
+                  <Icon as={FiTrendingUp} color="blue.300" boxSize={5} />
                   <Heading size="md" color="white">
+                    Activity
+                  </Heading>
+                </HStack>
+                
+                <Button size="sm" colorScheme="blue" variant="ghost" leftIcon={<FiBarChart2 />}>
+                  View Stats
+                </Button>
+              </Flex>
+
+              <Skeleton
+                isLoaded={!isLoading}
+                height={isLoading ? "120px" : "auto"}
+              >
+                {userData?.activityData &&
+                  userData.activityData.length > 0 && (
+                    <ActivityCalendar
+                      data={userData.activityData as ActivityItem[]}
+                      joinedYear={joinedYear}
+                    />
+                  )}
+              </Skeleton>
+            </Box>
+            
+            {/* Recent Submissions */}
+            <Box
+              bg="gray.900"
+              borderRadius="xl"
+              overflow="hidden"
+              boxShadow="lg"
+              borderWidth="1px"
+              borderColor="blue.900"
+            >
+              {/* Header */}
+              <Flex
+                px={5}
+                py={4}
+                bg="gray.800"
+                borderBottom="1px solid"
+                borderColor="blue.800"
+                align="center"
+                justify="space-between"
+              >
+                <HStack spacing={3}>
+                  <Icon as={FiList} color="blue.400" boxSize={5} />
+                  <Heading size="md" color="white" fontWeight="semibold">
                     Recent Submissions
                   </Heading>
-                </Box>
+                </HStack>
+                
+                {userData?.recentSubmissions && userData.recentSubmissions.length > 0 && (
+                  <NextLink
+                    href={`/submissions?username=${typeof username === "string" ? username : "User"}`}
+                    passHref
+                  >
+                    <Button
+                      as="a"
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="blue"
+                      rightIcon={<Icon as={FiArrowRight} />}
+                    >
+                      View All
+                    </Button>
+                  </NextLink>
+                )}
+              </Flex>
 
-                <Box p={4}>
-                  {isLoading ? (
-                    <VStack spacing={4} align="stretch">
-                      {Array(3).map(
-                        (_: undefined, i: number): JSX.Element => (
-                          <Skeleton key={i} height="60px" borderRadius="md" />
-                        )
-                      )}
-                    </VStack>
-                  ) : userData?.recentSubmissions &&
-                    userData.recentSubmissions.length > 0 ? (
-                    <Table variant="simple" size="sm">
-                      <Thead>
-                        <Tr>
-                          <Th color="whiteAlpha.600">Problem</Th>
-                          <Th color="whiteAlpha.600">Date</Th>
-                          <Th color="whiteAlpha.600">Status</Th>
-                          <Th color="whiteAlpha.600">Runtime</Th>
-                          <Th></Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {userData.recentSubmissions.map((submission) => (
-                          <Tr key={submission.id}>
-                            <Td>
-                              <NextLink
-                                href={`/problems/${submission.problemId}`}
-                                passHref
-                              >
-                                <ChakraLink
-                                  color="blue.300"
-                                  fontWeight="medium"
-                                >
-                                  {submission.problemName}
-                                </ChakraLink>
-                              </NextLink>
-                            </Td>
-                            <Td color="whiteAlpha.800">{submission.date}</Td>
-                            <Td>
-                              <Tag
-                                size="sm"
-                                colorScheme={
-                                  submission.status === "accepted"
-                                    ? "green"
-                                    : "red"
-                                }
-                              >
-                                <TagLeftIcon
-                                  as={
-                                    submission.status === "accepted"
-                                      ? FiCheck
-                                      : FiX
-                                  }
-                                />
-                                <TagLabel>
-                                  {submission.status === "accepted"
-                                    ? "Accepted"
-                                    : "Failed"}
-                                </TagLabel>
-                              </Tag>
-                            </Td>
-                            <Td color="whiteAlpha.800">{submission.runtime}</Td>
-                            <Td>
-                              <NextLink
-                                href={`/submissions/${submission.id}`}
-                                passHref
-                              >
-                                <Button
-                                  as="a"
-                                  size="xs"
-                                  leftIcon={<FiExternalLink />}
-                                  colorScheme="blue"
-                                  variant="ghost"
-                                >
-                                  View
-                                </Button>
-                              </NextLink>
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  ) : (
-                    <Text color="whiteAlpha.700" textAlign="center" py={4}>
-                      No submissions to display.
-                    </Text>
-                  )}
-                </Box>
-
-                {userData?.recentSubmissions &&
-                  userData.recentSubmissions.length > 0 && (
-                    <Box p={4} textAlign="center">
+              <Box bg="gray.850" px={0} py={0}>
+                {isLoading ? (
+                  <VStack spacing={1} align="stretch" p={2}>
+                    {Array(3).fill(undefined).map((_: undefined, i: number): JSX.Element => (
+                      <Skeleton key={i} height="80px" startColor="gray.700" endColor="gray.800" borderRadius="md" />
+                    ))}
+                  </VStack>
+                ) : userData?.recentSubmissions && userData.recentSubmissions.length > 0 ? (
+                  <VStack spacing={0} align="stretch" divider={<Divider borderColor="gray.700" />}>
+                    {userData.recentSubmissions.slice(0, 3).map((submission, _) => (
                       <NextLink
-                        href={`/submissions?username=${
-                          typeof username === "string" ? username : "User"
-                        }`}
+                        key={submission.id}
+                        href={`/submissions/${submission.id}`}
                         passHref
                       >
-                        <Button
+                        <Box 
                           as="a"
-                          colorScheme="blue"
-                          size="sm"
-                          variant="outline"
+                          py={3}
+                          px={5}
+                          position="relative"
+                          bg="gray.800"
+                          _hover={{ 
+                            bg: "gray.700",
+                            cursor: "pointer" 
+                          }}
+                          transition="all 0.2s ease"
+                          display="block"
+                          borderLeftWidth="3px"
+                          borderLeftColor={submission.status === "accepted" ? "green.400" : "red.400"}
                         >
-                          View All Submissions
-                        </Button>
+                          <Grid templateColumns="3fr 2fr" gap={4} alignItems="center">
+                            {/* Left side: Problem information */}
+                            <Box>
+                              <Flex align="center" mb={1.5}>
+                                <Text
+                                  color="white"
+                                  fontWeight="medium"
+                                  mr={2}
+                                >
+                                  {submission.problemName}
+                                </Text>
+                                
+                                <Tag
+                                  size="sm"
+                                  borderRadius="full"
+                                  colorScheme={submission.status === "accepted" ? "green" : "red"}
+                                  py={0.5}
+                                >
+                                  {submission.status === "accepted" ? "Accepted" : "Failed"}
+                                </Tag>
+                              </Flex>
+                              
+                              <HStack spacing={4}>
+                                <HStack spacing={1.5}>
+                                  <Icon as={FiCalendar} color="blue.300" boxSize="14px" />
+                                  <Text color="whiteAlpha.700" fontSize="sm">{submission.date}</Text>
+                                </HStack>
+                              </HStack>
+                            </Box>
+                            
+                            {/* Right side: Performance metrics */}
+                            <Flex justify="flex-end">
+                              <HStack spacing={3} bg="gray.800" borderRadius="lg" p={2} borderWidth="1px" borderColor="gray.700">
+                                {/* GPU Type */}
+                                <Box 
+                                  px={3} 
+                                  py={1.5} 
+                                  borderRadius="md" 
+                                  bg="blue.900"
+                                  minW="70px"
+                                  textAlign="center"
+                                >
+                                  <Text color="white" fontSize="sm" fontWeight="semibold">
+                                    {submission.gpuType || "N/A"}
+                                  </Text>
+                                  <Text color="whiteAlpha.700" fontSize="xs" mt={0.5}>
+                                    GPU
+                                  </Text>
+                                </Box>
+                                
+                                {/* GLOPS info */}
+                                <Box 
+                                  px={3} 
+                                  py={1.5} 
+                                  borderRadius="md" 
+                                  bg="gray.700"
+                                  minW="70px"
+                                  textAlign="center"
+                                >
+                                  <Text color="blue.300" fontSize="sm" fontWeight="semibold">
+                                    {(submission.gflops || "").split(" ")[0] || "N/A"}
+                                  </Text>
+                                  <Text color="whiteAlpha.700" fontSize="xs" mt={0.5}>
+                                    GLOPS
+                                  </Text>
+                                </Box>
+                                
+                                {/* Runtime info*/}
+                                <Box 
+                                  px={3} 
+                                  py={1.5} 
+                                  borderRadius="md" 
+                                  bg="gray.700"
+                                  minW="70px"
+                                  textAlign="center"
+                                >
+                                  <Text color="white" fontSize="sm" fontWeight="semibold">
+                                    {submission.runtime || "N/A"}
+                                  </Text>
+                                  <Text color="whiteAlpha.700" fontSize="xs" mt={0.5}>
+                                    Runtime
+                                  </Text>
+                                </Box>
+                              </HStack>
+                            </Flex>
+                          </Grid>
+                        </Box>
                       </NextLink>
+                    ))}
+                  </VStack>
+                ) : (
+                  <Flex 
+                    direction="column" 
+                    align="center" 
+                    justify="center" 
+                    py={10}
+                    px={5}
+                  >
+                    <Box
+                      p={4}
+                      borderRadius="full"
+                      bg="gray.800"
+                      mb={3}
+                    >
+                      <Icon as={FiList} color="blue.400" boxSize={6} />
                     </Box>
-                  )}
+                    <Text color="whiteAlpha.800" fontSize="md" fontWeight="medium" mb={1}>
+                      No submissions yet
+                    </Text>
+                    <Text color="whiteAlpha.600" fontSize="sm" textAlign="center" maxW="xs">
+                      Your recent submission history will appear here
+                    </Text>
+                  </Flex>
+                )}
               </Box>
-            </GridItem>
-          </Grid>
-        )}
-      </Container>
-    </Layout>
+            </Box>
+          </GridItem>
+        </Grid>
+      )}
+    </Container>
+  </Layout>
   );
 }

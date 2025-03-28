@@ -294,6 +294,7 @@ export const usersRouter = createTRPCRouter({
           status: true,
           runtime: true,
           gflops: true,
+          gpuType: true,
           problem: {
             select: {
               id: true,
@@ -356,6 +357,8 @@ export const usersRouter = createTRPCRouter({
           date: sub.createdAt.toISOString().split("T")[0],
           status: (sub.status ?? "pending").toLowerCase(),
           runtime: sub.runtime ? `${(sub.runtime / 1000).toFixed(2)}s` : "N/A",
+          gflops: sub.gflops ? `${sub.gflops.toFixed(2)} GFLOPS` : "N/A",
+          gpuType: sub.gpuType,
         })),
         activityData,
       };
