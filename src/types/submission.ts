@@ -60,9 +60,9 @@ export type WrongAnswerResponse = {
   },
   passed_tests: number,
   total_tests: number,
+  test_results: TestResultResponse[]
 }
   
-
 export type BenchmarkResultResponse = {
   status: "BENCHMARK_RESULT",
   result: {
