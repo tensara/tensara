@@ -23,8 +23,8 @@ export type SubmissionErrorType = (typeof SubmissionError)[keyof typeof Submissi
 
 export type ErrorResponse = {
     status: SubmissionErrorType,
-    message: String,
-    details: String,
+    message: string,
+    details: string,
 }
 
 export type TestResultResponse = {

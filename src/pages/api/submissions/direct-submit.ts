@@ -133,7 +133,6 @@ export default async function handler(
       }
     );
 
-    // should go under "ERROR"
     if (!checkerResponse.ok) {
       const errorText = await checkerResponse.text();
       sendSSE(SubmissionError.ERROR, {
@@ -200,36 +199,30 @@ export default async function handler(
             };
             const response_status = parsed.status;
 
-            console.log("Response status", response_status);
-
             if (response_status === SubmissionStatus.TEST_RESULT) {
               const response = JSON.parse(response_json) as TestResultResponse;
               sendSSE(response_status, response);
               if (response.result) {
                 if (!processedTestIds.has(response.result.test_id)) {
-                console.log(
-                  `Processing test result for test ID ${response.result.test_id}`
-                );
-                processedTestIds.add(response.result.test_id);
-
-                totalTests++;
-                if (response.result.status === "PASSED") {
-                  passedTests++;
-                }
-                await db.submission.update({
-                  where: { id: submission.id },
-                  data: {
-                    passedTests,
-                    totalTests,
-                  },
-                });
+                  processedTestIds.add(response.result.test_id);
+                  totalTests++;
+                  if (response.result.status === "PASSED") {
+                    passedTests++;
+                  }
+                  await db.submission.update({
+                    where: { id: submission.id },
+                    data: {
+                      passedTests,
+                      totalTests,
+                    },
+                  });
                 }
               }
             } else if (response_status === SubmissionStatus.WRONG_ANSWER) {
               const response = JSON.parse(response_json) as WrongAnswerResponse;
               sendSSE(response_status, response);
               const failedTest = response.test_results?.find(
-                  (t: any) => t.status === "FAILED"
+                  (t: TestResultResponse) => t.result.status === "FAILED"
                 );
               const errorMessage = `Failed on test ${failedTest?.result.test_id} (${failedTest?.result.name})`;
               const errorDetails = JSON.stringify(failedTest?.result.debug_info);
@@ -245,7 +238,7 @@ export default async function handler(
             } else if (response_status === SubmissionStatus.CHECKED) {
               const response = JSON.parse(response_json) as CheckedResponse;
               sendSSE(response_status, response);
-              let checkerPassed = response.passed_tests === response.total_tests;
+              const checkerPassed = response.passed_tests === response.total_tests;
 
               if (
                 response.total_tests !== undefined &&
@@ -377,7 +370,7 @@ export default async function handler(
       return;
     }
 
-    let benchmarkResults:BenchmarkResultResponse["result"][] = [];
+    const benchmarkResults:BenchmarkResultResponse["result"][] = [];
     partialMessage = "";
 
     try {
