@@ -32,6 +32,7 @@ import type { GetServerSideProps } from "next";
 import { auth } from "~/server/auth";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
+import { formatStatus, getStatusColor } from "~/constants/problem";
 
 type SortField = "createdAt" | "status" | "problem" | "performance" | "gpuType" | "language";
 type SortOrder = "asc" | "desc";
@@ -90,37 +91,6 @@ const SubmissionsPage: NextPage = () => {
   const { data: submissions, isLoading } =
     api.submissions.getAllUserSubmissions.useQuery();
 
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-    case "ACCEPTED":
-      return "green";
-    case "WRONG_ANSWER":
-    case "ERROR":
-      return "red";
-    case "CHECKING":
-    case "BENCHMARKING":
-      return "blue";
-    default:
-      return "gray";
-    }
-  };
-
-  const formatStatus = (status: string | null) => {
-    switch (status) {
-    case "ACCEPTED":
-      return "Accepted";
-    case "WRONG_ANSWER":
-      return "Wrong Answer";
-    case "ERROR":
-      return "Error";
-    case "CHECKING":
-      return "Checking";
-    case "BENCHMARKING":
-      return "Benchmarking";
-    default:
-      return status ?? "Unknown";
-    }
-  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {

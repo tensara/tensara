@@ -20,10 +20,9 @@ export function useCodePersistence(
   const [hasSetInitialCode, setHasSetInitialCode] = useState<boolean>(false);
 
 
-  const memoizedStarterCode = useMemo(() => {
-    console.log("PRITNING THIS", problem)
-    return generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType);
-  }, [problem?.parameters, selectedLanguage, selectedDataType]);
+  const memoizedStarterCode = useMemo(() => 
+    generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType), 
+  [problem?.parameters, selectedLanguage, selectedDataType]);
   
   // Load starter code based on language and data type
   useEffect(() => {

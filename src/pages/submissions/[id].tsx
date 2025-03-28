@@ -22,7 +22,6 @@ import {
   AlertIcon,
   AlertDescription,
 } from "@chakra-ui/react";
-import { CheckIcon, WarningIcon, TimeIcon } from "@chakra-ui/icons";
 import Link from "next/link";
 import { Editor } from "@monaco-editor/react";
 import { useEffect, useState } from "react";
@@ -35,6 +34,7 @@ import type { GetServerSideProps } from "next";
 import { auth } from "~/server/auth";
 import { TRPCError } from "@trpc/server";
 import { type DebugInfo } from "~/types/problem";
+import { formatStatus, getStatusColor, getStatusIcon } from "~/constants/problem";
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
@@ -97,23 +97,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 };
 
-// Helper function for formatting status - moved outside component to be used in getServerSideProps
-const formatStatus = (status: string | null) => {
-  switch (status) {
-  case "ACCEPTED":
-    return "Accepted";
-  case "WRONG_ANSWER":
-    return "Wrong Answer";
-  case "ERROR":
-    return "Error";
-  case "CHECKING":
-    return "Checking";
-  case "BENCHMARKING":
-    return "Benchmarking";
-  default:
-    return status ?? "Unknown";
-  }
-};
 
 const SubmissionPage: NextPage<{
   id: string;
@@ -198,21 +181,6 @@ const SubmissionPage: NextPage<{
         submissionId: submission.id,
         isPublic: !submission.isPublic,
       });
-    }
-  };
-
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-    case "ACCEPTED":
-      return "green";
-    case "WRONG_ANSWER":
-    case "ERROR":
-      return "red";
-    case "CHECKING":
-    case "BENCHMARKING":
-      return "blue";
-    default:
-      return "gray";
     }
   };
 
@@ -309,14 +277,7 @@ const SubmissionPage: NextPage<{
                     spacing={3}
                   >
                     <Icon
-                      as={
-                        submission.status === "ACCEPTED"
-                          ? CheckIcon
-                          : submission.status === "WRONG_ANSWER" ||
-                            submission.status === "ERROR"
-                            ? WarningIcon
-                            : TimeIcon
-                      }
+                      as={getStatusIcon(submission.status)}
                       boxSize={5}
                       color={`${getStatusColor(submission.status)}.200`}
                     />

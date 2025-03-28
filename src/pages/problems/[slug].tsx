@@ -61,11 +61,12 @@ import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSplitPanel } from "~/hooks/useSplitPanel";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 import { type Problem, type Submission } from "@prisma/client";
-import { GpuInfoModal } from "~/components/GpuInfoModal";
-import { LanguageInfoModal } from "~/components/LanguageInfoModal";
+import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
+import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
 import { isSubmissionError, SubmissionError, type SubmissionErrorType, SubmissionStatus, type SubmissionStatusType } from "~/types/submission";
 import { MySubmissions } from "~/components/problem/mySubmissions";
 import { ProblemView } from "~/components/problem/problemView";
+import { getStatusIcon } from "~/constants/problem";
 
 type ViewType = "submissions" | "problem" | "result";
 
@@ -352,11 +353,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     ) : (
                       <Icon
                         as={
-                          metaStatus === "ACCEPTED"
-                            ? CheckIcon : 
-                            (metaStatus === "WRONG_ANSWER"
-                              ? CloseIcon
-                              : WarningIcon)
+                          getStatusIcon(metaStatus)
                         }
                         boxSize={6}
                       />

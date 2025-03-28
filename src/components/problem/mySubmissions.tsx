@@ -11,9 +11,9 @@ import {
   Link,
 } from "@chakra-ui/react";
 import { FiArrowLeft } from "react-icons/fi";
-import { CheckIcon, TimeIcon, WarningIcon } from "@chakra-ui/icons";
 import { type Submission } from "@prisma/client";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { formatStatus, getStatusColor, getStatusIcon } from "~/constants/problem";
 
 interface MySubmissionsProps {
   submissions: Submission[] | undefined;
@@ -74,29 +74,11 @@ export const MySubmissions = ({
                 <HStack justify="space-between">
                   <HStack>
                     <Icon
-                      as={
-                        submission.status === "ACCEPTED"
-                          ? CheckIcon
-                          : submission.status === "WRONG_ANSWER" || submission.status === "ERROR"
-                            ? WarningIcon
-                            : TimeIcon
-                      }
-                      color={
-                        submission.status === "ACCEPTED"
-                          ? "green.400"
-                          : submission.status === "WRONG_ANSWER" || submission.status === "ERROR"
-                            ? "red.400"
-                            : "blue.400"
-                      }
+                      as={getStatusIcon(submission.status)}
+                      color={`${getStatusColor(submission.status)}.400`}
                     />
                     <Text fontWeight="semibold">
-                      {submission.status === "ACCEPTED"
-                        ? "Accepted"
-                        : submission.status === "WRONG_ANSWER"
-                          ? "Wrong Answer"
-                          : submission.status === "ERROR"
-                            ? "Error"
-                            : submission.status}
+                      {formatStatus(submission.status)}
                     </Text>
                     <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
                       {submission.language === "cuda" ? "CUDA" : "Python"} • {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
