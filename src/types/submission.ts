@@ -12,15 +12,19 @@ export const SubmissionStatus = {
 } as const;
 
 export const SubmissionError = {
-  COMPILE_ERROR: "Compile Error", 
-  RUNTIME_ERROR: "Runtime Error",
-  TIME_LIMIT_EXCEEDED: "Time Limit Exceeded",
-  ERROR: "Error", 
-  RATE_LIMIT_EXCEEDED: "Rate Limit Exceeded",
+  COMPILE_ERROR: "COMPILE_ERROR", 
+  RUNTIME_ERROR: "RUNTIME_ERROR",
+  TIME_LIMIT_EXCEEDED: "TIME_LIMIT_EXCEEDED",
+  ERROR: "ERROR", 
+  RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
 } as const;
 
 export type SubmissionStatusType = (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
 export type SubmissionErrorType = (typeof SubmissionError)[keyof typeof SubmissionError];
+
+export function isSubmissionError(status: string): status is SubmissionErrorType {
+  return Object.values(SubmissionError).includes(status as SubmissionErrorType);
+}
 
 export type TestResult = {
   test_id: number,

@@ -3,12 +3,8 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import { auth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
-import { SubmissionError, SubmissionStatus } from "~/types/submission";
+import { isSubmissionError, SubmissionError, SubmissionStatus } from "~/types/submission";
 import type { BenchmarkedResponse, BenchmarkResultResponse, CheckedResponse, SubmissionErrorType, TestResult, TestResultResponse, WrongAnswerResponse } from "~/types/submission";
-
-function isSubmissionError(status: string): status is SubmissionErrorType {
-  return Object.values(SubmissionError).includes(status as SubmissionErrorType);
-}
 
 export default async function handler(
   req: NextApiRequest,
@@ -269,10 +265,12 @@ export default async function handler(
               
             } else if (isSubmissionError(response_status)) {
               const response = JSON.parse(response_json) as {
-              status: SubmissionErrorType;
-              error: string;
-              details: string;
-            };
+                status: SubmissionErrorType;
+                error: string;
+                details: string;
+              };
+
+              console.log("Submission error:", response);
 
               sendSSE(response_status, response);
 

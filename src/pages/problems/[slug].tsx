@@ -63,7 +63,7 @@ import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 import { type Problem, type Submission } from "@prisma/client";
 import { GpuInfoModal } from "~/components/GpuInfoModal";
 import { LanguageInfoModal } from "~/components/LanguageInfoModal";
-import { SubmissionError, type SubmissionErrorType, SubmissionStatus, type SubmissionStatusType } from "~/types/submission";
+import { isSubmissionError, SubmissionError, type SubmissionErrorType, SubmissionStatus, type SubmissionStatusType } from "~/types/submission";
 
 type ViewType = "submissions" | "problem" | "result";
 
@@ -748,9 +748,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     </Box>
                   )}
 
-                  {metaStatus !== SubmissionStatus.WRONG_ANSWER && metaStatus === SubmissionError.ERROR &&
-                    getTypedResponse(SubmissionError.ERROR)?.message &&
-                    getTypedResponse(SubmissionError.ERROR)?.details && (
+                  {metaStatus !== SubmissionStatus.WRONG_ANSWER && isSubmissionError(metaStatus) &&
+                    getTypedResponse(metaStatus)?.message &&
+                    getTypedResponse(metaStatus)?.details && (
                     <Box bg="red.900" p={6} borderRadius="xl">
                       <Text color="red.200" fontWeight="semibold" mb={3}>
                           Error Details
@@ -765,8 +765,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
                         fontSize="sm"
                         fontFamily="mono"
                       >
-                        {getTypedResponse(SubmissionError.ERROR)?.details ??
-                            getTypedResponse(SubmissionError.ERROR)?.message}
+                        {getTypedResponse(metaStatus)?.details ??
+                            getTypedResponse(metaStatus)?.message}
                       </Code>
                     </Box>
                   )}
