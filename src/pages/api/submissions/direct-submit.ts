@@ -422,7 +422,7 @@ export default async function handler(
                 await db.submission.update({
                 where: { id: submission.id },
                 data: {
-                  status: SubmissionStatus.BENCHMARKED,
+                  status: SubmissionStatus.ACCEPTED,
                   runtime: averageRuntime,
                   gflops: averageGflops,
                   benchmarkResults,
