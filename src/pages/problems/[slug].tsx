@@ -61,14 +61,13 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { BenchmarkTestResult, Submission, DebugInfo } from "~/types/problem";
 import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSplitPanel } from "~/hooks/useSplitPanel";
 import { DataType, ProgrammingLanguage } from "~/types/misc";
 import { IS_DISABLED_LANGUAGE, LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { DATA_TYPE_DISPLAY_NAMES, IS_DISABLED_DATA_TYPE } from "~/constants/datatypes";
-import { Problem } from "@prisma/client";
+import { Problem, Submission } from "@prisma/client";
 import { GpuInfoModal } from "~/components/GpuInfoModal";
 import { DEVICE_QUERY_GPU_MAP } from "~/constants/deviceQuery";
 import { LanguageInfoModal } from "~/components/LanguageInfoModal";
@@ -386,7 +385,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                   : submission.status}
                               </Text>
                               <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
-                                {submission.language === "cuda" ? "CUDA" : "Python"} • {GPU_DISPLAY_NAMES[submission.gpuType]}
+                                {submission.language === "cuda" ? "CUDA" : "Python"} • {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
                               </Text>
                             </HStack>
                             <Text color="whiteAlpha.700" fontSize="sm">
@@ -600,8 +599,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                       </Tr>
                                     )
                                   )}
-                                  {metaStatus !== "BENCHMARKING" &&
-                                    totalTests !== null &&
+                                  {totalTests !== null &&
                                     benchmarkResults &&
                                     totalTests >
                                       benchmarkResults
@@ -683,33 +681,32 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
                   {metaStatus === SubmissionStatus.WRONG_ANSWER && (
                       <Box bg="red.900" p={6} borderRadius="xl">
-                        {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.errorMessage && (
+                        {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info?.message && (
                           <Text color="red.200" fontWeight="semibold" mb={3}>
-                            {submissionStatus.errorMessage}
+                            {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info?.message}
                           </Text>
                         )}
-                        {submissionStatus.errorDetails && (() => {
+                        {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info?.message && (() => {
                           try {
-                            const debugInfo = JSON.parse(submissionStatus.errorDetails) as DebugInfo;
-                            console.log(debugInfo);
+                            const debugInfo = getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info;
                             return (
                               <VStack spacing={4} align="stretch">
-                                {debugInfo.message && (
+                                {debugInfo?.message && (
                                   <Text color="red.100">{debugInfo.message}</Text>
                                 )}
-                                {debugInfo.max_difference && (
+                                {debugInfo?.max_difference && (
                                   <Box>
                                     <Text color="red.200" fontSize="sm">Maximum Difference:</Text>
                                     <Text color="red.100">{debugInfo.max_difference}</Text>
                                   </Box>
                                 )}
-                                {debugInfo.mean_difference && (
+                                {debugInfo?.mean_difference && (
                                   <Box>
                                     <Text color="red.200" fontSize="sm">Mean Difference:</Text>
                                     <Text color="red.100">{debugInfo.mean_difference}</Text>
                                   </Box>
                                 )}
-                                {debugInfo.sample_differences && Object.keys(debugInfo.sample_differences).length > 0 && (
+                                {debugInfo?.sample_differences && Object.keys(debugInfo.sample_differences).length > 0 && (
                                   <Box>
                                     <Text color="red.200" fontSize="sm" mb={2}>Sample Differences:</Text>
                                     <Box maxH="200px" overflowY="auto">
@@ -750,7 +747,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                 fontSize="sm"
                                 fontFamily="mono"
                               >
-                                {submissionStatus.errorDetails}
+                                {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info?.message}
                               </Code>
                             );
                           }
@@ -758,7 +755,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       </Box>
                     )}
 
-                  {metaStatus !== SubmissionStatus.WRONG_ANSWER && metaStatus === SubmissionStatus.ERROR &&
+                  {metaStatus !== SubmissionStatus.WRONG_ANSWER && metaStatus === SubmissionError.ERROR &&
                     getTypedResponse(SubmissionError.ERROR)?.message &&
                     getTypedResponse(SubmissionError.ERROR)?.details && (
                       <Box bg="red.900" p={6} borderRadius="xl">

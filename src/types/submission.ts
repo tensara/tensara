@@ -48,7 +48,16 @@ export type CheckedResponse = {
 
 export type WrongAnswerResponse = {
   status: "WRONG_ANSWER",
-  test_results: TestResultResponse[],
+  debug_info: {
+    max_difference?: number;
+    mean_difference?: number;
+    sample_differences?: Record<string, {
+      expected: number;
+      actual: number;
+      diff: number;
+    }>;
+    message?: string;
+  },
   passed_tests: number,
   total_tests: number,
 }
