@@ -407,31 +407,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                 } test cases passed...`,
                               };
                             });
-                          } else if (data.status === "error") {
-                            setSubmissionStatus({
-                              status: "ERROR",
-                              runtime: null,
-                              gflops: null,
-                              passedTests: null,
-                              totalTests: null,
-                              message: "Error occurred during submission",
-                              errorMessage: data.error ?? undefined,
-                              errorDetails: data.details ?? undefined,
-                            });
-
-                            setIsSubmitting(false);
-                            submissionsQuery.refetch();
-
-                            toast({
-                              title: "Submission Error",
-                              description:
-                                data.error ??
-                                "An error occurred during submission",
-                              status: "error",
-                              duration: 5000,
-                              isClosable: true,
-                            });
-                            return;
                           }
                         } else if (eventType === "benchmark") {
                           if (data.status === "test_result" && data.result) {
