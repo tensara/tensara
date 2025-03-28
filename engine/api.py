@@ -70,7 +70,6 @@ def gen_wrapper(gen):
 async def generic_checker(item: dict):
     """Common implementation for all checker endpoints."""
     async def generate_checker_results():
-        import subprocess
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
@@ -165,11 +164,29 @@ async def checker(gpu: str, request: Request):
     if gpu not in gpu_runners:
         return 404
 
+<<<<<<< HEAD
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
+=======
+async def generic_benchmark(item: dict):
+    """Common implementation for all benchmark endpoints."""
+    async def generate_benchmark_results():
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                yield "data: " + json.dumps({"status": "compiling"}) + "\n\n"
+                
+                # Setup files
+                solution_path = Path(tmpdir) / "solution.cu"
+                solution_path.write_text(item["solution_code"])
+                
+                tests_path = Path(tmpdir) / "tests.hpp"
+                tests_path.write_text(item["tests_code"])
+                
+                os.system("cp /root/benchmark.cu /root/core.hpp /root/Makefile " + tmpdir)            
+>>>>>>> parent of 8e13d2b (import fix)
 
 <<<<<<< HEAD
     def create_stream():
