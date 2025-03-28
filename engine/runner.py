@@ -146,6 +146,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                 passed_tests += 1
             else:
                 status = "FAILED"
+                
                 has_failed = True
                 
             test_result = {
