@@ -62,6 +62,8 @@ import {
 import { FaTrophy, FaFire, FaMedal } from "react-icons/fa";
 import NextLink from "next/link";
 import { api } from "~/utils/api";
+import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
+import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
 
 // Define the type for activity data
 interface ActivityItem {
@@ -83,7 +85,7 @@ function ActivityCalendar({
   // Group data by date
   const dateMap: Record<string, number> = {};
   data.forEach((item) => {
-    dateMap[item.date] = item.count;
+    dateMap[item.date] = (dateMap[item.date] ?? 0) + item.count;
   });
 
   // Define grid cell type
@@ -124,11 +126,11 @@ function ActivityCalendar({
       // Determine color based on count
       let bgColor = "whiteAlpha.100";
       if (count > 0) {
-        if (count === 1) bgColor = "blue.200";
-        else if (count === 2) bgColor = "blue.300";
-        else if (count === 3) bgColor = "blue.400";
-        else if (count === 4) bgColor = "blue.500";
-        else bgColor = "blue.600";
+        if (count < 3) bgColor = "green.100";
+        else if (count < 6) bgColor = "green.200";
+        else if (count < 10) bgColor = "green.400";
+        else if (count < 15) bgColor = "green.600";
+        else bgColor = "green.700";
       }
 
       // Add to grid - column-major ordering
@@ -142,18 +144,22 @@ function ActivityCalendar({
     }
   }
 
+  console.log(dateMap);
+
   // Get total submissions in the date range
   const totalCount = Object.values(dateMap).reduce(
     (sum, count) => sum + count,
     0
   );
 
+  console.log(totalCount);
   // Calculate available years (from join year to current year)
   const currentYear = today.getFullYear();
   const availableYears = [];
   for (let year = currentYear; year >= joinedYear; year--) {
     availableYears.push(year);
   }
+
 
   return (
     <Box>
@@ -169,15 +175,16 @@ function ActivityCalendar({
         </HStack>
         
         {/* Year Tabs */}
-        <HStack spacing={1} bg="gray.700" borderRadius="md" p={1}>
+        <HStack spacing={1} bg="gray.700" borderRadius="lg" p={1}>
           {availableYears.slice(0, 3).map((year, i) => (
             <Button
               key={year}
               size="xs"
               fontSize="xs"
               colorScheme={i === 0 ? "blue" : "gray"}
-              variant={i === 0 ? "solid" : "ghost"}
+              variant={i === 0 ? "solid" : "outline"}
               height="24px"
+              bg={i === 0 ? "brand.navbar" : "gray.700"}
             >
               {year}
             </Button>
@@ -286,11 +293,10 @@ function ActivityCalendar({
                     borderRadius="sm"
                     bg="whiteAlpha.100"
                   />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.200" />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.300" />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.400" />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.500" />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="blue.600" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.200" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.400" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.600" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.700" />
                 </HStack>
                 <Text fontSize="xs" color="whiteAlpha.700" ml={2}>
                   More
@@ -343,9 +349,6 @@ export default function UserProfile() {
     ? new Date(userData.joinedAt).getFullYear()
     : new Date().getFullYear();
     
-  // Mock streak data (in real app would come from API)
-  const currentStreak = 5;
-  const maxStreak = 18;
 
   if (!username) {
     return null; // Still loading the username parameter
@@ -385,7 +388,7 @@ return (
           </Button>
         </Alert>
       ) : (
-        <Grid templateColumns={{ base: "1fr", md: "320px 1fr" }} gap={8}>
+        <Grid templateColumns={{ base: "1fr", md: "320px 1fr" }} gap={8} height="100%">
           {/* Left Column */}
           <GridItem>
             <VStack spacing={5} align="stretch" height="100%">
@@ -401,7 +404,7 @@ return (
                 position="relative"
               >
                 <Box p={6} textAlign="center">
-                  <Skeleton isLoaded={!isLoading} borderRadius="full" mx="auto">
+                  <Skeleton isLoaded={!isLoading} mx="auto" startColor="gray.700" endColor="gray.800">
                     <Image
                       src={userData?.image ?? "https://via.placeholder.com/150"}
                       alt={`${typeof username === "string" ? username : "User"}'s profile`}
@@ -419,6 +422,8 @@ return (
                     <Skeleton
                       isLoaded={!isLoading}
                       width={isLoading ? "200px" : "auto"}
+                      startColor="gray.700"
+                      endColor="gray.800"
                     >
                       <Heading color="white" size="lg">
                         {userData?.username ?? username}
@@ -428,6 +433,8 @@ return (
                     <Skeleton
                       isLoaded={!isLoading}
                       width={isLoading ? "150px" : "auto"}
+                      startColor="gray.700"
+                      endColor="gray.800"
                     >
                       <HStack spacing={2}>
                         <Icon as={FiCalendar} color="blue.300" />
@@ -448,7 +455,7 @@ return (
                       </HStack>
                     </Skeleton>
 
-                    <Skeleton isLoaded={!isLoading}>
+                    <Skeleton isLoaded={!isLoading} startColor="gray.700" endColor="gray.800">
                       <Badge
                         colorScheme="blue"
                         px={3}
@@ -472,7 +479,7 @@ return (
 
               {/* Stats Cards */}
               <SimpleGrid columns={2} spacing={4} width="100%">
-                <Skeleton isLoaded={!isLoading}>
+                <Skeleton isLoaded={!isLoading} startColor="gray.700" endColor="gray.800">
                   <Box
                     bg="gray.800"
                     borderRadius="xl"
@@ -523,7 +530,7 @@ return (
                   </Box>
                 </Skeleton>
 
-                <Skeleton isLoaded={!isLoading}>
+                <Skeleton isLoaded={!isLoading} startColor="gray.700" endColor="gray.800">
                   <Box
                     bg="gray.800"
                     borderRadius="xl"
@@ -576,7 +583,7 @@ return (
               </SimpleGrid>
 
               {/* Score Card */}
-              <Skeleton isLoaded={!isLoading} width="100%">
+              <Skeleton isLoaded={!isLoading} width="100%" startColor="gray.700" endColor="gray.800">
                 <Box
                   bg="gray.800"
                   borderRadius="xl"
@@ -615,7 +622,7 @@ return (
               </Skeleton>
               
               {/* Languages Card */}
-              <Skeleton isLoaded={!isLoading} width="100%">
+              <Skeleton isLoaded={!isLoading} width="100%" startColor="gray.700" endColor="gray.800">
                 <Box
                   bg="gray.800"
                   borderRadius="xl"
@@ -634,11 +641,19 @@ return (
                   <HStack spacing={2} flexWrap="wrap">
                     <Tag size="md" borderRadius="full" mb={2}>
                       <Box w="10px" h="10px" bg="purple.700" borderRadius="full" mr={2} />
-                      <TagLabel>Triton (48%)</TagLabel>
+                      <TagLabel>
+                        {userData?.languagePercentage && userData.languagePercentage.length > 0 
+                          ? `${userData.languagePercentage[0]?.language} (${userData.languagePercentage[0]?.percentage}%)`
+                          : "N/A"}
+                      </TagLabel>
                     </Tag>
                     <Tag size="md" borderRadius="full" mb={2}>
                       <Box w="10px" h="10px" bg="green.700" borderRadius="full" mr={2} />
-                      <TagLabel>Cuda (52%)</TagLabel>
+                      <TagLabel>
+                        {userData?.languagePercentage && userData.languagePercentage.length > 1
+                          ? `${userData.languagePercentage[1]?.language} (${userData.languagePercentage[1]?.percentage}%)`
+                          : "N/A"}
+                      </TagLabel>
                     </Tag>
                   </HStack>
                 </Box>
@@ -647,7 +662,7 @@ return (
           </GridItem>
 
           {/* Right Column */}
-          <GridItem display="flex" flexDirection="column" gap={6}>
+          <GridItem display="flex" flexDirection="column" gap={6} flexGrow={1}>
             {/* Activity Graph */}
             <Box
               bg="gray.800"
@@ -666,15 +681,13 @@ return (
                     Activity
                   </Heading>
                 </HStack>
-                
-                <Button size="sm" colorScheme="blue" variant="ghost" leftIcon={<FiBarChart2 />}>
-                  View Stats
-                </Button>
               </Flex>
 
               <Skeleton
                 isLoaded={!isLoading}
-                height={isLoading ? "120px" : "auto"}
+                height={isLoading ? "200px" : "auto"}
+                startColor="gray.700"
+                endColor="gray.800"
               >
                 {userData?.activityData &&
                   userData.activityData.length > 0 && (
@@ -688,12 +701,13 @@ return (
             
             {/* Recent Submissions */}
             <Box
-              bg="gray.900"
+              bg="gray.800"
               borderRadius="xl"
               overflow="hidden"
               boxShadow="lg"
               borderWidth="1px"
               borderColor="blue.900"
+              flexGrow={1}
             >
               {/* Header */}
               <Flex
@@ -738,7 +752,7 @@ return (
                     ))}
                   </VStack>
                 ) : userData?.recentSubmissions && userData.recentSubmissions.length > 0 ? (
-                  <VStack spacing={0} align="stretch" divider={<Divider borderColor="gray.700" />}>
+                  <VStack spacing={0} align="stretch" divider={<Divider borderColor="gray.700" />} paddingTop={2}>
                     {userData.recentSubmissions.slice(0, 3).map((submission, _) => (
                       <NextLink
                         key={submission.id}
@@ -747,7 +761,7 @@ return (
                       >
                         <Box 
                           as="a"
-                          py={3}
+                          py={4}
                           px={5}
                           position="relative"
                           bg="gray.800"
@@ -793,17 +807,35 @@ return (
                             {/* Right side: Performance metrics */}
                             <Flex justify="flex-end">
                               <HStack spacing={3} bg="gray.800" borderRadius="lg" p={2} borderWidth="1px" borderColor="gray.700">
+                                {/* Language */}
+                                <Box 
+                                  px={3} 
+                                  py={1.5} 
+                                  borderRadius="md" 
+                                  bg="blue.900"
+                                  minW="80px"
+                                  textAlign="center"
+                                >
+                                  <Text color="white" fontSize="sm" fontWeight="semibold">
+                                    {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language] ?? "N/A"}
+                                  </Text>
+                                  <Text color="whiteAlpha.700" fontSize="xs" mt={0.5}>
+                                    Framework
+                                  </Text>
+                                </Box>
+
                                 {/* GPU Type */}
                                 <Box 
                                   px={3} 
                                   py={1.5} 
                                   borderRadius="md" 
                                   bg="blue.900"
-                                  minW="70px"
+                                  minW="80px"
                                   textAlign="center"
+                          
                                 >
                                   <Text color="white" fontSize="sm" fontWeight="semibold">
-                                    {submission.gpuType || "N/A"}
+                                    {GPU_DISPLAY_ON_PROFILE[submission.gpuType as keyof typeof GPU_DISPLAY_ON_PROFILE] ?? "N/A"}
                                   </Text>
                                   <Text color="whiteAlpha.700" fontSize="xs" mt={0.5}>
                                     GPU
@@ -815,12 +847,12 @@ return (
                                   px={3} 
                                   py={1.5} 
                                   borderRadius="md" 
-                                  bg="gray.700"
-                                  minW="70px"
+                                  bg="blue.900"
+                                  minW="80px"
                                   textAlign="center"
                                 >
-                                  <Text color="blue.300" fontSize="sm" fontWeight="semibold">
-                                    {(submission.gflops || "").split(" ")[0] || "N/A"}
+                                  <Text color="white" fontSize="sm" fontWeight="semibold">
+                                    {submission.gflops ?? "N/A"}
                                   </Text>
                                   <Text color="whiteAlpha.700" fontSize="xs" mt={0.5}>
                                     GLOPS
@@ -832,12 +864,12 @@ return (
                                   px={3} 
                                   py={1.5} 
                                   borderRadius="md" 
-                                  bg="gray.700"
-                                  minW="70px"
+                                  bg="blue.900"
+                                  minW="80px"
                                   textAlign="center"
                                 >
                                   <Text color="white" fontSize="sm" fontWeight="semibold">
-                                    {submission.runtime || "N/A"}
+                                    {submission.runtime ?? "N/A"}
                                   </Text>
                                   <Text color="whiteAlpha.700" fontSize="xs" mt={0.5}>
                                     Runtime
