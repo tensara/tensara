@@ -140,14 +140,13 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             test_result = {
                 "test_id": test_id,
                 "name": test_name,
-                "status": status
             }
 
             if is_correct:
-                status = "PASSED"
+                test_result["status"] = "PASSED"
                 passed_tests += 1
             else:
-                status = "FAILED"
+                test_result["status"] = "FAILED"
                 test_result["debug_info"] = debug_info
                 test_results.append(test_result)
                 yield {
