@@ -1,6 +1,6 @@
 import React from "react";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Box,
@@ -17,23 +17,11 @@ import {
   Icon,
   Grid,
   GridItem,
-  Stat,
-  StatLabel,
-  StatNumber,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Link as ChakraLink,
   Button,
   SimpleGrid,
   Tooltip,
   Tag,
   TagLabel,
-  TagLeftIcon,
-  useToken,
   Alert,
   AlertIcon,
   AlertTitle,
@@ -45,21 +33,11 @@ import {
   FiAward,
   FiCode,
   FiList,
-  FiClock,
-  FiCheck,
-  FiStar,
-  FiHash,
-  FiExternalLink,
-  FiX,
-  FiGithub,
   FiBarChart2,
-  FiCpu,
-  FiUser,
-  FiZap,
   FiTrendingUp,
   FiArrowRight,
 } from "react-icons/fi";
-import { FaTrophy, FaFire, FaMedal } from "react-icons/fa";
+import { FaTrophy, FaFire } from "react-icons/fa";
 import NextLink from "next/link";
 import { api } from "~/utils/api";
 import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
