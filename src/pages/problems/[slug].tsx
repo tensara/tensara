@@ -105,6 +105,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 };
 
+<<<<<<< HEAD
 const getStatusMessage = (status: SubmissionStatus): string => {
   if (!status.message) return `Status: ${status.status}`;
   
@@ -126,6 +127,24 @@ const getStatusMessage = (status: SubmissionStatus): string => {
     "error:": "Error",
   };
   
+=======
+export default function ProblemPage({ slug }: { slug: string }) {
+  const { data: session, status } = useSession();
+  const toast = useToast();
+  const [code, setCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionStatus, setSubmissionStatus] =
+    useState<SubmissionStatus | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [hasSetInitialCode, setHasSetInitialCode] = useState(false);
+  const [isTestCaseTableOpen, setIsTestCaseTableOpen] = useState(false);
+  const [splitRatio, setSplitRatio] = useState(35);
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedGpuType, setSelectedGpuType] = useState("T4");
+  const [isCodeDirty, setIsCodeDirty] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const isProcessing = useRef<boolean>(false);
+>>>>>>> parent of 5ea7a24 (cooked)
 
   for (const [prefix, message] of Object.entries(messageMap)) {
     if (status.message.startsWith(prefix)) return message;
@@ -209,6 +228,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       return;
     }
 
+<<<<<<< HEAD
     startSubmission();
 
     createSubmissionMutation.mutate({
@@ -227,6 +247,414 @@ export default function ProblemPage({ slug }: { slug: string }) {
     startSubmission, 
     toast
   ]);
+=======
+    setIsTestCaseTableOpen(false);
+    setIsSubmitting(true);
+    setSubmissionStatus({
+      status: "CHECKING",
+      runtime: null,
+      gflops: null,
+      passedTests: null,
+      totalTests: null,
+      message: "Running test cases...",
+    });
+
+    createSubmissionMutation.mutate(
+      {
+        problemSlug: slug,
+        code,
+        language: "cuda",
+        gpuType: selectedGpuType,
+      },
+      {
+        onSuccess: (data) => {
+          // Wrap the async logic in a void function
+          void (async () => {
+            try {
+              const response = await fetch("/api/submissions/direct-submit", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ submissionId: data.id }),
+                cache: "no-store",
+                credentials: "same-origin",
+                keepalive: true,
+                signal: AbortSignal.timeout(300000),
+              });
+
+              if (!response.ok) {
+                throw new Error(
+                  `Direct submit API returned ${response.status}`
+                );
+              }
+
+              // Set up reader for streaming response
+              const reader = response.body?.getReader();
+              if (!reader) {
+                throw new Error("No response body from direct-submit");
+              }
+
+              // Process the stream
+              const decoder = new TextDecoder();
+              let buffer = "";
+
+              const MAX_RETRIES = 3;
+              let retryCount = 0;
+
+              const attemptConnection = async (): Promise<void> => {
+                try {
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                      console.log("[sse] Stream complete");
+                      break;
+                    }
+
+                    // Reset retry count on successful read
+                    retryCount = 0;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += chunk;
+
+                    // Process complete events in buffer
+                    const events = buffer.split("\n\n");
+                    buffer = events.pop() ?? ""; // Use nullish coalescing
+
+                    for (const event of events) {
+                      if (!event) continue;
+
+                      const eventLines = event.split("\n");
+                      let eventType = "message";
+                      let eventData = "";
+
+                      for (const line of eventLines) {
+                        if (line.startsWith("event: ")) {
+                          eventType = line.slice(7);
+                        } else if (line.startsWith("data: ")) {
+                          eventData = line.slice(6);
+                        }
+                      }
+
+                      if (!eventData) continue;
+
+                      try {
+                        // Parse and type the data
+                        const data = JSON.parse(eventData) as {
+                          status?: string;
+                          passedTests?: number;
+                          totalTests?: number;
+                          result?: {
+                            status?: string;
+                            test_id?: number;
+                            runtime_ms?: number;
+                            gflops?: number;
+                            name?: string;
+                          };
+                          runtime?: number;
+                          gflops?: number;
+                          error?: string;
+                          details?: string;
+                          benchmarkResults?: BenchmarkTestResult[];
+                        };
+
+                        console.log(`[sse] ${eventType} event:`, data);
+
+                        // Handle different event types
+                        if (eventType === "status") {
+                          setSubmissionStatus((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              status:
+                                (data.status as SubmissionStatus["status"]) ??
+                                prev.status,
+                              passedTests: data.passedTests ?? prev.passedTests,
+                              totalTests: data.totalTests ?? prev.totalTests,
+                              message:
+                                data.status === "BENCHMARKING"
+                                  ? "All test cases passed! Running performance benchmark..."
+                                  : data.passedTests
+                                  ? `${data.passedTests} test cases passed...`
+                                  : "Running test cases...",
+                            };
+                          });
+                        } else if (eventType === "checker") {
+                          console.log(data.totalTests);
+                          if (data.status === "test_result" && data.result) {
+                            setSubmissionStatus((prev) => {
+                              if (!prev) {
+                                return {
+                                  status: "CHECKING",
+                                  runtime: null,
+                                  gflops: null,
+                                  passedTests:
+                                    data.result?.status === "PASSED" ? 1 : 0,
+                                  totalTests: data.totalTests ?? 1,
+                                  message: `${
+                                    data.result?.status === "PASSED" ? 1 : 0
+                                  } test cases passed...`,
+                                };
+                              }
+                              return {
+                                ...prev,
+                                passedTests:
+                                  (prev.passedTests ?? 0) +
+                                  (data.result?.status === "PASSED" ? 1 : 0),
+                                totalTests: data.totalTests ?? prev.totalTests,
+                                message: `${
+                                  (prev.passedTests ?? 0) +
+                                  (data.result?.status === "PASSED" ? 1 : 0)
+                                } test cases passed...`,
+                              };
+                            });
+                          } else if (data.status === "error") {
+                            setSubmissionStatus({
+                              status: "ERROR",
+                              runtime: null,
+                              gflops: null,
+                              passedTests: null,
+                              totalTests: null,
+                              message: "Error occurred during submission",
+                              errorMessage: data.error ?? undefined,
+                              errorDetails: data.details ?? undefined,
+                            });
+
+                            setIsSubmitting(false);
+                            submissionsQuery.refetch();
+
+                            toast({
+                              title: "Submission Error",
+                              description:
+                                data.error ??
+                                "An error occurred during submission",
+                              status: "error",
+                              duration: 5000,
+                              isClosable: true,
+                            });
+                            return;
+                          }
+                        } else if (eventType === "benchmark") {
+                          if (data.status === "test_result" && data.result) {
+                            setIsTestCaseTableOpen(true);
+                            setSubmissionStatus((prev) => {
+                              if (!prev) return prev;
+                              const benchmarkResult: BenchmarkTestResult = {
+                                test_id: data.result?.test_id ?? 0,
+                                runtime_ms: data.result?.runtime_ms ?? 0,
+                                gflops: data.result?.gflops ?? 0,
+                                name:
+                                  data.result?.name ??
+                                  `Test ${data.result?.test_id ?? 0}`,
+                              };
+                              return {
+                                ...prev,
+                                benchmarkResults: [
+                                  ...(prev.benchmarkResults ?? []),
+                                  benchmarkResult,
+                                ],
+                              };
+                            });
+                          }
+                        } else if (eventType === "complete") {
+                          setSubmissionStatus({
+                            status:
+                              (data.status as SubmissionStatus["status"]) ??
+                              "ERROR",
+                            runtime: data.runtime ?? null,
+                            gflops: data.gflops ?? null,
+                            passedTests: data.passedTests ?? null,
+                            totalTests: data.totalTests ?? null,
+                            message:
+                              data.status === "ACCEPTED"
+                                ? "Submission accepted!"
+                                : data.status === "WRONG_ANSWER"
+                                ? "Solution produced incorrect results"
+                                : "Error occurred during submission",
+                            errorMessage: data.error ?? undefined,
+                            errorDetails: data.details ?? undefined,
+                            benchmarkResults:
+                              data.benchmarkResults ?? undefined,
+                          });
+
+                          setIsSubmitting(false);
+                          submissionsQuery.refetch();
+                          return;
+                        } else if (eventType === "error") {
+                          setSubmissionStatus({
+                            status: "ERROR",
+                            runtime: null,
+                            gflops: null,
+                            passedTests: null,
+                            totalTests: null,
+                            message: "Error occurred during submission",
+                            errorMessage: data.error ?? undefined,
+                            errorDetails: data.details ?? undefined,
+                          });
+
+                          setIsSubmitting(false);
+                          submissionsQuery.refetch();
+
+                          toast({
+                            title: "Submission Error",
+                            description:
+                              data.error ??
+                              "An error occurred during submission",
+                            status: "error",
+                            duration: 5000,
+                            isClosable: true,
+                          });
+                          return;
+                        }
+                      } catch (error) {
+                        console.error(
+                          "Error parsing event data:",
+                          error,
+                          "Raw data:",
+                          eventData
+                        );
+                      }
+                    }
+                  }
+
+                  // If we reach here, the stream ended normally
+                  setIsSubmitting(false);
+                } catch (error) {
+                  console.error("[sse] Stream error:", error);
+
+                  // Attempt retry if we haven't exceeded max retries
+                  if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    console.log(
+                      `[sse] Retrying connection (${retryCount}/${MAX_RETRIES})...`
+                    );
+
+                    // Wait before retrying (exponential backoff)
+                    await new Promise((resolve) =>
+                      setTimeout(resolve, 1000 * Math.pow(2, retryCount))
+                    );
+
+                    return attemptConnection();
+                  } else {
+                    throw error; // Re-throw if max retries exceeded
+                  }
+                }
+              };
+
+              void attemptConnection();
+            } catch (error) {
+              console.error("[sse] Error:", error);
+              setIsSubmitting(false);
+
+              let errorMessage = "Failed to connect to submission service";
+              if (error instanceof Error) {
+                if (
+                  error.message.includes("QUIC_PROTOCOL_ERROR") ||
+                  error.message.includes("network error") ||
+                  error.message.includes("failed to fetch")
+                ) {
+                  errorMessage =
+                    "Network protocol error. This may be due to your connection or a server configuration issue. Please try again in a few moments.";
+                } else {
+                  errorMessage = error.message;
+                }
+              }
+
+              toast({
+                title: "Connection Error",
+                description: errorMessage,
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+              });
+            }
+          })();
+        },
+      }
+    );
+  };
+
+  const { data: problem, isLoading } = api.problems.getById.useQuery(
+    { slug: slug },
+    { enabled: !!slug }
+  );
+
+  useEffect(() => {
+    if (!hasSetInitialCode && slug) {
+      const savedSolution = loadSolutionFromStorage(slug);
+      if (savedSolution) {
+        setCode(savedSolution);
+        setHasSetInitialCode(true);
+      } else if (problem?.starterCode) {
+        setCode(problem.starterCode);
+        setHasSetInitialCode(true);
+      }
+    }
+  }, [slug, hasSetInitialCode, problem]);
+
+  useEffect(() => {
+    if (code && slug) {
+      saveSolutionToStorage(slug, code);
+    }
+  }, [code, slug]);
+
+  useEffect(() => {
+    if (problem?.starterCode) {
+      setIsCodeDirty(code !== problem.starterCode);
+    }
+  }, [code, problem?.starterCode]);
+
+  const handleReset = () => {
+    if (problem?.starterCode) {
+      setCode(problem.starterCode);
+      // Clear localStorage
+      if (slug) {
+        localStorage.removeItem(getSolutionKey(slug));
+      }
+    }
+  };
+
+  // Move these handlers to useCallback
+  const handleMouseDown = useCallback(() => {
+    setIsDragging(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    document.body.style.cursor = "default";
+    document.body.style.userSelect = "auto";
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      // Move handleMouseMove inside useEffect
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isDragging) return;
+
+        const container = document.getElementById("split-container");
+        if (!container) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const newRatio =
+          ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+        // Adjust max ratio to 55% to ensure submit button stays visible
+        const clampedRatio = Math.min(Math.max(newRatio, 35), 55);
+        setSplitRatio(clampedRatio);
+      };
+
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseUp]);
+>>>>>>> parent of 5ea7a24 (cooked)
 
   if (isLoading) {
     return (
@@ -514,70 +942,60 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             />
                           }
                         >
-                          {isBenchmarking ? (
-                            <HStack
-                              justify="space-between"
-                              px={6}
-                              py={4}
-                              onClick={() =>
-                                setIsTestCaseTableOpen(!isTestCaseTableOpen)
-                              }
-                              cursor="pointer"
-                              _hover={{ bg: "whiteAlpha.50" }}
-                            >
-                              <HStack spacing={2} width="100%">
-                                <HStack spacing={2}>
-                                  <Text fontWeight="semibold">
-                                    Benchmark Results
-                                  </Text>
-                                  <IconButton
-                                    aria-label="Toggle test cases"
-                                    icon={
-                                      isTestCaseTableOpen ? (
-                                        <ChevronUpIcon />
-                                      ) : (
-                                        <ChevronDownIcon />
-                                      )
-                                    }
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setIsTestCaseTableOpen(
-                                        !isTestCaseTableOpen
-                                      );
-                                    }}
-                                    color="gray.300"
-                                    _hover={{
-                                      bg: "whiteAlpha.50",
-                                      color: "white",
-                                    }}
-                                  />
-                                </HStack>
-                              </HStack>
-                            </HStack>
-                          ) : (
-                            <Box
-                              w="100%"
-                              h="6"
-                              bg="whiteAlpha.200"
-                              borderRadius="md"
-                              overflow="hidden"
-                            >
-                              <Box
-                                h="100%"
-                                w={`${
-                                  (submissionStatus.passedTests /
-                                    (submissionStatus.totalTests ?? 10)) *
-                                  100
-                                }%`}
-                                bg="green.400"
-                                borderRadius="md"
-                                borderRightRadius="xl"
-                                transition="width 0.5s ease-in-out"
+                          <HStack
+                            justify="space-between"
+                            px={6}
+                            py={4}
+                            onClick={() =>
+                              setIsTestCaseTableOpen(!isTestCaseTableOpen)
+                            }
+                            cursor="pointer"
+                            _hover={{ bg: "whiteAlpha.50" }}
+                          >
+                            <HStack spacing={2}>
+                              <Text fontWeight="semibold">Test Cases</Text>
+                              <IconButton
+                                aria-label="Toggle test cases"
+                                icon={
+                                  isTestCaseTableOpen ? (
+                                    <ChevronUpIcon />
+                                  ) : (
+                                    <ChevronDownIcon />
+                                  )
+                                }
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsTestCaseTableOpen(!isTestCaseTableOpen);
+                                }}
+                                color="gray.300"
+                                _hover={{
+                                  bg: "whiteAlpha.50",
+                                  color: "white",
+                                }}
                               />
-                            </Box>
-                          )}
+                            </HStack>
+                            <HStack spacing={1}>
+                              <Text
+                                color={
+                                  submissionStatus.status === "ACCEPTED" ||
+                                  submissionStatus.status === "CHECKING" ||
+                                  submissionStatus.status === "BENCHMARKING"
+                                    ? "green.300"
+                                    : "red.300"
+                                }
+                                fontWeight="bold"
+                              >
+                                {submissionStatus.passedTests}
+                              </Text>
+                              <Text color="whiteAlpha.700">/</Text>
+                              <Text color="whiteAlpha.700">
+                                {submissionStatus.totalTests}
+                              </Text>
+                              <Text color="whiteAlpha.700">passed</Text>
+                            </HStack>
+                          </HStack>
 
                           {/* Test Case Results Table */}
                           <Collapse in={isTestCaseTableOpen} animateOpacity>
