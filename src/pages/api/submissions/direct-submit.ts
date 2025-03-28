@@ -39,8 +39,8 @@ export default async function handler(
       where: { id: submissionId }
     });
     res.status(rateLimit.statusCode ?? 429).json({ 
-      status: SubmissionError.RATE_LIMIT_EXCEEDED,
-      message: rateLimit.error,
+      status: SubmissionError.RATE_LIMIT_EXCEEDED as SubmissionErrorType,
+      error: rateLimit.error,
       details: rateLimit.error,
     });
     return;
