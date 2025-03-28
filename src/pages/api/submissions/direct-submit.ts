@@ -251,6 +251,7 @@ export default async function handler(
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
+                  status: SubmissionStatus.WRONG_ANSWER,
                   passedTests,
                   totalTests,
                   errorMessage,
