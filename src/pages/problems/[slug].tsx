@@ -571,7 +571,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                                     (submissionStatus.totalTests ?? 10)) *
                                   100
                                 }%`}
-                                bg="green.500"
+                                bg="green.400"
                                 borderRadius="md"
                                 borderRightRadius="xl"
                                 transition="width 0.5s ease-in-out"

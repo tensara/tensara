@@ -79,8 +79,29 @@ async def checker(gpu: str, request: Request):
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
+<<<<<<< HEAD
     def create_stream():
         yield {"status": "compiling"}
+=======
+                # Compile
+                os.chdir(tmpdir)
+                compile_result = os.system("make 2>&1")
+                if compile_result != 0:
+                    yield "data: " + json.dumps({
+                        "status": "error",
+                        "error": "Compilation failed", 
+                        "details": os.popen("make 2>&1").read()
+                    }) + "\n\n"
+                    return
+                
+                yield "data: " + json.dumps({"status": "running"}) + "\n\n"
+                
+                # Run benchmark
+                process = subprocess.Popen(["./benchmark"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                test_results = []
+                total_tests = 0
+                test_count = 0
+>>>>>>> parent of c05d800 (small change)
 
         def compile_benchmark():
             try:
