@@ -1,8 +1,9 @@
+// Parameter(s) for the solution function of a problem
 export interface Parameter {
-  name: string
-  type: string
-  const: string
-  pointer: string
+  name: string;
+  type: string; // eg. "[VAR]"
+  const: string; // "true" or "false"
+  pointer: string; // "true" or "false"
 }
 
 export interface Problem {
@@ -17,10 +18,13 @@ export interface Problem {
 export type DebugInfo = {
   max_difference?: number;
   mean_difference?: number;
-  sample_differences?: Record<string, {
-    expected: number;
-    actual: number;
-    diff: number;
-  }>;
+  sample_differences?: Record<
+    string,
+    {
+      expected: number;
+      actual: number;
+      diff: number;
+    }
+  >;
   message?: string;
 };
