@@ -10,6 +10,7 @@ import runner
 from problem import Problem
 import os
 
+<<<<<<< HEAD
 DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
@@ -24,6 +25,30 @@ devel_image = (
     .env({"CC": "gcc"})
     .pip_install(PIP_PACKAGES)
     .add_local_python_source(*LOCAL_SOURCE)
+=======
+stub_dir = Path(__file__).parent
+image = (
+    modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
+    .apt_install([
+        "build-essential",
+        "make",
+        "python3-dev", 
+        "python3-pip",
+        "g++"
+    ])
+    .pip_install([
+        "torch",
+        "ninja"
+    ])
+    .env({"CXX": "g++"})
+    .add_local_file(stub_dir / "benchmark/benchmark.cu", "/root/benchmark.cu")
+    .add_local_file(stub_dir / "benchmark/core.hpp", "/root/core.hpp")
+    .add_local_file(stub_dir / "benchmark/Makefile", "/root/Makefile")
+    .add_local_file(stub_dir / "checker/checker.cu", "/root/checker.cu")
+    .add_local_file(stub_dir / "checker/core.hpp", "/root/checker/core.hpp")
+    .add_local_file(stub_dir / "checker/tests.hpp", "/root/checker/tests.hpp")
+    .add_local_file(stub_dir / "checker/Makefile", "/root/checker/Makefile")
+>>>>>>> parent of 9d07776 (stuff words)
 )
 
 runtime_image = (
