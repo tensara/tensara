@@ -67,7 +67,7 @@ export type BenchmarkResultResponse = {
 export type BenchmarkedResponse = {
   status: "BENCHMARKED",
   test_results: BenchmarkResultResponse[],
-  average_gflops: number,
-  runtime_ms: number,
+  avg_gflops: number,
+  avg_runtime_ms: number,
   total_tests: number
 }

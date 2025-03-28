@@ -7,6 +7,10 @@ import { BenchmarkedResponse, BenchmarkResultResponse, CheckedResponse, Submissi
 import { SubmissionStatusType } from "~/types/submission";
 import { escape } from "querystring";
 
+function isSubmissionError(status: string): status is SubmissionErrorType {
+  return Object.values(SubmissionError).includes(status as SubmissionErrorType);
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -132,8 +136,9 @@ export default async function handler(
     // should go under "ERROR"
     if (!checkerResponse.ok) {
       const errorText = await checkerResponse.text();
-      sendSSE("error", {
+      sendSSE(SubmissionError.ERROR, {
         error: `Checker API returned ${checkerResponse.status}`,
+        message: `Checker API returned ${checkerResponse.status}`,
         details: errorText,
       });
 
@@ -151,9 +156,10 @@ export default async function handler(
     }
 
     const reader = checkerResponse.body?.getReader();
-    // should go under "ERROR"
     if (!reader) {
-      sendSSE("error", { error: "No response body from checker" });
+      sendSSE(SubmissionError.ERROR, { 
+        error: "No response body from checker",
+      });
 
       await db.submission.update({
         where: { id: submission.id },
@@ -167,7 +173,6 @@ export default async function handler(
       return;
     }
 
-    // we need to make this modular because it is reused in the benchmark 
     let passedTests = 0;
     let totalTests = 0;
     let partialMessage = "";
@@ -265,10 +270,7 @@ export default async function handler(
                   },
                 });
             }
-          } else if (response_status === SubmissionError.COMPILE_ERROR || 
-                  response_status === SubmissionError.RUNTIME_ERROR || 
-                      response_status === SubmissionError.TIME_LIMIT_EXCEEDED || 
-                          response_status === SubmissionError.ERROR) {
+          } else if (isSubmissionError(response_status)) {
             const response = JSON.parse(response_json) as {
               status: SubmissionErrorType;
               error: string;
@@ -337,8 +339,9 @@ export default async function handler(
 
     if (!benchmarkResponse.ok) {
       const errorText = await benchmarkResponse.text();
-      sendSSE("error", {
+      sendSSE(SubmissionError.ERROR, {
         error: `Benchmark API returned ${benchmarkResponse.status}`,
+        message: `Benchmark API returned ${benchmarkResponse.status}`,
         details: errorText,
       });
 
@@ -357,7 +360,10 @@ export default async function handler(
 
     const benchmarkReader = benchmarkResponse.body?.getReader();
     if (!benchmarkReader) {
-      sendSSE("error", { error: "No response body from benchmark" });
+      sendSSE(SubmissionError.ERROR, { 
+        error: "No response body from benchmark",
+        message: "No response body from benchmark",
+      });
 
       await db.submission.update({
         where: { id: submission.id },
@@ -371,8 +377,7 @@ export default async function handler(
       return;
     }
 
-    let benchmarkResults: any[] = [];
-    let averageGflops = 0;
+    let benchmarkResults:BenchmarkResultResponse["result"][] = [];
     partialMessage = "";
 
     try {
@@ -390,80 +395,64 @@ export default async function handler(
           if (!message?.startsWith("data: ")) continue;
 
           try {
-            const response = JSON.parse(message.slice(6).trim()) as {
+            const response_json = message.slice(6).trim();
+            const parsed = JSON.parse(response_json) as {
               status: string;
-              result?: {
-                test_id: number;
-                name: string;
-                runtime_ms: number;
-                gflops: number;
-              };
-             
-              average_gflops?: number;
-              error?: string;
-              details?: string;
             };
+            const response_status = parsed.status;
 
-            // Forward event to client
-            sendSSE("benchmark", response);
-
-            // Update database based on event type
-            if (response.status === "test_result" && response.result) {
+            if (response_status === SubmissionStatus.BENCHMARK_RESULT) {
+              const response = JSON.parse(response_json) as BenchmarkResultResponse;
+              if (response.result) {
+              sendSSE(response_status, response);
               benchmarkResults.push(response.result);
-              console.log("Benchmark results", benchmarkResults);
-
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
                   benchmarkResults,
                 },
               });
-            } else if (
-              response.status === "success" &&
-              response.average_gflops
-            ) {
-              averageGflops = response.average_gflops;
+              }
+            } else if (response_status === SubmissionStatus.BENCHMARKED) {
+              const response = JSON.parse(response_json) as BenchmarkedResponse;
+              if (response.avg_gflops && response.avg_runtime_ms) {
+                const averageGflops = response.avg_gflops;
+                const averageRuntime = response.avg_runtime_ms;
 
-              const runtime =
-                benchmarkResults.reduce((acc, r) => acc + r.runtime_ms, 0) /
-                benchmarkResults.length;
-
-              await db.submission.update({
+                await db.submission.update({
                 where: { id: submission.id },
                 data: {
-                  status: SubmissionStatus.ACCEPTED,
-                  runtime,
+                  status: SubmissionStatus.BENCHMARKED,
+                  runtime: averageRuntime,
                   gflops: averageGflops,
                   benchmarkResults,
                 },
               });
 
-              sendSSE("complete", {
-                status: SubmissionStatus.ACCEPTED,
-                runtime,
+              sendSSE(SubmissionStatus.ACCEPTED, {
+                runtime: averageRuntime,
                 gflops: averageGflops,
                 benchmarkResults,
-                passedTests,
-                totalTests,
               });
-
-              res.end();
-              return;
-            } else if (response.status === "error") {
+              }
+            }
+           
+            else if (isSubmissionError(response_status)) {
+              const response = JSON.parse(response_json) as {
+                status: SubmissionErrorType;
+                error: string;
+                details: string;
+              };
               await db.submission.update({
                 where: { id: submission.id },
                 data: {
-                  status: SubmissionError.ERROR,
+                  status: response_status,
                   errorMessage: response.error ?? "Unknown error",
                   errorDetails: response.details ?? "",
                 },
               });
 
-              sendSSE("error", {
-                error: response.error ?? "Unknown error",
-                details: response.details ?? "",
-              });
-
+              sendSSE(response_status, response);
               res.end();
               return;
             }
