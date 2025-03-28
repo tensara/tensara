@@ -357,7 +357,6 @@ export const usersRouter = createTRPCRouter({
           count: day._count.id,
         };
       });
-      console.log({ userScore });
 
       return {
         username: user.username,
