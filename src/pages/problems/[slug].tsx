@@ -28,11 +28,6 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
-  Flex,
-  MenuList,
-  MenuButton,
-  MenuItem,
-  Menu,
 } from "@chakra-ui/react";
 import { useState, useCallback } from "react";
 import { Layout } from "~/components/layout";
@@ -65,11 +60,8 @@ import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSplitPanel } from "~/hooks/useSplitPanel";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
-import { IS_DISABLED_LANGUAGE, LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
-import { DATA_TYPE_DISPLAY_NAMES, IS_DISABLED_DATA_TYPE } from "~/constants/datatypes";
 import { type Problem, type Submission } from "@prisma/client";
 import { GpuInfoModal } from "~/components/GpuInfoModal";
-import { DEVICE_QUERY_GPU_MAP } from "~/constants/deviceQuery";
 import { LanguageInfoModal } from "~/components/LanguageInfoModal";
 import { SubmissionError, type SubmissionErrorType, SubmissionStatus, type SubmissionStatusType } from "~/types/submission";
 
@@ -182,7 +174,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
     metaResponse,
     testResults,
     benchmarkResults,
-    submissionId,
     isTestCaseTableOpen,
     isBenchmarking,
     setIsTestCaseTableOpen,
@@ -737,6 +728,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                             </VStack>
                           );
                         } catch (e) {
+                          console.error("Failed to parse debug info", e);
                           return (
                             <Code
                               display="block"
