@@ -87,40 +87,39 @@ const SubmissionsPage: NextPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const router = useRouter();
 
   const { data: submissions, isLoading } =
     api.submissions.getAllUserSubmissions.useQuery();
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
-      case "ACCEPTED":
-        return "green";
-      case "WRONG_ANSWER":
-      case "ERROR":
-        return "red";
-      case "CHECKING":
-      case "BENCHMARKING":
-        return "blue";
-      default:
-        return "gray";
+    case "ACCEPTED":
+      return "green";
+    case "WRONG_ANSWER":
+    case "ERROR":
+      return "red";
+    case "CHECKING":
+    case "BENCHMARKING":
+      return "blue";
+    default:
+      return "gray";
     }
   };
 
   const formatStatus = (status: string | null) => {
     switch (status) {
-      case "ACCEPTED":
-        return "Accepted";
-      case "WRONG_ANSWER":
-        return "Wrong Answer";
-      case "ERROR":
-        return "Error";
-      case "CHECKING":
-        return "Checking";
-      case "BENCHMARKING":
-        return "Benchmarking";
-      default:
-        return status ?? "Unknown";
+    case "ACCEPTED":
+      return "Accepted";
+    case "WRONG_ANSWER":
+      return "Wrong Answer";
+    case "ERROR":
+      return "Error";
+    case "CHECKING":
+      return "Checking";
+    case "BENCHMARKING":
+      return "Benchmarking";
+    default:
+      return status ?? "Unknown";
     }
   };
 
@@ -151,26 +150,26 @@ const SubmissionsPage: NextPage = () => {
     .sort((a: SubmissionWithProblem, b: SubmissionWithProblem) => {
       const order = sortOrder === "asc" ? 1 : -1;
       switch (sortField) {
-        case "createdAt":
-          return (
-            (new Date(a.createdAt).getTime() -
+      case "createdAt":
+        return (
+          (new Date(a.createdAt).getTime() -
               new Date(b.createdAt).getTime()) *
             order
-          );
-        case "status":
-          return (a.status ?? "").localeCompare(b.status ?? "") * order;
-        case "problem":
-          return a.problem.title.localeCompare(b.problem.title) * order;
-        case "performance":
-          const aPerf = a.gflops ?? 0;
-          const bPerf = b.gflops ?? 0;
-          return (aPerf - bPerf) * order;
-        case "gpuType":
-          return (a.gpuType ?? "").localeCompare(b.gpuType ?? "") * order;
-        case "language":
-          return a.language.localeCompare(b.language) * order;
-        default:
-          return 0;
+        );
+      case "status":
+        return (a.status ?? "").localeCompare(b.status ?? "") * order;
+      case "problem":
+        return a.problem.title.localeCompare(b.problem.title) * order;
+      case "performance":
+        const aPerf = a.gflops ?? 0;
+        const bPerf = b.gflops ?? 0;
+        return (aPerf - bPerf) * order;
+      case "gpuType":
+        return (a.gpuType ?? "").localeCompare(b.gpuType ?? "") * order;
+      case "language":
+        return a.language.localeCompare(b.language) * order;
+      default:
+        return 0;
       }
     });
 
