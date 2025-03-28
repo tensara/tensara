@@ -1,6 +1,5 @@
 import React from "react";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Box,
@@ -17,9 +16,6 @@ import {
   Icon,
   Grid,
   GridItem,
-  Stat,
-  StatLabel,
-  StatNumber,
   Table,
   Thead,
   Tbody,
@@ -33,7 +29,6 @@ import {
   Tag,
   TagLabel,
   TagLeftIcon,
-  useToken,
   Alert,
   AlertIcon,
   AlertTitle,
@@ -45,10 +40,7 @@ import {
   FiAward,
   FiCode,
   FiList,
-  FiClock,
   FiCheck,
-  FiStar,
-  FiHash,
   FiExternalLink,
   FiX,
 } from "react-icons/fi";
@@ -202,22 +194,22 @@ function ActivityCalendar({
                     label={
                       day.date && day.count > 0
                         ? `${day.count} submission${
-                            day.count === 1 ? "" : "s"
-                          } on ${new Date(day.date).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "long",
-                              day: "numeric",
-                            }
-                          )}${getOrdinalSuffix(new Date(day.date).getDate())}.`
+                          day.count === 1 ? "" : "s"
+                        } on ${new Date(day.date).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )}${getOrdinalSuffix(new Date(day.date).getDate())}.`
                         : day.date
-                        ? `No submissions on ${new Date(
+                          ? `No submissions on ${new Date(
                             day.date
                           ).toLocaleDateString("en-US", {
                             month: "long",
                             day: "numeric",
                           })}${getOrdinalSuffix(new Date(day.date).getDate())}.`
-                        : "No submissions"
+                          : "No submissions"
                     }
                     placement="top"
                     hasArrow
@@ -296,14 +288,14 @@ function ActivityCalendar({
 function getOrdinalSuffix(day: number): string {
   if (day > 3 && day < 21) return "th";
   switch (day % 10) {
-    case 1:
-      return "st";
-    case 2:
-      return "nd";
-    case 3:
-      return "rd";
-    default:
-      return "th";
+  case 1:
+    return "st";
+  case 2:
+    return "nd";
+  case 3:
+    return "rd";
+  default:
+    return "th";
   }
 }
 
@@ -416,16 +408,16 @@ export default function UserProfile() {
                           Joined{" "}
                           {userData
                             ? (() => {
-                                const date = new Date(userData.joinedAt);
-                                const day = date.getDate();
-                                const month = date.toLocaleString("default", {
-                                  month: "short",
-                                });
-                                const year = date.getFullYear();
-                                return `${day}${getOrdinalSuffix(
-                                  day
-                                )} ${month} ${year}`;
-                              })()
+                              const date = new Date(userData.joinedAt);
+                              const day = date.getDate();
+                              const month = date.toLocaleString("default", {
+                                month: "short",
+                              });
+                              const year = date.getFullYear();
+                              return `${day}${getOrdinalSuffix(
+                                day
+                              )} ${month} ${year}`;
+                            })()
                             : "Loading..."}
                         </Text>
                       </HStack>
@@ -591,11 +583,11 @@ export default function UserProfile() {
                 >
                   {userData?.activityData &&
                     userData.activityData.length > 0 && (
-                      <ActivityCalendar
-                        data={userData.activityData as ActivityItem[]}
-                        joinedYear={joinedYear}
-                      />
-                    )}
+                    <ActivityCalendar
+                      data={userData.activityData as ActivityItem[]}
+                      joinedYear={joinedYear}
+                    />
+                  )}
                 </Skeleton>
               </Box>
 
@@ -631,104 +623,104 @@ export default function UserProfile() {
                     </VStack>
                   ) : userData?.recentSubmissions &&
                     userData.recentSubmissions.length > 0 ? (
-                    <Table variant="simple" size="sm">
-                      <Thead>
-                        <Tr>
-                          <Th color="whiteAlpha.600">Problem</Th>
-                          <Th color="whiteAlpha.600">Date</Th>
-                          <Th color="whiteAlpha.600">Status</Th>
-                          <Th color="whiteAlpha.600">Runtime</Th>
-                          <Th></Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {userData.recentSubmissions.map((submission) => (
-                          <Tr key={submission.id}>
-                            <Td>
-                              <NextLink
-                                href={`/problems/${submission.problemId}`}
-                                passHref
-                              >
-                                <ChakraLink
-                                  color="blue.300"
-                                  fontWeight="medium"
-                                >
-                                  {submission.problemName}
-                                </ChakraLink>
-                              </NextLink>
-                            </Td>
-                            <Td color="whiteAlpha.800">{submission.date}</Td>
-                            <Td>
-                              <Tag
-                                size="sm"
-                                colorScheme={
-                                  submission.status === "accepted"
-                                    ? "green"
-                                    : "red"
-                                }
-                              >
-                                <TagLeftIcon
-                                  as={
-                                    submission.status === "accepted"
-                                      ? FiCheck
-                                      : FiX
-                                  }
-                                />
-                                <TagLabel>
-                                  {submission.status === "accepted"
-                                    ? "Accepted"
-                                    : "Failed"}
-                                </TagLabel>
-                              </Tag>
-                            </Td>
-                            <Td color="whiteAlpha.800">{submission.runtime}</Td>
-                            <Td>
-                              <NextLink
-                                href={`/submissions/${submission.id}`}
-                                passHref
-                              >
-                                <Button
-                                  as="a"
-                                  size="xs"
-                                  leftIcon={<FiExternalLink />}
-                                  colorScheme="blue"
-                                  variant="ghost"
-                                >
-                                  View
-                                </Button>
-                              </NextLink>
-                            </Td>
+                      <Table variant="simple" size="sm">
+                        <Thead>
+                          <Tr>
+                            <Th color="whiteAlpha.600">Problem</Th>
+                            <Th color="whiteAlpha.600">Date</Th>
+                            <Th color="whiteAlpha.600">Status</Th>
+                            <Th color="whiteAlpha.600">Runtime</Th>
+                            <Th></Th>
                           </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  ) : (
-                    <Text color="whiteAlpha.700" textAlign="center" py={4}>
+                        </Thead>
+                        <Tbody>
+                          {userData.recentSubmissions.map((submission) => (
+                            <Tr key={submission.id}>
+                              <Td>
+                                <NextLink
+                                  href={`/problems/${submission.problemId}`}
+                                  passHref
+                                >
+                                  <ChakraLink
+                                    color="blue.300"
+                                    fontWeight="medium"
+                                  >
+                                    {submission.problemName}
+                                  </ChakraLink>
+                                </NextLink>
+                              </Td>
+                              <Td color="whiteAlpha.800">{submission.date}</Td>
+                              <Td>
+                                <Tag
+                                  size="sm"
+                                  colorScheme={
+                                    submission.status === "accepted"
+                                      ? "green"
+                                      : "red"
+                                  }
+                                >
+                                  <TagLeftIcon
+                                    as={
+                                      submission.status === "accepted"
+                                        ? FiCheck
+                                        : FiX
+                                    }
+                                  />
+                                  <TagLabel>
+                                    {submission.status === "accepted"
+                                      ? "Accepted"
+                                      : "Failed"}
+                                  </TagLabel>
+                                </Tag>
+                              </Td>
+                              <Td color="whiteAlpha.800">{submission.runtime}</Td>
+                              <Td>
+                                <NextLink
+                                  href={`/submissions/${submission.id}`}
+                                  passHref
+                                >
+                                  <Button
+                                    as="a"
+                                    size="xs"
+                                    leftIcon={<FiExternalLink />}
+                                    colorScheme="blue"
+                                    variant="ghost"
+                                  >
+                                  View
+                                  </Button>
+                                </NextLink>
+                              </Td>
+                            </Tr>
+                          ))}
+                        </Tbody>
+                      </Table>
+                    ) : (
+                      <Text color="whiteAlpha.700" textAlign="center" py={4}>
                       No submissions to display.
-                    </Text>
-                  )}
+                      </Text>
+                    )}
                 </Box>
 
                 {userData?.recentSubmissions &&
                   userData.recentSubmissions.length > 0 && (
-                    <Box p={4} textAlign="center">
-                      <NextLink
-                        href={`/submissions?username=${
-                          typeof username === "string" ? username : "User"
-                        }`}
-                        passHref
+                  <Box p={4} textAlign="center">
+                    <NextLink
+                      href={`/submissions?username=${
+                        typeof username === "string" ? username : "User"
+                      }`}
+                      passHref
+                    >
+                      <Button
+                        as="a"
+                        colorScheme="blue"
+                        size="sm"
+                        variant="outline"
                       >
-                        <Button
-                          as="a"
-                          colorScheme="blue"
-                          size="sm"
-                          variant="outline"
-                        >
                           View All Submissions
-                        </Button>
-                      </NextLink>
-                    </Box>
-                  )}
+                      </Button>
+                    </NextLink>
+                  </Box>
+                )}
               </Box>
             </GridItem>
           </Grid>

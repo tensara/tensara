@@ -31,7 +31,6 @@ import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
-import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 
 export const getServerSideProps: GetServerSideProps = async (_context) => {
@@ -183,8 +182,8 @@ const LeaderboardIndexPage: NextPage = () => {
                                     index === 0
                                       ? "yellow"
                                       : index === 1
-                                      ? "gray"
-                                      : "blue"
+                                        ? "gray"
+                                        : "blue"
                                   }
                                   variant="solid"
                                   fontSize="sm"

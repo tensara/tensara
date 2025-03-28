@@ -210,10 +210,10 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             index === 0
                               ? "yellow"
                               : index === 1
-                              ? "gray"
-                              : index === 2
-                              ? "orange"
-                              : "blue"
+                                ? "gray"
+                                : index === 2
+                                  ? "orange"
+                                  : "blue"
                           }
                         >
                           #{index + 1}
