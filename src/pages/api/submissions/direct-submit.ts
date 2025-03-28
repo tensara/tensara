@@ -3,9 +3,8 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import { auth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
-import { BenchmarkedResponse, BenchmarkResultResponse, CheckedResponse, SubmissionError, SubmissionErrorType, SubmissionStatus, TestResultResponse, WrongAnswerResponse } from "~/types/submission";
-import { SubmissionStatusType } from "~/types/submission";
-import { escape } from "querystring";
+import { SubmissionError, SubmissionStatus } from "~/types/submission";
+import type { BenchmarkedResponse, BenchmarkResultResponse, CheckedResponse, SubmissionErrorType, TestResultResponse, WrongAnswerResponse } from "~/types/submission";
 
 function isSubmissionError(status: string): status is SubmissionErrorType {
   return Object.values(SubmissionError).includes(status as SubmissionErrorType);
@@ -222,8 +221,8 @@ export default async function handler(
               const response = JSON.parse(response_json) as WrongAnswerResponse;
               sendSSE(response_status, response);
               const failedTest = response.test_results?.find(
-                  (t: TestResultResponse) => t.result.status === "FAILED"
-                );
+                (t: TestResultResponse) => t.result.status === "FAILED"
+              );
               const errorMessage = `Failed on test ${failedTest?.result.test_id} (${failedTest?.result.name})`;
               const errorDetails = JSON.stringify(failedTest?.result.debug_info);
               await db.submission.update({
@@ -262,17 +261,17 @@ export default async function handler(
                     totalTests,
                   },
                 });
-            }
-          } else if (isSubmissionError(response_status)) {
-            const response = JSON.parse(response_json) as {
+              }
+            } else if (isSubmissionError(response_status)) {
+              const response = JSON.parse(response_json) as {
               status: SubmissionErrorType;
               error: string;
               details: string;
             };
 
-            sendSSE(response_status, response);
+              sendSSE(response_status, response);
 
-            await db.submission.update({
+              await db.submission.update({
                 where: { id: submission.id },
                 data: {
                   status: response_status,
@@ -285,9 +284,9 @@ export default async function handler(
 
               res.end();
               return;
-          } else {
-            sendSSE(response_status, {});
-          }
+            } else {
+              sendSSE(response_status, {});
+            }
           } catch (e) {
             console.error("Failed to parse checker SSE data:", e);
             continue;
@@ -397,14 +396,14 @@ export default async function handler(
             if (response_status === SubmissionStatus.BENCHMARK_RESULT) {
               const response = JSON.parse(response_json) as BenchmarkResultResponse;
               if (response.result) {
-              sendSSE(response_status, response);
-              benchmarkResults.push(response.result);
-              await db.submission.update({
-                where: { id: submission.id },
-                data: {
-                  benchmarkResults,
-                },
-              });
+                sendSSE(response_status, response);
+                benchmarkResults.push(response.result);
+                await db.submission.update({
+                  where: { id: submission.id },
+                  data: {
+                    benchmarkResults,
+                  },
+                });
               }
             } else if (response_status === SubmissionStatus.BENCHMARKED) {
               const response = JSON.parse(response_json) as BenchmarkedResponse;
@@ -413,20 +412,20 @@ export default async function handler(
                 const averageRuntime = response.avg_runtime_ms;
 
                 await db.submission.update({
-                where: { id: submission.id },
-                data: {
-                  status: SubmissionStatus.ACCEPTED,
+                  where: { id: submission.id },
+                  data: {
+                    status: SubmissionStatus.ACCEPTED,
+                    runtime: averageRuntime,
+                    gflops: averageGflops,
+                    benchmarkResults,
+                  },
+                });
+
+                sendSSE(SubmissionStatus.ACCEPTED, {
                   runtime: averageRuntime,
                   gflops: averageGflops,
                   benchmarkResults,
-                },
-              });
-
-              sendSSE(SubmissionStatus.ACCEPTED, {
-                runtime: averageRuntime,
-                gflops: averageGflops,
-                benchmarkResults,
-              });
+                });
               }
             }
            
