@@ -31,6 +31,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       });
 
       if (!response.ok) {
+<<<<<<< HEAD
         if (response.status === 429) {
           const errorMessage = await response.json() as RateLimitResponse;
           setIsSubmitting(false);
@@ -52,6 +53,9 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
             `Direct submit API returned ${response.status}`
           );
         }
+=======
+        throw new Error(`Direct submit API returned ${response.status}`);
+>>>>>>> parent of 0232c15 (rate limiting (#30))
       }
 
       const reader = response.body?.getReader();

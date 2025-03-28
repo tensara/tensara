@@ -2,7 +2,6 @@ import { type NextApiRequest, type NextApiResponse } from "next";
 import { db } from "~/server/db";
 import { env } from "~/env";
 import { auth } from "~/server/auth";
-import { checkRateLimit } from "~/hooks/useRateLimit";
 
 const SubmissionStatus = {
   CHECKING: "CHECKING",
@@ -38,6 +37,7 @@ export default async function handler(
     return;
   }
 
+<<<<<<< HEAD
   const { submissionId } = req.body as { submissionId: string };
 
   if (!submissionId) {
@@ -54,6 +54,8 @@ export default async function handler(
     return;
   }
 
+=======
+>>>>>>> parent of 0232c15 (rate limiting (#30))
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");

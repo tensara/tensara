@@ -18,8 +18,6 @@ model User {
   updatedAt     DateTime  @updatedAt
   refreshToken  String?   @unique
   lastLogin     DateTime?
-  lastLimitReset DateTime?
-  currentLimit   Int?
 
   accounts     Account[]
   problems     Problem[]
