@@ -83,6 +83,7 @@ bool run_test(TestCase<T> &test_case) {
 int main() {
     auto test_cases = create_test_cases();
     bool all_passed = true;
+<<<<<<< HEAD:engine/archive/skeleton/checker.cu
     int total_cases = test_cases.size();
 
     for (size_t i = 0; i < total_cases; i++) {
@@ -94,6 +95,16 @@ int main() {
         }
         std::cout << (i + 1) << "/" << total_cases << "," << test_cases[i]->get_name() << ","
                   << "PASSED" << std::endl;
+=======
+    
+    for (size_t i = 0; i < test_cases.size(); i++) {
+        if (!run_test(*test_cases[i])) {
+            std::cout << (i + 1) << "," << test_cases[i]->get_name() << "," << "FAILED" << std::endl;
+            all_passed = false;
+            break;
+        }
+        std::cout << (i + 1) << "," << test_cases[i]->get_name() << "," << "PASSED" << std::endl;
+>>>>>>> parent of bdd95c4 (update how the test case data is sent to render the total cases correctly, revamped api.py completely):engine/checker/checker.cu
     }
 
     if (all_passed) {
