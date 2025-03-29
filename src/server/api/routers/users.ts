@@ -140,23 +140,25 @@ async function getUserRank(
   const rating = await getUserRating(ctx, userId);
 
   //then get the rank of the user
-  let rank = await ctx.db.user.count({
+  const rank = await ctx.db.user.count({
     where: { rating: { gt: rating } },
   }) + 1;
 
-  //update the rank in the database
-  await ctx.db.user.update({
-    where: { id: userId },
-    data: { rank: rank },
-  });
 
-  rank = Number(user.rank);
+  //if the rank is NaN, throw an error
   if (isNaN(rank)) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Invalid rank value",
     });
   }
+
+  //update the rank in the database
+  await ctx.db.user.update({
+    where: { id: userId },
+    data: { rank: rank },
+  });
+  
   return rank; 
 }
 
