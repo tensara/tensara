@@ -17,3 +17,12 @@ export const GPU_DISPLAY_ON_PROFILE = {
   "L4": "L4",
   "none": "N/A"
 } as const;
+
+export const GPU_THEORETICAL_PERFORMANCE: Record<string, number> = {
+  "T4": 8141,
+  "H100": 51220,
+  "A100-80GB": 19490,
+  "A10G": 31520,
+  "L40S": 91610,
+  "L4": 30290
+} as const;
