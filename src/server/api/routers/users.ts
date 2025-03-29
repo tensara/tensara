@@ -103,13 +103,14 @@ async function getUserRating(
     rating += totalRatingChanges;
   }
 
+  const final_rating = Math.round(rating);
   //update the rating in the database
   await ctx.db.user.update({
     where: { id: userId },
-    data: { rating: rating },
+    data: { rating: final_rating },
   });
   
-  return Math.round(rating);
+  return final_rating;
 }
 
 function calculatePerformanceScore(percentile: number, difficultyMultiplier: number): number {
