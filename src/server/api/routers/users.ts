@@ -7,80 +7,116 @@ import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
 import { PROBLEM_DIFFICULTY_MULTIPLIERS, START_RATING } from "~/constants/problem";
-import { ADJUSTMENT_FACTOR, BASELINE_UTILISATION, GPU_THEORETICAL_PERFORMANCE } from "~/constants/gpu";
+import { ADJUSTMENT_FACTOR } from "~/constants/gpu";
 
 async function getUserRating(
   ctx: { db: PrismaClient },
   userId: string
-) {
+): Promise<number> {
+  // Get user's current rating or default to start rating
   const user = await ctx.db.user.findFirst({
-    where: {
-      id: userId,
-    },
-    select: {
-      rating: true,
-    },
+    where: { id: userId },
+    select: { rating: true },
   });
-
+  
   if (!user) {
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "User not found",
     });
   }
-
-  const best_submissions = await ctx.db.submission.groupBy({
-    by: ["problemId", "gpuType"],
-    _max: {
-      gflops: true,
-    },
-    where: {
-      userId: userId,
-    },
-  });
+  
+  // Start with base rating for new users
   let rating = START_RATING;
-  for (const submission of best_submissions) {
-    const gpu_type = submission.gpuType;
+  let totalRatingChanges = 0;
+  let problemsProcessed = 0;
+
+  // Get user's best submissions for each problem-GPU combination
+  const userBestSubmissions = await ctx.db.submission.groupBy({
+    by: ["problemId", "gpuType"],
+    _max: { gflops: true },
+    where: { userId: userId },
+  });
+
+  // Process each submission to calculate rating change
+  for (const submission of userBestSubmissions) {
+    const gpuType = submission.gpuType;
     const gflops = submission._max.gflops;
-    const problem_id = submission.problemId;
+    const problemId = submission.problemId;
+    
+    // Skip invalid submissions
+    if (!gpuType || !gflops) continue;
+
+    // Get problem details
     const problem = await ctx.db.problem.findUnique({
+      where: { id: problemId },
+      select: { slug: true, difficulty: true },
+    });
+    
+    if (!problem?.difficulty) continue;
+    const difficultyMultiplier = PROBLEM_DIFFICULTY_MULTIPLIERS[problem.difficulty as keyof typeof PROBLEM_DIFFICULTY_MULTIPLIERS];
+    
+    // Find all submissions for this problem-GPU combination
+    const allSubmissionsForProblemGpu = await ctx.db.submission.findMany({
       where: {
-        id: problem_id,
+        problemId: problemId,
+        gpuType: gpuType,
       },
       select: {
-        slug: true,
-        difficulty: true,
+        userId: true,
+        gflops: true,
+      },
+      orderBy: {
+        gflops: "desc",
       },
     });
-    if (!problem?.difficulty) {
-      continue;
-    }
-    const difficulty_multiplier = PROBLEM_DIFFICULTY_MULTIPLIERS[problem.difficulty as keyof typeof PROBLEM_DIFFICULTY_MULTIPLIERS];
-    if (!gpu_type || !gflops) {
-      continue;
-    }
     
-    const theoretical_tflops = GPU_THEORETICAL_PERFORMANCE[gpu_type];
-    if (!theoretical_tflops) {
-      continue;
+    // Group submissions by user (keeping only best per user)
+    const userBestGflops: Record<string, number> = {};
+    for (const sub of allSubmissionsForProblemGpu) {
+      if (sub?.gflops === null || sub?.userId === null) continue;
+      if (!userBestGflops[sub.userId]) {
+        userBestGflops[sub.userId] = sub.gflops;
+      } else if (userBestGflops[sub.userId]! < sub.gflops) {
+        userBestGflops[sub.userId] = sub.gflops;
+      }
     }
-    const utilisation = (gflops / (theoretical_tflops * 1000)) * 100;
-    const scaled_utilisation = (utilisation / BASELINE_UTILISATION)^2 * 100;
-
-    const performance_rating = difficulty_multiplier * scaled_utilisation;
-    const expected_rating = difficulty_multiplier * 100;
-    rating = ADJUSTMENT_FACTOR * (performance_rating - expected_rating) / 100 + rating;
-    rating = Math.round(rating);
+    const uniqueGflopValues = Object.values(userBestGflops).sort((a, b) => b - a);
+    
+    const userRank = uniqueGflopValues.findIndex(value => value === gflops) + 1;
+    const totalUniqueSubmissions = uniqueGflopValues.length;
+    
+    if (totalUniqueSubmissions <= 1) continue;
+    
+    const percentile = (userRank - 1) / Math.max(totalUniqueSubmissions - 1, 1);
+    
+    const performanceScore = calculatePerformanceScore(percentile, difficultyMultiplier);
+    
+    const expectedScore = 100 * difficultyMultiplier;
+    
+    const ratingChange = ADJUSTMENT_FACTOR * (performanceScore - expectedScore) / 100;
+    
+    totalRatingChanges += ratingChange;
+    problemsProcessed++;
   }
-
-  //put rating in the database
-  await ctx.db.user.update({
-    where: { id: userId },
-    data: { rating: rating },
-  });
-
-  return rating;
+  
+  if (problemsProcessed > 0) {
+    rating += totalRatingChanges;
+  }
+  
+  return Math.round(rating);
 }
+
+function calculatePerformanceScore(percentile: number, difficultyMultiplier: number): number {
+  // Top 1% gets ~190 * difficultyMultiplier
+  // Top 10% gets ~150 * difficultyMultiplier
+  // Top 25% gets ~120 * difficultyMultiplier
+  // Top 50% gets ~100 * difficultyMultiplier
+  // Bottom 25% gets ~70 * difficultyMultiplier
+  // Bottom 10% gets ~50 * difficultyMultiplier
+  return (200 - 150 * Math.pow(percentile, 0.7)) * difficultyMultiplier;
+}
+
 
 async function getUserRank(
   ctx: { db: PrismaClient },
