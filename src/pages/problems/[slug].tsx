@@ -227,7 +227,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       return;
     }
 
-    const {valid, error} = validateCode(code, selectedLanguage);
+    const { valid, error } = validateCode(code, selectedLanguage);
     if (!valid) {
       toast({
         title: "Invalid code",
@@ -240,6 +240,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     }
 
     startSubmission();
+    setViewType("result");
 
     createSubmissionMutation.mutate({
       problemSlug: slug,
@@ -255,6 +256,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     selectedGpuType,
     createSubmissionMutation,
     startSubmission,
+    setViewType,
     toast,
   ]);
 
