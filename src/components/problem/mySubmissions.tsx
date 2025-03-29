@@ -13,7 +13,11 @@ import {
 import { FiArrowLeft } from "react-icons/fi";
 import { type Submission } from "@prisma/client";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { formatStatus, getStatusColor, getStatusIcon } from "~/constants/problem";
+import {
+  formatStatus,
+  getStatusColor,
+  getStatusIcon,
+} from "~/constants/problem";
 
 interface MySubmissionsProps {
   submissions: Submission[] | undefined;
@@ -21,7 +25,7 @@ interface MySubmissionsProps {
   onBackToProblem: () => void;
 }
 
-export const MySubmissions = ({
+const MySubmissions = ({
   submissions,
   isLoading,
   onBackToProblem,
@@ -81,7 +85,8 @@ export const MySubmissions = ({
                       {formatStatus(submission.status)}
                     </Text>
                     <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
-                      {submission.language === "cuda" ? "CUDA" : "Python"} • {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
+                      {submission.language === "cuda" ? "CUDA" : "Python"} •{" "}
+                      {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
                     </Text>
                   </HStack>
                   <Text color="whiteAlpha.700" fontSize="sm">
@@ -123,3 +128,5 @@ export const MySubmissions = ({
     </VStack>
   );
 };
+
+export default MySubmissions;
