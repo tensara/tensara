@@ -750,15 +750,6 @@ return (
                     href={`/submissions?username=${typeof username === "string" ? username : "User"}`}
                     passHref
                   >
-                    <Button
-                      as="a"
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="blue"
-                      rightIcon={<Icon as={FiArrowRight} />}
-                    >
-                      View All
-                    </Button>
                   </NextLink>
                 )}
               </Flex>
