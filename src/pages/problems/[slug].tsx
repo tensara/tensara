@@ -225,7 +225,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
         return metaStatus ? (
           <SubmissionResults
             metaStatus={metaStatus}
-            metaResponse={metaResponse}
+            metaResponse={metaResponse as unknown as Record<string, unknown>}
             testResults={testResults}
             benchmarkResults={benchmarkResults}
             isTestCaseTableOpen={isTestCaseTableOpen}

@@ -42,9 +42,6 @@ import { FiArrowLeft } from "react-icons/fi";
 
 import { getStatusIcon } from "~/constants/problem";
 
-// Define types for the response data
-type TypedResponse = any; // Replace with actual type when possible
-
 // Define interface for sample differences in debug info
 interface DebugSampleDifference {
   expected: number;
@@ -52,18 +49,40 @@ interface DebugSampleDifference {
   diff: number;
 }
 
+// Define more specific types for the response data
+interface AcceptedResponseData {
+  avg_gflops?: number;
+  avg_runtime_ms?: number;
+}
+
+interface DebugInfo {
+  message?: string;
+  max_difference?: number;
+  mean_difference?: number;
+  sample_differences?: Record<string, DebugSampleDifference>;
+}
+
+interface WrongAnswerResponseData {
+  debug_info?: DebugInfo;
+}
+
+interface ErrorResponseData {
+  message?: string;
+  details?: string;
+}
+
 interface SubmissionResultsProps {
   metaStatus: SubmissionStatusType | SubmissionErrorType | null;
-  metaResponse: any;
+  metaResponse: Record<string, unknown>;
   testResults: TestResultResponse[];
   benchmarkResults: BenchmarkResultResponse[];
   isTestCaseTableOpen: boolean;
   setIsTestCaseTableOpen: (isOpen: boolean) => void;
   isBenchmarking: boolean;
   totalTests: number | null;
-  getTypedResponse: (
-    status: SubmissionStatusType | SubmissionErrorType
-  ) => TypedResponse;
+  getTypedResponse: <T extends SubmissionStatusType | SubmissionErrorType>(
+    status: T
+  ) => Record<string, unknown> | null;
   onBackToProblem: () => void;
   onViewSubmissions: () => void;
 }
@@ -349,16 +368,21 @@ const SubmissionResults = ({
         )}
 
       {/* Performance and Runtime Stats */}
-      {metaStatus === SubmissionStatus.ACCEPTED && (
+      {Boolean(metaStatus) && metaStatus === SubmissionStatus.ACCEPTED && (
         <SimpleGrid columns={2} spacing={4}>
           <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
             <Text color="whiteAlpha.700" mb={1}>
               Performance
             </Text>
             <Text fontSize="2xl" fontWeight="bold">
-              {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops?.toFixed(
-                2
-              )}{" "}
+              {(() => {
+                const response = getTypedResponse(
+                  SubmissionStatus.ACCEPTED
+                ) as AcceptedResponseData | null;
+                return response?.avg_gflops !== undefined
+                  ? response.avg_gflops.toFixed(2)
+                  : "0.00";
+              })()}{" "}
               GFLOPS
             </Text>
           </Box>
@@ -367,9 +391,14 @@ const SubmissionResults = ({
               Runtime
             </Text>
             <Text fontSize="2xl" fontWeight="bold">
-              {getTypedResponse(
-                SubmissionStatus.ACCEPTED
-              )?.avg_runtime_ms?.toFixed(2)}
+              {(() => {
+                const response = getTypedResponse(
+                  SubmissionStatus.ACCEPTED
+                ) as AcceptedResponseData | null;
+                return response?.avg_runtime_ms !== undefined
+                  ? response.avg_runtime_ms.toFixed(2)
+                  : "0.00";
+              })()}{" "}
               ms
             </Text>
           </Box>
@@ -377,143 +406,176 @@ const SubmissionResults = ({
       )}
 
       {/* Wrong Answer Debug Info */}
-      {metaStatus === SubmissionStatus.WRONG_ANSWER && (
+      {Boolean(metaStatus) && metaStatus === SubmissionStatus.WRONG_ANSWER && (
         <Box bg="red.900" p={6} borderRadius="xl">
-          {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info
-            ?.message && (
-            <Text color="red.200" fontWeight="semibold" mb={3}>
-              {
-                getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info
-                  ?.message
-              }
-            </Text>
-          )}
-          {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info &&
-            (() => {
-              try {
-                const debugInfo = getTypedResponse(
-                  SubmissionStatus.WRONG_ANSWER
-                )?.debug_info;
-                return (
-                  <VStack spacing={4} align="stretch">
-                    {debugInfo?.message && (
-                      <Text color="red.100">{debugInfo.message}</Text>
-                    )}
-                    {debugInfo?.max_difference && (
-                      <Box>
-                        <Text color="red.200" fontSize="sm">
-                          Maximum Difference:
-                        </Text>
-                        <Text color="red.100">{debugInfo.max_difference}</Text>
-                      </Box>
-                    )}
-                    {debugInfo?.mean_difference && (
-                      <Box>
-                        <Text color="red.200" fontSize="sm">
-                          Mean Difference:
-                        </Text>
-                        <Text color="red.100">{debugInfo.mean_difference}</Text>
-                      </Box>
-                    )}
-                    {debugInfo?.sample_differences &&
-                      Object.keys(debugInfo.sample_differences).length > 0 && (
-                        <Box>
-                          <Text color="red.200" fontSize="sm" mb={2}>
-                            Sample Differences:
-                          </Text>
-                          <Box maxH="200px" overflowY="auto">
-                            <Table size="sm" variant="unstyled">
-                              <Thead position="sticky" top={0}>
-                                <Tr>
-                                  <Th color="red.200">Index</Th>
-                                  <Th color="red.200" isNumeric>
-                                    Expected
-                                  </Th>
-                                  <Th color="red.200" isNumeric>
-                                    Actual
-                                  </Th>
-                                  <Th color="red.200" isNumeric>
-                                    Difference
-                                  </Th>
-                                </Tr>
-                              </Thead>
-                              <Tbody>
-                                {Object.entries(debugInfo.sample_differences)
-                                  .slice(0, 50)
-                                  .map(([key, value]) => (
-                                    <Tr key={key}>
-                                      <Td color="red.100">{key}</Td>
-                                      <Td color="red.100" isNumeric>
-                                        {(
-                                          value as DebugSampleDifference
-                                        ).expected.toFixed(7)}
-                                      </Td>
-                                      <Td color="red.100" isNumeric>
-                                        {(
-                                          value as DebugSampleDifference
-                                        ).actual.toFixed(7)}
-                                      </Td>
-                                      <Td color="red.100" isNumeric>
-                                        {(
-                                          value as DebugSampleDifference
-                                        ).diff.toFixed(7)}
-                                      </Td>
-                                    </Tr>
-                                  ))}
-                              </Tbody>
-                            </Table>
-                          </Box>
-                        </Box>
-                      )}
-                  </VStack>
-                );
-              } catch (e) {
-                console.error("Failed to parse debug info", e);
-                return (
-                  <Code
-                    display="block"
-                    whiteSpace="pre-wrap"
-                    p={4}
-                    bg="red.800"
-                    color="red.100"
-                    borderRadius="lg"
-                    fontSize="sm"
-                    fontFamily="mono"
-                  >
-                    {
-                      getTypedResponse(SubmissionStatus.WRONG_ANSWER)
-                        ?.debug_info?.message
+          {(() => {
+            const response = getTypedResponse(
+              SubmissionStatus.WRONG_ANSWER
+            ) as WrongAnswerResponseData | null;
+            const debugInfo = response?.debug_info;
+            return (
+              <>
+                {debugInfo?.message && (
+                  <Text color="red.200" fontWeight="semibold" mb={3}>
+                    {debugInfo.message}
+                  </Text>
+                )}
+                {debugInfo &&
+                  (() => {
+                    try {
+                      return (
+                        <VStack spacing={4} align="stretch">
+                          {debugInfo.message && (
+                            <Text color="red.100">{debugInfo.message}</Text>
+                          )}
+                          {debugInfo.max_difference && (
+                            <Box>
+                              <Text color="red.200" fontSize="sm">
+                                Maximum Difference:
+                              </Text>
+                              <Text color="red.100">
+                                {debugInfo.max_difference}
+                              </Text>
+                            </Box>
+                          )}
+                          {debugInfo.mean_difference && (
+                            <Box>
+                              <Text color="red.200" fontSize="sm">
+                                Mean Difference:
+                              </Text>
+                              <Text color="red.100">
+                                {debugInfo.mean_difference}
+                              </Text>
+                            </Box>
+                          )}
+                          {debugInfo.sample_differences &&
+                            Object.keys(debugInfo.sample_differences).length >
+                              0 && (
+                              <Box>
+                                <Text color="red.200" fontSize="sm" mb={2}>
+                                  Sample Differences:
+                                </Text>
+                                <Box maxH="200px" overflowY="auto">
+                                  <Table size="sm" variant="unstyled">
+                                    <Thead position="sticky" top={0}>
+                                      <Tr>
+                                        <Th color="red.200">Index</Th>
+                                        <Th color="red.200" isNumeric>
+                                          Expected
+                                        </Th>
+                                        <Th color="red.200" isNumeric>
+                                          Actual
+                                        </Th>
+                                        <Th color="red.200" isNumeric>
+                                          Difference
+                                        </Th>
+                                      </Tr>
+                                    </Thead>
+                                    <Tbody>
+                                      {Object.entries(
+                                        debugInfo.sample_differences
+                                      )
+                                        .slice(0, 50)
+                                        .map(([key, value]) => {
+                                          if (
+                                            typeof value === "object" &&
+                                            value !== null &&
+                                            "expected" in value &&
+                                            "actual" in value &&
+                                            "diff" in value
+                                          ) {
+                                            const { expected, actual, diff } =
+                                              value;
+                                            return (
+                                              <Tr key={key}>
+                                                <Td color="red.100">{key}</Td>
+                                                <Td color="red.100" isNumeric>
+                                                  {expected.toFixed(7)}
+                                                </Td>
+                                                <Td color="red.100" isNumeric>
+                                                  {actual.toFixed(7)}
+                                                </Td>
+                                                <Td color="red.100" isNumeric>
+                                                  {diff.toFixed(7)}
+                                                </Td>
+                                              </Tr>
+                                            );
+                                          }
+                                          return (
+                                            <Tr key={key}>
+                                              <Td color="red.100">{key}</Td>
+                                              <Td color="red.100" isNumeric>
+                                                -
+                                              </Td>
+                                              <Td color="red.100" isNumeric>
+                                                -
+                                              </Td>
+                                              <Td color="red.100" isNumeric>
+                                                -
+                                              </Td>
+                                            </Tr>
+                                          );
+                                        })}
+                                    </Tbody>
+                                  </Table>
+                                </Box>
+                              </Box>
+                            )}
+                        </VStack>
+                      );
+                    } catch (e) {
+                      console.error("Failed to parse debug info", e);
+                      return (
+                        <Code
+                          display="block"
+                          whiteSpace="pre-wrap"
+                          p={4}
+                          bg="red.800"
+                          color="red.100"
+                          borderRadius="lg"
+                          fontSize="sm"
+                          fontFamily="mono"
+                        >
+                          {debugInfo?.message ?? "Error parsing debug info"}
+                        </Code>
+                      );
                     }
-                  </Code>
-                );
-              }
-            })()}
+                  })()}
+              </>
+            );
+          })()}
         </Box>
       )}
 
-      {metaStatus !== SubmissionStatus.WRONG_ANSWER &&
-        isSubmissionError(metaStatus) &&
-        getTypedResponse(metaStatus)?.message &&
-        getTypedResponse(metaStatus)?.details && (
-          <Box bg="red.900" p={6} borderRadius="xl">
-            <Text color="red.200" fontWeight="semibold" mb={3}>
-              Error Details
-            </Text>
-            <Code
-              display="block"
-              whiteSpace="pre-wrap"
-              p={4}
-              bg="red.800"
-              color="red.100"
-              borderRadius="lg"
-              fontSize="sm"
-              fontFamily="mono"
-            >
-              {getTypedResponse(metaStatus)?.details ??
-                getTypedResponse(metaStatus)?.message}
-            </Code>
-          </Box>
-        )}
+      {Boolean(metaStatus) &&
+        metaStatus !== SubmissionStatus.WRONG_ANSWER &&
+        isSubmissionError(metaStatus as string) &&
+        (() => {
+          const response = getTypedResponse(
+            metaStatus as SubmissionErrorType
+          ) as ErrorResponseData | null;
+          if (!response?.message || !response?.details) return null;
+
+          return (
+            <Box bg="red.900" p={6} borderRadius="xl">
+              <Text color="red.200" fontWeight="semibold" mb={3}>
+                Error Details
+              </Text>
+              <Code
+                display="block"
+                whiteSpace="pre-wrap"
+                p={4}
+                bg="red.800"
+                color="red.100"
+                borderRadius="lg"
+                fontSize="sm"
+                fontFamily="mono"
+              >
+                {response.details ?? response.message}
+              </Code>
+            </Box>
+          );
+        })()}
     </VStack>
   );
 };

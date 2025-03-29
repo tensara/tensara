@@ -49,9 +49,12 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
   // Type-safe accessor for metaResponse based on current metaStatus
   const getTypedResponse = useCallback(
-    (status: SubmissionStatusType | SubmissionErrorType): any => {
+    <T extends SubmissionStatusType | SubmissionErrorType>(
+      status: T
+    ): Record<string, unknown> | null => {
       if (metaStatus === status) {
-        return metaResponse;
+        // Cast to unknown first before casting to Record<string, unknown>
+        return metaResponse as unknown as Record<string, unknown>;
       }
       return null;
     },
