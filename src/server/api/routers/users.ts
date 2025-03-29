@@ -135,33 +135,29 @@ async function getUserRank(
     });
   }
 
-  if (!user.rank) {
-    //first get the rating of the user
-    const rating = await getUserRating(ctx, userId);
 
-    //then get the rank of the user
-    const rank = await ctx.db.user.count({
-      where: { rating: { gt: rating } },
-    }) + 1;
+  //first get the rating of the user
+  const rating = await getUserRating(ctx, userId);
 
-    //update the rank in the database
-    await ctx.db.user.update({
-      where: { id: userId },
-      data: { rank: rank },
-    });
+  //then get the rank of the user
+  let rank = await ctx.db.user.count({
+    where: { rating: { gt: rating } },
+  }) + 1;
 
-    return rank;
-  } 
+  //update the rank in the database
+  await ctx.db.user.update({
+    where: { id: userId },
+    data: { rank: rank },
+  });
 
-  const rank = Number(user.rank);
+  rank = Number(user.rank);
   if (isNaN(rank)) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Invalid rank value",
     });
   }
-
-  return rank;
+  return rank; 
 }
 
 export const usersRouter = createTRPCRouter({
