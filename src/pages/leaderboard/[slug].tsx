@@ -216,8 +216,8 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                         ? index === 0
                           ? "#FFD700"
                           : index === 1
-                          ? "#C0C0C0"
-                          : "#CD7F32"
+                            ? "#C0C0C0"
+                            : "#CD7F32"
                         : undefined;
 
                     return (

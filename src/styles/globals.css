@@ -2,8 +2,18 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    Fira Sans,
+    Droid Sans,
+    Helvetica Neue,
+    sans-serif;
   scroll-behavior: smooth;
 }
 
@@ -26,7 +36,7 @@ a {
 }
 
 .markdown a {
-  color: #63B3ED;
+  color: #63b3ed;
   text-decoration: none;
 }
 
@@ -42,10 +52,10 @@ a {
 }
 
 .markdown blockquote {
-  border-left: 4px solid #4A5568;
+  border-left: 4px solid #4a5568;
   margin: 1rem 0;
   padding-left: 1rem;
-  color: #A0AEC0;
+  color: #a0aec0;
 }
 
 .markdown table {
@@ -56,12 +66,12 @@ a {
 
 .markdown table th,
 .markdown table td {
-  border: 1px solid #4A5568;
+  border: 1px solid #4a5568;
   padding: 0.5rem;
 }
 
 .markdown table th {
-  background-color: #2D3748;
+  background-color: #2d3748;
 }
 
 .markdown code:not(pre code) {
@@ -72,7 +82,7 @@ a {
 }
 
 .markdown pre {
-  background-color: #1A202C;
+  background-color: #1a202c;
   padding: 1rem;
   border-radius: 0.5rem;
   overflow-x: auto;
@@ -80,7 +90,7 @@ a {
 }
 
 .markdown pre code {
-  color: #E2E8F0;
+  color: #e2e8f0;
   font-size: 0.875em;
 }
 

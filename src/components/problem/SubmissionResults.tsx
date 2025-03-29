@@ -180,13 +180,13 @@ const SubmissionResults = ({
           metaStatus === "ACCEPTED"
             ? "green.900"
             : metaStatus === "IN_QUEUE" ||
-              metaStatus === "COMPILING" ||
-              metaStatus === "CHECKING" ||
-              metaStatus === "CHECKED" ||
-              metaStatus === "BENCHMARKING" ||
-              metaStatus === "BENCHMARKED"
-            ? "blue.900"
-            : "red.900"
+                metaStatus === "COMPILING" ||
+                metaStatus === "CHECKING" ||
+                metaStatus === "CHECKED" ||
+                metaStatus === "BENCHMARKING" ||
+                metaStatus === "BENCHMARKED"
+              ? "blue.900"
+              : "red.900"
         }
         p={4}
         borderRadius="xl"

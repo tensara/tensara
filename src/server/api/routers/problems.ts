@@ -41,8 +41,6 @@ type SubmissionWithCustomFields = {
   errorDetails?: string;
 };
 
-
-
 export const problemsRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
     try {

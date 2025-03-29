@@ -268,13 +268,13 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
                             }
                           )}${getOrdinalSuffix(new Date(day.date).getDate())}.`
                         : day.date
-                        ? `No submissions on ${new Date(
-                            day.date
-                          ).toLocaleDateString("en-US", {
-                            month: "long",
-                            day: "numeric",
-                          })}${getOrdinalSuffix(new Date(day.date).getDate())}.`
-                        : "No submissions"
+                          ? `No submissions on ${new Date(
+                              day.date
+                            ).toLocaleDateString("en-US", {
+                              month: "long",
+                              day: "numeric",
+                            })}${getOrdinalSuffix(new Date(day.date).getDate())}.`
+                          : "No submissions"
                     }
                     placement="top"
                     hasArrow

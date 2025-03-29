@@ -16,23 +16,29 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { InfoIcon } from "@chakra-ui/icons";
-import { PYTHON_VERSION, NVCC_CMD, TRITON_VERSION, CUDA_RUNTIME_VERSION, CUDA_DRIVER_VERSION } from "~/constants/deviceQuery";
+import {
+  PYTHON_VERSION,
+  NVCC_CMD,
+  TRITON_VERSION,
+  CUDA_RUNTIME_VERSION,
+  CUDA_DRIVER_VERSION,
+} from "~/constants/deviceQuery";
 
 export const LanguageInfoModal = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const TableWrapper = ({ children }: { children: React.ReactNode }) => (
-    <Table 
-      variant="unstyled" 
-      size="sm" 
+    <Table
+      variant="unstyled"
+      size="sm"
       sx={{
-        'tr:not(:last-child)': {
-          borderBottom: '1px solid',
-          borderColor: 'whiteAlpha.100'
+        "tr:not(:last-child)": {
+          borderBottom: "1px solid",
+          borderColor: "whiteAlpha.100",
         },
-        'td': {
-          py: 2
-        }
+        td: {
+          py: 2,
+        },
       }}
     >
       {children}
@@ -54,11 +60,16 @@ export const LanguageInfoModal = () => {
 
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="xl">
         <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
-        <ModalContent bg="gray.800" borderColor="whiteAlpha.100" borderWidth={1}>
+        <ModalContent
+          bg="gray.800"
+          borderColor="whiteAlpha.100"
+          borderWidth={1}
+        >
           <ModalHeader color="white">
             Language Information
             <Text fontSize="sm" color="gray.400" mt={1}>
-              CUDA Driver Version: {CUDA_DRIVER_VERSION} | Runtime Version: {CUDA_RUNTIME_VERSION}
+              CUDA Driver Version: {CUDA_DRIVER_VERSION} | Runtime Version:{" "}
+              {CUDA_RUNTIME_VERSION}
             </Text>
           </ModalHeader>
           <ModalCloseButton color="gray.400" />
@@ -70,15 +81,17 @@ export const LanguageInfoModal = () => {
               <TableWrapper>
                 <Tbody>
                   <Tr>
-                    <Td color="gray.400" pl={0}>NVCC Command</Td>
+                    <Td color="gray.400" pl={0}>
+                      NVCC Command
+                    </Td>
                     <Td color="white">
-                      <Tooltip 
-                        label='-arch and -code are GPU dependent'
+                      <Tooltip
+                        label="-arch and -code are GPU dependent"
                         bg="gray.700"
                         color="gray.200"
                         fontSize="sm"
                       >
-                        <code style={{ cursor: 'pointer' }}>{NVCC_CMD}</code>
+                        <code style={{ cursor: "pointer" }}>{NVCC_CMD}</code>
                       </Tooltip>
                     </Td>
                   </Tr>
@@ -93,12 +106,20 @@ export const LanguageInfoModal = () => {
               <TableWrapper>
                 <Tbody>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Python Version</Td>
-                    <Td color="white" textAlign="left">{PYTHON_VERSION}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Python Version
+                    </Td>
+                    <Td color="white" textAlign="left">
+                      {PYTHON_VERSION}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Triton Version</Td>
-                    <Td color="white" textAlign="left">{TRITON_VERSION}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Triton Version
+                    </Td>
+                    <Td color="white" textAlign="left">
+                      {TRITON_VERSION}
+                    </Td>
                   </Tr>
                 </Tbody>
               </TableWrapper>
@@ -108,4 +129,4 @@ export const LanguageInfoModal = () => {
       </Modal>
     </>
   );
-}; 
+};
