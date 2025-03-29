@@ -1,4 +1,4 @@
-import { DataType } from "~/types/misc";
+import { type DataType } from "~/types/misc";
 
 export const DATA_TYPE_DISPLAY_NAMES: Record<DataType, string> = {
     "float32": "float32",
