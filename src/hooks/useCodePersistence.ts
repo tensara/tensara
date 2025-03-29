@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { saveSolutionToStorage, loadSolutionFromStorage, getSolutionKey } from '~/utils/localStorage';
 import { generateStarterCode } from '~/utils/starter';
-import { ProgrammingLanguage, DataType } from '~/types/misc'; 
-import { Parameter } from '~/types/problem';
+import { type ProgrammingLanguage, type DataType } from '~/types/misc'; 
+import { type Parameter } from '~/types/problem';
 import { DEFAULT_LANGUAGE, DEFAULT_DATA_TYPE } from '~/constants/problem';
-import { Problem } from "@prisma/client";
+import { type Problem } from "@prisma/client";
 
 export function useCodePersistence(
   slug: string | undefined, 
@@ -21,9 +21,8 @@ export function useCodePersistence(
 
 
   const memoizedStarterCode = useMemo(() => 
-    generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType),
-    [problem?.parameters, selectedLanguage, selectedDataType]
-  );
+    generateStarterCode(problem?.parameters as unknown as Parameter[], selectedLanguage, selectedDataType), 
+  [problem?.parameters, selectedLanguage, selectedDataType]);
   
   // Load starter code based on language and data type
   useEffect(() => {
@@ -39,7 +38,7 @@ export function useCodePersistence(
         saveSolutionToStorage(slug, memoizedStarterCode, selectedLanguage, selectedDataType);
       }
     }
-  }, [selectedLanguage, selectedDataType, problem?.parameters, slug]);
+  }, [selectedLanguage, selectedDataType, problem?.parameters, slug, memoizedStarterCode]);
 
   // Check if code is dirty (different from starter code)
   useEffect(() => {

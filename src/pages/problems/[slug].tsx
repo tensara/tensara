@@ -28,11 +28,6 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
-  Flex,
-  MenuList,
-  MenuButton,
-  MenuItem,
-  Menu,
 } from "@chakra-ui/react";
 import { useState, useCallback } from "react";
 import { Layout } from "~/components/layout";
@@ -49,6 +44,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   InfoIcon,
+  CloseIcon,
 } from "@chakra-ui/icons";
 import { FiArrowLeft, FiTrendingUp } from "react-icons/fi";
 import { Icon } from "@chakra-ui/react";
@@ -60,19 +56,26 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { BenchmarkTestResult, SubmissionStatus, Submission, DebugInfo } from "~/types/problem";
 import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSplitPanel } from "~/hooks/useSplitPanel";
-import { DataType, ProgrammingLanguage } from "~/types/misc";
-import { IS_DISABLED_LANGUAGE, LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
-import { DATA_TYPE_DISPLAY_NAMES, IS_DISABLED_DATA_TYPE } from "~/constants/datatypes";
-import { Problem } from "@prisma/client";
-import { GpuInfoModal } from "~/components/GpuInfoModal";
-import { DEVICE_QUERY_GPU_MAP } from "~/constants/deviceQuery";
-import { LanguageInfoModal } from "~/components/LanguageInfoModal";
+import { type DataType, type ProgrammingLanguage } from "~/types/misc";
+import { type Problem, type Submission } from "@prisma/client";
+import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
+import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
+import {
+  isSubmissionError,
+  SubmissionError,
+  type SubmissionErrorType,
+  SubmissionStatus,
+  type SubmissionStatusType,
+} from "~/types/submission";
+import { MySubmissions } from "~/components/problem/mySubmissions";
+import { ProblemView } from "~/components/problem/problemView";
+import { getStatusIcon } from "~/constants/problem";
 import { validateCode } from "~/utils/starter";
 
+type ViewType = "submissions" | "problem" | "result";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const helpers = createServerSideHelpers({
@@ -106,39 +109,47 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 };
 
-const getStatusMessage = (status: SubmissionStatus): string => {
-  if (!status.message) return `Status: ${status.status}`;
-  
-  if (status.message.startsWith("status: CHECKING")) return "Checking...";
-  if (status.message.startsWith("complete: ACCEPTED")) return "ACCEPTED";
-  
-  const messageMap: Record<string, string> = {
-    "status: BENCHMARKING": "Running benchmarks...",
-    "checker: compiling": "Compiling...",
-    "checker: running": "Running tests...",
-    "checker: test_result": "Running tests...",
-    "checker: complete": "Tests complete",
-    "benchmark: compiling": "Running benchmarks...",
-    "benchmark: running": "Running benchmarks...",
-    "benchmark: test_result": "Running benchmarks...",
-    "benchmark: success": "Benchmark results",
-    "complete: ACCEPTED": "ACCEPTED",
-    "complete: WRONG_ANSWER": "Wrong answer",
-    "error:": "Error",
-  };
-  
-
-  for (const [prefix, message] of Object.entries(messageMap)) {
-    if (status.message.startsWith(prefix)) return message;
+const getStatusMessage = (
+  status: SubmissionStatusType | SubmissionErrorType
+): string => {
+  switch (status) {
+    case SubmissionStatus.IN_QUEUE:
+      return "In queue";
+    case SubmissionStatus.COMPILING:
+      return "Compiling...";
+    case SubmissionStatus.CHECKING:
+      return "Running tests...";
+    case SubmissionStatus.CHECKED:
+      return "Tests complete!";
+    case SubmissionStatus.BENCHMARKING:
+      return "Running benchmarks...";
+    case SubmissionStatus.BENCHMARKED:
+      return "Benchmark complete!";
+    case SubmissionStatus.ACCEPTED:
+      return "ACCEPTED";
+    case SubmissionStatus.WRONG_ANSWER:
+      return "Wrong Answer";
+    case SubmissionError.ERROR:
+      return "Error";
+    case SubmissionError.COMPILE_ERROR:
+      return "Compile Error";
+    case SubmissionError.RUNTIME_ERROR:
+      return "Runtime Error";
+    case SubmissionError.TIME_LIMIT_EXCEEDED:
+      return "Time Limit Exceeded";
+    case SubmissionError.RATE_LIMIT_EXCEEDED:
+      return "Rate Limit Exceeded";
+    default:
+      return status;
   }
-  return `${status.status}`;
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
-    const { data: session } = useSession();
+  const { data: session } = useSession();
   const toast = useToast();
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [viewType, setViewType] = useState<ViewType>("problem");
 
   // Get problem data
   const { data: problem, isLoading } = api.problems.getById.useQuery(
@@ -158,26 +169,32 @@ export default function ProblemPage({ slug }: { slug: string }) {
   // Split panel logic
   const { splitRatio, handleMouseDown } = useSplitPanel();
   // Code persistence logic
-  const { 
-    code, 
-    setCode, 
-    selectedLanguage, 
-    setSelectedLanguage, 
-    selectedDataType, 
-    setSelectedDataType, 
-    isCodeDirty, 
-    handleReset  } = useCodePersistence(slug, problem as Problem);
-  
+  const {
+    code,
+    setCode,
+    selectedLanguage,
+    setSelectedLanguage,
+    selectedDataType,
+    setSelectedDataType,
+    isCodeDirty,
+    handleReset,
+  } = useCodePersistence(slug, problem as Problem);
+
   // Submission stream logic
   const {
     isSubmitting,
-    submissionStatus,
+    metaStatus,
+    metaResponse,
+    testResults,
+    benchmarkResults,
     isTestCaseTableOpen,
     isBenchmarking,
     setIsTestCaseTableOpen,
     processSubmission,
     startSubmission,
-    setSubmissionStatus
+    setMetaStatus,
+    totalTests,
+    getTypedResponse,
   } = useSubmissionStream(submissionsQuery.refetch);
 
   // Create submission mutation
@@ -185,8 +202,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
     onSuccess: (data) => {
       void processSubmission(data.id);
     },
-    onError: (error) => { 
-      setSubmissionStatus(null);
+    onError: (error) => {
+      setMetaStatus(SubmissionError.ERROR);
       toast({
         title: "Failed to create submission",
         description: error.message,
@@ -210,7 +227,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       return;
     }
 
-    const {valid, error} = validateCode(code, selectedLanguage);
+    const { valid, error } = validateCode(code, selectedLanguage);
     if (!valid) {
       toast({
         title: "Invalid code",
@@ -223,6 +240,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     }
 
     startSubmission();
+    setViewType("result");
 
     createSubmissionMutation.mutate({
       problemSlug: slug,
@@ -231,14 +249,15 @@ export default function ProblemPage({ slug }: { slug: string }) {
       gpuType: selectedGpuType,
     });
   }, [
-    session?.user, 
-    slug, 
-    code, 
-    selectedLanguage, 
-    selectedGpuType, 
-    createSubmissionMutation, 
-    startSubmission, 
-    toast
+    session?.user,
+    slug,
+    code,
+    selectedLanguage,
+    selectedGpuType,
+    createSubmissionMutation,
+    startSubmission,
+    setViewType,
+    toast,
   ]);
 
   if (isLoading) {
@@ -266,7 +285,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
     );
   }
 
-
   return (
     <Layout title={problem.title}>
       <Box
@@ -277,7 +295,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
         maxH="calc(100vh - 120px)"
         position="relative"
       >
-        {/* Problem Description or Submission Results */}
+        {/* Problem Description, My Submissions or Submission Results */}
         <Box
           w={{ base: "100%", md: `${splitRatio}%` }}
           h={{ base: "auto", md: "100%" }}
@@ -286,45 +304,37 @@ export default function ProblemPage({ slug }: { slug: string }) {
           mb={{ base: 4, md: 0 }}
           maxH={{ base: "auto", md: "100%" }}
         >
-          {submissionStatus ? (
+          {viewType === "submissions" && (
+            <MySubmissions
+              submissions={submissionsQuery.data?.submissions}
+              isLoading={submissionsQuery.isLoading}
+              onBackToProblem={() => setViewType("problem")}
+            />
+          )}
+          {viewType === "result" && metaStatus !== null && (
             <VStack spacing={4} align="stretch" p={6}>
               <HStack justify="space-between">
-                <Heading size="md">
-                  {submissionStatus.status === "SUBMISSIONS"
-                    ? "My Submissions"
-                    : "Submission Results"}
-                </Heading>
+                <Heading size="md">Submission Results</Heading>
                 <HStack>
-                  {submissionStatus.status !== "SUBMISSIONS" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setSubmissionStatus({
-                          status: "SUBMISSIONS",
-                          runtime: null,
-                          gflops: null,
-                          passedTests: null,
-                          totalTests: null,
-                          message: null,
-                        })
-                      }
-                      leftIcon={<TimeIcon />}
-                      borderRadius="full"
-                      color="gray.300"
-                      _hover={{
-                        bg: "whiteAlpha.50",
-                        color: "white",
-                      }}
-                    >
-                      My Submissions
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewType("submissions")}
+                    leftIcon={<TimeIcon />}
+                    borderRadius="full"
+                    color="gray.300"
+                    _hover={{
+                      bg: "whiteAlpha.50",
+                      color: "white",
+                    }}
+                  >
+                    My Submissions
+                  </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      setSubmissionStatus(null);
+                      setViewType("problem");
                     }}
                     leftIcon={<Icon as={FiArrowLeft} />}
                     borderRadius="full"
@@ -338,599 +348,389 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   </Button>
                 </HStack>
               </HStack>
-
-              {submissionStatus.status === "SUBMISSIONS" ? (
-                <VStack spacing={4} align="stretch">
-                  {submissionsQuery.isLoading ? (
-                    <Box display="flex" justifyContent="center" p={4}>
-                      <Spinner />
-                    </Box>
-                  ) : submissionsQuery.data?.submissions.length === 0 ? (
-                    <Box p={4} textAlign="center" color="whiteAlpha.700">
-                      No submissions yet
-                    </Box>
+              <Box
+                bg={
+                  metaStatus === "ACCEPTED"
+                    ? "green.900"
+                    : metaStatus === "IN_QUEUE" ||
+                      metaStatus === "COMPILING" ||
+                      metaStatus === "CHECKING" ||
+                      metaStatus === "CHECKED" ||
+                      metaStatus === "BENCHMARKING" ||
+                      metaStatus === "BENCHMARKED"
+                    ? "blue.900"
+                    : "red.900"
+                }
+                p={4}
+                borderRadius="xl"
+              >
+                <HStack spacing={3}>
+                  {metaStatus === "IN_QUEUE" ||
+                  metaStatus === "COMPILING" ||
+                  metaStatus === "CHECKING" ||
+                  metaStatus === "CHECKED" ||
+                  metaStatus === "BENCHMARKING" ||
+                  metaStatus === "BENCHMARKED" ? (
+                    <Spinner size="sm" color="blue.200" />
                   ) : (
-                    submissionsQuery.data?.submissions.map((submission) => (
-                      <Link
-                        key={submission.id}
-                        href={`/submissions/${submission.id}`}
-                        style={{ textDecoration: "none" }}
-                      >
-                        <Box
-                          bg="whiteAlpha.50"
-                          p={4}
-                          borderRadius="xl"
-                          cursor="pointer"
-                          _hover={{ bg: "whiteAlpha.100" }}
-                        >
-                          <HStack justify="space-between">
-                            <HStack>
-                              <Icon
-                                as={
-                                  submission.status === "ACCEPTED"
-                                    ? CheckIcon
-                                    : submission.status === "WRONG_ANSWER" || submission.status === "ERROR"
-                                    ? WarningIcon
-                                    : TimeIcon
-                                }
-                                color={
-                                  submission.status === "ACCEPTED"
-                                    ? "green.400"
-                                    : submission.status === "WRONG_ANSWER" || submission.status === "ERROR"
-                                    ? "red.400"
-                                    : "blue.400"
-                                }
-                              />
-                              <Text fontWeight="semibold">
-                                {submission.status === "ACCEPTED"
-                                  ? "Accepted"
-                                  : submission.status === "WRONG_ANSWER"
-                                  ? "Wrong Answer"
-                                  : submission.status === "ERROR"
-                                  ? "Error"
-                                  : submission.status}
-                              </Text>
-                              <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
-                                {submission.language === "cuda" ? "CUDA" : "Python"} • {GPU_DISPLAY_NAMES[submission.gpuType]}
-                              </Text>
-                            </HStack>
-                            <Text color="whiteAlpha.700" fontSize="sm">
-                              {new Date(submission.createdAt).toLocaleString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric", 
-                                minute: "2-digit",
-                                hour12: true
-                              })}
-                            </Text>
-                          </HStack>
-                          {submission.gflops !== null &&
-                            submission.runtime !== null && (
-                              <SimpleGrid columns={2} spacing={4} mt={2}>
-                                <Box>
-                                  <Text color="whiteAlpha.600" fontSize="sm">
-                                    Performance
-                                  </Text>
-                                  <Text fontWeight="semibold">
-                                    {submission.gflops.toFixed(2)} GFLOPS
-                                  </Text>
-                                </Box>
-                                <Box>
-                                  <Text color="whiteAlpha.600" fontSize="sm">
-                                    Runtime
-                                  </Text>
-                                  <Text fontWeight="semibold">
-                                    {submission.runtime.toFixed(2)}ms
-                                  </Text>
-                                </Box>
-                              </SimpleGrid>
-                            )}
-                        </Box>
-                      </Link>
-                    ))
+                    <Icon as={getStatusIcon(metaStatus)} boxSize={6} />
                   )}
-                </VStack>
-              ) : (
-                <>
-                  <Box
-                    bg={
-                      submissionStatus.status === "ACCEPTED" ||
-                      submissionStatus.message?.startsWith("complete: ACCEPTED")
-                        ? "green.900"
-                        : submissionStatus.message?.startsWith(
-                            "status: CHECKING"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "checker: compiling"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "checker: running"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "benchmark: compiling"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "benchmark: running"
-                          ) ||
-                          submissionStatus.message?.startsWith(
-                            "benchmark: test_result"
-                          ) ||
-                          submissionStatus.status === "CHECKING" ||
-                          submissionStatus.status === "BENCHMARKING"
-                        ? "blue.900"
-                        : "red.900"
-                    }
-                    p={4}
-                    borderRadius="xl"
-                  >
-                    <HStack spacing={3}>
-                      {submissionStatus.message?.startsWith(
-                        "status: CHECKING"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "checker: compiling"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "checker: running"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "benchmark: compiling"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "benchmark: running"
-                      ) ||
-                      submissionStatus.message?.startsWith(
-                        "benchmark: test_result"
-                      ) ||
-                      submissionStatus.status === "CHECKING" ||
-                      submissionStatus.status === "BENCHMARKING" ? (
-                        <Spinner size="sm" color="blue.200" />
-                      ) : (
-                        <Icon
-                          as={
-                            submissionStatus.status === "ACCEPTED" ||
-                            submissionStatus.message?.startsWith(
-                              "complete: ACCEPTED"
-                            )
-                              ? CheckIcon
-                              : WarningIcon
-                          }
-                          boxSize={6}
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="lg" fontWeight="semibold">
+                      {getStatusMessage(metaStatus)}
+                    </Text>
+                  </VStack>
+                </HStack>
+              </Box>
+              {/* Test Case Results Table */}
+              {testResults.length > 0 &&
+                metaStatus !== SubmissionStatus.WRONG_ANSWER &&
+                metaResponse && (
+                  <Box bg="whiteAlpha.50" borderRadius="xl" overflow="hidden">
+                    <VStack
+                      spacing={0}
+                      align="stretch"
+                      divider={
+                        <Box
+                          borderBottomWidth={1}
+                          borderColor="whiteAlpha.100"
                         />
-                      )}
-                      <VStack align="start" spacing={0}>
-                        <Text fontSize="lg" fontWeight="semibold">
-                          {getStatusMessage(submissionStatus)}
-                        </Text>
-                      </VStack>
-                    </HStack>
-                  </Box>
-
-                  {submissionStatus.passedTests !== null &&
-                    submissionStatus.status !== "WRONG_ANSWER" &&
-                    !submissionStatus.message?.startsWith(
-                      "complete: WRONG_ANSWER"
-                    ) && (
-                      <Box
-                        bg="whiteAlpha.50"
-                        borderRadius="xl"
-                        overflow="hidden"
-                      >
-                        <VStack
-                          spacing={0}
-                          align="stretch"
-                          divider={
-                            <Box
-                              borderBottomWidth={1}
-                              borderColor="whiteAlpha.100"
-                            />
+                      }
+                    >
+                      {isBenchmarking ? (
+                        <HStack
+                          justify="space-between"
+                          px={6}
+                          py={4}
+                          onClick={() =>
+                            setIsTestCaseTableOpen(!isTestCaseTableOpen)
                           }
+                          cursor="pointer"
+                          _hover={{ bg: "whiteAlpha.50" }}
                         >
-                          {isBenchmarking ? (
-                            <HStack
-                              justify="space-between"
-                              px={6}
-                              py={4}
-                              onClick={() =>
-                                setIsTestCaseTableOpen(!isTestCaseTableOpen)
-                              }
-                              cursor="pointer"
-                              _hover={{ bg: "whiteAlpha.50" }}
-                            >
-                              <HStack spacing={2} width="100%">
-                                <HStack spacing={2}>
-                                  <Text fontWeight="semibold">
-                                    Benchmark Results
-                                  </Text>
-                                  <IconButton
-                                    aria-label="Toggle test cases"
-                                    icon={
-                                      isTestCaseTableOpen ? (
-                                        <ChevronUpIcon />
-                                      ) : (
-                                        <ChevronDownIcon />
-                                      )
-                                    }
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setIsTestCaseTableOpen(
-                                        !isTestCaseTableOpen
-                                      );
-                                    }}
-                                    color="gray.300"
-                                    _hover={{
-                                      bg: "whiteAlpha.50",
-                                      color: "white",
-                                    }}
-                                  />
-                                </HStack>
-                              </HStack>
-                            </HStack>
-                          ) : (
-                            <Box
-                              w="100%"
-                              h="6"
-                              bg="whiteAlpha.200"
-                              borderRadius="md"
-                              overflow="hidden"
-                            >
-                              <Box
-                                h="100%"
-                                w={`${
-                                  (submissionStatus.passedTests /
-                                    (submissionStatus.totalTests ?? 10)) *
-                                  100
-                                }%`}
-                                bg="green.500"
-                                borderRadius="md"
-                                borderRightRadius="xl"
-                                transition="width 0.5s ease-in-out"
+                          <HStack spacing={2} width="100%">
+                            <HStack spacing={2}>
+                              <Text fontWeight="semibold">
+                                Benchmark Results
+                              </Text>
+                              <IconButton
+                                aria-label="Toggle test cases"
+                                icon={
+                                  isTestCaseTableOpen ? (
+                                    <ChevronUpIcon />
+                                  ) : (
+                                    <ChevronDownIcon />
+                                  )
+                                }
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsTestCaseTableOpen(!isTestCaseTableOpen);
+                                }}
+                                color="gray.300"
+                                _hover={{
+                                  bg: "whiteAlpha.50",
+                                  color: "white",
+                                }}
                               />
-                            </Box>
-                          )}
+                            </HStack>
+                          </HStack>
+                        </HStack>
+                      ) : (
+                        <Box
+                          w="100%"
+                          h="6"
+                          bg="whiteAlpha.200"
+                          borderRadius="md"
+                          overflow="hidden"
+                        >
+                          <Box
+                            h="100%"
+                            w={`${
+                              (testResults.length / (totalTests ?? 10)) * 100
+                            }%`}
+                            bg="green.500"
+                            borderRadius="md"
+                            borderRightRadius="xl"
+                            transition="width 0.5s ease-in-out"
+                          />
+                        </Box>
+                      )}
 
-                          {/* Test Case Results Table */}
-                          <Collapse in={isTestCaseTableOpen} animateOpacity>
-                            <Box>
-                              <Table variant="unstyled" size="sm">
-                                <Thead bg="whiteAlpha.100">
-                                  <Tr>
-                                    <Th color="whiteAlpha.700" py={3}>
-                                      Test Case
-                                    </Th>
-                                    <Th color="whiteAlpha.700" py={3} isNumeric>
-                                      Runtime
-                                    </Th>
-                                    <Th color="whiteAlpha.700" py={3} isNumeric>
-                                      Performance
-                                    </Th>
-                                  </Tr>
-                                </Thead>
-                                <Tbody>
-                                  {submissionStatus.benchmarkResults?.map(
-                                    (result) => (
+                      {/* Test Case Results Table */}
+                      <Collapse in={isTestCaseTableOpen} animateOpacity>
+                        <Box>
+                          <Table variant="unstyled" size="sm">
+                            <Thead bg="whiteAlpha.100">
+                              <Tr>
+                                <Th color="whiteAlpha.700" py={3}>
+                                  Test Case
+                                </Th>
+                                <Th color="whiteAlpha.700" py={3} isNumeric>
+                                  Runtime
+                                </Th>
+                                <Th color="whiteAlpha.700" py={3} isNumeric>
+                                  Performance
+                                </Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {benchmarkResults.map((result) => (
+                                <Tr
+                                  key={result.result.test_id}
+                                  _hover={{ bg: "whiteAlpha.100" }}
+                                >
+                                  <Td py={3}>
+                                    <HStack spacing={2}>
+                                      <Icon
+                                        as={CheckIcon}
+                                        color="green.300"
+                                        boxSize={4}
+                                      />
+                                      <Text>{result.result.name}</Text>
+                                    </HStack>
+                                  </Td>
+                                  <Td py={3} isNumeric>
+                                    <Text>
+                                      {result.result.runtime_ms.toFixed(2)} ms
+                                    </Text>
+                                  </Td>
+                                  <Td py={3} isNumeric>
+                                    <Text>
+                                      {result.result.gflops.toFixed(2)} GFLOPS
+                                    </Text>
+                                  </Td>
+                                </Tr>
+                              ))}
+                              {totalTests !== null &&
+                                benchmarkResults &&
+                                metaStatus !== SubmissionStatus.BENCHMARKING &&
+                                totalTests > benchmarkResults.length &&
+                                Array.from(
+                                  {
+                                    length:
+                                      totalTests - benchmarkResults.length,
+                                  },
+                                  (_, i) => {
+                                    const testId =
+                                      (benchmarkResults?.length ?? 0) + i + 1;
+                                    return (
                                       <Tr
-                                        key={result.test_id}
+                                        key={`failed-${testId}`}
                                         _hover={{ bg: "whiteAlpha.100" }}
                                       >
                                         <Td py={3}>
                                           <HStack spacing={2}>
                                             <Icon
-                                              as={CheckIcon}
-                                              color="green.300"
+                                              as={WarningIcon}
+                                              color="red.300"
                                               boxSize={4}
                                             />
-                                            <Text>{result.name}</Text>
+                                            <Text>Test Case {testId}</Text>
                                           </HStack>
                                         </Td>
                                         <Td py={3} isNumeric>
-                                          <Text>
-                                            {result.runtime_ms.toFixed(2)} ms
-                                          </Text>
+                                          -
                                         </Td>
                                         <Td py={3} isNumeric>
-                                          <Text>
-                                            {result.gflops.toFixed(2)} GFLOPS
-                                          </Text>
+                                          -
+                                        </Td>
+                                        <Td py={3}>
+                                          <Badge
+                                            colorScheme="red"
+                                            fontSize="xs"
+                                          >
+                                            Failed
+                                          </Badge>
                                         </Td>
                                       </Tr>
-                                    )
-                                  )}
-                                  {submissionStatus.status != "BENCHMARKING" &&
-                                    submissionStatus.totalTests !== null &&
-                                    submissionStatus.benchmarkResults &&
-                                    submissionStatus.totalTests >
-                                      submissionStatus.benchmarkResults
-                                        .length &&
-                                    Array.from(
-                                      {
-                                        length:
-                                          submissionStatus.totalTests -
-                                          submissionStatus.benchmarkResults
-                                            .length,
-                                      },
-                                      (_, i) => {
-                                        const testId =
-                                          (submissionStatus.benchmarkResults
-                                            ?.length ?? 0) +
-                                          i +
-                                          1;
-                                        return (
-                                          <Tr
-                                            key={`failed-${testId}`}
-                                            _hover={{ bg: "whiteAlpha.100" }}
-                                          >
-                                            <Td py={3}>
-                                              <HStack spacing={2}>
-                                                <Icon
-                                                  as={WarningIcon}
-                                                  color="red.300"
-                                                  boxSize={4}
-                                                />
-                                                <Text>Test Case {testId}</Text>
-                                              </HStack>
-                                            </Td>
-                                            <Td py={3} isNumeric>
-                                              -
-                                            </Td>
-                                            <Td py={3} isNumeric>
-                                              -
-                                            </Td>
-                                            <Td py={3}>
-                                              <Badge
-                                                colorScheme="red"
-                                                fontSize="xs"
-                                              >
-                                                Failed
-                                              </Badge>
-                                            </Td>
-                                          </Tr>
-                                        );
-                                      }
-                                    )}
-                                </Tbody>
-                              </Table>
-                            </Box>
-                          </Collapse>
-                        </VStack>
-                      </Box>
-                    )}
+                                    );
+                                  }
+                                )}
+                            </Tbody>
+                          </Table>
+                        </Box>
+                      </Collapse>
+                    </VStack>
+                  </Box>
+                )}
 
-                  {submissionStatus.status === "ACCEPTED" && (
-                    <SimpleGrid columns={2} spacing={4}>
-                      <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
-                        <Text color="whiteAlpha.700" mb={1}>
-                          Performance
-                        </Text>
-                        <Text fontSize="2xl" fontWeight="bold">
-                          {submissionStatus.gflops?.toFixed(2)} GFLOPS
-                        </Text>
-                      </Box>
-                      <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
-                        <Text color="whiteAlpha.700" mb={1}>
-                          Runtime
-                        </Text>
-                        <Text fontSize="2xl" fontWeight="bold">
-                          {submissionStatus.runtime?.toFixed(2)}ms
-                        </Text>
-                      </Box>
-                    </SimpleGrid>
+              {/* Performance and Runtime Stats */}
+              {metaStatus === SubmissionStatus.ACCEPTED && (
+                <SimpleGrid columns={2} spacing={4}>
+                  <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
+                    <Text color="whiteAlpha.700" mb={1}>
+                      Performance
+                    </Text>
+                    <Text fontSize="2xl" fontWeight="bold">
+                      {getTypedResponse(
+                        SubmissionStatus.ACCEPTED
+                      )?.avg_gflops?.toFixed(2)}{" "}
+                      GFLOPS
+                    </Text>
+                  </Box>
+                  <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
+                    <Text color="whiteAlpha.700" mb={1}>
+                      Runtime
+                    </Text>
+                    <Text fontSize="2xl" fontWeight="bold">
+                      {getTypedResponse(
+                        SubmissionStatus.ACCEPTED
+                      )?.avg_runtime_ms?.toFixed(2)}
+                      ms
+                    </Text>
+                  </Box>
+                </SimpleGrid>
+              )}
+
+              {/* Wrong Answer Debug Info */}
+              {metaStatus === SubmissionStatus.WRONG_ANSWER && (
+                <Box bg="red.900" p={6} borderRadius="xl">
+                  {getTypedResponse(SubmissionStatus.WRONG_ANSWER)?.debug_info
+                    ?.message && (
+                    <Text color="red.200" fontWeight="semibold" mb={3}>
+                      {
+                        getTypedResponse(SubmissionStatus.WRONG_ANSWER)
+                          ?.debug_info?.message
+                      }
+                    </Text>
                   )}
-
-                  {submissionStatus.status === "WRONG_ANSWER" && (
-                      <Box bg="red.900" p={6} borderRadius="xl">
-                        {submissionStatus.errorMessage && (
-                          <Text color="red.200" fontWeight="semibold" mb={3}>
-                            {submissionStatus.errorMessage}
-                          </Text>
-                        )}
-                        {submissionStatus.errorDetails && (() => {
-                          try {
-                            const debugInfo = JSON.parse(submissionStatus.errorDetails) as DebugInfo;
-                            console.log(debugInfo);
-                            return (
-                              <VStack spacing={4} align="stretch">
-                                {debugInfo.message && (
-                                  <Text color="red.100">{debugInfo.message}</Text>
-                                )}
-                                {debugInfo.max_difference && (
-                                  <Box>
-                                    <Text color="red.200" fontSize="sm">Maximum Difference:</Text>
-                                    <Text color="red.100">{debugInfo.max_difference}</Text>
-                                  </Box>
-                                )}
-                                {debugInfo.mean_difference && (
-                                  <Box>
-                                    <Text color="red.200" fontSize="sm">Mean Difference:</Text>
-                                    <Text color="red.100">{debugInfo.mean_difference}</Text>
-                                  </Box>
-                                )}
-                                {debugInfo.sample_differences && Object.keys(debugInfo.sample_differences).length > 0 && (
-                                  <Box>
-                                    <Text color="red.200" fontSize="sm" mb={2}>Sample Differences:</Text>
-                                    <Box maxH="200px" overflowY="auto">
-                                      <Table size="sm" variant="unstyled">
-                                        <Thead position="sticky" top={0}>
-                                          <Tr>
-                                            <Th color="red.200">Index</Th>
-                                            <Th color="red.200" isNumeric>Expected</Th>
-                                            <Th color="red.200" isNumeric>Actual</Th>
-                                            <Th color="red.200" isNumeric>Difference</Th>
-                                          </Tr>
-                                        </Thead>
-                                        <Tbody>
-                                          {Object.entries(debugInfo.sample_differences).slice(0, 50).map(([key, value]) => (
+                  {getTypedResponse(SubmissionStatus.WRONG_ANSWER)
+                    ?.debug_info &&
+                    (() => {
+                      try {
+                        const debugInfo = getTypedResponse(
+                          SubmissionStatus.WRONG_ANSWER
+                        )?.debug_info;
+                        return (
+                          <VStack spacing={4} align="stretch">
+                            {debugInfo?.message && (
+                              <Text color="red.100">{debugInfo.message}</Text>
+                            )}
+                            {debugInfo?.max_difference && (
+                              <Box>
+                                <Text color="red.200" fontSize="sm">
+                                  Maximum Difference:
+                                </Text>
+                                <Text color="red.100">
+                                  {debugInfo.max_difference}
+                                </Text>
+                              </Box>
+                            )}
+                            {debugInfo?.mean_difference && (
+                              <Box>
+                                <Text color="red.200" fontSize="sm">
+                                  Mean Difference:
+                                </Text>
+                                <Text color="red.100">
+                                  {debugInfo.mean_difference}
+                                </Text>
+                              </Box>
+                            )}
+                            {debugInfo?.sample_differences &&
+                              Object.keys(debugInfo.sample_differences).length >
+                                0 && (
+                                <Box>
+                                  <Text color="red.200" fontSize="sm" mb={2}>
+                                    Sample Differences:
+                                  </Text>
+                                  <Box maxH="200px" overflowY="auto">
+                                    <Table size="sm" variant="unstyled">
+                                      <Thead position="sticky" top={0}>
+                                        <Tr>
+                                          <Th color="red.200">Index</Th>
+                                          <Th color="red.200" isNumeric>
+                                            Expected
+                                          </Th>
+                                          <Th color="red.200" isNumeric>
+                                            Actual
+                                          </Th>
+                                          <Th color="red.200" isNumeric>
+                                            Difference
+                                          </Th>
+                                        </Tr>
+                                      </Thead>
+                                      <Tbody>
+                                        {Object.entries(
+                                          debugInfo.sample_differences
+                                        )
+                                          .slice(0, 50)
+                                          .map(([key, value]) => (
                                             <Tr key={key}>
                                               <Td color="red.100">{key}</Td>
-                                              <Td color="red.100" isNumeric>{value.expected.toFixed(7)}</Td>
-                                              <Td color="red.100" isNumeric>{value.actual.toFixed(7)}</Td>
-                                              <Td color="red.100" isNumeric>{value.diff.toFixed(7)}</Td>
+                                              <Td color="red.100" isNumeric>
+                                                {value.expected.toFixed(7)}
+                                              </Td>
+                                              <Td color="red.100" isNumeric>
+                                                {value.actual.toFixed(7)}
+                                              </Td>
+                                              <Td color="red.100" isNumeric>
+                                                {value.diff.toFixed(7)}
+                                              </Td>
                                             </Tr>
                                           ))}
-                                        </Tbody>
-                                      </Table>
-                                    </Box>
+                                      </Tbody>
+                                    </Table>
                                   </Box>
-                                )}
-                              </VStack>
-                            );
-                          } catch (e) {
-                            return (
-                              <Code
-                                display="block"
-                                whiteSpace="pre-wrap"
-                                p={4}
-                                bg="red.800"
-                                color="red.100"
-                                borderRadius="lg"
-                                fontSize="sm"
-                                fontFamily="mono"
-                              >
-                                {submissionStatus.errorDetails}
-                              </Code>
-                            );
-                          }
-                        })()}
-                      </Box>
-                    )}
-
-                  {submissionStatus.status !== "WRONG_ANSWER" &&
-                    submissionStatus.errorMessage &&
-                    submissionStatus.errorDetails && (
-                      <Box bg="red.900" p={6} borderRadius="xl">
-                        <Text color="red.200" fontWeight="semibold" mb={3}>
-                          Error Details
-                        </Text>
-                        <Code
-                          display="block"
-                          whiteSpace="pre-wrap"
-                          p={4}
-                          bg="red.800"
-                          color="red.100"
-                          borderRadius="lg"
-                          fontSize="sm"
-                          fontFamily="mono"
-                        >
-                          {submissionStatus.errorDetails ??
-                            submissionStatus.errorMessage}
-                        </Code>
-                      </Box>
-                    )}
-                </>
+                                </Box>
+                              )}
+                          </VStack>
+                        );
+                      } catch (e) {
+                        console.error("Failed to parse debug info", e);
+                        return (
+                          <Code
+                            display="block"
+                            whiteSpace="pre-wrap"
+                            p={4}
+                            bg="red.800"
+                            color="red.100"
+                            borderRadius="lg"
+                            fontSize="sm"
+                            fontFamily="mono"
+                          >
+                            {
+                              getTypedResponse(SubmissionStatus.WRONG_ANSWER)
+                                ?.debug_info?.message
+                            }
+                          </Code>
+                        );
+                      }
+                    })()}
+                </Box>
               )}
-            </VStack>
-          ) : (
-            <Box>
-              <Heading as="h1" size="lg" mb={2}>
-                {problem.title}
-              </Heading>
-              <HStack spacing={2} align="center" mb={6}>
-                <Badge
-                  colorScheme={getDifficultyColor(problem.difficulty)}
-                  px={2}
-                  py={1}
-                  borderRadius="full"
-                >
-                  {problem.difficulty}
-                </Badge>
-                <Button
-                  variant="outline"
-                  height="28px"
-                  px={3}
-                  py={1}
-                  fontSize="xs"
-                  onClick={() =>
-                    setSubmissionStatus({
-                      status: "SUBMISSIONS",
-                      runtime: null,
-                      gflops: null,
-                      passedTests: null,
-                      totalTests: null,
-                      message: null,
-                    })
-                  }
-                  leftIcon={<TimeIcon boxSize={3} />}
-                  borderRadius="full"
-                  borderColor="whiteAlpha.200"
-                  color="gray.300"
-                  cursor="pointer"
-                  _hover={{
-                    bg: "whiteAlpha.50",
-                    color: "white",
-                  }}
-                >
-                  My Submissions
-                </Button>
-                <Button
-                  variant="outline"
-                  height="28px"
-                  px={3}
-                  py={1}
-                  fontSize="xs"
-                  onClick={() => {
-                    window.location.href = `/leaderboard/${problem.slug}`;
-                  }}
-                  leftIcon={<Icon as={FiTrendingUp} boxSize={3} />}
-                  borderRadius="full"
-                  borderColor="whiteAlpha.200"
-                  color="gray.300"
-                  cursor="pointer"
-                  _hover={{
-                    bg: "whiteAlpha.50",
-                    color: "white",
-                  }}
-                >
-                  Leaderboard
-                </Button>
-              </HStack>
 
-              <Box className="markdown" color="gray.100">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[rehypeKatex, rehypeHighlight]}
-                  components={{
-                    h1: (props) => (
-                      <Heading as="h2" size="lg" mt={8} mb={4} {...props} />
-                    ),
-                    h2: (props) => (
-                      <Heading as="h3" size="md" mt={6} mb={3} {...props} />
-                    ),
-                    h3: (props) => (
-                      <Heading as="h4" size="sm" mt={4} mb={2} {...props} />
-                    ),
-                    ul: (props) => <Box as="ul" pl={8} mb={4} {...props} />,
-                    ol: (props) => <Box as="ol" pl={8} mb={4} {...props} />,
-                    li: (props) => <Box as="li" pl={2} mb={2} {...props} />,
-                    code: (props) => (
-                      <Code
-                        px={2}
-                        py={1}
-                        bg="gray.800"
-                        color="gray.100"
-                        borderRadius="md"
-                        {...props}
-                      />
-                    ),
-                    pre: (props) => (
-                      <Box
-                        as="pre"
-                        p={4}
-                        bg="gray.800"
-                        borderRadius="md"
-                        overflowX="auto"
-                        mb={4}
-                        {...props}
-                      />
-                    ),
-                  }}
-                >
-                  {problem.description}
-                </ReactMarkdown>
-              </Box>
-            </Box>
+              {metaStatus !== SubmissionStatus.WRONG_ANSWER &&
+                isSubmissionError(metaStatus) &&
+                getTypedResponse(metaStatus)?.message &&
+                getTypedResponse(metaStatus)?.details && (
+                  <Box bg="red.900" p={6} borderRadius="xl">
+                    <Text color="red.200" fontWeight="semibold" mb={3}>
+                      Error Details
+                    </Text>
+                    <Code
+                      display="block"
+                      whiteSpace="pre-wrap"
+                      p={4}
+                      bg="red.800"
+                      color="red.100"
+                      borderRadius="lg"
+                      fontSize="sm"
+                      fontFamily="mono"
+                    >
+                      {getTypedResponse(metaStatus)?.details ??
+                        getTypedResponse(metaStatus)?.message}
+                    </Code>
+                  </Box>
+                )}
+            </VStack>
+          )}
+          {viewType === "problem" && (
+            <ProblemView
+              problem={problem}
+              onViewSubmissions={() => setViewType("submissions")}
+            />
           )}
         </Box>
 
@@ -1027,13 +827,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
                       },
                     }}
                   >
-                    {
-                      Object.entries(GPU_DISPLAY_NAMES)
-                        .filter(([key]) => key !== "all")
-                        .map(([key, value]) => (
-                          <option key={key} value={key}>{value}</option>
-                        ))
-                    }
+                    {Object.entries(GPU_DISPLAY_NAMES)
+                      .filter(([key]) => key !== "all")
+                      .map(([key, value]) => (
+                        <option key={key} value={key}>
+                          {value}
+                        </option>
+                      ))}
                   </Select>
                 </Box>
                 <Box>
@@ -1046,7 +846,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     bg="whiteAlpha.50"
                     borderColor="whiteAlpha.200"
                     _hover={{ borderColor: "whiteAlpha.300" }}
-                    onChange={(e) => setSelectedLanguage(e.target.value as ProgrammingLanguage)}
+                    onChange={(e) =>
+                      setSelectedLanguage(e.target.value as ProgrammingLanguage)
+                    }
                     value={selectedLanguage}
                     w="160px"
                     defaultValue="cuda"
@@ -1058,9 +860,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     }}
                   >
                     <option value="cuda">CUDA C++</option>
-                    <option value="python">
-                      Python (Triton)
-                    </option>
+                    <option value="python">Python (Triton)</option>
                   </Select>
                 </Box>
                 <Box>
@@ -1084,7 +884,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     _hover={{ borderColor: "whiteAlpha.300" }}
                     w="140px"
                     value={selectedDataType}
-                    onChange={(e) => setSelectedDataType(e.target.value as DataType)}
+                    onChange={(e) =>
+                      setSelectedDataType(e.target.value as DataType)
+                    }
                     borderRadius="full"
                     sx={{
                       "& > option": {

@@ -8,6 +8,8 @@ export const GPU_DISPLAY_NAMES: Record<string, string> = {
   "L4": "NVIDIA L4"
 } as const;
 
+export const gpuTypes = Object.keys(GPU_DISPLAY_NAMES);
+
 export const GPU_DISPLAY_ON_PROFILE = {
   "T4": "T4",
   "H100": "H100",
