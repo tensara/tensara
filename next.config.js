@@ -3,6 +3,7 @@
  * for Docker builds.
  */
 import "./src/env.js";
+import path from 'path';
 
 /** @type {import("next").NextConfig} */
 const config = {
@@ -19,6 +20,12 @@ const config = {
   },
   transpilePackages: ["geist"],
   distDir: process.env.BUILD_DIR || ".next", // Set custom build directory
+  
+  // Explicitly configure webpack to handle path aliases
+  webpack: (config) => {
+    config.resolve.alias['~'] = path.join(process.cwd(), 'src');
+    return config;
+  },
 };
 
 export default config;

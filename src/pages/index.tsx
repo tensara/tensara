@@ -77,8 +77,8 @@ export default function HomePage() {
             lineHeight="tall"
             px={{ base: 4, md: 0 }}
           >
-            A platform for GPU programming challenges. Write efficient GPU kernels
-            and compare your solutions with other developers.
+            A platform for GPU programming challenges. Write efficient GPU
+            kernels and compare your solutions with other developers.
           </Text>
 
           <Button

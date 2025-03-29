@@ -1,5 +1,5 @@
 // useSplitPanel.ts
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from "react";
 
 interface SplitPanelOptions {
   initialRatio?: number;
@@ -12,7 +12,7 @@ export function useSplitPanel({
   initialRatio = 40,
   minRatio = 35,
   maxRatio = 52,
-  containerId = 'split-container'
+  containerId = "split-container",
 }: SplitPanelOptions = {}) {
   const [splitRatio, setSplitRatio] = useState<number>(initialRatio);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -60,6 +60,6 @@ export function useSplitPanel({
     splitRatio,
     isDragging,
     handleMouseDown,
-    handleMouseUp
+    handleMouseUp,
   };
 }

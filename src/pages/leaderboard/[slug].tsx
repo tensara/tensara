@@ -90,7 +90,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
 const formatPerformance = (gflops: number | null | undefined): string => {
   if (!gflops) return "N/A";
-  
+
   if (gflops >= 1000) {
     const tflops = (gflops / 1000).toFixed(2);
     return `${parseFloat(tflops)}T`;
@@ -198,8 +198,12 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                   <Tr>
                     <Th borderBottom="none">Rank</Th>
                     <Th borderBottom="none">User</Th>
-                    <Th borderBottom="none" isNumeric>GFLOPS</Th>
-                    <Th borderBottom="none" isNumeric>Runtime (ms)</Th>
+                    <Th borderBottom="none" isNumeric>
+                      GFLOPS
+                    </Th>
+                    <Th borderBottom="none" isNumeric>
+                      Runtime (ms)
+                    </Th>
                     {selectedGpu === "all" && <Th borderBottom="none">GPU</Th>}
                     <Th borderBottom="none">Language</Th>
                     <Th borderBottom="none">Date</Th>
@@ -207,8 +211,15 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                 </Thead>
                 <Tbody>
                   {leaderboardEntries.map((entry, index) => {
-                    const medalColor = index <= 2 ? (index === 0 ? "#FFD700" : index === 1 ? "#C0C0C0" : "#CD7F32") : undefined;
-                    
+                    const medalColor =
+                      index <= 2
+                        ? index === 0
+                          ? "#FFD700"
+                          : index === 1
+                            ? "#C0C0C0"
+                            : "#CD7F32"
+                        : undefined;
+
                     return (
                       <Tr
                         key={entry.id}
@@ -220,18 +231,24 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                         my={medalColor ? 2 : 0}
                       >
                         <Td borderBottom="none">
-                          <Text color={medalColor} fontWeight={medalColor ? "bold" : "normal"}>
+                          <Text
+                            color={medalColor}
+                            fontWeight={medalColor ? "bold" : "normal"}
+                          >
                             #{index + 1}
                           </Text>
                         </Td>
                         <Td borderBottom="none">
-                          <Text color={medalColor} fontWeight={medalColor ? "bold" : "normal"}>
+                          <Text
+                            color={medalColor}
+                            fontWeight={medalColor ? "bold" : "normal"}
+                          >
                             {entry.username ?? "Anonymous"}
                           </Text>
                         </Td>
                         <Td isNumeric borderBottom="none">
-                          <Text 
-                            color={medalColor} 
+                          <Text
+                            color={medalColor}
                             fontWeight="bold"
                             fontFamily="mono"
                             fontSize="sm"
@@ -242,25 +259,35 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                         <Td isNumeric borderBottom="none">
                           {entry.runtime?.toFixed(2) ?? "N/A"}
                         </Td>
-                        {selectedGpu === "all" && <Td borderBottom="none">
-                          <Badge 
-                            bg={"whiteAlpha.200"}
-                            color={"white"}
-                            px={2}
-                            py={0.5}
-                            borderRadius="md"
-                            fontSize="xs"
-                            fontWeight="medium"
-                          >
-                            {entry.gpuType}
-                          </Badge>
-                        </Td>}
+                        {selectedGpu === "all" && (
+                          <Td borderBottom="none">
+                            <Badge
+                              bg={"whiteAlpha.200"}
+                              color={"white"}
+                              px={2}
+                              py={0.5}
+                              borderRadius="md"
+                              fontSize="xs"
+                              fontWeight="medium"
+                            >
+                              {entry.gpuType}
+                            </Badge>
+                          </Td>
+                        )}
                         <Td borderBottom="none">
-                          <Text>{LANGUAGE_DISPLAY_NAMES[entry.language ?? ""] ?? "Unknown"}</Text>
+                          <Text>
+                            {LANGUAGE_DISPLAY_NAMES[entry.language ?? ""] ??
+                              "Unknown"}
+                          </Text>
                         </Td>
                         <Td borderBottom="none">
-                          <Tooltip label={new Date(entry.createdAt).toLocaleString()}>
-                            <Text>{formatDistanceToNow(new Date(entry.createdAt))} ago</Text>
+                          <Tooltip
+                            label={new Date(entry.createdAt).toLocaleString()}
+                          >
+                            <Text>
+                              {formatDistanceToNow(new Date(entry.createdAt))}{" "}
+                              ago
+                            </Text>
                           </Tooltip>
                         </Td>
                       </Tr>

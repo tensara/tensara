@@ -34,7 +34,13 @@ import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { formatStatus, getStatusColor } from "~/constants/problem";
 
-type SortField = "createdAt" | "status" | "problem" | "performance" | "gpuType" | "language";
+type SortField =
+  | "createdAt"
+  | "status"
+  | "problem"
+  | "performance"
+  | "gpuType"
+  | "language";
 type SortOrder = "asc" | "desc";
 
 interface SubmissionWithProblem extends Submission {
@@ -91,7 +97,6 @@ const SubmissionsPage: NextPage = () => {
   const { data: submissions, isLoading } =
     api.submissions.getAllUserSubmissions.useQuery();
 
-
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -119,26 +124,26 @@ const SubmissionsPage: NextPage = () => {
     .sort((a: SubmissionWithProblem, b: SubmissionWithProblem) => {
       const order = sortOrder === "asc" ? 1 : -1;
       switch (sortField) {
-      case "createdAt":
-        return (
-          (new Date(a.createdAt).getTime() -
+        case "createdAt":
+          return (
+            (new Date(a.createdAt).getTime() -
               new Date(b.createdAt).getTime()) *
             order
-        );
-      case "status":
-        return (a.status ?? "").localeCompare(b.status ?? "") * order;
-      case "problem":
-        return a.problem.title.localeCompare(b.problem.title) * order;
-      case "performance":
-        const aPerf = a.gflops ?? 0;
-        const bPerf = b.gflops ?? 0;
-        return (aPerf - bPerf) * order;
-      case "gpuType":
-        return (a.gpuType ?? "").localeCompare(b.gpuType ?? "") * order;
-      case "language":
-        return a.language.localeCompare(b.language) * order;
-      default:
-        return 0;
+          );
+        case "status":
+          return (a.status ?? "").localeCompare(b.status ?? "") * order;
+        case "problem":
+          return a.problem.title.localeCompare(b.problem.title) * order;
+        case "performance":
+          const aPerf = a.gflops ?? 0;
+          const bPerf = b.gflops ?? 0;
+          return (aPerf - bPerf) * order;
+        case "gpuType":
+          return (a.gpuType ?? "").localeCompare(b.gpuType ?? "") * order;
+        case "language":
+          return a.language.localeCompare(b.language) * order;
+        default:
+          return 0;
       }
     });
 
@@ -192,12 +197,11 @@ const SubmissionsPage: NextPage = () => {
             _hover={{ borderColor: "gray.600" }}
             _focus={{ borderColor: "gray.500" }}
           >
-            {
-              Object.entries(GPU_DISPLAY_NAMES)
-                .map(([key, value]) => (
-                  <option key={key} value={key}>{value}</option>
-                ))
-            }
+            {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
+              <option key={key} value={key}>
+                {value}
+              </option>
+            ))}
           </Select>
           <Select
             value={languageFilter}
@@ -208,12 +212,11 @@ const SubmissionsPage: NextPage = () => {
             _hover={{ borderColor: "gray.600" }}
             _focus={{ borderColor: "gray.500" }}
           >
-            {
-              Object.entries(LANGUAGE_DISPLAY_NAMES)
-                .map(([key, value]) => (
-                  <option key={key} value={key}>{value}</option>
-                ))
-            }
+            {Object.entries(LANGUAGE_DISPLAY_NAMES).map(([key, value]) => (
+              <option key={key} value={key}>
+                {value}
+              </option>
+            ))}
           </Select>
 
           <Input
@@ -393,7 +396,7 @@ const SubmissionsPage: NextPage = () => {
                     <ChakraLink
                       as={Link}
                       href={`/problems/${submission.problem.slug}`}
-                      style={{  display: 'block', cursor: 'pointer' }}
+                      style={{ display: "block", cursor: "pointer" }}
                       color="blue.400"
                       _hover={{ color: "blue.300" }}
                     >
@@ -403,7 +406,12 @@ const SubmissionsPage: NextPage = () => {
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <Link
                       href={`/submissions/${submission.id}`}
-                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                        cursor: "pointer",
+                      }}
                     >
                       <Badge colorScheme={getStatusColor(submission.status)}>
                         {formatStatus(submission.status)}
@@ -413,7 +421,12 @@ const SubmissionsPage: NextPage = () => {
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <Link
                       href={`/submissions/${submission.id}`}
-                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                        cursor: "pointer",
+                      }}
                     >
                       {submission.status === "ACCEPTED" ? (
                         <Tooltip
@@ -431,7 +444,12 @@ const SubmissionsPage: NextPage = () => {
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <Link
                       href={`/submissions/${submission.id}`}
-                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                        cursor: "pointer",
+                      }}
                     >
                       {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
                     </Link>
@@ -439,7 +457,12 @@ const SubmissionsPage: NextPage = () => {
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <Link
                       href={`/submissions/${submission.id}`}
-                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                        cursor: "pointer",
+                      }}
                     >
                       {LANGUAGE_DISPLAY_NAMES[submission.language]}
                     </Link>
@@ -447,7 +470,12 @@ const SubmissionsPage: NextPage = () => {
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">
                     <Link
                       href={`/submissions/${submission.id}`}
-                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                        cursor: "pointer",
+                      }}
                     >
                       <Tooltip
                         label={new Date(submission.createdAt).toLocaleString()}

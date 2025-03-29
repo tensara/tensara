@@ -28,8 +28,13 @@ export async function checkRateLimit(userId: string) {
   }
 
   const now = new Date();
-  
-  if (!user.lastLimitReset || user.currentLimit === null || user.currentLimit === undefined || isMoreThanOneDay(user.lastLimitReset, now)) {
+
+  if (
+    !user.lastLimitReset ||
+    user.currentLimit === null ||
+    user.currentLimit === undefined ||
+    isMoreThanOneDay(user.lastLimitReset, now)
+  ) {
     await db.user.update({
       where: { id: userId },
       data: {
@@ -37,34 +42,36 @@ export async function checkRateLimit(userId: string) {
         currentLimit: DAILY_SUBMISSION_LIMIT - 1,
       },
     });
-    
+
     return {
       allowed: true,
       remainingSubmissions: DAILY_SUBMISSION_LIMIT - 1,
     };
   }
-  
+
   if (user.currentLimit <= 0) {
     const nextReset = new Date(user.lastLimitReset);
     nextReset.setDate(nextReset.getDate() + 1);
     const timeUntilReset = nextReset.getTime() - now.getTime();
     const hoursUntilReset = Math.floor(timeUntilReset / (1000 * 60 * 60));
-    const minutesUntilReset = Math.floor((timeUntilReset % (1000 * 60 * 60)) / (1000 * 60));
-    
+    const minutesUntilReset = Math.floor(
+      (timeUntilReset % (1000 * 60 * 60)) / (1000 * 60)
+    );
+
     return {
       allowed: false,
       error: `Rate limit exceeded. Please try again in ${hoursUntilReset}h ${minutesUntilReset}m.`,
       statusCode: 429,
     };
   }
-  
+
   await db.user.update({
     where: { id: userId },
     data: {
       currentLimit: user.currentLimit - 1,
     },
   });
-  
+
   return {
     allowed: true,
     remainingSubmissions: user.currentLimit - 1,

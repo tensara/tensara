@@ -23,34 +23,38 @@ import {
   GridItem,
 } from "@chakra-ui/react";
 import { InfoIcon } from "@chakra-ui/icons";
-import { CUDA_DRIVER_VERSION, CUDA_RUNTIME_VERSION, DEVICE_QUERY_GPU_MAP } from "~/constants/deviceQuery";
+import {
+  CUDA_DRIVER_VERSION,
+  CUDA_RUNTIME_VERSION,
+  DEVICE_QUERY_GPU_MAP,
+} from "~/constants/deviceQuery";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 
 export const GpuInfoModal = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(decimals))} ${sizes[i]}`;
   };
 
-  const formatArray = (arr: number[]) => arr.join(' × ');
+  const formatArray = (arr: number[]) => arr.join(" × ");
 
   const TableWrapper = ({ children }: { children: React.ReactNode }) => (
-    <Table 
-      variant="unstyled" 
-      size="sm" 
+    <Table
+      variant="unstyled"
+      size="sm"
       sx={{
-        'tr:not(:last-child)': {
-          borderBottom: '1px solid',
-          borderColor: 'whiteAlpha.100'
+        "tr:not(:last-child)": {
+          borderBottom: "1px solid",
+          borderColor: "whiteAlpha.100",
         },
-        'td': {
-          py: 2
-        }
+        td: {
+          py: 2,
+        },
       }}
     >
       {children}
@@ -71,20 +75,37 @@ export const GpuInfoModal = () => {
               <TableWrapper>
                 <Tbody>
                   <Tr>
-                    <Td color="gray.400" pl={0}>GPU Model</Td>
-                    <Td color="white" textAlign="right">{gpuInfo.name}</Td>
+                    <Td color="gray.400" pl={0}>
+                      GPU Model
+                    </Td>
+                    <Td color="white" textAlign="right">
+                      {gpuInfo.name}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>CUDA Cores</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.totalCUDACores.toLocaleString()}</Td>
+                    <Td color="gray.400" pl={0}>
+                      CUDA Cores
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.totalCUDACores.toLocaleString()}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Multiprocessors</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.multiprocessors} ({gpuInfo.cudaCoresPerMP} cores each)</Td>
+                    <Td color="gray.400" pl={0}>
+                      Multiprocessors
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.multiprocessors} ({gpuInfo.cudaCoresPerMP} cores
+                      each)
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>GPU Clock Speed</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.gpuMaxClockRate} MHz</Td>
+                    <Td color="gray.400" pl={0}>
+                      GPU Clock Speed
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.gpuMaxClockRate} MHz
+                    </Td>
                   </Tr>
                 </Tbody>
               </TableWrapper>
@@ -97,20 +118,36 @@ export const GpuInfoModal = () => {
               <TableWrapper>
                 <Tbody>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Global Memory</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatBytes(gpuInfo.globalMemory)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Global Memory
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatBytes(gpuInfo.globalMemory)}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Memory Clock</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.memoryClockRate} MHz</Td>
+                    <Td color="gray.400" pl={0}>
+                      Memory Clock
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.memoryClockRate} MHz
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Memory Bus Width</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.memoryBusWidth} bits</Td>
+                    <Td color="gray.400" pl={0}>
+                      Memory Bus Width
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.memoryBusWidth} bits
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>L2 Cache Size</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatBytes(gpuInfo.l2CacheSize)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      L2 Cache Size
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatBytes(gpuInfo.l2CacheSize)}
+                    </Td>
                   </Tr>
                 </Tbody>
               </TableWrapper>
@@ -123,20 +160,37 @@ export const GpuInfoModal = () => {
               <TableWrapper>
                 <Tbody>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Compute Capability</Td>
-                    <Td color="white" textAlign="right">{gpuInfo.cudaCapability.major}.{gpuInfo.cudaCapability.minor}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Compute Capability
+                    </Td>
+                    <Td color="white" textAlign="right">
+                      {gpuInfo.cudaCapability.major}.
+                      {gpuInfo.cudaCapability.minor}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Shared Memory per Block</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatBytes(gpuInfo.memory.sharedMemoryPerBlock)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Shared Memory per Block
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatBytes(gpuInfo.memory.sharedMemoryPerBlock)}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Shared Memory per MP</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatBytes(gpuInfo.memory.sharedMemoryPerMP)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Shared Memory per MP
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatBytes(gpuInfo.memory.sharedMemoryPerMP)}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Constant Memory</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatBytes(gpuInfo.memory.constantMemory)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Constant Memory
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatBytes(gpuInfo.memory.constantMemory)}
+                    </Td>
                   </Tr>
                 </Tbody>
               </TableWrapper>
@@ -153,24 +207,44 @@ export const GpuInfoModal = () => {
               <TableWrapper>
                 <Tbody>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Warp Size</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.warpSize} threads</Td>
+                    <Td color="gray.400" pl={0}>
+                      Warp Size
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.warpSize} threads
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Max Threads per MP</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.threads.maxPerMP}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Max Threads per MP
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.threads.maxPerMP}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Max Threads per Block</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.threads.maxPerBlock}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Max Threads per Block
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.threads.maxPerBlock}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Max Block Dimensions</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatArray(gpuInfo.threads.maxBlockDim)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Max Block Dimensions
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatArray(gpuInfo.threads.maxBlockDim)}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Max Grid Dimensions</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatArray(gpuInfo.threads.maxGridDim)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Max Grid Dimensions
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatArray(gpuInfo.threads.maxGridDim)}
+                    </Td>
                   </Tr>
                 </Tbody>
               </TableWrapper>
@@ -183,20 +257,36 @@ export const GpuInfoModal = () => {
               <TableWrapper>
                 <Tbody>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Max 1D Texture</Td>
-                    <Td color="white" textAlign="right" isNumeric>{gpuInfo.textureDimensions.max1D}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Max 1D Texture
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {gpuInfo.textureDimensions.max1D}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Max 2D Texture</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatArray(gpuInfo.textureDimensions.max2D)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Max 2D Texture
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatArray(gpuInfo.textureDimensions.max2D)}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Max 3D Texture</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatArray(gpuInfo.textureDimensions.max3D)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Max 3D Texture
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatArray(gpuInfo.textureDimensions.max3D)}
+                    </Td>
                   </Tr>
                   <Tr>
-                    <Td color="gray.400" pl={0}>Texture Alignment</Td>
-                    <Td color="white" textAlign="right" isNumeric>{formatBytes(gpuInfo.textureAlignment)}</Td>
+                    <Td color="gray.400" pl={0}>
+                      Texture Alignment
+                    </Td>
+                    <Td color="white" textAlign="right" isNumeric>
+                      {formatBytes(gpuInfo.textureAlignment)}
+                    </Td>
                   </Tr>
                 </Tbody>
               </TableWrapper>
@@ -210,7 +300,7 @@ export const GpuInfoModal = () => {
   return (
     <>
       <IconButton
-        aria-label="GPU Information" 
+        aria-label="GPU Information"
         icon={<InfoIcon />}
         size="sm"
         variant="ghost"
@@ -222,11 +312,17 @@ export const GpuInfoModal = () => {
 
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="6xl">
         <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
-        <ModalContent bg="gray.800" borderColor="whiteAlpha.100" borderWidth={1} maxH="90vh">
+        <ModalContent
+          bg="gray.800"
+          borderColor="whiteAlpha.100"
+          borderWidth={1}
+          maxH="90vh"
+        >
           <ModalHeader color="white" px={8} pt={6}>
             GPU Specifications
             <Text fontSize="sm" color="gray.400" mt={1}>
-              CUDA Driver Version: {CUDA_DRIVER_VERSION} | Runtime Version: {CUDA_RUNTIME_VERSION}
+              CUDA Driver Version: {CUDA_DRIVER_VERSION} | Runtime Version:{" "}
+              {CUDA_RUNTIME_VERSION}
             </Text>
           </ModalHeader>
           <ModalCloseButton color="gray.400" mr={2} mt={2} />
@@ -240,11 +336,11 @@ export const GpuInfoModal = () => {
                     _selected={{
                       color: "white",
                       borderColor: "green.400",
-                      bg: "transparent"
+                      bg: "transparent",
                     }}
                     _hover={{
                       color: "white",
-                      bg: "transparent" 
+                      bg: "transparent",
                     }}
                   >
                     {GPU_DISPLAY_NAMES[key]}
@@ -264,4 +360,4 @@ export const GpuInfoModal = () => {
       </Modal>
     </>
   );
-}; 
+};

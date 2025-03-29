@@ -132,7 +132,6 @@ export const submissionsRouter = createTRPCRouter({
   getSubmissionById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      
       const submission = await ctx.db.submission.findUnique({
         where: { id: input.id },
         include: {
@@ -158,7 +157,8 @@ export const submissionsRouter = createTRPCRouter({
       }
 
       // Check if user has access to code
-      const hasCodeAccess = submission.isPublic || 
+      const hasCodeAccess =
+        submission.isPublic ||
         (ctx.session?.user && ctx.session.user.id === submission.userId);
 
       // Return submission without code if user doesn't have access
@@ -290,12 +290,12 @@ async function computeLeaderboardData(
         orderBy: {
           gflops: "desc",
         },
-        distinct: ['userId'], 
+        distinct: ["userId"],
         take: 5, // Get enough submissions to process top performers
       },
     },
     orderBy: {
-      createdAt: "asc", 
+      createdAt: "asc",
     },
   });
 

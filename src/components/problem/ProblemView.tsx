@@ -22,7 +22,7 @@ interface ProblemViewProps {
   onViewSubmissions: () => void;
 }
 
-export const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) => {
+const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) => {
   return (
     <Box>
       <Heading as="h1" size="lg" mb={2}>
@@ -126,3 +126,5 @@ export const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) =>
     </Box>
   );
 };
+
+export default ProblemView;

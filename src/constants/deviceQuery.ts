@@ -3,7 +3,7 @@ export type DeviceQueryGpu = {
   cudaCapability: {
     major: number;
     minor: number;
-  },
+  };
   globalMemory: number; // assume bytes
   multiprocessors: number;
   cudaCoresPerMP: number;
@@ -37,8 +37,7 @@ export type DeviceQueryGpu = {
     maxGridDim: number[];
   };
   textureAlignment: number; // bytes
-}
-
+};
 
 export const CUDA_DRIVER_VERSION = 12.8;
 export const CUDA_RUNTIME_VERSION = 12.8;
@@ -47,11 +46,11 @@ export const NVCC_CMD = "nvcc -std=c++20 -O2 -Xcompiler -fPIC";
 export const TRITON_VERSION = "3.2.0";
 
 export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
-  "T4": {
+  T4: {
     name: "Tesla T4",
     cudaCapability: {
       major: 7,
-      minor: 5
+      minor: 5,
     },
     globalMemory: 15638134784, // bytes
     multiprocessors: 40,
@@ -64,18 +63,18 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
     textureDimensions: {
       max1D: 131072,
       max2D: [131072, 65536],
-      max3D: [16384, 16384, 16384]
+      max3D: [16384, 16384, 16384],
     },
     layeredTextureDimensions: {
       max1D: 32768,
       layers1D: 2048,
       max2D: [32768, 32768],
-      layers2D: 2048
+      layers2D: 2048,
     },
     memory: {
       constantMemory: 65536, // bytes
       sharedMemoryPerBlock: 49152, // bytes
-      sharedMemoryPerMP: 65536 // bytes
+      sharedMemoryPerMP: 65536, // bytes
     },
     registersPerBlock: 65536,
     warpSize: 32,
@@ -83,15 +82,15 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
       maxPerMP: 1024,
       maxPerBlock: 1024,
       maxBlockDim: [1024, 1024, 64],
-      maxGridDim: [2147483647, 65535, 65535]
+      maxGridDim: [2147483647, 65535, 65535],
     },
     textureAlignment: 512, // bytes
   },
-  "A10G": {
+  A10G: {
     name: "NVIDIA A10G",
     cudaCapability: {
       major: 8,
-      minor: 6
+      minor: 6,
     },
     globalMemory: 23696375808, // bytes
     multiprocessors: 80,
@@ -104,18 +103,18 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
     textureDimensions: {
       max1D: 131072,
       max2D: [131072, 65536],
-      max3D: [16384, 16384, 16384]
+      max3D: [16384, 16384, 16384],
     },
     layeredTextureDimensions: {
       max1D: 32768,
       layers1D: 2048,
       max2D: [32768, 32768],
-      layers2D: 2048
+      layers2D: 2048,
     },
     memory: {
       constantMemory: 65536, // bytes
       sharedMemoryPerBlock: 49152, // bytes
-      sharedMemoryPerMP: 102400 // bytes
+      sharedMemoryPerMP: 102400, // bytes
     },
     registersPerBlock: 65536,
     warpSize: 32,
@@ -123,7 +122,7 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
       maxPerMP: 1536,
       maxPerBlock: 1024,
       maxBlockDim: [1024, 1024, 64],
-      maxGridDim: [2147483647, 65535, 65535]
+      maxGridDim: [2147483647, 65535, 65535],
     },
     textureAlignment: 512, // bytes
   },
@@ -131,7 +130,7 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
     name: "NVIDIA A100 (80GB)",
     cudaCapability: {
       major: 8,
-      minor: 0
+      minor: 0,
     },
     globalMemory: 85095874560, // bytes
     multiprocessors: 108,
@@ -144,18 +143,18 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
     textureDimensions: {
       max1D: 131072,
       max2D: [131072, 65536],
-      max3D: [16384, 16384, 16384]
+      max3D: [16384, 16384, 16384],
     },
     layeredTextureDimensions: {
       max1D: 32768,
       layers1D: 2048,
       max2D: [32768, 32768],
-      layers2D: 2048
+      layers2D: 2048,
     },
     memory: {
       constantMemory: 65536, // bytes
       sharedMemoryPerBlock: 49152, // bytes
-      sharedMemoryPerMP: 167936 // bytes
+      sharedMemoryPerMP: 167936, // bytes
     },
     registersPerBlock: 65536,
     warpSize: 32,
@@ -163,15 +162,15 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
       maxPerMP: 2048,
       maxPerBlock: 1024,
       maxBlockDim: [1024, 1024, 64],
-      maxGridDim: [2147483647, 65535, 65535]
+      maxGridDim: [2147483647, 65535, 65535],
     },
     textureAlignment: 512, // bytes
   },
-  "L40S": {
+  L40S: {
     name: "NVIDIA L40S",
     cudaCapability: {
       major: 8,
-      minor: 9
+      minor: 9,
     },
     globalMemory: 47677177856, // bytes
     multiprocessors: 142,
@@ -184,18 +183,18 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
     textureDimensions: {
       max1D: 131072,
       max2D: [131072, 65536],
-      max3D: [16384, 16384, 16384]
+      max3D: [16384, 16384, 16384],
     },
     layeredTextureDimensions: {
       max1D: 32768,
       layers1D: 2048,
       max2D: [32768, 32768],
-      layers2D: 2048
+      layers2D: 2048,
     },
     memory: {
       constantMemory: 65536, // bytes
       sharedMemoryPerBlock: 49152, // bytes
-      sharedMemoryPerMP: 102400 // bytes
+      sharedMemoryPerMP: 102400, // bytes
     },
     registersPerBlock: 65536,
     warpSize: 32,
@@ -203,15 +202,15 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
       maxPerMP: 1536,
       maxPerBlock: 1024,
       maxBlockDim: [1024, 1024, 64],
-      maxGridDim: [2147483647, 65535, 65535]
+      maxGridDim: [2147483647, 65535, 65535],
     },
     textureAlignment: 512, // bytes
   },
-  "L4": {
+  L4: {
     name: "NVIDIA L4",
     cudaCapability: {
       major: 8,
-      minor: 9
+      minor: 9,
     },
     globalMemory: 23670685696, // bytes
     multiprocessors: 58,
@@ -224,18 +223,18 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
     textureDimensions: {
       max1D: 131072,
       max2D: [131072, 65536],
-      max3D: [16384, 16384, 16384]
+      max3D: [16384, 16384, 16384],
     },
     layeredTextureDimensions: {
       max1D: 32768,
       layers1D: 2048,
       max2D: [32768, 32768],
-      layers2D: 2048
+      layers2D: 2048,
     },
     memory: {
       constantMemory: 65536, // bytes
       sharedMemoryPerBlock: 49152, // bytes
-      sharedMemoryPerMP: 102400 // bytes
+      sharedMemoryPerMP: 102400, // bytes
     },
     registersPerBlock: 65536,
     warpSize: 32,
@@ -243,15 +242,15 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
       maxPerMP: 1536,
       maxPerBlock: 1024,
       maxBlockDim: [1024, 1024, 64],
-      maxGridDim: [2147483647, 65535, 65535]
+      maxGridDim: [2147483647, 65535, 65535],
     },
     textureAlignment: 512, // bytes
   },
-  "H100": {
+  H100: {
     name: "NVIDIA H100",
     cudaCapability: {
       major: 9,
-      minor: 0
+      minor: 0,
     },
     globalMemory: 85029158912, // bytes
     multiprocessors: 132,
@@ -264,18 +263,18 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
     textureDimensions: {
       max1D: 131072,
       max2D: [131072, 65536],
-      max3D: [16384, 16384, 16384]
+      max3D: [16384, 16384, 16384],
     },
     layeredTextureDimensions: {
       max1D: 32768,
       layers1D: 2048,
       max2D: [32768, 32768],
-      layers2D: 2048
+      layers2D: 2048,
     },
     memory: {
       constantMemory: 65536, // bytes
       sharedMemoryPerBlock: 49152, // bytes
-      sharedMemoryPerMP: 233472 // bytes
+      sharedMemoryPerMP: 233472, // bytes
     },
     registersPerBlock: 65536,
     warpSize: 32,
@@ -283,9 +282,8 @@ export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {
       maxPerMP: 2048,
       maxPerBlock: 1024,
       maxBlockDim: [1024, 1024, 64],
-      maxGridDim: [2147483647, 65535, 65535]
+      maxGridDim: [2147483647, 65535, 65535],
     },
     textureAlignment: 512, // bytes
-  }  
+  },
 } as const;
-
