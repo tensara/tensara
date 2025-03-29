@@ -102,6 +102,12 @@ async function getUserRating(
   if (problemsProcessed > 0) {
     rating += totalRatingChanges;
   }
+
+  //update the rating in the database
+  await ctx.db.user.update({
+    where: { id: userId },
+    data: { rating: rating },
+  });
   
   return Math.round(rating);
 }
