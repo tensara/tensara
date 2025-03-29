@@ -15,7 +15,7 @@ interface LayoutProps {
 export function Layout({
   title,
   children,
-  ogDescription = "A platform for GPU programming challenges. Write efficient CUDA code and compare your solutions with other developers.",
+  ogDescription = "A platform for GPU programming challenges. Write efficient GPU kernels and compare your solutions with other developers.",
   ogImage = "/tensara_ogimage.png",
 }: LayoutProps) {
   const siteTitle = title ? `${title} | Tensara` : "Tensara";
