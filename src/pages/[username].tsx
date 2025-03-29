@@ -39,9 +39,9 @@ import {
   FiList,
   FiBarChart2,
   FiTrendingUp,
-  FiArrowRight,
+  FiCpu,
 } from "react-icons/fi";
-import { FaTrophy, FaFire } from "react-icons/fa";
+import { FaFire } from "react-icons/fa";
 import NextLink from "next/link";
 import { api } from "~/utils/api";
 import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
@@ -616,13 +616,13 @@ return (
                 >
                   <Flex justify="center" mb={4}>
                     <Icon 
-                      as={FaTrophy} 
+                      as={FiCpu} 
                       color="yellow.400" 
                       boxSize={6} 
                       mr={3}
                     />
                     <Heading size="md" color="white">
-                      Tensara Score
+                      Tensara Rating
                     </Heading>
                   </Flex>
                   
@@ -633,9 +633,7 @@ return (
                     textShadow="0 0 10px rgba(236, 201, 75, 0.3)"
                     textAlign="center"
                   >
-                    {userData?.stats?.score
-                      ? userData.stats.score.toFixed(2)
-                      : 0}
+                    {userData?.stats?.rating ?? 0}
                   </Text>
                 </Box>
               </Skeleton>

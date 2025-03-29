@@ -26,3 +26,6 @@ export const GPU_THEORETICAL_PERFORMANCE: Record<string, number> = {
   "L40S": 91610,
   "L4": 30290
 } as const;
+
+export const BASELINE_UTILISATION = 0.0005;
+export const ADJUSTMENT_FACTOR = 32;
