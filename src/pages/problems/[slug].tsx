@@ -71,6 +71,7 @@ import { Problem } from "@prisma/client";
 import { GpuInfoModal } from "~/components/GpuInfoModal";
 import { DEVICE_QUERY_GPU_MAP } from "~/constants/deviceQuery";
 import { LanguageInfoModal } from "~/components/LanguageInfoModal";
+import { validateCode } from "~/utils/starter";
 
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -202,6 +203,18 @@ export default function ProblemPage({ slug }: { slug: string }) {
       toast({
         title: "Not signed in",
         description: "Please sign in to submit solutions",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    const {valid, error} = validateCode(code, selectedLanguage);
+    if (!valid) {
+      toast({
+        title: "Invalid code",
+        description: error,
         status: "error",
         duration: 5000,
         isClosable: true,
