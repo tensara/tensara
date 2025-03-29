@@ -15,17 +15,13 @@ import {
   Text,
   Spinner,
   Icon,
-  Badge,
   Link as ChakraLink,
   Switch,
-  FormControl,
-  FormLabel,
   useToast,
   Alert,
   AlertIcon,
   AlertDescription,
 } from "@chakra-ui/react";
-import { CheckIcon, WarningIcon, TimeIcon } from "@chakra-ui/icons";
 import Link from "next/link";
 import { Editor } from "@monaco-editor/react";
 import { useEffect, useState } from "react";
@@ -37,7 +33,8 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { auth } from "~/server/auth";
 import { TRPCError } from "@trpc/server";
-import { DebugInfo } from "~/types/problem";
+import { type DebugInfo } from "~/types/problem";
+import { formatStatus, getStatusColor, getStatusIcon } from "~/constants/problem";
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
@@ -100,29 +97,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 };
 
-// Helper function for formatting status - moved outside component to be used in getServerSideProps
-const formatStatus = (status: string | null) => {
-  switch (status) {
-    case "ACCEPTED":
-      return "Accepted";
-    case "WRONG_ANSWER":
-      return "Wrong Answer";
-    case "ERROR":
-      return "Error";
-    case "CHECKING":
-      return "Checking";
-    case "BENCHMARKING":
-      return "Benchmarking";
-    default:
-      return status ?? "Unknown";
-  }
-};
 
 const SubmissionPage: NextPage<{
   id: string;
   pageTitle: string;
   error?: string;
-}> = ({ id, pageTitle, error }) => {
+}> = ({ id, pageTitle }) => {
   // const router = useRouter();
   const [code, setCode] = useState("");
   const { data: session } = useSession();
@@ -165,7 +145,7 @@ const SubmissionPage: NextPage<{
 
   useEffect(() => {
     // Using optional chaining to safely access code which might not be present
-    if (submission && "code" in submission) {
+    if (submission && "code" in submission && typeof submission.code === "string") {
       setCode(submission.code);
     }
   }, [submission]);
@@ -204,22 +184,10 @@ const SubmissionPage: NextPage<{
     }
   };
 
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-      case "ACCEPTED":
-        return "green";
-      case "WRONG_ANSWER":
-      case "ERROR":
-        return "red";
-      case "CHECKING":
-      case "BENCHMARKING":
-        return "blue";
-      default:
-        return "gray";
-    }
-  };
-
+  // Check if the submission has code (is public or user is owner)
   const hasCode = "code" in submission;
+  const isPrivate = !submission.isPublic;
+  const canViewCode = hasCode && (!isPrivate || isOwner);
 
   return (
     <Layout title={pageTitle}>
@@ -312,14 +280,7 @@ const SubmissionPage: NextPage<{
                     spacing={3}
                   >
                     <Icon
-                      as={
-                        submission.status === "ACCEPTED"
-                          ? CheckIcon
-                          : submission.status === "WRONG_ANSWER" ||
-                            submission.status === "ERROR"
-                          ? WarningIcon
-                          : TimeIcon
-                      }
+                      as={getStatusIcon(submission.status)}
                       boxSize={5}
                       color={`${getStatusColor(submission.status)}.200`}
                     />
@@ -384,104 +345,104 @@ const SubmissionPage: NextPage<{
 
               {/* Error Message */}
               {submission.status === "WRONG_ANSWER" && (
-                  <Box bg="red.900" p={6} borderRadius="xl">
-                    {submission.errorMessage && (
-                      <Text color="red.200" fontWeight="semibold" mb={3}>
-                        {submission.errorMessage}
-                      </Text>
-                    )}
-                    {submission.errorDetails && (() => {
-                      try {
-                        const debugInfo = JSON.parse(submission.errorDetails) as DebugInfo;
-                        console.log(debugInfo);
-                        return (
-                          <VStack spacing={4} align="stretch">
-                            {debugInfo.message && (
-                              <Text color="red.100">{debugInfo.message}</Text>
-                            )}
-                            {debugInfo.max_difference && (
-                              <Box>
-                                <Text color="red.200" fontSize="sm">Maximum Difference:</Text>
-                                <Text color="red.100">{debugInfo.max_difference}</Text>
-                              </Box>
-                            )}
-                            {debugInfo.mean_difference && (
-                              <Box>
-                                <Text color="red.200" fontSize="sm">Mean Difference:</Text>
-                                <Text color="red.100">{debugInfo.mean_difference}</Text>
-                              </Box>
-                            )}
-                            {debugInfo.sample_differences && Object.keys(debugInfo.sample_differences).length > 0 && (
-                              <Box>
-                                <Text color="red.200" fontSize="sm" mb={2}>Sample Differences:</Text>
-                                <Box maxH="200px" overflowY="auto">
-                                  <Table size="sm" variant="unstyled">
-                                    <Thead position="sticky" top={0}>
-                                      <Tr>
-                                        <Th color="red.200">Index</Th>
-                                        <Th color="red.200" isNumeric>Expected</Th>
-                                        <Th color="red.200" isNumeric>Actual</Th>
-                                        <Th color="red.200" isNumeric>Difference</Th>
+                <Box bg="red.900" p={6} borderRadius="xl">
+                  {submission.errorMessage && (
+                    <Text color="red.200" fontWeight="semibold" mb={3}>
+                      {submission.errorMessage}
+                    </Text>
+                  )}
+                  {submission.errorDetails && (() => {
+                    try {
+                      const debugInfo = JSON.parse(submission.errorDetails) as DebugInfo;
+                      return (
+                        <VStack spacing={4} align="stretch">
+                          {debugInfo.message && (
+                            <Text color="red.100">{debugInfo.message}</Text>
+                          )}
+                          {debugInfo.max_difference && (
+                            <Box>
+                              <Text color="red.200" fontSize="sm">Maximum Difference:</Text>
+                              <Text color="red.100">{debugInfo.max_difference}</Text>
+                            </Box>
+                          )}
+                          {debugInfo.mean_difference && (
+                            <Box>
+                              <Text color="red.200" fontSize="sm">Mean Difference:</Text>
+                              <Text color="red.100">{debugInfo.mean_difference}</Text>
+                            </Box>
+                          )}
+                          {debugInfo.sample_differences && Object.keys(debugInfo.sample_differences).length > 0 && (
+                            <Box>
+                              <Text color="red.200" fontSize="sm" mb={2}>Sample Differences:</Text>
+                              <Box maxH="200px" overflowY="auto">
+                                <Table size="sm" variant="unstyled">
+                                  <Thead position="sticky" top={0}>
+                                    <Tr>
+                                      <Th color="red.200">Index</Th>
+                                      <Th color="red.200" isNumeric>Expected</Th>
+                                      <Th color="red.200" isNumeric>Actual</Th>
+                                      <Th color="red.200" isNumeric>Difference</Th>
+                                    </Tr>
+                                  </Thead>
+                                  <Tbody>
+                                    {Object.entries(debugInfo.sample_differences).slice(0, 50).map(([key, value]) => (
+                                      <Tr key={key}>
+                                        <Td color="red.100">{key}</Td>
+                                        <Td color="red.100" isNumeric>{value.expected.toFixed(10)}</Td>
+                                        <Td color="red.100" isNumeric>{value.actual.toFixed(10)}</Td>
+                                        <Td color="red.100" isNumeric>{value.diff.toFixed(10)}</Td>
                                       </Tr>
-                                    </Thead>
-                                    <Tbody>
-                                      {Object.entries(debugInfo.sample_differences).slice(0, 50).map(([key, value]) => (
-                                        <Tr key={key}>
-                                          <Td color="red.100">{key}</Td>
-                                          <Td color="red.100" isNumeric>{value.expected.toFixed(10)}</Td>
-                                          <Td color="red.100" isNumeric>{value.actual.toFixed(10)}</Td>
-                                          <Td color="red.100" isNumeric>{value.diff.toFixed(10)}</Td>
-                                        </Tr>
-                                      ))}
-                                    </Tbody>
-                                  </Table>
-                                </Box>
+                                    ))}
+                                  </Tbody>
+                                </Table>
                               </Box>
-                            )}
-                          </VStack>
-                        );
-                      } catch (e) {
-                        return (
-                          <Code
-                            display="block"
-                            whiteSpace="pre-wrap"
-                            p={4}
-                            bg="red.800"
-                            color="red.100"
-                            borderRadius="lg"
-                            fontSize="sm"
-                            fontFamily="mono"
-                          >
-                            {submission.errorDetails}
-                          </Code>
-                        );
-                      }
-                    })()}
-                  </Box>
-                )}
+                            </Box>
+                          )}
+                        </VStack>
+                      );
+                    } catch (e) {
+                      console.error("Failed to parse debug info", e);
+                      return (
+                        <Code
+                          display="block"
+                          whiteSpace="pre-wrap"
+                          p={4}
+                          bg="red.800"
+                          color="red.100"
+                          borderRadius="lg"
+                          fontSize="sm"
+                          fontFamily="mono"
+                        >
+                          {submission.errorDetails}
+                        </Code>
+                      );
+                    }
+                  })()}
+                </Box>
+              )}
 
               {submission.status !== "WRONG_ANSWER" &&
                 submission.errorMessage &&
                 submission.errorDetails && (
-                  <Box bg="red.900" p={6} borderRadius="xl">
-                    <Text color="red.200" fontWeight="semibold" mb={3}>
+                <Box bg="red.900" p={6} borderRadius="xl">
+                  <Text color="red.200" fontWeight="semibold" mb={3}>
                       Error Details ({submission.errorMessage})
-                    </Text>
-                    <Code
-                      display="block"
-                      whiteSpace="pre-wrap"
-                      p={4}
-                      bg="red.800"
-                      color="red.100"
-                      borderRadius="lg"
-                      fontSize="sm"
-                      fontFamily="mono"
-                    >
-                      {submission.errorDetails ??
+                  </Text>
+                  <Code
+                    display="block"
+                    whiteSpace="pre-wrap"
+                    p={4}
+                    bg="red.800"
+                    color="red.100"
+                    borderRadius="lg"
+                    fontSize="sm"
+                    fontFamily="mono"
+                  >
+                    {submission.errorDetails ??
                         submission.errorMessage}
-                    </Code>
-                  </Box>
-                )}
+                  </Code>
+                </Box>
+              )}
 
               {/* Benchmark Results */}
               {submission.benchmarkResults && (
@@ -594,7 +555,7 @@ const SubmissionPage: NextPage<{
               )}
             </HStack>
 
-            {!hasCode ? (
+            {!canViewCode ? (
               <Alert status="info" variant="solid" mb={4}>
                 <AlertIcon />
                 <AlertDescription>

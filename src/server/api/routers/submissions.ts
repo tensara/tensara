@@ -7,6 +7,7 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import NodeCache from "node-cache";
+import { gpuTypes } from "~/constants/gpu";
 
 // Create cache with 5 minute TTL
 const leaderboardCache = new NodeCache({ stdTTL: 300 });
@@ -25,6 +26,7 @@ type ProblemLeaderboard = {
     id: string;
     gflops: number;
     gpuType: string | null;
+    language: string | null;
     username: string | null;
     runtime: number | null;
   }>;
@@ -47,7 +49,6 @@ async function warmupCache(ctx: { db: PrismaClient }) {
 
   try {
     // Precompute for 'all' and each GPU type
-    const gpuTypes = ["all", "A100", "H100", "RTX4090"];
     await Promise.all(
       gpuTypes.map(async (gpuType) => {
         console.log(`[CACHE WARMUP] Processing GPU: ${gpuType}`);
@@ -131,6 +132,7 @@ export const submissionsRouter = createTRPCRouter({
   getSubmissionById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      
       const submission = await ctx.db.submission.findUnique({
         where: { id: input.id },
         include: {
@@ -155,15 +157,14 @@ export const submissionsRouter = createTRPCRouter({
         });
       }
 
-      // If user is not logged in or not the owner and submission is not public
-      if (
-        (!ctx.session?.user || ctx.session.user.id !== submission.userId) &&
-        !submission.isPublic
-      ) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You don't have permission to view this submission",
-        });
+      // Check if user has access to code
+      const hasCodeAccess = submission.isPublic || 
+        (ctx.session?.user && ctx.session.user.id === submission.userId);
+
+      // Return submission without code if user doesn't have access
+      if (!hasCodeAccess) {
+        const { code, ...submissionWithoutCode } = submission;
+        return submissionWithoutCode;
       }
 
       return submission;
@@ -278,6 +279,8 @@ async function computeLeaderboardData(
           gflops: true,
           gpuType: true,
           runtime: true,
+          language: true,
+          userId: true,
           user: {
             select: {
               username: true,
@@ -287,11 +290,12 @@ async function computeLeaderboardData(
         orderBy: {
           gflops: "desc",
         },
-        take: 100, // Get enough submissions to process top performers
+        distinct: ['userId'], 
+        take: 5, // Get enough submissions to process top performers
       },
     },
     orderBy: {
-      createdAt: "asc",
+      createdAt: "asc", 
     },
   });
 
@@ -306,6 +310,7 @@ async function computeLeaderboardData(
         gflops: number | null;
         gpuType: string | null;
         runtime: number | null;
+        language: string | null;
         user: { username: string | null };
       }>;
     }) => {
@@ -331,6 +336,7 @@ async function computeLeaderboardData(
           id: sub.id,
           gflops: sub.gflops!,
           gpuType: sub.gpuType,
+          language: sub.language,
           username: sub.user.username,
           runtime: sub.runtime,
         }));
@@ -397,6 +403,7 @@ async function computeProblemLeaderboardData(
       gflops: true,
       runtime: true,
       gpuType: true,
+      language: true,
       createdAt: true,
       user: {
         select: {
@@ -433,6 +440,7 @@ async function computeProblemLeaderboardData(
       runtime: sub.runtime,
       createdAt: sub.createdAt,
       gpuType: sub.gpuType,
+      language: sub.language,
     }));
 }
 

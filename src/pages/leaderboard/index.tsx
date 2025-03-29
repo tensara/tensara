@@ -8,7 +8,6 @@ import {
   Th,
   Td,
   Text,
-  Badge,
   Link as ChakraLink,
   Tooltip,
   Spinner,
@@ -31,8 +30,28 @@ import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
-import { useSession } from "next-auth/react";
-import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
+
+// Helper function to format performance numbers
+const formatPerformance = (gflops: number | null | undefined): string => {
+  if (!gflops) return "N/A";
+  
+  if (gflops >= 1000) {
+    const tflops = (gflops / 1000).toFixed(2);
+    return `${parseFloat(tflops)}T`;
+  }
+  return `${parseFloat(gflops.toFixed(2))}G`;
+};
+
+const getMedalColor = (index: number): string => {
+  switch(index) {
+    case 0: return "#FFD700"; // Gold
+    case 1: return "#C0C0C0"; // Silver
+    case 2: return "#CD7F32"; // Bronze
+    default: return "green.300";
+  }
+};
 
 export const getServerSideProps: GetServerSideProps = async (_context) => {
   const helpers = createServerSideHelpers({
@@ -42,9 +61,8 @@ export const getServerSideProps: GetServerSideProps = async (_context) => {
   });
 
   // Prefetch ALL GPU types during server-side render
-  const gpuTypes = ["all", "A100", "H100", "RTX4090"];
   await Promise.all(
-    gpuTypes.map((gpuType) =>
+    gpuTypes.map((gpuType: string) =>
       helpers.submissions.getBestSubmissionsByProblem.prefetch({ gpuType })
     )
   );
@@ -58,7 +76,7 @@ export const getServerSideProps: GetServerSideProps = async (_context) => {
 
 const LeaderboardIndexPage: NextPage = () => {
   const router = useRouter();
-  const [selectedGpu, setSelectedGpu] = useState<string>("all");
+  const [selectedGpu, setSelectedGpu] = useState<string>("H100");
 
   const { data: leaderboardData, isLoading } =
     api.submissions.getBestSubmissionsByProblem.useQuery(
@@ -91,7 +109,7 @@ const LeaderboardIndexPage: NextPage = () => {
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
           <HStack justify="space-between" align="center">
-            <Heading size="lg">Leaderboards</Heading>
+            <Heading size="lg">Leaderboards: {GPU_DISPLAY_NAMES[selectedGpu]}</Heading>
             <Select
               value={selectedGpu}
               onChange={(e) => setSelectedGpu(e.target.value)}
@@ -120,7 +138,6 @@ const LeaderboardIndexPage: NextPage = () => {
                   bg="gray.800"
                   borderColor="whiteAlpha.200"
                   borderWidth={1}
-                  _hover={{ borderColor: "whiteAlpha.400" }}
                 >
                   <CardHeader>
                     <ChakraLink
@@ -154,9 +171,8 @@ const LeaderboardIndexPage: NextPage = () => {
                               Rank
                             </Th>
                             <Th color="whiteAlpha.600">User</Th>
-                            <Th color="whiteAlpha.600">GPU</Th>
                             <Th isNumeric color="whiteAlpha.600">
-                              GFLOPS
+                              FLOPS
                             </Th>
                           </Tr>
                         </Thead>
@@ -164,46 +180,36 @@ const LeaderboardIndexPage: NextPage = () => {
                           {topSubmissions.map((submission, index) => (
                             <Tr
                               key={submission.id}
-                              onClick={() =>
-                                router.push(`/submissions/${submission.id}`)
-                              }
+                              onClick={(e) => {
+                                e.preventDefault();
+                                void router.push(`/submissions/${submission.id}`);
+                              }}
                               cursor="pointer"
                               _hover={{
-                                bg: "gray.600",
-                                transform: "scale(1.02)",
-                                transition:
-                                  "background-color 0.2s, transform 0.2s",
+                                bg: "whiteAlpha.50",
                               }}
                               px={4}
-                              rounded="full"
                             >
                               <Td pl={2}>
-                                <Badge
-                                  colorScheme={
-                                    index === 0
-                                      ? "yellow"
-                                      : index === 1
-                                      ? "gray"
-                                      : "blue"
-                                  }
-                                  variant="solid"
-                                  fontSize="sm"
-                                  px={2}
-                                >
-                                  #{index + 1}
-                                </Badge>
+                                <Text color="whiteAlpha.600">#{index + 1}</Text>
                               </Td>
                               <Td color="white">
-                                {submission.username ?? "Anonymous"}
-                              </Td>
-                              <Td>
-                                <Badge
-                                  colorScheme="purple"
-                                  variant="subtle"
-                                  fontSize="xs"
+                                <Tooltip 
+                                  label={`${LANGUAGE_DISPLAY_NAMES[submission.language ?? ""] ?? "Unknown"} | ${GPU_DISPLAY_NAMES[submission.gpuType ?? ""] ?? "Unknown GPU"}`}
                                 >
-                                  {submission.gpuType}
-                                </Badge>
+                                  <ChakraLink
+                                    as={Link}
+                                    href={`/users/${submission.username ?? "anonymous"}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      void router.push(`/users/${submission.username ?? "anonymous"}`);
+                                    }}
+                                    _hover={{ color: "blue.400" }}
+                                  >
+                                    {submission.username ?? "Anonymous"}
+                                  </ChakraLink>
+                                </Tooltip>
                               </Td>
                               <Td isNumeric>
                                 <Tooltip
@@ -211,8 +217,13 @@ const LeaderboardIndexPage: NextPage = () => {
                                     2
                                   )} ms`}
                                 >
-                                  <Text color="green.300" fontWeight="semibold">
-                                    {submission.gflops?.toFixed(2)}
+                                  <Text 
+                                    color={getMedalColor(index)} 
+                                    fontWeight="bold"
+                                    fontFamily="mono"
+                                    fontSize="sm"
+                                  >
+                                    {formatPerformance(submission.gflops)}
                                   </Text>
                                 </Tooltip>
                               </Td>

@@ -283,22 +283,22 @@ function ActivityCalendar({
                     label={
                       day.date && day.count > 0
                         ? `${day.count} submission${
-                            day.count === 1 ? "" : "s"
-                          } on ${new Date(day.date).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "long",
-                              day: "numeric",
-                            }
-                          )}${getOrdinalSuffix(new Date(day.date).getDate())}.`
+                          day.count === 1 ? "" : "s"
+                        } on ${new Date(day.date).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )}${getOrdinalSuffix(new Date(day.date).getDate())}.`
                         : day.date
-                        ? `No submissions on ${new Date(
+                          ? `No submissions on ${new Date(
                             day.date
                           ).toLocaleDateString("en-US", {
                             month: "long",
                             day: "numeric",
                           })}${getOrdinalSuffix(new Date(day.date).getDate())}.`
-                        : "No submissions"
+                          : "No submissions"
                     }
                     placement="top"
                     hasArrow

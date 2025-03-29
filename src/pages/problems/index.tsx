@@ -32,27 +32,27 @@ type SortDirection = "asc" | "desc";
 
 export const getDifficultyColor = (difficulty: string) => {
   switch (difficulty.toLowerCase()) {
-    case "easy":
-      return "green";
-    case "medium":
-      return "yellow";
-    case "hard":
-      return "red";
-    default:
-      return "gray";
+  case "easy":
+    return "green";
+  case "medium":
+    return "yellow";
+  case "hard":
+    return "red";
+  default:
+    return "gray";
   }
 };
 
 const getDifficultyValue = (difficulty: string) => {
   switch (difficulty.toLowerCase()) {
-    case "easy":
-      return 1;
-    case "medium":
-      return 2;
-    case "hard":
-      return 3;
-    default:
-      return 0;
+  case "easy":
+    return 1;
+  case "medium":
+    return 2;
+  case "hard":
+    return 3;
+  default:
+    return 0;
   }
 };
 
@@ -108,18 +108,18 @@ export default function ProblemsPage() {
       const multiplier = sortDirection === "asc" ? 1 : -1;
 
       switch (sortField) {
-        case "title":
-          return multiplier * a.title.localeCompare(b.title);
-        case "difficulty":
-          return (
-            multiplier *
+      case "title":
+        return multiplier * a.title.localeCompare(b.title);
+      case "difficulty":
+        return (
+          multiplier *
             (getDifficultyValue(a.difficulty) -
               getDifficultyValue(b.difficulty))
-          );
-        case "submissionCount":
-          return multiplier * (a.submissionCount - b.submissionCount);
-        default:
-          return 0;
+        );
+      case "submissionCount":
+        return multiplier * (a.submissionCount - b.submissionCount);
+      default:
+        return 0;
       }
     });
 
