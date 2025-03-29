@@ -19,3 +19,4 @@ export const GPU_DISPLAY_ON_PROFILE = {
   "L4": "L4",
   "none": "N/A"
 } as const;
+
