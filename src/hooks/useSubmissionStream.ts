@@ -51,12 +51,15 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
   const getTypedResponse = useCallback(
     <T extends SubmissionStatusType | SubmissionErrorType>(
       status: T
-    ): Record<string, unknown> | null => {
+    ): T extends keyof ResponseTypeMap ? ResponseTypeMap[T] | null : null => {
       if (metaStatus === status) {
-        // Cast to unknown first before casting to Record<string, unknown>
-        return metaResponse as unknown as Record<string, unknown>;
+        return metaResponse as T extends keyof ResponseTypeMap
+          ? ResponseTypeMap[T]
+          : never;
       }
-      return null;
+      return null as T extends keyof ResponseTypeMap
+        ? ResponseTypeMap[T] | null
+        : null;
     },
     [metaStatus, metaResponse]
   );

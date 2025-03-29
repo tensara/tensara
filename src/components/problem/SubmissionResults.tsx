@@ -28,6 +28,11 @@ import {
   type SubmissionStatusType,
   type TestResultResponse,
   type BenchmarkResultResponse,
+  type AcceptedResponse,
+  type BenchmarkedResponse,
+  type WrongAnswerResponse,
+  type ErrorResponse,
+  type CheckedResponse,
 } from "~/types/submission";
 
 import {
@@ -49,11 +54,18 @@ interface DebugSampleDifference {
   diff: number;
 }
 
-// Define more specific types for the response data
-interface AcceptedResponseData {
-  avg_gflops?: number;
-  avg_runtime_ms?: number;
-}
+// Define more specific types for the response data - these match the types in src/types/submission.ts
+type ResponseTypeMap = {
+  [SubmissionStatus.ACCEPTED]: AcceptedResponse;
+  [SubmissionStatus.BENCHMARKED]: BenchmarkedResponse;
+  [SubmissionStatus.CHECKED]: CheckedResponse;
+  [SubmissionStatus.WRONG_ANSWER]: WrongAnswerResponse;
+  [SubmissionError.ERROR]: ErrorResponse;
+  [SubmissionError.COMPILE_ERROR]: ErrorResponse;
+  [SubmissionError.RUNTIME_ERROR]: ErrorResponse;
+  [SubmissionError.TIME_LIMIT_EXCEEDED]: ErrorResponse;
+  [SubmissionError.RATE_LIMIT_EXCEEDED]: ErrorResponse;
+};
 
 interface DebugInfo {
   message?: string;
@@ -62,18 +74,9 @@ interface DebugInfo {
   sample_differences?: Record<string, DebugSampleDifference>;
 }
 
-interface WrongAnswerResponseData {
-  debug_info?: DebugInfo;
-}
-
-interface ErrorResponseData {
-  message?: string;
-  details?: string;
-}
-
 interface SubmissionResultsProps {
   metaStatus: SubmissionStatusType | SubmissionErrorType | null;
-  metaResponse: Record<string, unknown>;
+  metaResponse: ResponseTypeMap[keyof ResponseTypeMap] | null;
   testResults: TestResultResponse[];
   benchmarkResults: BenchmarkResultResponse[];
   isTestCaseTableOpen: boolean;
@@ -82,7 +85,7 @@ interface SubmissionResultsProps {
   totalTests: number | null;
   getTypedResponse: <T extends SubmissionStatusType | SubmissionErrorType>(
     status: T
-  ) => Record<string, unknown> | null;
+  ) => T extends keyof ResponseTypeMap ? ResponseTypeMap[T] | null : null;
   onBackToProblem: () => void;
   onViewSubmissions: () => void;
 }
@@ -367,215 +370,183 @@ const SubmissionResults = ({
           </Box>
         )}
 
-      {/* Performance and Runtime Stats */}
+      {/* Performance and Runtime Stats (when submission is accepted) */}
       {Boolean(metaStatus) && metaStatus === SubmissionStatus.ACCEPTED && (
-        <SimpleGrid columns={2} spacing={4}>
-          <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
-            <Text color="whiteAlpha.700" mb={1}>
-              Performance
-            </Text>
-            <Text fontSize="2xl" fontWeight="bold">
-              {(() => {
-                const response = getTypedResponse(
-                  SubmissionStatus.ACCEPTED
-                ) as AcceptedResponseData | null;
-                return response?.avg_gflops !== undefined
-                  ? response.avg_gflops.toFixed(2)
-                  : "0.00";
-              })()}{" "}
-              GFLOPS
-            </Text>
-          </Box>
-          <Box bg="whiteAlpha.50" p={6} borderRadius="xl">
-            <Text color="whiteAlpha.700" mb={1}>
-              Runtime
-            </Text>
-            <Text fontSize="2xl" fontWeight="bold">
-              {(() => {
-                const response = getTypedResponse(
-                  SubmissionStatus.ACCEPTED
-                ) as AcceptedResponseData | null;
-                return response?.avg_runtime_ms !== undefined
-                  ? response.avg_runtime_ms.toFixed(2)
-                  : "0.00";
-              })()}{" "}
-              ms
-            </Text>
-          </Box>
-        </SimpleGrid>
+        <Box bg="whiteAlpha.50" p={4} borderRadius="xl">
+          <Heading size="sm" mb={3}>
+            Performance and Runtime Stats
+          </Heading>
+          <SimpleGrid columns={2} spacing={4}>
+            <Box>
+              <Text color="whiteAlpha.700" mb={1}>
+                Average Performance
+              </Text>
+              <Heading size="md">
+                {(() => {
+                  const acceptedResponse = getTypedResponse(
+                    SubmissionStatus.ACCEPTED
+                  );
+                  return acceptedResponse?.avg_gflops?.toFixed(2) ?? "N/A";
+                })()}{" "}
+                GFLOPS
+              </Heading>
+            </Box>
+            <Box>
+              <Text color="whiteAlpha.700" mb={1}>
+                Average Runtime
+              </Text>
+              <Heading size="md">
+                {(() => {
+                  const acceptedResponse = getTypedResponse(
+                    SubmissionStatus.ACCEPTED
+                  );
+                  return acceptedResponse?.avg_runtime_ms?.toFixed(2) ?? "N/A";
+                })()}{" "}
+                ms
+              </Heading>
+            </Box>
+          </SimpleGrid>
+        </Box>
       )}
 
       {/* Wrong Answer Debug Info */}
       {Boolean(metaStatus) && metaStatus === SubmissionStatus.WRONG_ANSWER && (
-        <Box bg="red.900" p={6} borderRadius="xl">
+        <Box bg="whiteAlpha.50" p={4} borderRadius="xl">
+          <Heading size="sm" mb={3}>
+            Wrong Answer Debug Info
+          </Heading>
+          <Text mb={4}>
+            {(() => {
+              const wrongAnswerResponse = getTypedResponse(
+                SubmissionStatus.WRONG_ANSWER
+              );
+              return (
+                wrongAnswerResponse?.debug_info?.message ??
+                "No debug message available"
+              );
+            })()}
+          </Text>
           {(() => {
-            const response = getTypedResponse(
+            const wrongAnswerResponse = getTypedResponse(
               SubmissionStatus.WRONG_ANSWER
-            ) as WrongAnswerResponseData | null;
-            const debugInfo = response?.debug_info;
+            );
+            if (!wrongAnswerResponse?.debug_info) return null;
+
+            const debugInfo = wrongAnswerResponse.debug_info;
+
             return (
               <>
-                {debugInfo?.message && (
-                  <Text color="red.200" fontWeight="semibold" mb={3}>
-                    {debugInfo.message}
-                  </Text>
+                {debugInfo.max_difference && (
+                  <Box>
+                    <Text color="red.200" fontSize="sm">
+                      Maximum Difference
+                    </Text>
+                    <Text fontWeight="semibold">
+                      {debugInfo.max_difference.toFixed(7)}
+                    </Text>
+                  </Box>
                 )}
-                {debugInfo &&
-                  (() => {
-                    try {
-                      return (
-                        <VStack spacing={4} align="stretch">
-                          {debugInfo.message && (
-                            <Text color="red.100">{debugInfo.message}</Text>
+                {debugInfo.mean_difference && (
+                  <Box>
+                    <Text color="red.200" fontSize="sm">
+                      Mean Difference
+                    </Text>
+                    <Text fontWeight="semibold">
+                      {debugInfo.mean_difference.toFixed(7)}
+                    </Text>
+                  </Box>
+                )}
+                {debugInfo.sample_differences &&
+                  Object.keys(debugInfo.sample_differences).length > 0 && (
+                    <Box mt={4}>
+                      <Text color="red.200" fontSize="sm" mb={2}>
+                        Sample Differences
+                      </Text>
+                      <Table size="sm" variant="simple">
+                        <Thead>
+                          <Tr>
+                            <Th>Sample</Th>
+                            <Th isNumeric>Expected</Th>
+                            <Th isNumeric>Actual</Th>
+                            <Th isNumeric>Diff</Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
+                          {Object.entries(debugInfo.sample_differences).map(
+                            ([key, value]) => {
+                              if (
+                                typeof value === "object" &&
+                                value !== null &&
+                                "expected" in value &&
+                                "actual" in value &&
+                                "diff" in value
+                              ) {
+                                return (
+                                  <Tr key={key}>
+                                    <Td>{key}</Td>
+                                    <Td isNumeric>
+                                      {value.expected.toFixed(7)}
+                                    </Td>
+                                    <Td isNumeric>{value.actual.toFixed(7)}</Td>
+                                    <Td isNumeric>{value.diff.toFixed(7)}</Td>
+                                  </Tr>
+                                );
+                              }
+                              return (
+                                <Tr key={key}>
+                                  <Td>{key}</Td>
+                                  <Td isNumeric>-</Td>
+                                  <Td isNumeric>-</Td>
+                                  <Td isNumeric>-</Td>
+                                </Tr>
+                              );
+                            }
                           )}
-                          {debugInfo.max_difference && (
-                            <Box>
-                              <Text color="red.200" fontSize="sm">
-                                Maximum Difference:
-                              </Text>
-                              <Text color="red.100">
-                                {debugInfo.max_difference}
-                              </Text>
-                            </Box>
-                          )}
-                          {debugInfo.mean_difference && (
-                            <Box>
-                              <Text color="red.200" fontSize="sm">
-                                Mean Difference:
-                              </Text>
-                              <Text color="red.100">
-                                {debugInfo.mean_difference}
-                              </Text>
-                            </Box>
-                          )}
-                          {debugInfo.sample_differences &&
-                            Object.keys(debugInfo.sample_differences).length >
-                              0 && (
-                              <Box>
-                                <Text color="red.200" fontSize="sm" mb={2}>
-                                  Sample Differences:
-                                </Text>
-                                <Box maxH="200px" overflowY="auto">
-                                  <Table size="sm" variant="unstyled">
-                                    <Thead position="sticky" top={0}>
-                                      <Tr>
-                                        <Th color="red.200">Index</Th>
-                                        <Th color="red.200" isNumeric>
-                                          Expected
-                                        </Th>
-                                        <Th color="red.200" isNumeric>
-                                          Actual
-                                        </Th>
-                                        <Th color="red.200" isNumeric>
-                                          Difference
-                                        </Th>
-                                      </Tr>
-                                    </Thead>
-                                    <Tbody>
-                                      {Object.entries(
-                                        debugInfo.sample_differences
-                                      )
-                                        .slice(0, 50)
-                                        .map(([key, value]) => {
-                                          if (
-                                            typeof value === "object" &&
-                                            value !== null &&
-                                            "expected" in value &&
-                                            "actual" in value &&
-                                            "diff" in value
-                                          ) {
-                                            const { expected, actual, diff } =
-                                              value;
-                                            return (
-                                              <Tr key={key}>
-                                                <Td color="red.100">{key}</Td>
-                                                <Td color="red.100" isNumeric>
-                                                  {expected.toFixed(7)}
-                                                </Td>
-                                                <Td color="red.100" isNumeric>
-                                                  {actual.toFixed(7)}
-                                                </Td>
-                                                <Td color="red.100" isNumeric>
-                                                  {diff.toFixed(7)}
-                                                </Td>
-                                              </Tr>
-                                            );
-                                          }
-                                          return (
-                                            <Tr key={key}>
-                                              <Td color="red.100">{key}</Td>
-                                              <Td color="red.100" isNumeric>
-                                                -
-                                              </Td>
-                                              <Td color="red.100" isNumeric>
-                                                -
-                                              </Td>
-                                              <Td color="red.100" isNumeric>
-                                                -
-                                              </Td>
-                                            </Tr>
-                                          );
-                                        })}
-                                    </Tbody>
-                                  </Table>
-                                </Box>
-                              </Box>
-                            )}
-                        </VStack>
-                      );
-                    } catch (e) {
-                      console.error("Failed to parse debug info", e);
-                      return (
-                        <Code
-                          display="block"
-                          whiteSpace="pre-wrap"
-                          p={4}
-                          bg="red.800"
-                          color="red.100"
-                          borderRadius="lg"
-                          fontSize="sm"
-                          fontFamily="mono"
-                        >
-                          {debugInfo?.message ?? "Error parsing debug info"}
-                        </Code>
-                      );
-                    }
-                  })()}
+                        </Tbody>
+                      </Table>
+                    </Box>
+                  )}
               </>
             );
           })()}
         </Box>
       )}
 
-      {Boolean(metaStatus) &&
-        metaStatus !== SubmissionStatus.WRONG_ANSWER &&
-        isSubmissionError(metaStatus as string) &&
-        (() => {
-          const response = getTypedResponse(
-            metaStatus as SubmissionErrorType
-          ) as ErrorResponseData | null;
-          if (!response?.message || !response?.details) return null;
+      {/* Error Details */}
+      {Boolean(metaStatus) && isSubmissionError(metaStatus) && (
+        <Box bg="red.900" p={4} borderRadius="xl">
+          <Heading size="sm" mb={3} color="red.200">
+            Error Details
+          </Heading>
+          {(() => {
+            const errorResponse = getTypedResponse(metaStatus);
+            const message = errorResponse?.message ?? "Unknown error";
+            const details = errorResponse?.details ?? "";
 
-          return (
-            <Box bg="red.900" p={6} borderRadius="xl">
-              <Text color="red.200" fontWeight="semibold" mb={3}>
-                Error Details
-              </Text>
-              <Code
-                display="block"
-                whiteSpace="pre-wrap"
-                p={4}
-                bg="red.800"
-                color="red.100"
-                borderRadius="lg"
-                fontSize="sm"
-                fontFamily="mono"
-              >
-                {response.details ?? response.message}
-              </Code>
-            </Box>
-          );
-        })()}
+            return (
+              <>
+                <Text fontWeight="semibold" color="red.200" mb={2}>
+                  {message}
+                </Text>
+                {details && (
+                  <Code
+                    display="block"
+                    whiteSpace="pre-wrap"
+                    p={4}
+                    bg="red.800"
+                    color="red.100"
+                    borderRadius="lg"
+                    fontSize="sm"
+                    fontFamily="mono"
+                  >
+                    {details}
+                  </Code>
+                )}
+              </>
+            );
+          })()}
+        </Box>
+      )}
     </VStack>
   );
 };

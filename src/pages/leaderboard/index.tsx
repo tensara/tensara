@@ -36,7 +36,7 @@ import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 // Helper function to format performance numbers
 const formatPerformance = (gflops: number | null | undefined): string => {
   if (!gflops) return "N/A";
-  
+
   if (gflops >= 1000) {
     const tflops = (gflops / 1000).toFixed(2);
     return `${parseFloat(tflops)}T`;
@@ -45,11 +45,15 @@ const formatPerformance = (gflops: number | null | undefined): string => {
 };
 
 const getMedalColor = (index: number): string => {
-  switch(index) {
-    case 0: return "#FFD700"; // Gold
-    case 1: return "#C0C0C0"; // Silver
-    case 2: return "#CD7F32"; // Bronze
-    default: return "green.300";
+  switch (index) {
+    case 0:
+      return "#FFD700"; // Gold
+    case 1:
+      return "#C0C0C0"; // Silver
+    case 2:
+      return "#CD7F32"; // Bronze
+    default:
+      return "green.300";
   }
 };
 
@@ -109,7 +113,9 @@ const LeaderboardIndexPage: NextPage = () => {
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
           <HStack justify="space-between" align="center">
-            <Heading size="lg">Leaderboards: {GPU_DISPLAY_NAMES[selectedGpu]}</Heading>
+            <Heading size="lg">
+              Leaderboards: {GPU_DISPLAY_NAMES[selectedGpu]}
+            </Heading>
             <Select
               value={selectedGpu}
               onChange={(e) => setSelectedGpu(e.target.value)}
@@ -182,7 +188,9 @@ const LeaderboardIndexPage: NextPage = () => {
                               key={submission.id}
                               onClick={(e) => {
                                 e.preventDefault();
-                                void router.push(`/submissions/${submission.id}`);
+                                void router.push(
+                                  `/submissions/${submission.id}`
+                                );
                               }}
                               cursor="pointer"
                               _hover={{
@@ -194,16 +202,28 @@ const LeaderboardIndexPage: NextPage = () => {
                                 <Text color="whiteAlpha.600">#{index + 1}</Text>
                               </Td>
                               <Td color="white">
-                                <Tooltip 
-                                  label={`${LANGUAGE_DISPLAY_NAMES[submission.language ?? ""] ?? "Unknown"} | ${GPU_DISPLAY_NAMES[submission.gpuType ?? ""] ?? "Unknown GPU"}`}
+                                <Tooltip
+                                  label={`${
+                                    LANGUAGE_DISPLAY_NAMES[
+                                      submission.language ?? ""
+                                    ] ?? "Unknown"
+                                  } | ${
+                                    GPU_DISPLAY_NAMES[
+                                      submission.gpuType ?? ""
+                                    ] ?? "Unknown GPU"
+                                  }`}
                                 >
                                   <ChakraLink
                                     as={Link}
-                                    href={`/${submission.username ?? "anonymous"}`}
+                                    href={`/${
+                                      submission.username ?? "anonymous"
+                                    }`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
-                                      void router.push(`/${submission.username ?? "anonymous"}`);
+                                      void router.push(
+                                        `/${submission.username ?? "anonymous"}`
+                                      );
                                     }}
                                     _hover={{ color: "blue.400" }}
                                   >
@@ -217,8 +237,8 @@ const LeaderboardIndexPage: NextPage = () => {
                                     2
                                   )} ms`}
                                 >
-                                  <Text 
-                                    color={getMedalColor(index)} 
+                                  <Text
+                                    color={getMedalColor(index)}
                                     fontWeight="bold"
                                     fontFamily="mono"
                                     fontSize="sm"
