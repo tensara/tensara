@@ -199,11 +199,11 @@ const LeaderboardIndexPage: NextPage = () => {
                                 >
                                   <ChakraLink
                                     as={Link}
-                                    href={`/users/${submission.username ?? "anonymous"}`}
+                                    href={`/${submission.username ?? "anonymous"}`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
-                                      void router.push(`/users/${submission.username ?? "anonymous"}`);
+                                      void router.push(`/${submission.username ?? "anonymous"}`);
                                     }}
                                     _hover={{ color: "blue.400" }}
                                   >
