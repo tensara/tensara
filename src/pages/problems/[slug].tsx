@@ -73,6 +73,7 @@ import {
 import { MySubmissions } from "~/components/problem/mySubmissions";
 import { ProblemView } from "~/components/problem/problemView";
 import { getStatusIcon } from "~/constants/problem";
+import { validateCode } from "~/utils/starter";
 
 type ViewType = "submissions" | "problem" | "result";
 
@@ -226,7 +227,18 @@ export default function ProblemPage({ slug }: { slug: string }) {
       return;
     }
 
-    setViewType("result");
+    const {valid, error} = validateCode(code, selectedLanguage);
+    if (!valid) {
+      toast({
+        title: "Invalid code",
+        description: error,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     startSubmission();
 
     createSubmissionMutation.mutate({

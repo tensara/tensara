@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
   createTRPCRouter,
-  protectedProcedure as _protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
+import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
 
 // Define interfaces for submission and problem data
 interface SubmissionData {
@@ -258,6 +258,26 @@ export const usersRouter = createTRPCRouter({
           },
         },
       });
+      
+      //get the percentage of langauge used in solved problems
+      const solvedProblemsWithLanguage = await ctx.db.submission.groupBy({
+        by: ["language"],
+        _count: {
+          id: true,
+        },
+        where: {
+          userId: user.id,
+          status: "ACCEPTED",
+        },
+      });
+      const totalSolvedProblems = solvedProblemsWithLanguage.reduce((acc, curr) => acc + curr._count.id, 0);
+      const languagePercentage = solvedProblemsWithLanguage.map((language) => {
+        return {
+          language: LANGUAGE_PROFILE_DISPLAY_NAMES[language.language],
+          percentage: Number(((language._count.id / totalSolvedProblems) * 100).toFixed(2)),
+        };
+      });
+    
 
       // Get user rank based on total score
       // First, get all users with their submission scores
@@ -294,6 +314,7 @@ export const usersRouter = createTRPCRouter({
           status: true,
           runtime: true,
           gflops: true,
+          gpuType: true,
           problem: {
             select: {
               id: true,
@@ -301,23 +322,18 @@ export const usersRouter = createTRPCRouter({
               slug: true,
             },
           },
+          language: true,
         },
         orderBy: { createdAt: "desc" },
         take: 5,
       });
 
-      // Get activity data for heatmap (last 6 months)
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
       // Get all submission dates grouped by day
       const submissionDates = await ctx.db.submission.groupBy({
         by: ["createdAt"],
         where: {
           userId: user.id,
-          createdAt: {
-            gte: sixMonthsAgo,
-          },
         },
         _count: {
           id: true,
@@ -336,8 +352,6 @@ export const usersRouter = createTRPCRouter({
         };
       });
 
-      console.log({ userScore });
-
       return {
         username: user.username,
         name: user.name,
@@ -355,9 +369,13 @@ export const usersRouter = createTRPCRouter({
           problemName: sub.problem.title,
           date: sub.createdAt.toISOString().split("T")[0],
           status: (sub.status ?? "pending").toLowerCase(),
-          runtime: sub.runtime ? `${(sub.runtime / 1000).toFixed(2)}s` : "N/A",
+          runtime: sub.runtime ? `${(sub.runtime).toFixed(2)}ms` : "N/A",
+          gflops: sub.gflops ? `${sub.gflops.toFixed(2)}` : "N/A",
+          gpuType: sub.gpuType,
+          language: sub.language,
         })),
         activityData,
+        languagePercentage
       };
     }),
 });

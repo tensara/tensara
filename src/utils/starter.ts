@@ -17,10 +17,9 @@ extern "C" void solution(${paramStr}) {
   if (language === "python") {
     const names = parameters.map((parameter: Parameter) => parameter.pointer === "true" ? parameter.name : null).filter(Boolean);
     const paramStr = parameters.map((parameter: Parameter) => 
-      `${parameter.name}: ${parameter.pointer === "true" ? "torch.Tensor" : (parameter.type === "[VAR]" ? PYTHON_TYPES[dataType] : "int")}`
+      `${parameter.name}${parameter.pointer === "true" ? "" : (parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[dataType]}` : ": int")}`
     ).join(", ");
-    return `import torch
-import triton
+    return `import triton
 import triton.language as tl
 
 # Note: ${names.join(", ")} are all ${dataType} device tensors
@@ -29,3 +28,15 @@ def solution(${paramStr}):
   }
   return "";
 };
+
+export function validateCode(code: string, language: string): {valid: boolean, error: string} {
+  if (language === "python") {
+    if (code.includes("torch.") || code.includes("import torch")) {
+      return {valid: false, error: "You cannot use PyTorch in the code!"};
+    }
+    if (/exec\s*\(\s*[^)]*\)/.test(code)) {
+      return {valid: false, error: "You cannot use exec() in the code!"};
+    }
+  }
+  return {valid: true, error: ""};
+}

@@ -77,7 +77,7 @@ export default function HomePage() {
             lineHeight="tall"
             px={{ base: 4, md: 0 }}
           >
-            A platform for GPU programming challenges. Write efficient CUDA code
+            A platform for GPU programming challenges. Write efficient GPU kernels
             and compare your solutions with other developers.
           </Text>
 
@@ -163,7 +163,7 @@ export default function HomePage() {
           <FeatureCard
             icon={FiCpu}
             title="Real GPU Challenges"
-            description="Battle-tested problems that push your CUDA optimization skills to the limit."
+            description="Battle-tested problems that push your kernel optimization skills to the limit."
           />
           <FeatureCard
             icon={FiAward}
