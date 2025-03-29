@@ -6,8 +6,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
-import { PROBLEM_DIFFICULTY_MULTIPLIERS, START_RATING } from "~/constants/problem";
-import { ADJUSTMENT_FACTOR } from "~/constants/gpu";
+import { PROBLEM_DIFFICULTY_MULTIPLIERS, START_RATING, ADJUSTMENT_FACTOR } from "~/constants/problem";
 
 async function getUserRating(
   ctx: { db: PrismaClient },

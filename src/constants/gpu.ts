@@ -20,4 +20,3 @@ export const GPU_DISPLAY_ON_PROFILE = {
   "none": "N/A"
 } as const;
 
-export const ADJUSTMENT_FACTOR = 32; // No reasoning for this, i just like 2^5
