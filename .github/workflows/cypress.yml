@@ -47,9 +47,9 @@ jobs:
           CYPRESS_USERNAME: ${{ secrets.CYPRESS_TEST_USERNAME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTH_SECRET: "test-secret"
-          AUTH_GITHUB_ID: "test-id"
-          AUTH_GITHUB_SECRET: "test-secret"
-          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
-          MODAL_ENDPOINT: "http://localhost:8000"
+          AUTH_GITHUB_ID: ${{ secrets.TESTING_AUTH_GITHUB_ID }}
+          AUTH_GITHUB_SECRET: ${{ secrets.TESTING_AUTH_GITHUB_SECRET }}
+          DATABASE_URL: ${{ secrets.TESTING_DB_URL }}
+          MODAL_ENDPOINT: ${{ secrets.TESTING_MODAL_ENDPOINT }}
           NEXT_PUBLIC_GA_ID: "G-12345"
           
