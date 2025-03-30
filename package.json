@@ -17,7 +17,11 @@
     "lint:fix": "next lint --fix",
     "preview": "next build && next start",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cypress": "cypress open",
+    "cypress:headless": "cypress run",
+    "test:e2e": "start-server-and-test dev 3000 cypress",
+    "test:e2e:headless": "start-server-and-test dev 3000 cypress:headless"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",
@@ -62,6 +66,7 @@
     "zod": "^3.23.3"
   },
   "devDependencies": {
+    "@testing-library/cypress": "^10.0.3",
     "@types/eslint": "^8.56.10",
     "@types/katex": "^0.16.7",
     "@types/node": "^20.17.14",
@@ -69,9 +74,11 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.1.0",
+    "cypress": "^14.2.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.0.1",
     "prisma": "^5.14.0",
+    "start-server-and-test": "^2.0.11",
     "typescript": "^5.5.3"
   },
   "ct3aMetadata": {
