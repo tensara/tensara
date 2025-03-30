@@ -7,14 +7,14 @@ export const system = extendTheme({
     // body: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif",
     // heading: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif",
 
-    // DM Sans 
+    // DM Sans
     body: "DM Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-    heading: "DM Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+    heading:
+      "DM Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
 
     // Onest
     // body: "Onest, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
     // heading: "Onest, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-
   },
   styles: {
     global: {

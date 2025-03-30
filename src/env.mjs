@@ -35,4 +35,4 @@ export const env = createEnv({
     MODAL_ENDPOINT: process.env.MODAL_ENDPOINT,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
-}); 
+});

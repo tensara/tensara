@@ -3,8 +3,20 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import { auth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
-import { isSubmissionError, SubmissionError, SubmissionStatus } from "~/types/submission";
-import type { BenchmarkedResponse, BenchmarkResultResponse, CheckedResponse, SubmissionErrorType, TestResult, TestResultResponse, WrongAnswerResponse } from "~/types/submission";
+import {
+  isSubmissionError,
+  SubmissionError,
+  SubmissionStatus,
+} from "~/types/submission";
+import type {
+  BenchmarkedResponse,
+  BenchmarkResultResponse,
+  CheckedResponse,
+  SubmissionErrorType,
+  TestResult,
+  TestResultResponse,
+  WrongAnswerResponse,
+} from "~/types/submission";
 
 export default async function handler(
   req: NextApiRequest,
@@ -32,9 +44,9 @@ export default async function handler(
   const rateLimit = await checkRateLimit(session.user.id);
   if (!rateLimit.allowed) {
     await db.submission.deleteMany({
-      where: { id: submissionId }
+      where: { id: submissionId },
     });
-    res.status(rateLimit.statusCode ?? 429).json({ 
+    res.status(rateLimit.statusCode ?? 429).json({
       status: SubmissionError.RATE_LIMIT_EXCEEDED as SubmissionErrorType,
       error: rateLimit.error,
       details: rateLimit.error,
@@ -99,8 +111,8 @@ export default async function handler(
       res.status(403).json({ error: "Unauthorized" });
       return;
     }
-    
-    // TODO: 
+
+    // TODO:
     await db.submission.update({
       where: { id: submissionId },
       data: {
@@ -154,7 +166,7 @@ export default async function handler(
 
     const reader = checkerResponse.body?.getReader();
     if (!reader) {
-      sendSSE(SubmissionError.ERROR, { 
+      sendSSE(SubmissionError.ERROR, {
         error: "No response body from checker",
       });
 
@@ -199,7 +211,7 @@ export default async function handler(
 
             if (response_status === SubmissionStatus.TEST_RESULT) {
               const response = JSON.parse(response_json) as TestResultResponse;
-              
+
               if (response.result) {
                 if (!processedTestIds.has(response.result.test_id)) {
                   processedTestIds.add(response.result.test_id);
@@ -219,17 +231,16 @@ export default async function handler(
               }
             } else if (response_status === SubmissionStatus.CHECKED) {
               const response = JSON.parse(response_json) as CheckedResponse;
-              const checkerPassed = response.passed_tests === response.total_tests;
+              const checkerPassed =
+                response.passed_tests === response.total_tests;
 
               if (
                 response.total_tests !== undefined &&
                 response.passed_tests !== undefined
               ) {
-                
                 totalTests = response.total_tests;
                 passedTests = response.passed_tests;
               } else {
-                
               }
               if (checkerPassed) {
                 await db.submission.update({
@@ -263,7 +274,6 @@ export default async function handler(
 
               res.end();
               return;
-              
             } else if (isSubmissionError(response_status)) {
               const response = JSON.parse(response_json) as {
                 status: SubmissionErrorType;
@@ -365,7 +375,7 @@ export default async function handler(
         },
       });
 
-      sendSSE(SubmissionError.ERROR, { 
+      sendSSE(SubmissionError.ERROR, {
         error: "No response body from benchmark",
         message: "No response body from benchmark",
       });
@@ -374,7 +384,7 @@ export default async function handler(
       return;
     }
 
-    const benchmarkResults:BenchmarkResultResponse["result"][] = [];
+    const benchmarkResults: BenchmarkResultResponse["result"][] = [];
     partialMessage = "";
 
     try {
@@ -399,7 +409,9 @@ export default async function handler(
             const response_status = parsed.status;
 
             if (response_status === SubmissionStatus.BENCHMARK_RESULT) {
-              const response = JSON.parse(response_json) as BenchmarkResultResponse;
+              const response = JSON.parse(
+                response_json
+              ) as BenchmarkResultResponse;
               if (response.result) {
                 benchmarkResults.push(response.result);
                 await db.submission.update({
@@ -433,9 +445,7 @@ export default async function handler(
                   total_tests: benchmarkResults.length,
                 });
               }
-            }
-           
-            else if (isSubmissionError(response_status)) {
+            } else if (isSubmissionError(response_status)) {
               const response = JSON.parse(response_json) as {
                 status: SubmissionErrorType;
                 error: string;
@@ -476,7 +486,7 @@ export default async function handler(
             status: SubmissionError.ERROR,
             errorMessage:
               error instanceof Error ? error.message : "Unknown error occurred",
-            errorDetails: error instanceof Error ? error.stack ?? "" : "",
+            errorDetails: error instanceof Error ? (error.stack ?? "") : "",
           },
         });
       } catch (dbError) {
