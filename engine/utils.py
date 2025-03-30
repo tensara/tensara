@@ -13,6 +13,7 @@ from pathlib import Path
 import importlib.util
 from types import ModuleType
 import multiprocessing as mp
+import queue
 
 
 DTYPE_MAP = {
@@ -319,26 +320,31 @@ def convert_slug_to_module_name(slug: str) -> str:
 
 def subproc_generator(timeout=None):
     def _subproc_generator(func):
-        def subproc_wrapper(queue, *args, **kwargs):
+        def subproc_wrapper(my_queue, *args, **kwargs):
             try:
                 result = func(*args, **kwargs)
                 for ev in result:
-                    queue.put(ev)
+                    my_queue.put(ev)
             finally:
-                queue.put(None)
+                my_queue.put(None)
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            queue = mp.Queue()
-            proc = mp.Process(target=subproc_wrapper, args=(queue,) + args, kwargs=kwargs)
+            my_queue = mp.Queue()
+            proc = mp.Process(target=subproc_wrapper, args=(my_queue,) + args, kwargs=kwargs)
             proc.start()
             while True:
                 try:
-                    event = queue.get(timeout=timeout)
+                    event = my_queue.get(timeout=timeout)
                     yield event
                     if event is None:
                         break
-                except mp.TimeoutError:
+                except queue.Empty:
+                    yield {
+                        "status": "TIME_LIMIT_EXCEEDED",
+                        "message": "Time Limit Exceeded",
+                        "details": f"Execution exceeded time limit of {timeout:.2f}s"
+                    }
                     proc.terminate()
                     break
 
