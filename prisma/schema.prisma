@@ -20,6 +20,8 @@ model User {
   lastLogin     DateTime?
   lastLimitReset DateTime?
   currentLimit   Int?
+  rating         Int?
+  rank           Int?
 
   accounts     Account[]
   problems     Problem[]

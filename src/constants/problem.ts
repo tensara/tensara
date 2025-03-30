@@ -4,6 +4,16 @@ import { isSubmissionError } from "~/types/submission";
 export const DEFAULT_LANGUAGE = "cuda";
 export const DEFAULT_DATA_TYPE = "float32";
 
+export const PROBLEM_DIFFICULTY_MULTIPLIERS = {
+  "EASY": 1,
+  "MEDIUM": 1.5,
+  "HARD": 3
+} as const;
+
+export const ADJUSTMENT_FACTOR = 32; // No reasoning for this, i just like 2^5
+
+export const START_RATING = 1000;
+
 export const formatStatus = (status: string | null) => {
   switch (status) {
     case "ACCEPTED":
