@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 import importlib.util
 from types import ModuleType
+import multiprocessing as mp
 
 
 DTYPE_MAP = {
@@ -315,3 +316,34 @@ def convert_slug_to_module_name(slug: str) -> str:
     """
     return slug.replace("-", "_")
 
+
+def subproc_generator(timeout=None):
+    def _subproc_generator(func):
+        def subproc_wrapper(queue, *args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+                for ev in result:
+                    queue.put(ev)
+            finally:
+                queue.put(None)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            queue = mp.Queue()
+            proc = mp.Process(target=subproc_wrapper, args=(queue,) + args, kwargs=kwargs)
+            proc.start()
+            while True:
+                try:
+                    event = queue.get(timeout=timeout)
+                    yield event
+                    if event is None:
+                        break
+                except mp.TimeoutError:
+                    proc.terminate()
+                    break
+
+            proc.join()
+            proc.close()
+
+        return wrapper
+    return _subproc_generator

@@ -2,7 +2,6 @@ import json
 from threading import Thread
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
-from multiprocessing import Process, Queue
 import modal
 from pathlib import Path
 import utils
@@ -35,7 +34,9 @@ runtime_image = (
 app = modal.App("tensara", image=devel_image)
 web_app = FastAPI()
 
-def _binary_runner(queue: Queue, type: str, compiled_lib: bytes, solution_code: str, problem_name: str, problem_def: str, dtype: str, language: str):
+
+@utils.subproc_generator(timeout=60)
+def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_name: str, problem_def: str, dtype: str, language: str):
     gen = None
     if type == "checker":
         gen = runner.run_checker(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
@@ -45,23 +46,8 @@ def _binary_runner(queue: Queue, type: str, compiled_lib: bytes, solution_code: 
         raise ValueError(f"Unknown binary type: {type}")
 
     for event in gen:
-        queue.put(event)
-
-    queue.put(None)
-
-def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_name: str, problem_def: str, dtype: str, language: str):
-    queue = Queue()
-    proc = Process(target=_binary_runner, args=(queue, type, compiled_lib, solution_code, problem_name, problem_def, dtype, language))
-    proc.start()
-
-    while True:
-        event = queue.get()
-        if event is None:
-            break
         yield event
 
-    proc.join()
-    proc.close()
 
 gpu_runners = {
     gpu: app.function(
