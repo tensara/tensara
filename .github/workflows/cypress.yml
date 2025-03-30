@@ -42,11 +42,10 @@ jobs:
           component: false
         env:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
-          CYPRESS_AUTH_ENDPOINT: ${{ secrets.CYPRESS_OAUTH_ENDPOINT }}
           CYPRESS_PASSWORD: ${{ secrets.CYPRESS_TEST_PASSWORD }}
           CYPRESS_USERNAME: ${{ secrets.CYPRESS_TEST_USERNAME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AUTH_SECRET: "test-secret"
+          AUTH_SECRET: ${{ secrets.TESTING_AUTH_SECRET }}
           AUTH_GITHUB_ID: ${{ secrets.TESTING_AUTH_GITHUB_ID }}
           AUTH_GITHUB_SECRET: ${{ secrets.TESTING_AUTH_GITHUB_SECRET }}
           DATABASE_URL: ${{ secrets.TESTING_DB_URL }}
