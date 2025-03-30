@@ -16,6 +16,7 @@ engine/extracted_python_code
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
 db.sqlite
+cypress.env.json
 
 # next.js
 /.next/

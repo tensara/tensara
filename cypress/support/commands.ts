@@ -1,37 +1,48 @@
-/// <reference types="cypress" />
-// ***********************************************
-// This example commands.ts shows you how to
-// create various custom commands and overwrite
-// existing commands.
-//
-// For more comprehensive examples of custom
-// commands please read more here:
-// https://on.cypress.io/custom-commands
-// ***********************************************
-//
-//
-// -- This is a parent command --
-// Cypress.Commands.add('login', (email, password) => { ... })
-//
-//
-// -- This is a child command --
-// Cypress.Commands.add('drag', { prevSubject: 'element'}, (subject, options) => { ... })
-//
-//
-// -- This is a dual command --
-// Cypress.Commands.add('dismiss', { prevSubject: 'optional'}, (subject, options) => { ... })
-//
-//
-// -- This will overwrite an existing command --
-// Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-//
-// declare global {
-//   namespace Cypress {
-//     interface Chainable {
-//       login(email: string, password: string): Chainable<void>
-//       drag(subject: string, options?: Partial<TypeOptions>): Chainable<Element>
-//       dismiss(subject: string, options?: Partial<TypeOptions>): Chainable<Element>
-//       visit(originalFn: CommandOriginalFn, url: string, options: Partial<VisitOptions>): Chainable<Element>
-//     }
-//   }
-// }
+declare global {
+  interface Window {
+    monaco: {
+      editor: {
+        getModels: () => Array<{
+          setValue: (content: string) => void;
+        }>;
+      };
+    };
+  }
+}
+
+Cypress.Commands.add('setEditorContent', (content: string) => {
+  cy.window().then(win => {
+    if (win.monaco?.editor) {
+      const editor = win.monaco.editor.getModels()[0];
+      if (editor) {
+        editor.setValue(content);
+      }
+    }
+  });
+});
+
+Cypress.Commands.add('loginWithGithub', (username: string, password: string) => {
+  cy.visit('/');
+  
+  cy.visit('/api/auth/signin/github');
+  cy.get('button[type="submit"]').click({ force: true });
+  cy.origin("https://github.com", { args: { username, password } }, ({ username, password }) => {
+    cy.get('input[name="login"]').should('be.visible').type(username);
+    cy.get('input[name="password"]').should('be.visible').type(password);
+    cy.get('input[type="submit"]').click();
+    cy.wait(1000);
+  });
+
+    
+  cy.get('body').then(($body) => {
+    if ($body.find('button:contains("Authorize")').length > 0) {
+      cy.get('button[type="submit"]').contains('Authorize').click();
+    }
+  });
+
+
+
+  
+});
+
+export {};
