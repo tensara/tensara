@@ -1,5 +1,4 @@
 import json
-import sys
 from threading import Thread
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
@@ -7,8 +6,6 @@ import modal
 from pathlib import Path
 import utils
 import runner
-from problem import Problem
-import os
 
 DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
@@ -66,7 +63,7 @@ def gen_wrapper(gen):
     for event in gen:
         yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
 
-        
+
 @web_app.post("/checker-{gpu}")
 async def checker(gpu: str, request: Request):
     req = await request.json()
@@ -87,7 +84,7 @@ async def checker(gpu: str, request: Request):
                 utils.run_nvcc_and_return_bytes(gpu, solution_code, "solution")
             except Exception:
                 pass
-        
+
 
         if language == "cuda":
             bench_thr = Thread(target=compile_benchmark)
