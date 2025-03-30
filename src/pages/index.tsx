@@ -20,10 +20,8 @@ import {
   FiAward,
   FiUsers,
   FiCode,
-  FiGithub,
-  FiTwitter,
-  FiMail,
 } from "react-icons/fi";
+import { FaDiscord, FaGithub, FaTwitter, FaEnvelope } from "react-icons/fa";
 import { type IconType } from "react-icons";
 
 // Create motion components
@@ -238,22 +236,30 @@ export default function HomePage() {
                   color="whiteAlpha.800"
                   _hover={{ color: "#2ecc71" }}
                 >
-                  <Icon as={FiGithub} boxSize={6} />
+                  <Icon as={FaGithub} boxSize={6} />
                 </Link>
                 <Link
-                  href="https://twitter.com/someshkar"
+                  href="https://twitter.com/tensarahq"
                   isExternal
                   color="whiteAlpha.800"
                   _hover={{ color: "#2ecc71" }}
                 >
-                  <Icon as={FiTwitter} boxSize={6} />
+                  <Icon as={FaTwitter} boxSize={6} />
                 </Link>
                 <Link
                   href="mailto:hello@tensara.org"
                   color="whiteAlpha.800"
                   _hover={{ color: "#2ecc71" }}
                 >
-                  <Icon as={FiMail} boxSize={6} />
+                  <Icon as={FaEnvelope} boxSize={6} />
+                </Link>
+                <Link
+                  href="https://discord.gg/YzBTfMxVQK"
+                  isExternal
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  <Icon as={FaDiscord} boxSize={6} />
                 </Link>
               </HStack>
               <Text color="whiteAlpha.600" fontSize="sm" mt={4}>
