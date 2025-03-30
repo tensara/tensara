@@ -1,12 +1,13 @@
 import { z } from "zod";
-import {
-  createTRPCRouter,
-  publicProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
-import { PROBLEM_DIFFICULTY_MULTIPLIERS, START_RATING, ADJUSTMENT_FACTOR } from "~/constants/problem";
+import {
+  PROBLEM_DIFFICULTY_MULTIPLIERS,
+  START_RATING,
+  ADJUSTMENT_FACTOR,
+} from "~/constants/problem";
 
 async function getUserRating(
   ctx: { db: PrismaClient },
@@ -17,14 +18,14 @@ async function getUserRating(
     where: { id: userId },
     select: { rating: true },
   });
-  
+
   if (!user) {
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "User not found",
     });
   }
-  
+
   // Start with base rating for new users
   let rating = START_RATING;
   let totalRatingChanges = 0;
@@ -42,7 +43,7 @@ async function getUserRating(
     const gpuType = submission.gpuType;
     const gflops = submission._max.gflops;
     const problemId = submission.problemId;
-    
+
     // Skip invalid submissions
     if (!gpuType || !gflops) continue;
 
@@ -51,10 +52,13 @@ async function getUserRating(
       where: { id: problemId },
       select: { slug: true, difficulty: true },
     });
-    
+
     if (!problem?.difficulty) continue;
-    const difficultyMultiplier = PROBLEM_DIFFICULTY_MULTIPLIERS[problem.difficulty as keyof typeof PROBLEM_DIFFICULTY_MULTIPLIERS];
-    
+    const difficultyMultiplier =
+      PROBLEM_DIFFICULTY_MULTIPLIERS[
+        problem.difficulty as keyof typeof PROBLEM_DIFFICULTY_MULTIPLIERS
+      ];
+
     // Find all submissions for this problem-GPU combination
     const allSubmissionsForProblemGpu = await ctx.db.submission.findMany({
       where: {
@@ -69,7 +73,7 @@ async function getUserRating(
         gflops: "desc",
       },
     });
-    
+
     // Group submissions by user (keeping only best per user)
     const userBestGflops: Record<string, number> = {};
     for (const sub of allSubmissionsForProblemGpu) {
@@ -80,25 +84,32 @@ async function getUserRating(
         userBestGflops[sub.userId] = sub.gflops;
       }
     }
-    const uniqueGflopValues = Object.values(userBestGflops).sort((a, b) => b - a);
-    
-    const userRank = uniqueGflopValues.findIndex(value => value === gflops) + 1;
+    const uniqueGflopValues = Object.values(userBestGflops).sort(
+      (a, b) => b - a
+    );
+
+    const userRank =
+      uniqueGflopValues.findIndex((value) => value === gflops) + 1;
     const totalUniqueSubmissions = uniqueGflopValues.length;
-    
+
     if (totalUniqueSubmissions <= 1) continue;
-    
+
     const percentile = (userRank - 1) / Math.max(totalUniqueSubmissions - 1, 1);
-    
-    const performanceScore = calculatePerformanceScore(percentile, difficultyMultiplier);
-    
+
+    const performanceScore = calculatePerformanceScore(
+      percentile,
+      difficultyMultiplier
+    );
+
     const expectedScore = 100 * difficultyMultiplier;
-    
-    const ratingChange = ADJUSTMENT_FACTOR * (performanceScore - expectedScore) / 100;
-    
+
+    const ratingChange =
+      (ADJUSTMENT_FACTOR * (performanceScore - expectedScore)) / 100;
+
     totalRatingChanges += ratingChange;
     problemsProcessed++;
   }
-  
+
   if (problemsProcessed > 0) {
     rating += totalRatingChanges;
   }
@@ -109,11 +120,14 @@ async function getUserRating(
     where: { id: userId },
     data: { rating: final_rating },
   });
-  
+
   return final_rating;
 }
 
-function calculatePerformanceScore(percentile: number, difficultyMultiplier: number): number {
+function calculatePerformanceScore(
+  percentile: number,
+  difficultyMultiplier: number
+): number {
   // Top 1% gets ~190 * difficultyMultiplier
   // Top 10% gets ~150 * difficultyMultiplier
   // Top 25% gets ~120 * difficultyMultiplier
@@ -123,11 +137,7 @@ function calculatePerformanceScore(percentile: number, difficultyMultiplier: num
   return (200 - 150 * Math.pow(percentile, 0.7)) * difficultyMultiplier;
 }
 
-
-async function getUserRank(
-  ctx: { db: PrismaClient },
-  userId: string
-) {
+async function getUserRank(ctx: { db: PrismaClient }, userId: string) {
   const user = await ctx.db.user.findFirst({
     where: { id: userId },
     select: {
@@ -142,15 +152,14 @@ async function getUserRank(
     });
   }
 
-
   //first get the rating of the user
   const rating = await getUserRating(ctx, userId);
 
   //then get the rank of the user
-  const rank = await ctx.db.user.count({
-    where: { rating: { gt: rating } },
-  }) + 1;
-
+  const rank =
+    (await ctx.db.user.count({
+      where: { rating: { gt: rating } },
+    })) + 1;
 
   //if the rank is NaN, throw an error
   if (isNaN(rank)) {
@@ -165,8 +174,8 @@ async function getUserRank(
     where: { id: userId },
     data: { rank: rank },
   });
-  
-  return rank; 
+
+  return rank;
 }
 
 export const usersRouter = createTRPCRouter({
@@ -207,7 +216,7 @@ export const usersRouter = createTRPCRouter({
           },
         },
       });
-      
+
       //get the percentage of langauge used in solved problems
       const solvedProblemsWithLanguage = await ctx.db.submission.groupBy({
         by: ["language"],
@@ -219,14 +228,19 @@ export const usersRouter = createTRPCRouter({
           status: "ACCEPTED",
         },
       });
-      const totalSolvedProblems = solvedProblemsWithLanguage.reduce((acc, curr) => acc + curr._count.id, 0);
+      const totalSolvedProblems = solvedProblemsWithLanguage.reduce(
+        (acc, curr) => acc + curr._count.id,
+        0
+      );
       const languagePercentage = solvedProblemsWithLanguage.map((language) => {
         return {
           language: LANGUAGE_PROFILE_DISPLAY_NAMES[language.language],
-          percentage: Number(((language._count.id / totalSolvedProblems) * 100).toFixed(2)),
+          percentage: Number(
+            ((language._count.id / totalSolvedProblems) * 100).toFixed(2)
+          ),
         };
       });
-    
+
       // Find current user's rank
       const userRank = await getUserRank(ctx, user.id);
       const userRating = await getUserRating(ctx, user.id);
@@ -257,7 +271,6 @@ export const usersRouter = createTRPCRouter({
         orderBy: { createdAt: "desc" },
         take: 5,
       });
-
 
       // Get all submission dates grouped by day
       const submissionDates = await ctx.db.submission.groupBy({
@@ -299,13 +312,13 @@ export const usersRouter = createTRPCRouter({
           problemName: sub.problem.title,
           date: sub.createdAt.toISOString().split("T")[0],
           status: (sub.status ?? "pending").toLowerCase(),
-          runtime: sub.runtime ? `${(sub.runtime).toFixed(2)}ms` : "N/A",
+          runtime: sub.runtime ? `${sub.runtime.toFixed(2)}ms` : "N/A",
           gflops: sub.gflops ? `${sub.gflops.toFixed(2)}` : "N/A",
           gpuType: sub.gpuType,
           language: sub.language,
         })),
         activityData,
-        languagePercentage
+        languagePercentage,
       };
     }),
 });

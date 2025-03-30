@@ -90,7 +90,7 @@ export default function UserProfile() {
                 />
                 <UserStatsBox userData={userData} isLoading={isLoading} />
                 <TensaraScoreBox
-                  score={userData?.stats?.score}
+                  score={userData?.stats?.rating}
                   isLoading={isLoading}
                 />
                 <UserLanguagesBox
