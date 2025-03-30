@@ -43,3 +43,10 @@ jobs:
         env:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTH_SECRET: "test-secret"
+          AUTH_GITHUB_ID: "test-id"
+          AUTH_GITHUB_SECRET: "test-secret"
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
+          MODAL_ENDPOINT: "http://localhost:8000"
+          NEXT_PUBLIC_GA_ID: "G-12345"
+          
