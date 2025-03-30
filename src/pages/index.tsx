@@ -15,12 +15,7 @@ import {
 import { motion } from "framer-motion";
 import React, { useState, useEffect } from "react";
 import { Layout } from "~/components/layout";
-import {
-  FiCpu,
-  FiAward,
-  FiUsers,
-  FiCode,
-} from "react-icons/fi";
+import { FiCpu, FiAward, FiUsers, FiCode } from "react-icons/fi";
 import { FaDiscord, FaGithub, FaTwitter, FaEnvelope } from "react-icons/fa";
 import { type IconType } from "react-icons";
 
