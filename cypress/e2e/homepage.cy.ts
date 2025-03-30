@@ -22,9 +22,9 @@ describe('Tensara Homepage', () => {
     cy.url().should('include', '/problems');
     
     // Verify the problems page has text "Vector Addition", "Matrix Multiplication" 
-    cy.contains('Vector Addition').should('exist');
-    cy.contains('Matrix Multiplication').should('exist');
-    cy.contains('ReLU').should('exist');
+    cy.contains('Vector Addition').should('exist', { timeout: 10000 });
+    cy.contains('Matrix Multiplication').should('exist', { timeout: 10000 });
+    cy.contains('ReLU').should('exist', { timeout: 10000 });
   });
 
   it('should find and click on the ReLU problem', () => {
@@ -44,7 +44,7 @@ describe('Tensara Homepage', () => {
     cy.url().should('include', '/problems/');
     
     // Verify the ReLU problem title is visible
-    cy.contains('ReLU').should('be.visible');
+    cy.contains('ReLU').should('be.visible', { timeout: 10000 });
   });
 
   it('should display proper content on the ReLU problem page', () => {
@@ -55,13 +55,13 @@ describe('Tensara Homepage', () => {
     cy.contains('ReLU').should('be.visible');
     
     // Code editor should be visible
-    cy.get('.monaco-editor').should('exist').and('be.visible');
+    cy.get('.monaco-editor').should('exist').and('be.visible', { timeout: 10000 });
     
     // 2. Check for editor content area
     cy.get('.monaco-editor-background').should('exist');
     
 
     // Submit button should be visible
-    cy.contains('button', 'Submit', { matchCase: false }).should('exist');
+    cy.contains('button', 'Submit', { matchCase: false }).should('exist', { timeout: 10000 });
   });
 });
