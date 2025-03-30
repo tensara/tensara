@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Any, Optional
+from typing import List, Dict, Tuple, Any 
 import torch
 
 class Problem(ABC):

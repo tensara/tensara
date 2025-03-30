@@ -29,11 +29,11 @@ jobs:
 
       - name: Run build
         env:
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
-          AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NEXT_PUBLIC_GA_ID: ${{ secrets.NEXT_PUBLIC_GA_ID }}
-          MODAL_ENDPOINT: ${{ secrets.MODAL_ENDPOINT }}
+          AUTH_SECRET: "fake_auth_secret"
+          AUTH_GITHUB_ID: "fake_auth_github_id"
+          AUTH_GITHUB_SECRET: "fake_auth_github_secret"
+          DATABASE_URL: "postgresql://fake_database_url"
+          NEXT_PUBLIC_GA_ID: "fake_ga_id"
+          MODAL_ENDPOINT: "https://fake_modal_endpoint"
 
         run: pnpm install && pnpm run build

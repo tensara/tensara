@@ -1,7 +1,5 @@
-import asyncio
 from functools import lru_cache, wraps
 import os
-import threading
 from fastapi import HTTPException
 import importlib
 from problem import Problem
@@ -14,6 +12,8 @@ import tempfile
 from pathlib import Path
 import importlib.util
 from types import ModuleType
+import multiprocessing as mp
+import queue
 
 
 DTYPE_MAP = {
@@ -317,3 +317,39 @@ def convert_slug_to_module_name(slug: str) -> str:
     """
     return slug.replace("-", "_")
 
+
+def subproc_generator(timeout=None):
+    def _subproc_generator(func):
+        def subproc_wrapper(my_queue, *args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+                for ev in result:
+                    my_queue.put(ev)
+            finally:
+                my_queue.put(None)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            my_queue = mp.Queue()
+            proc = mp.Process(target=subproc_wrapper, args=(my_queue,) + args, kwargs=kwargs)
+            proc.start()
+            while True:
+                try:
+                    event = my_queue.get(timeout=timeout)
+                    yield event
+                    if event is None:
+                        break
+                except queue.Empty:
+                    yield {
+                        "status": "TIME_LIMIT_EXCEEDED",
+                        "message": "Time Limit Exceeded",
+                        "details": f"Execution exceeded time limit of {timeout:.2f}s"
+                    }
+                    proc.terminate()
+                    break
+
+            proc.join()
+            proc.close()
+
+        return wrapper
+    return _subproc_generator
