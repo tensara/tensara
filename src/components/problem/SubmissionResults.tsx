@@ -373,9 +373,6 @@ const SubmissionResults = ({
       {/* Performance and Runtime Stats (when submission is accepted) */}
       {Boolean(metaStatus) && metaStatus === SubmissionStatus.ACCEPTED && (
         <Box bg="whiteAlpha.50" p={4} borderRadius="xl">
-          <Heading size="sm" mb={3}>
-            Performance and Runtime Stats
-          </Heading>
           <SimpleGrid columns={2} spacing={4}>
             <Box>
               <Text color="whiteAlpha.700" mb={1}>
