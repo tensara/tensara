@@ -27,9 +27,9 @@ Cypress.Commands.add('loginWithGithub', (username: string, password: string) => 
   cy.visit('/api/auth/signin/github');
   cy.get('button[type="submit"]').click({ force: true });
   cy.origin("https://github.com", { args: { username, password } }, ({ username, password }) => {
-    cy.get('input[name="login"]').should('be.visible').type(username);
-    cy.get('input[name="password"]').should('be.visible').type(password);
-    cy.get('input[type="submit"]').click();
+    cy.get('input[name="login"]').should('be.visible').type(username, { force: true});
+    cy.get('input[name="password"]').should('be.visible').type(password, { force: true });
+    cy.get('input[type="submit"]').click({ force: true });
     cy.wait(1000);
   });
 
