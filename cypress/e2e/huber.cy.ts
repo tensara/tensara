@@ -17,8 +17,10 @@ describe('Huber Loss Problem Tests', () => {
     cy.get('.monaco-editor').should('exist');
     //wait for editor to be visible
     cy.get('.monaco-editor').should('be.visible');
-
+    cy.wait(1000);
     cy.setEditorContent(correct_solution);
+    cy.wait(1000);
+
 
     //get button with text "Submit"
     cy.contains('button', 'Submit', { matchCase: false }).should('exist');
@@ -38,9 +40,9 @@ describe('Huber Loss Problem Tests', () => {
     cy.get('.monaco-editor').should('exist');
     //wait for editor to be visible
     cy.get('.monaco-editor').should('be.visible');
-
+    cy.wait(1000);
     cy.setEditorContent(compile_error_solution);
-
+    cy.wait(1000);
     //get button with text "Submit"
     cy.contains('button', 'Submit', { matchCase: false }).should('exist');
 
@@ -59,9 +61,9 @@ describe('Huber Loss Problem Tests', () => {
     cy.get('.monaco-editor').should('exist');
     //wait for editor to be visible
     cy.get('.monaco-editor').should('be.visible');
-
+    cy.wait(1000);  
     cy.setEditorContent(runtime_error_solution);
-
+    cy.wait(1000);
     //get button with text "Submit"
     cy.contains('button', 'Submit', { matchCase: false }).should('exist');
 
@@ -80,9 +82,9 @@ describe('Huber Loss Problem Tests', () => {
     cy.get('.monaco-editor').should('exist');
     //wait for editor to be visible
     cy.get('.monaco-editor').should('be.visible');
-
+    cy.wait(1000);
     cy.setEditorContent(wrong_answer_solution);
-
+    cy.wait(1000);
     //get button with text "Submit"
     cy.contains('button', 'Submit', { matchCase: false }).should('exist');
 
