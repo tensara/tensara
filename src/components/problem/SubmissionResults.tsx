@@ -67,12 +67,6 @@ type ResponseTypeMap = {
   [SubmissionError.RATE_LIMIT_EXCEEDED]: ErrorResponse;
 };
 
-interface DebugInfo {
-  message?: string;
-  max_difference?: number;
-  mean_difference?: number;
-  sample_differences?: Record<string, DebugSampleDifference>;
-}
 
 interface SubmissionResultsProps {
   metaStatus: SubmissionStatusType | SubmissionErrorType | null;
@@ -408,21 +402,7 @@ const SubmissionResults = ({
 
       {/* Wrong Answer Debug Info */}
       {Boolean(metaStatus) && metaStatus === SubmissionStatus.WRONG_ANSWER && (
-        <Box bg="whiteAlpha.50" p={4} borderRadius="xl">
-          <Heading size="sm" mb={3}>
-            Wrong Answer Debug Info
-          </Heading>
-          <Text mb={4}>
-            {(() => {
-              const wrongAnswerResponse = getTypedResponse(
-                SubmissionStatus.WRONG_ANSWER
-              );
-              return (
-                wrongAnswerResponse?.debug_info?.message ??
-                "No debug message available"
-              );
-            })()}
-          </Text>
+        <Box bg="red.900" p={4} borderRadius="xl">
           {(() => {
             const wrongAnswerResponse = getTypedResponse(
               SubmissionStatus.WRONG_ANSWER
@@ -432,78 +412,71 @@ const SubmissionResults = ({
             const debugInfo = wrongAnswerResponse.debug_info;
 
             return (
-              <>
+              <VStack spacing={4} align="stretch">
+                {debugInfo.message && (
+                  <Text color="red.100">{debugInfo.message}</Text>
+                )}
                 {debugInfo.max_difference && (
                   <Box>
                     <Text color="red.200" fontSize="sm">
-                      Maximum Difference
+                      Maximum Difference:
                     </Text>
-                    <Text fontWeight="semibold">
-                      {debugInfo.max_difference.toFixed(7)}
-                    </Text>
+                    <Text color="red.100">{debugInfo.max_difference}</Text>
                   </Box>
                 )}
                 {debugInfo.mean_difference && (
                   <Box>
                     <Text color="red.200" fontSize="sm">
-                      Mean Difference
+                      Mean Difference:
                     </Text>
-                    <Text fontWeight="semibold">
-                      {debugInfo.mean_difference.toFixed(7)}
-                    </Text>
+                    <Text color="red.100">{debugInfo.mean_difference}</Text>
                   </Box>
                 )}
                 {debugInfo.sample_differences &&
                   Object.keys(debugInfo.sample_differences).length > 0 && (
-                    <Box mt={4}>
+                    <Box>
                       <Text color="red.200" fontSize="sm" mb={2}>
-                        Sample Differences
+                        Sample Differences:
                       </Text>
-                      <Table size="sm" variant="simple">
-                        <Thead>
-                          <Tr>
-                            <Th>Sample</Th>
-                            <Th isNumeric>Expected</Th>
-                            <Th isNumeric>Actual</Th>
-                            <Th isNumeric>Diff</Th>
-                          </Tr>
-                        </Thead>
-                        <Tbody>
-                          {Object.entries(debugInfo.sample_differences).map(
-                            ([key, value]) => {
-                              if (
-                                typeof value === "object" &&
-                                value !== null &&
-                                "expected" in value &&
-                                "actual" in value &&
-                                "diff" in value
-                              ) {
-                                return (
-                                  <Tr key={key}>
-                                    <Td>{key}</Td>
-                                    <Td isNumeric>
-                                      {value.expected.toFixed(7)}
-                                    </Td>
-                                    <Td isNumeric>{value.actual.toFixed(7)}</Td>
-                                    <Td isNumeric>{value.diff.toFixed(7)}</Td>
-                                  </Tr>
-                                );
-                              }
-                              return (
+                      <Box maxH="200px" overflowY="auto">
+                        <Table size="sm" variant="unstyled">
+                          <Thead position="sticky" top={0}>
+                            <Tr>
+                              <Th color="red.200">Index</Th>
+                              <Th color="red.200" isNumeric>
+                                Expected
+                              </Th>
+                              <Th color="red.200" isNumeric>
+                                Actual
+                              </Th>
+                              <Th color="red.200" isNumeric>
+                                Difference
+                              </Th>
+                            </Tr>
+                          </Thead>
+                          <Tbody>
+                            {Object.entries(debugInfo.sample_differences)
+                              .slice(0, 50)
+                              .map(([key, value]) => (
                                 <Tr key={key}>
-                                  <Td>{key}</Td>
-                                  <Td isNumeric>-</Td>
-                                  <Td isNumeric>-</Td>
-                                  <Td isNumeric>-</Td>
+                                  <Td color="red.100">{key}</Td>
+                                  <Td color="red.100" isNumeric>
+                                    {value.expected.toFixed(7)}
+                                  </Td>
+                                  <Td color="red.100" isNumeric>
+                                    {value.actual.toFixed(7)}
+                                  </Td>
+                                  <Td color="red.100" isNumeric>
+                                    {value.diff.toFixed(7)}
+                                  </Td>
                                 </Tr>
-                              );
-                            }
-                          )}
-                        </Tbody>
-                      </Table>
+                              ))}
+                          </Tbody>
+                        </Table>
+                      </Box>
                     </Box>
                   )}
-              </>
+              </VStack>
             );
           })()}
         </Box>
@@ -517,14 +490,16 @@ const SubmissionResults = ({
           </Heading>
           {(() => {
             const errorResponse = getTypedResponse(metaStatus);
-            const message = errorResponse?.message ?? "Unknown error";
+            const message = errorResponse?.message ?? "";
             const details = errorResponse?.details ?? "";
 
             return (
               <>
-                <Text fontWeight="semibold" color="red.200" mb={2}>
-                  {message}
-                </Text>
+                {message && (
+                  <Text color="red.200" mb={2}>
+                    {message}
+                  </Text>
+                )}
                 {details && (
                   <Code
                     display="block"
