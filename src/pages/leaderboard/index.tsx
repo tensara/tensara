@@ -80,7 +80,7 @@ export const getServerSideProps: GetServerSideProps = async (_context) => {
 
 const LeaderboardIndexPage: NextPage = () => {
   const router = useRouter();
-  const [selectedGpu, setSelectedGpu] = useState<string>("H100");
+  const [selectedGpu, setSelectedGpu] = useState<string>("all");
 
   const { data: leaderboardData, isLoading } =
     api.submissions.getBestSubmissionsByProblem.useQuery(
