@@ -669,7 +669,11 @@ function UpdateCard({
               >
                 <Icon as={icon} boxSize={5} color="#2ecc71" />
               </Box>
-              <Heading size="md" fontFamily="Space Grotesk, sans-serif">
+              <Heading
+                size="md"
+                fontFamily="Space Grotesk, sans-serif"
+                color="white"
+              >
                 {title}
               </Heading>
             </HStack>
