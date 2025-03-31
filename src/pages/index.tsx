@@ -47,7 +47,7 @@ const MotionGrid = motion(Grid);
 
 // Define update types with different colors
 const updateTypes = {
-  FEATURE: { color: "green.400", label: "New Feature" },
+  FEATURE: { color: "green.400", label: "Feature" },
   IMPROVEMENT: { color: "blue.400", label: "Improvement" },
   FIX: { color: "orange.400", label: "Fix" },
   RELEASE: { color: "purple.400", label: "Release" },
@@ -351,15 +351,13 @@ export default function HomePage() {
                 title="Core Platform"
                 repo="tensara/tensara"
                 updates={[
-                  { type: "FEATURE", text: "End-to-end testing with Cypress" },
-                  { type: "FEATURE", text: "Triton GPU support" },
+                  { type: "FEATURE", text: "Triton submission support" },
                   { type: "FEATURE", text: "Rating & leaderboard system" },
                   {
                     type: "IMPROVEMENT",
                     text: "Rate limiting & error handling",
                   },
                   { type: "FEATURE", text: "Test result streaming with SSE" },
-                  { type: "IMPROVEMENT", text: "CI/CD with Modal deployment" },
                 ]}
               />
 
@@ -371,13 +369,12 @@ export default function HomePage() {
                   { type: "FEATURE", text: "PyTorch-based test cases" },
                   {
                     type: "FEATURE",
-                    text: "Advanced pooling operations support",
+                    text: "3D/4D Tensor matmul problems ",
                   },
-                  { type: "FIX", text: "CUDA memory optimizations" },
                   { type: "IMPROVEMENT", text: "Python problem definitions" },
                   {
-                    type: "IMPROVEMENT",
-                    text: "Enhanced matrix computation tests",
+                    type: "FEATURE",
+                    text: "Sigmoid, Tanh, and more activation functions",
                   },
                 ]}
               />
@@ -666,6 +663,11 @@ function UpdateCard({
                 bg="rgba(14, 129, 68, 0.2)"
                 borderRadius="lg"
                 boxShadow="0 0 10px rgba(46, 204, 113, 0.1)"
+                width="36px"
+                height="36px"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
               >
                 <Icon as={icon} boxSize={5} color="#2ecc71" />
               </Box>
@@ -682,13 +684,9 @@ function UpdateCard({
               isExternal
               p={2}
               borderRadius="full"
-              _hover={{
-                color: "#2ecc71",
-                bg: "rgba(46, 204, 113, 0.1)",
-              }}
               transition="all 0.2s"
             >
-              <Icon as={FaGithub} boxSize={5} />
+              <Icon color="white" as={FaGithub} boxSize={5} />
             </Link>
           </Flex>
 
