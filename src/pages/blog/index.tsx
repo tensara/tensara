@@ -61,7 +61,13 @@ export default function BlogIndex({ posts }: BlogIndexProps) {
 
 export const getStaticProps: GetStaticProps<BlogIndexProps> = async () => {
   const contentDirectory = path.join(process.cwd(), "public/content");
-  const filenames = fs.readdirSync(contentDirectory);
+  let filenames: string[] = [];
+  
+  try {
+    filenames = fs.readdirSync(contentDirectory);
+  } catch (error) {
+    filenames = [];
+  }
 
   const posts = filenames
     .filter((filename) => filename.endsWith(".md"))
