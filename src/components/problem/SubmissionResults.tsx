@@ -67,7 +67,6 @@ type ResponseTypeMap = {
   [SubmissionError.RATE_LIMIT_EXCEEDED]: ErrorResponse;
 };
 
-
 interface SubmissionResultsProps {
   metaStatus: SubmissionStatusType | SubmissionErrorType | null;
   metaResponse: ResponseTypeMap[keyof ResponseTypeMap] | null;
