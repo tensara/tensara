@@ -97,7 +97,7 @@ async function getUserRating(
       totalRatingChanges += FIRST_SOLVE_BONUS;
       problemsProcessed++;
       continue;
-    };
+    }
 
     const percentile = (userRank - 1) / Math.max(totalUniqueSubmissions - 1, 1);
 
