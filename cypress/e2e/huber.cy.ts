@@ -1,6 +1,6 @@
 import { HuberLossSolutions } from "cypress/support/solutions";
 
-describe('Problem Navigation Tests', () => {
+describe('Huber Loss Problem Tests', () => {
   beforeEach(() => {
     // Start each test from the homepage
     cy.visit('/');
@@ -10,7 +10,6 @@ describe('Problem Navigation Tests', () => {
   });
 
   it('submits correct solution', () => {
-
     cy.visit('/problems/huber-loss');
     // Get the correct solution from the fixtures
     const correct_solution = HuberLossSolutions.correct;
