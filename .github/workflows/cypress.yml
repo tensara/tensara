@@ -1,0 +1,56 @@
+name: Cypress Tests
+on:
+  push:
+    branches:
+      - add-e2e-testing
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+    # Runs tests in parallel with matrix strategy https://docs.cypress.io/guides/guides/parallelization
+    # https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs
+    # Also see warning here https://github.com/cypress-io/github-action#parallel
+    strategy:
+      fail-fast: false # https://github.com/cypress-io/github-action/issues/48
+      matrix:
+        containers: [1, 2] # Uses 2 parallel instances
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+          
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+        
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
+        with:
+          start: pnpm run dev
+          wait-on: 'http://localhost:3000'
+          record: true
+          browser: chrome 
+          parallel: true
+          publish-summary: true
+          component: false
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          CYPRESS_AUTH_ENDPOINT: ${{ secrets.CYPRESS_OAUTH_ENDPOINT }}
+          CYPRESS_PASSWORD: ${{ secrets.CYPRESS_TEST_PASSWORD }}
+          CYPRESS_USERNAME: ${{ secrets.CYPRESS_TEST_USERNAME }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTH_SECRET: "test-secret"
+          AUTH_GITHUB_ID: ${{ secrets.TESTING_AUTH_GITHUB_ID }}
+          AUTH_GITHUB_SECRET: ${{ secrets.TESTING_AUTH_GITHUB_SECRET }}
+          DATABASE_URL: ${{ secrets.TESTING_DB_URL }}
+          MODAL_ENDPOINT: ${{ secrets.TESTING_MODAL_ENDPOINT }}
+          NEXT_PUBLIC_GA_ID: "G-12345"
+          
