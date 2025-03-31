@@ -40,7 +40,7 @@ const UserScore: React.FC<UserScoreProps> = ({ score, isLoading }) => {
           textShadow="0 0 10px rgba(236, 201, 75, 0.3)"
           textAlign="center"
         >
-          {score ? score.toFixed(2) : 0}
+          {score ? score : 0}
         </Text>
       </Box>
     </Skeleton>
