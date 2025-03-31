@@ -7,6 +7,7 @@ import {
   PROBLEM_DIFFICULTY_MULTIPLIERS,
   START_RATING,
   ADJUSTMENT_FACTOR,
+  FIRST_SOLVE_BONUS,
 } from "~/constants/problem";
 
 async function getUserRating(
@@ -92,7 +93,11 @@ async function getUserRating(
       uniqueGflopValues.findIndex((value) => value === gflops) + 1;
     const totalUniqueSubmissions = uniqueGflopValues.length;
 
-    if (totalUniqueSubmissions <= 1) continue;
+    if (totalUniqueSubmissions <= 1) {
+      totalRatingChanges += FIRST_SOLVE_BONUS;
+      problemsProcessed++;
+      continue;
+    };
 
     const percentile = (userRank - 1) / Math.max(totalUniqueSubmissions - 1, 1);
 

@@ -10,7 +10,7 @@ export const PROBLEM_DIFFICULTY_MULTIPLIERS = {
   HARD: 3,
 } as const;
 
-export const FIRST_SOLVE_BONUS = 20;
+export const FIRST_SOLVE_BONUS = 15;
 
 export const ADJUSTMENT_FACTOR = 32; // No reasoning for this, i just like 2^5
 
