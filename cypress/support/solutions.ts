@@ -118,3 +118,105 @@ extern "C" void solution(float* A, float* B, float* C, size_t N, size_t K) {
     cudaDeviceSynchronize();
 }`
 }
+
+export const HuberLossSolutions = {
+  correct: `#include <cuda_runtime.h>
+
+__global__ void huberLossKernel(const float* predictions, const float* targets, float* output, size_t n) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    
+    if (idx < n) {
+        float diff = predictions[idx] - targets[idx];
+        float abs_diff = fabsf(diff);
+        
+        if (abs_diff < 1.0f) {
+            output[idx] = 0.5f * diff * diff;
+        } else {
+            output[idx] = abs_diff - 0.5f;
+        }
+    }
+}
+
+extern "C" void solution(const float* predictions, const float* targets, float* output, size_t n) {
+    const int threadsPerBlock = 256;
+    const int numBlocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+    huberLossKernel<<<numBlocks, threadsPerBlock>>>(predictions, targets, output, n);
+}`,
+
+  compile_error: `#include <cuda_runtime.h>
+
+__global__ void huberLossKernel(const float* predictions, const float* targets, float* output, size_t n) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    
+    if (idx < n) {
+        float diff = predictions[idx] - targets[idx];
+        float abs_diff = fabsf(diff);
+        
+        if (abs_diff < 1.0f) {
+            output[idx] = 0.5f * diff * diff;
+        } else {
+            output[idx] = abs_diff - 0.5f;
+        }
+    }
+}
+
+extern "C" void solution(const float* predictions, const float* targets, float* output, size_t n) {
+    const int threadsPerBlock = 256;
+    const int numBlocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+    // Missing angle brackets will cause a compile error
+    huberLossKernel(numBlocks, threadsPerBlock)(predictions, targets, output, n);
+}`,
+
+  runtime_error: `#include <cuda_runtime.h>
+
+__global__ void huberLossKernel(const float* predictions, const float* targets, float* output, size_t n) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    
+    // Will cause division by zero for certain thread indices
+    float divisor = threadIdx.x % 32;
+    float factor = 1.0f / divisor;
+    
+    if (idx < n) {
+        float diff = predictions[idx] - targets[idx];
+        float abs_diff = fabsf(diff);
+        
+        if (abs_diff < 1.0f) {
+            // Using potentially infinite value in calculation
+            output[idx] = 0.5f * diff * diff * factor;
+        } else {
+            output[idx] = abs_diff - 0.5f;
+        }
+    }
+}
+
+extern "C" void solution(const float* predictions, const float* targets, float* output, size_t n) {
+    const int threadsPerBlock = 256;
+    const int numBlocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+    huberLossKernel<<<numBlocks, threadsPerBlock>>>(predictions, targets, output, n);
+}`,
+
+  wrong_answer: `#include <cuda_runtime.h>
+
+__global__ void huberLossKernel(const float* predictions, const float* targets, float* output, size_t n) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    
+    if (idx < n) {
+        float diff = predictions[idx] - targets[idx];
+        float abs_diff = fabsf(diff);
+        
+        // Wrong threshold value (using 0.5 instead of 1.0)
+        if (abs_diff < 0.5f) {
+            output[idx] = 0.5f * diff * diff;
+        } else {
+            // Wrong formula for the second case (missing 0.5 subtraction)
+            output[idx] = abs_diff;
+        }
+    }
+}
+
+extern "C" void solution(const float* predictions, const float* targets, float* output, size_t n) {
+    const int threadsPerBlock = 256;
+    const int numBlocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+    huberLossKernel<<<numBlocks, threadsPerBlock>>>(predictions, targets, output, n);
+}`
+}
