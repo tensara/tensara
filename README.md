@@ -1,19 +1,8 @@
-# Tensara App
+# Tensara 
 
-Tensara is a competitive programming platform specifically designed for CUDA kernel optimization challenges, similar to Codeforces but focused on GPU computing. It provides developers with a space to compete, learn, and improve their CUDA programming skills through real-world optimization problems.
+A platform for GPU programming challenges. Write efficient GPU kernels and compare your solutions with other developers!
 
-### Key Features
-- 🚀 Compete in CUDA kernel optimization challenges
-- 💻 Practice problems like Matrix Multiplication, Leaky ReLU, and other GPU computing tasks
-- 📊 Real-time performance benchmarking and scoring
-- 📈 Leaderboards to track your ranking against other developers
-- 🔍 View and learn from other developers' optimized solutions
-- ⚡ Automated testing and performance measurement
-- 📱 Browse problems and standings from any device
-
-This is a modern web application built with the [T3 Stack](https://create.t3.gg/), combining the power of Next.js, tRPC, Prisma, and more.
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -91,8 +80,8 @@ npx prisma db push
 ```bash
 npx prisma generate
 ```
-
-3. Start the development server:
+3. Push the problems to the database. Follow the steps in the [problems](https://github.com/tensara/problems/) repository. 
+4. Start the development server:
 ```bash
 npm run dev
 # or
@@ -103,7 +92,7 @@ pnpm dev
 
 Your app should now be running at [http://localhost:3000](http://localhost:3000)!
 
-## 📝 Environment Variables
+## Environment Variables
 
 Create a `.env` file in the root directory with the following variables:
 
@@ -125,33 +114,3 @@ MODAL_BENCHMARK_SLUG=""
 
 MODAL_ENDPOINT=""
 ```
-
-## 🛠 Tech Stack
-
-- [Next.js](https://nextjs.org) - React framework
-- [NextAuth.js](https://next-auth.js.org) - Authentication
-- [Prisma](https://prisma.io) - Database ORM
-- [Chakra UI](https://v2.chakra-ui.com/) - Styling
-- [tRPC](https://trpc.io) - End-to-end typesafe APIs
-
-## 📚 Learn More
-
-To learn more about the [T3 Stack](https://create.t3.gg/), check out:
-
-- [T3 Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available)
-
-## 🚀 Deployment
-
-For deployment instructions, follow our guides for:
-- [Vercel](https://create.t3.gg/en/deployment/vercel)
-- [Netlify](https://create.t3.gg/en/deployment/netlify)
-- [Docker](https://create.t3.gg/en/deployment/docker)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
