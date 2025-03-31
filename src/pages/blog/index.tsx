@@ -62,7 +62,7 @@ export default function BlogIndex({ posts }: BlogIndexProps) {
 export const getStaticProps: GetStaticProps<BlogIndexProps> = async () => {
   const contentDirectory = path.join(process.cwd(), "public/content");
   let filenames: string[] = [];
-  
+
   try {
     filenames = fs.readdirSync(contentDirectory);
   } catch (error) {
