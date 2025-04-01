@@ -29,6 +29,9 @@ interface SubmissionFormProps {
   onResetClick: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  isGpuSelectionDisabled: boolean;
+  isLanguageSelectionDisabled: boolean;
+  isDataTypeSelectionDisabled: boolean;
 }
 
 const SubmissionForm = ({
@@ -42,6 +45,9 @@ const SubmissionForm = ({
   onResetClick,
   onSubmit,
   isSubmitting,
+  isGpuSelectionDisabled,
+  isLanguageSelectionDisabled,
+  isDataTypeSelectionDisabled,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
@@ -76,6 +82,7 @@ const SubmissionForm = ({
                 bg: "gray.800",
               },
             }}
+            isDisabled={isGpuSelectionDisabled}
           >
             {Object.entries(GPU_DISPLAY_NAMES)
               .filter(([key]) => key !== "all")
@@ -108,6 +115,7 @@ const SubmissionForm = ({
                 bg: "gray.800",
               },
             }}
+            isDisabled={isLanguageSelectionDisabled}
           >
             <option value="cuda">CUDA C++</option>
             <option value="python">Python (Triton)</option>
@@ -141,6 +149,7 @@ const SubmissionForm = ({
                 bg: "gray.800",
               },
             }}
+            isDisabled={isDataTypeSelectionDisabled}
           >
             <option value="float32">float32</option>
             <option value="float16" disabled>

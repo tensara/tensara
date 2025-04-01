@@ -27,6 +27,7 @@ import {
   FiGithub,
   FiMenu,
   FiAward,
+  FiCodesandbox,
 } from "react-icons/fi";
 import { useState, useEffect } from "react";
 
@@ -56,6 +57,7 @@ export function Header() {
     { label: "Problems", href: "/problems", icon: FiCode },
     { label: "Leaderboards", href: "/leaderboard", icon: FiAward },
     { label: "Blog", href: "/blog", icon: FiBookOpen },
+    { label: "Learn", href: "/learn", icon: FiCodesandbox },
   ];
 
   const protectedNavItems = [

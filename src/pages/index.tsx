@@ -217,6 +217,13 @@ export default function HomePage() {
               >
                 Blog
               </Link>
+              <Link
+                href="/learn"
+                color="whiteAlpha.800"
+                _hover={{ color: "#2ecc71" }}
+              >
+                Learn
+              </Link>
             </VStack>
 
             {/* Social Links */}
