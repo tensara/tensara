@@ -32,9 +32,14 @@ import {
   FiPackage,
   FiTerminal,
   FiZap,
-  FiHash,
 } from "react-icons/fi";
-import { FaDiscord, FaGithub, FaTwitter, FaEnvelope } from "react-icons/fa";
+import {
+  FaDiscord,
+  FaGithub,
+  FaTwitter,
+  FaEnvelope,
+  FaCode,
+} from "react-icons/fa";
 import { type IconType } from "react-icons";
 
 // Create motion components
@@ -184,27 +189,29 @@ export default function HomePage() {
               </Button>
 
               <Button
-                onClick={scrollToSection("updates")}
+                onClick={() =>
+                  window.open("https://github.com/tensara/tensara", "_blank")
+                }
                 variant="outline"
                 size={{ base: "lg", md: "lg" }}
                 height={{ base: "14", md: "16" }}
                 px={{ base: "8", md: "10" }}
                 fontSize={{ base: "md", md: "lg" }}
-                borderColor="#4a956a"
-                borderWidth="1px"
+                borderColor="whiteAlpha.400"
+                borderWidth="2px"
                 color="white"
-                leftIcon={<FiHash size={24} />}
+                leftIcon={<FaGithub size={24} />}
                 _hover={{
                   transform: "translateY(-2px)",
-                  boxShadow: "0 0 20px rgba(46, 204, 113, 0.2)",
-                  borderColor: "#2ecc71",
-                  bg: "rgba(46, 204, 113, 0.05)",
+                  boxShadow: "0 0 20px rgba(255, 255, 255, 0.2)",
+                  borderColor: "white",
+                  bg: "whiteAlpha.100",
                 }}
                 transition="all 0.3s"
                 w={{ base: "full", md: "auto" }}
                 cursor="pointer"
               >
-                View Recent Updates
+                Contribute!
               </Button>
             </Flex>
 
