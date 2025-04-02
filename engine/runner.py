@@ -110,8 +110,8 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                         input_ptrs.append(argtype(tensor))
                 output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
                 extra_params = problem.get_extra_params(test_case)
-
-                solution_func(*(input_ptrs + [output_ptr] + extra_params))
+                extra_params_casted = utils.cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
+                solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
             else:
                 extra_params = problem.get_extra_params(test_case)
                 solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
