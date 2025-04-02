@@ -19,6 +19,9 @@ export function Layout({
   ogImage = "/tensara_ogimage.png",
 }: LayoutProps) {
   const siteTitle = title ? `${title} | Tensara` : "Tensara";
+  const fullImageUrl = ogImage?.startsWith("http")
+    ? ogImage
+    : `https://tensara.org${ogImage}`;
 
   return (
     <>
@@ -40,8 +43,8 @@ export function Layout({
 
         {ogImage && (
           <>
-            <meta property="og:image" content={ogImage} />
-            <meta name="twitter:image" content={ogImage} />
+            <meta property="og:image" content={fullImageUrl} />
+            <meta name="twitter:image" content={fullImageUrl} />
           </>
         )}
       </Head>
