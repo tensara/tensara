@@ -12,16 +12,17 @@ export default async function handler(req: NextRequest) {
   const subTitle = searchParams.get("subTitle") ?? "";
 
   // Load the logo and font
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
   const [logoData, DMSansData, SpaceGroteskData] = await Promise.all([
-    fetch(new URL("../../../public/logo_og.png", import.meta.url)).then((res) =>
+    fetch(new URL(`${baseUrl}/logo_og.png`, req.url)).then((res) =>
       res.arrayBuffer()
     ),
-    fetch(
-      new URL("../../../public/DMSans_24pt-SemiBold.ttf", import.meta.url)
-    ).then((res) => res.arrayBuffer()),
-    fetch(
-      new URL("../../../public/SpaceGrotesk-Medium.ttf", import.meta.url)
-    ).then((res) => res.arrayBuffer()),
+    fetch(new URL(`${baseUrl}/DMSans_24pt-SemiBold.ttf`, req.url)).then((res) =>
+      res.arrayBuffer()
+    ),
+    fetch(new URL(`${baseUrl}/SpaceGrotesk-Medium.ttf`, req.url)).then((res) =>
+      res.arrayBuffer()
+    ),
   ]);
 
   return new ImageResponse(
