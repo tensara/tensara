@@ -67,6 +67,9 @@ export default function UserProfile() {
   return (
     <Layout
       title={`${typeof username === "string" ? username : "User"}'s Profile`}
+      ogTitle={`${typeof username === "string" ? username : "User"}`}
+      ogDescription={`View ${typeof username === "string" ? username : "User"}'s profile on Tensara.`}
+      ogImgSubtitle={`Profiles | Tensara`}
     >
       <Container maxW="container.xl" py={6}>
         {apiError ? (

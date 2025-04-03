@@ -194,7 +194,7 @@ const SubmissionPage: NextPage<{
   const canViewCode = hasCode && (!isPrivate || isOwner);
 
   return (
-    <Layout title={pageTitle}>
+    <Layout title={pageTitle} ogTitle={`View Submission | Tensara`} ogDescription={`View submission ${id.substring(0, 8)} on Tensara.`} ogImgSubtitle={`${submission.problem.title} | Submissions | Tensara`}>
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <VStack spacing={6} align="stretch">
           {/* Submission Status */}

@@ -8,20 +8,30 @@ import { env } from "~/env";
 interface LayoutProps {
   title?: string;
   children: ReactNode;
+  ogTitle?: string;
   ogDescription?: string;
+  ogImgSubtitle?: string;
   ogImage?: string;
+  useDefaultOg?: boolean;
 }
 
 export function Layout({
   title,
   children,
+  ogTitle = "",
   ogDescription = "A platform for GPU programming challenges. Write efficient GPU kernels and compare your solutions with other developers.",
-  ogImage = "/tensara_ogimage.png",
+  ogImgSubtitle = "",
+  ogImage,
+  useDefaultOg = true,
 }: LayoutProps) {
   const siteTitle = title ? `${title} | Tensara` : "Tensara";
-  const fullImageUrl = ogImage?.startsWith("http")
-    ? ogImage
-    : `https://tensara.org${ogImage}`;
+  
+  // Generate dynamic OG image URL if no custom image is provided and useDefaultOg is true
+  const ogImageUrl = ogImage 
+    ? (ogImage.startsWith("http") ? ogImage : `https://tensara.org${ogImage}`)
+    : useDefaultOg 
+      ? `${env.NEXT_PUBLIC_BASE_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subTitle=${encodeURIComponent(ogImgSubtitle)}`
+      : undefined;
 
   return (
     <>
@@ -34,17 +44,17 @@ export function Layout({
         <meta property="og:type" content="website" />
         <meta property="og:title" content={siteTitle} />
         <meta property="og:description" content={ogDescription} />
-        <meta property="og:url" content="https://tensara.ai" />
+        <meta property="og:url" content="https://tensara.org" />
 
         {/* Twitter tags */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={siteTitle} />
         <meta name="twitter:description" content={ogDescription} />
 
-        {ogImage && (
+        {ogImageUrl && (
           <>
-            <meta property="og:image" content={fullImageUrl} />
-            <meta name="twitter:image" content={fullImageUrl} />
+            <meta property="og:image" content={ogImageUrl} />
+            <meta name="twitter:image" content={ogImageUrl} />
           </>
         )}
       </Head>

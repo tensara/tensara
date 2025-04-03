@@ -294,7 +294,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   );
 
   return (
-    <Layout title={problem.title}>
+    <Layout title={problem.title} ogTitle={`${problem.title}`} ogImgSubtitle={`${problem.difficulty.charAt(0) + problem.difficulty.toLowerCase().slice(1)} | Problems | Tensara`}>
       <SplitPanel leftContent={leftContent} rightContent={rightContent} />
       {mobileWarning}
 

@@ -19,7 +19,7 @@ interface BlogIndexProps {
 
 export default function BlogIndex({ posts }: BlogIndexProps) {
   return (
-    <Layout title="Blog">
+    <Layout title="Blog" ogTitle="Blog | Tensara" ogDescription="Blog posts about how we built Tensara, GPU programming, and more.">
       <Container maxW="4xl" py={8}>
         <Heading
           as="h1"
