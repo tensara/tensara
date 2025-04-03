@@ -154,8 +154,8 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   return (
     <Layout
       title={problem?.title ? `Leaderboard: ${problem.title}` : "Leaderboard"}
-      ogTitle={`Leaderboard: ${problem?.title ? problem.title : "Leaderboard"}`}
-      ogDescription={`Leaderboard for ${problem?.title ? problem.title : "Leaderboard"} on Tensara.`}
+      ogTitle={`Leaderboard: ${problem?.title ?? "Leaderboard"}`}
+      ogDescription={`Leaderboard for ${problem?.title ?? "Leaderboard"} on Tensara.`}
       ogImgSubtitle={`Leaderboards | Tensara`}
     >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
