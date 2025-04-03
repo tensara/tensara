@@ -1,5 +1,5 @@
 import { ImageResponse } from "@vercel/og";
-import { NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
 
 export const config = {
   runtime: "edge",
@@ -13,9 +13,15 @@ export default async function handler(req: NextRequest) {
 
   // Load the logo and font
   const [logoData, DMSansData, SpaceGroteskData] = await Promise.all([
-    fetch(new URL('../../../public/logo_og.png', import.meta.url)).then((res) => res.arrayBuffer()),
-    fetch(new URL('../../../public/DMSans_24pt-SemiBold.ttf', import.meta.url)).then((res) => res.arrayBuffer()),
-    fetch(new URL('../../../public/SpaceGrotesk-Medium.ttf', import.meta.url)).then((res) => res.arrayBuffer())
+    fetch(new URL("../../../public/logo_og.png", import.meta.url)).then((res) =>
+      res.arrayBuffer()
+    ),
+    fetch(
+      new URL("../../../public/DMSans_24pt-SemiBold.ttf", import.meta.url)
+    ).then((res) => res.arrayBuffer()),
+    fetch(
+      new URL("../../../public/SpaceGrotesk-Medium.ttf", import.meta.url)
+    ).then((res) => res.arrayBuffer()),
   ]);
 
   return new ImageResponse(
@@ -34,7 +40,7 @@ export default async function handler(req: NextRequest) {
       >
         {/* Logo */}
         <img
-          src={`data:image/png;base64,${Buffer.from(logoData).toString('base64')}`}
+          src={`data:image/png;base64,${Buffer.from(logoData).toString("base64")}`}
           alt="Tensara Logo"
           width={200}
           height={200}
@@ -77,16 +83,16 @@ export default async function handler(req: NextRequest) {
       height: 630,
       fonts: [
         {
-          name: 'DM Sans',
+          name: "DM Sans",
           data: DMSansData,
           weight: 600,
-          style: 'normal',
+          style: "normal",
         },
         {
-          name: 'Space Grotesk',
+          name: "Space Grotesk",
           data: SpaceGroteskData,
           weight: 300,
-          style: 'normal',
+          style: "normal",
         },
       ],
     }
@@ -95,4 +101,4 @@ export default async function handler(req: NextRequest) {
   //   console.error(e);
   //   return new Response(`Failed to generate image: ${e instanceof Error ? e.message : 'Unknown error'}`, { status: 500 });
   // }
-} 
+}

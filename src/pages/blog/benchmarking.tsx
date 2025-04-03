@@ -25,7 +25,11 @@ export default function BenchmarkingSolutionsPage({
   const formattedDate = format(new Date(date), "MMMM d, yyyy");
 
   return (
-    <Layout title={title} ogTitle="Benchmarking Solutions" ogImgSubtitle={`${formattedDate} | Blog | Tensara`}>
+    <Layout
+      title={title}
+      ogTitle="Benchmarking Solutions"
+      ogImgSubtitle={`${formattedDate} | Blog | Tensara`}
+    >
       <Container maxW="4xl" py={8}>
         <Box mb={10}>
           <Heading

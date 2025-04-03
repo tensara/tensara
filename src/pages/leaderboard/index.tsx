@@ -109,7 +109,11 @@ const LeaderboardIndexPage: NextPage = () => {
   }
 
   return (
-    <Layout title={`Leaderboards: ${GPU_DISPLAY_NAMES[selectedGpu]}`} ogTitle={`Leaderboards | Tensara`} ogDescription={`Leaderboards for ${GPU_DISPLAY_NAMES[selectedGpu]} on Tensara.`}>
+    <Layout
+      title={`Leaderboards: ${GPU_DISPLAY_NAMES[selectedGpu]}`}
+      ogTitle={`Leaderboards | Tensara`}
+      ogDescription={`Leaderboards for ${GPU_DISPLAY_NAMES[selectedGpu]} on Tensara.`}
+    >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
           <HStack justify="space-between" align="center">

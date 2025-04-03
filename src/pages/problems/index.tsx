@@ -148,7 +148,11 @@ export default function ProblemsPage() {
   };
 
   return (
-    <Layout title="Problems" ogTitle="Problems | Tensara" ogDescription="A collection of problems available to submit on Tensara.">
+    <Layout
+      title="Problems"
+      ogTitle="Problems | Tensara"
+      ogDescription="A collection of problems available to submit on Tensara."
+    >
       <VStack spacing={6} align="stretch" w="full">
         <HStack spacing={4} w="full">
           <InputGroup maxW="400px">

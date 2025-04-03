@@ -25,11 +25,13 @@ export function Layout({
   useDefaultOg = true,
 }: LayoutProps) {
   const siteTitle = title ? `${title} | Tensara` : "Tensara";
-  
+
   // Generate dynamic OG image URL if no custom image is provided and useDefaultOg is true
-  const ogImageUrl = ogImage 
-    ? (ogImage.startsWith("http") ? ogImage : `https://tensara.org${ogImage}`)
-    : useDefaultOg 
+  const ogImageUrl = ogImage
+    ? ogImage.startsWith("http")
+      ? ogImage
+      : `https://tensara.org${ogImage}`
+    : useDefaultOg
       ? `${env.NEXT_PUBLIC_BASE_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subTitle=${encodeURIComponent(ogImgSubtitle)}`
       : undefined;
 

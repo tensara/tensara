@@ -163,7 +163,11 @@ const SubmissionsPage: NextPage = () => {
   }
 
   return (
-    <Layout title="My Submissions" ogTitle="My Submissions | Tensara" ogDescription="A collection of your submissions on Tensara.">
+    <Layout
+      title="My Submissions"
+      ogTitle="My Submissions | Tensara"
+      ogDescription="A collection of your submissions on Tensara."
+    >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Text fontSize="2xl" fontWeight="bold" mb={6}>
           My Submissions
