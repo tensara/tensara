@@ -35,5 +35,6 @@ jobs:
           DATABASE_URL: "postgresql://fake_database_url"
           NEXT_PUBLIC_GA_ID: "fake_ga_id"
           MODAL_ENDPOINT: "https://fake_modal_endpoint"
+          NEXT_PUBLIC_BASE_URL: "https://tensara.org"
 
         run: pnpm install && pnpm run build
