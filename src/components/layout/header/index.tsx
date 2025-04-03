@@ -27,6 +27,7 @@ import {
   FiGithub,
   FiMenu,
   FiAward,
+  FiBarChart,
 } from "react-icons/fi";
 import { useState, useEffect } from "react";
 
@@ -54,12 +55,8 @@ export function Header() {
 
   const navItems = [
     { label: "Problems", href: "/problems", icon: FiCode },
-    { label: "Leaderboards", href: "/leaderboard", icon: FiAward },
+    { label: "Leaderboards", href: "/leaderboard", icon: FiBarChart },
     { label: "Blog", href: "/blog", icon: FiBookOpen },
-  ];
-
-  const protectedNavItems = [
-    { label: "My Submissions", href: "/submissions", icon: FiList },
   ];
 
   const isActivePath = (path: string) => {
@@ -103,29 +100,6 @@ export function Header() {
           </Button>
         </Link>
       ))}
-      {mounted &&
-        status === "authenticated" &&
-        protectedNavItems.map((item) => (
-          <Link key={item.href} href={item.href} passHref legacyBehavior>
-            <Button
-              as="a"
-              variant="ghost"
-              color="white"
-              px={3}
-              bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
-              _hover={{
-                textDecoration: "none",
-                bg: "whiteAlpha.100",
-              }}
-              fontSize="sm"
-              leftIcon={<Icon as={item.icon} boxSize={4} />}
-              w={isMobile ? "full" : "auto"}
-              justifyContent={isMobile ? "flex-start" : "center"}
-            >
-              {item.label}
-            </Button>
-          </Link>
-        ))}
     </>
   );
 

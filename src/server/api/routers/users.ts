@@ -28,7 +28,7 @@ async function getUserRating(
   }
 
   // Start with base rating for new users
-  let rating = START_RATING;
+  let rating = START_RATING ?? 1000;
   let totalRatingChanges = 0;
   let problemsProcessed = 0;
 
@@ -325,5 +325,99 @@ export const usersRouter = createTRPCRouter({
         activityData,
         languagePercentage,
       };
+    }),
+  getTopRankedPlayers: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(1000).default(100),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Get users ordered by rating who have solved at least one problem
+      const users = await ctx.db.user.findMany({
+        where: {
+          submissions: {
+            some: {
+              status: "ACCEPTED",
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          image: true,
+          rating: true,
+          rank: true,
+          _count: {
+            select: {
+              submissions: {
+                where: {
+                  status: "ACCEPTED",
+                },
+              },
+            },
+          },
+        },
+        orderBy: { rating: "desc" },
+        take: input.limit,
+      });
+
+      // For each user, get their solved problems count and best submission
+      const enhancedUsers = await Promise.all(
+        users.map(async (user) => {
+          const solvedProblemsCount = await ctx.db.problem.count({
+            where: {
+              submissions: {
+                some: {
+                  userId: user.id,
+                  status: "ACCEPTED",
+                },
+              },
+            },
+          });
+
+          const bestSubmission = await ctx.db.submission.findFirst({
+            where: {
+              userId: user.id,
+              gflops: { not: null },
+            },
+            orderBy: {
+              gflops: "desc",
+            },
+            select: {
+              id: true,
+              gflops: true,
+              gpuType: true,
+              problem: {
+                select: {
+                  title: true,
+                  slug: true,
+                },
+              },
+            },
+          });
+
+          // Only include users who have a best submission
+          if (!bestSubmission) return null;
+
+          return {
+            id: user.id,
+            username: user.username ?? "",
+            name: user.name ?? "",
+            image: user.image ?? "",
+            rating: user.rating ?? 0,
+            rank: user.rank ?? 9999,
+            submissionsCount: user._count.submissions,
+            solvedProblemsCount,
+            bestSubmission,
+          };
+        })
+      );
+
+      // Filter out null values and return only users with best submissions
+      return enhancedUsers.filter(
+        (user): user is NonNullable<typeof user> => user !== null
+      );
     }),
 });
