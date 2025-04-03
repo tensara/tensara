@@ -220,7 +220,7 @@ export default function ProblemsPage() {
                 <Th
                   color="gray.300"
                   fontSize="md"
-                  width="150px"
+                  width="180px"
                   borderBottom="1px solid"
                   borderColor="gray.700"
                   cursor="pointer"

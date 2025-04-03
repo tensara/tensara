@@ -165,4 +165,4 @@ benchmark_result = {
 }
 ```
 
-Thanks for reading! If you have any questions, please reach out to us on [Discord](https://discord.gg/xudryk).
+Thanks for reading! If you have any questions, please reach out to us on [Discord](https://discord.gg/YzBTfMxVQK).
