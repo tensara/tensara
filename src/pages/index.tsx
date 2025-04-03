@@ -86,7 +86,7 @@ export default function HomePage() {
   };
 
   return (
-    <Layout title="Home">
+    <Layout title="Home" ogImage="/tensara_ogimage.png">
       {/* Hero Section with Background */}
       <Box position="relative" overflow="hidden" mb={10}>
         {/* Background Graphic */}

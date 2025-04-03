@@ -20,6 +20,7 @@ export const env = createEnv({
    */
   client: {
     NEXT_PUBLIC_GA_ID: z.string().min(1),
+    NEXT_PUBLIC_BASE_URL: z.string().url(),
   },
 
   /**
@@ -32,6 +33,7 @@ export const env = createEnv({
     AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
     AUTH_SECRET: process.env.AUTH_SECRET,
     NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID,
+    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
     MODAL_ENDPOINT: process.env.MODAL_ENDPOINT,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
