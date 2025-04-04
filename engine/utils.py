@@ -229,7 +229,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
     extra_params = problem.get_extra_params(test_case)
     if language == "cuda":
         input_ptrs = cast_to_ctype(input_tensors, solution_func.argtypes[:len(input_tensors)], language)
-        output_ptr = ctypes.cast(actual_output.data_ptr(), ctypes.POINTER(ctypes.c_float))
+        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_tensors)])
         extra_params_casted = cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
     # Calculate FLOPS for this test case
     flops = problem.get_flops(test_case)
