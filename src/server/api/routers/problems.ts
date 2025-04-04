@@ -51,6 +51,7 @@ export const problemsRouter = createTRPCRouter({
           title: true,
           difficulty: true,
           author: true,
+          tags: true,
           _count: {
             select: {
               submissions: true,
