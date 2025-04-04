@@ -86,16 +86,25 @@ export function AppLayout({ children }: { children: ReactNode }) {
             display="flex"
             alignItems="center"
             justifyContent="center"
-            backgroundColor="rgba(13, 18, 30, 0.3)"
+            backgroundColor="rgba(13, 18, 30, 0.2)"
             zIndex="9999"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: "0.3" }}
           >
             <LoadingAnimation />
           </Box>
         )}
-        {children}
+        <Box
+          as={motion.div}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: "0.5" }}
+        >
+          {children}
+        </Box>
       </Box>
     </Flex>
   );
