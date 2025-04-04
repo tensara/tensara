@@ -29,7 +29,7 @@ const UserScore: React.FC<UserScoreProps> = ({ score, isLoading }) => {
         <Flex justify="center" mb={4}>
           <Icon as={FaTrophy} color="yellow.400" boxSize={6} mr={3} />
           <Heading size="md" color="white">
-            Tensara Score
+            Tensara Rating
           </Heading>
         </Flex>
 

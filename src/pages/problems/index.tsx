@@ -148,7 +148,11 @@ export default function ProblemsPage() {
   };
 
   return (
-    <Layout title="Problems">
+    <Layout
+      title="Problems"
+      ogTitle="Problems | Tensara"
+      ogDescription="A collection of problems available to submit on Tensara."
+    >
       <VStack spacing={6} align="stretch" w="full">
         <HStack spacing={4} w="full">
           <InputGroup maxW="400px">
@@ -216,7 +220,7 @@ export default function ProblemsPage() {
                 <Th
                   color="gray.300"
                   fontSize="md"
-                  width="150px"
+                  width="180px"
                   borderBottom="1px solid"
                   borderColor="gray.700"
                   cursor="pointer"

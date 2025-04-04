@@ -158,7 +158,11 @@ const LeaderboardPage: NextPage = () => {
   }
 
   return (
-    <Layout title="Leaderboard">
+    <Layout
+      title={`Leaderboards: ${GPU_DISPLAY_NAMES[selectedGpu]}`}
+      ogTitle={`Leaderboards | Tensara`}
+      ogDescription={`Leaderboards for ${GPU_DISPLAY_NAMES[selectedGpu]} on Tensara.`}
+    >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Tabs
           variant="soft-rounded"
