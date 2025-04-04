@@ -26,6 +26,15 @@ import {
   TabPanels,
   TabPanel,
   Icon,
+  useBreakpointValue,
+  ListItem,
+  List,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
+  Divider,
+  IconButton,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { api } from "~/utils/api";
@@ -40,7 +49,7 @@ import type { GetServerSideProps } from "next";
 import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaExclamationCircle } from "react-icons/fa";
+import { FaExclamationCircle, FaFilter } from "react-icons/fa";
 
 type UserRanking = {
   id: string;
@@ -119,6 +128,7 @@ const LeaderboardPage: NextPage = () => {
   const router = useRouter();
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
   const [selectedTab, setSelectedTab] = useState<string>("users");
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   // User rankings data
   const { data: rankedUsers, isLoading: isLoadingUsers } =
@@ -173,12 +183,18 @@ const LeaderboardPage: NextPage = () => {
             setSelectedTab(index === 0 ? "users" : "problems");
           }}
         >
-          <Flex justifyContent="space-between" alignItems="center" mb={4}>
+          <Flex
+            justifyContent="space-between"
+            alignItems="center"
+            mb={4}
+            direction={{ base: "column", sm: "row" }}
+            gap={{ base: 4, sm: 0 }}
+          >
             <Heading size="lg">Leaderboard</Heading>
 
             <Flex align="center" gap={4}>
               <AnimatePresence>
-                {selectedTab === "problems" && (
+                {selectedTab === "problems" && !isMobile && (
                   <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -194,7 +210,6 @@ const LeaderboardPage: NextPage = () => {
                       borderColor="whiteAlpha.200"
                       _hover={{ borderColor: "whiteAlpha.400" }}
                       _focus={{ borderColor: "blue.500" }}
-                      placeholder="Select GPU"
                     >
                       {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                         <option key={key} value={key}>
@@ -204,8 +219,70 @@ const LeaderboardPage: NextPage = () => {
                     </Select>
                   </motion.div>
                 )}
+                {selectedTab === "problems" && isMobile && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Popover placement="bottom">
+                      <PopoverTrigger>
+                        <IconButton
+                          aria-label="Filter by GPU"
+                          icon={<FaFilter />}
+                          colorScheme="blue"
+                          variant="outline"
+                          size="sm"
+                        />
+                      </PopoverTrigger>
+                      <PopoverContent
+                        bg="gray.800"
+                        borderColor="whiteAlpha.300"
+                        w="150px"
+                      >
+                        <PopoverBody p={0}>
+                          <List spacing={0}>
+                            {Object.entries(GPU_DISPLAY_NAMES).map(
+                              ([key, value], index, arr) => (
+                                <>
+                                  <ListItem
+                                    key={key}
+                                    px={3}
+                                    fontSize="sm"
+                                    py={2}
+                                    onClick={() => setSelectedGpu(key)}
+                                    cursor="pointer"
+                                    bg={
+                                      selectedGpu === key
+                                        ? "blue.900"
+                                        : undefined
+                                    }
+                                    _hover={{
+                                      bg:
+                                        selectedGpu === key
+                                          ? "blue.800"
+                                          : "whiteAlpha.100",
+                                    }}
+                                    fontWeight={
+                                      selectedGpu === key ? "bold" : "normal"
+                                    }
+                                  >
+                                    {value}
+                                  </ListItem>
+                                  {index < arr.length - 1 && (
+                                    <Divider borderColor="whiteAlpha.200" />
+                                  )}
+                                </>
+                              )
+                            )}
+                          </List>
+                        </PopoverBody>
+                      </PopoverContent>
+                    </Popover>
+                  </motion.div>
+                )}
               </AnimatePresence>
-
               {/* Tab Selector */}
               <TabList bg="whiteAlpha.100" p={1} borderRadius="full">
                 <Tab
@@ -235,63 +312,26 @@ const LeaderboardPage: NextPage = () => {
               >
                 {rankedUsers && rankedUsers.length > 0 ? (
                   <Box overflowX="auto" borderRadius="md" boxShadow="md">
-                    <Table variant="simple" size="md" layout="fixed">
-                      <Thead bg="gray.800" borderTopRadius="md">
-                        <Tr>
-                          <Th
-                            borderBottom="none"
-                            color="whiteAlpha.700"
-                            width="10%"
-                          >
-                            Rank
-                          </Th>
-                          <Th
-                            borderBottom="none"
-                            color="whiteAlpha.700"
-                            width="30%"
-                          >
-                            User
-                          </Th>
-                          <Th
-                            borderBottom="none"
-                            isNumeric
-                            color="whiteAlpha.700"
-                            width="15%"
-                          >
-                            Rating
-                          </Th>
-                          <Th
-                            borderBottom="none"
-                            isNumeric
-                            color="whiteAlpha.700"
-                            width="15%"
-                          >
-                            Submissions
-                          </Th>
-                          <Th
-                            borderBottom="none"
-                            color="whiteAlpha.700"
-                            width="35%"
-                            textAlign="center"
-                          >
-                            Best Performance
-                          </Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
+                    {isMobile ? (
+                      /* Mobile Users Leaderboard */
+                      <Box>
                         {rankedUsers.map((user, index) => {
                           const medalColor = getMedalColor(index);
                           return (
-                            <Tr
+                            <Flex
                               key={user.id}
                               onClick={() =>
                                 router.push(`/${user.username ?? "anonymous"}`)
                               }
                               cursor="pointer"
-                              _hover={{ bg: "whiteAlpha.100" }}
+                              direction="row"
+                              align="center"
+                              justify="space-between"
+                              p={4}
                               borderBottom="1px solid"
                               borderColor="whiteAlpha.100"
                               transition="background 0.2s"
+                              _hover={{ bg: "whiteAlpha.100" }}
                               bg={
                                 medalColor
                                   ? `rgba(${
@@ -304,79 +344,210 @@ const LeaderboardPage: NextPage = () => {
                                   : undefined
                               }
                             >
-                              <Td borderBottom="none">
+                              <Flex align="center" flex={1}>
                                 <Text
                                   color={medalColor}
                                   fontWeight={medalColor ? "bold" : "normal"}
+                                  fontSize="sm"
+                                  minWidth="40px"
                                 >
                                   #{index + 1}
                                 </Text>
-                              </Td>
-                              <Td borderBottom="none">
-                                <Flex align="center">
-                                  <Avatar
-                                    size="sm"
-                                    src={user.image ?? ""}
-                                    name={user.username ?? "Anonymous"}
-                                    mr={2}
-                                  />
+                                <Avatar
+                                  size="sm"
+                                  src={user.image ?? ""}
+                                  name={user.username ?? "Anonymous"}
+                                  mr={2}
+                                />
+                                <Text
+                                  color={medalColor}
+                                  fontWeight={medalColor ? "bold" : "normal"}
+                                  fontSize="sm"
+                                  noOfLines={1}
+                                >
+                                  {user.username ?? "Anonymous"}
+                                </Text>
+                              </Flex>
+
+                              <Flex align="center" justifyContent="flex-end">
+                                <Badge
+                                  bg="blue.900"
+                                  color="whiteAlpha.900"
+                                  px={2}
+                                  py={1}
+                                  borderRadius="md"
+                                  fontSize="sm"
+                                  fontWeight="bold"
+                                  fontFamily="mono"
+                                >
+                                  {formatRating(user.rating)}
+                                </Badge>
+                              </Flex>
+                            </Flex>
+                          );
+                        })}
+                      </Box>
+                    ) : (
+                      /* Desktop Users Leaderboard */
+                      <Table variant="simple" size="md" layout="fixed">
+                        <Thead bg="gray.800" borderTopRadius="md">
+                          <Tr>
+                            <Th
+                              borderBottom="none"
+                              color="whiteAlpha.700"
+                              width="10%"
+                            >
+                              Rank
+                            </Th>
+                            <Th
+                              borderBottom="none"
+                              color="whiteAlpha.700"
+                              width="30%"
+                            >
+                              User
+                            </Th>
+                            <Th
+                              borderBottom="none"
+                              isNumeric
+                              color="whiteAlpha.700"
+                              width="15%"
+                            >
+                              Rating
+                            </Th>
+                            <Th
+                              borderBottom="none"
+                              isNumeric
+                              color="whiteAlpha.700"
+                              width="15%"
+                            >
+                              Submissions
+                            </Th>
+                            <Th
+                              borderBottom="none"
+                              color="whiteAlpha.700"
+                              width="35%"
+                              textAlign="center"
+                            >
+                              Best Performance
+                            </Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
+                          {rankedUsers.map((user, index) => {
+                            const medalColor = getMedalColor(index);
+                            return (
+                              <Tr
+                                key={user.id}
+                                onClick={() =>
+                                  router.push(
+                                    `/${user.username ?? "anonymous"}`
+                                  )
+                                }
+                                cursor="pointer"
+                                _hover={{ bg: "whiteAlpha.100" }}
+                                borderBottom="1px solid"
+                                borderColor="whiteAlpha.100"
+                                transition="background 0.2s"
+                                bg={
+                                  medalColor
+                                    ? `rgba(${
+                                        medalColor
+                                          .replace("#", "")
+                                          .match(/../g)
+                                          ?.map((hex) => parseInt(hex, 16))
+                                          .join(",") ?? "0, 0, 0"
+                                      }, 0.08)`
+                                    : undefined
+                                }
+                              >
+                                <Td borderBottom="none">
                                   <Text
                                     color={medalColor}
                                     fontWeight={medalColor ? "bold" : "normal"}
                                   >
-                                    {user.username ?? "Anonymous"}
+                                    #{index + 1}
                                   </Text>
-                                </Flex>
-                              </Td>
-                              <Td isNumeric borderBottom="none">
-                                <Text
-                                  color={medalColor}
-                                  fontWeight="bold"
-                                  fontFamily="mono"
-                                  fontSize="sm"
-                                >
-                                  {formatRating(user.rating)}
-                                </Text>
-                              </Td>
-                              <Td isNumeric borderBottom="none">
-                                {user.submissionsCount}
-                              </Td>
-                              <Td
-                                borderBottom="none"
-                                py={2.5}
-                                justifyItems="center"
-                              >
-                                {user.bestSubmission ? (
-                                  <Flex
-                                    direction="column"
-                                    gap={2}
-                                    align="center"
-                                    maxWidth="100%"
-                                  >
+                                </Td>
+                                <Td borderBottom="none">
+                                  <Flex align="center">
+                                    <Avatar
+                                      size="sm"
+                                      src={user.image ?? ""}
+                                      name={user.username ?? "Anonymous"}
+                                      mr={2}
+                                    />
                                     <Text
-                                      fontWeight="medium"
-                                      fontSize="sm"
-                                      noOfLines={1}
-                                      width="100%"
-                                      align="center"
+                                      color={medalColor}
+                                      fontWeight={
+                                        medalColor ? "bold" : "normal"
+                                      }
                                     >
-                                      <ChakraLink
-                                        as={Link}
-                                        href={`/problems/${user.bestSubmission.problem.slug}`}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                        }}
-                                        color="gray.200"
-                                        _hover={{ color: "blue.200" }}
-                                      >
-                                        {user.bestSubmission.problem.title}
-                                      </ChakraLink>
+                                      {user.username ?? "Anonymous"}
                                     </Text>
-                                    <Flex gap={2} wrap="nowrap">
-                                      {user.bestSubmission.gpuType && (
+                                  </Flex>
+                                </Td>
+                                <Td isNumeric borderBottom="none">
+                                  <Text
+                                    color={medalColor}
+                                    fontWeight="bold"
+                                    fontFamily="mono"
+                                    fontSize="sm"
+                                  >
+                                    {formatRating(user.rating)}
+                                  </Text>
+                                </Td>
+                                <Td isNumeric borderBottom="none">
+                                  {user.submissionsCount}
+                                </Td>
+                                <Td
+                                  borderBottom="none"
+                                  py={2.5}
+                                  justifyItems="center"
+                                >
+                                  {user.bestSubmission ? (
+                                    <Flex
+                                      direction="column"
+                                      gap={2}
+                                      align="center"
+                                      maxWidth="100%"
+                                    >
+                                      <Text
+                                        fontWeight="medium"
+                                        fontSize="sm"
+                                        noOfLines={1}
+                                        width="100%"
+                                        align="center"
+                                      >
+                                        <ChakraLink
+                                          as={Link}
+                                          href={`/problems/${user.bestSubmission.problem.slug}`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                          }}
+                                          color="gray.200"
+                                          _hover={{ color: "blue.200" }}
+                                        >
+                                          {user.bestSubmission.problem.title}
+                                        </ChakraLink>
+                                      </Text>
+                                      <Flex gap={2} wrap="nowrap">
+                                        {user.bestSubmission.gpuType && (
+                                          <Badge
+                                            bg="blackAlpha.400"
+                                            color="whiteAlpha.900"
+                                            px={2}
+                                            py={0.5}
+                                            borderRadius="md"
+                                            fontSize="xs"
+                                            fontWeight="medium"
+                                            minWidth="fit-content"
+                                          >
+                                            {user.bestSubmission.gpuType}
+                                          </Badge>
+                                        )}
                                         <Badge
                                           bg="blackAlpha.400"
-                                          color="whiteAlpha.900"
+                                          color="white.300"
                                           px={2}
                                           py={0.5}
                                           borderRadius="md"
@@ -384,39 +555,27 @@ const LeaderboardPage: NextPage = () => {
                                           fontWeight="medium"
                                           minWidth="fit-content"
                                         >
-                                          {user.bestSubmission.gpuType}
+                                          {user.bestSubmission.gflops !== null
+                                            ? user.bestSubmission.gflops >= 1000
+                                              ? `${(user.bestSubmission.gflops / 1000).toFixed(2)} T`
+                                              : `${user.bestSubmission.gflops.toFixed(2)} G`
+                                            : "0.00 G"}
+                                          {"FLOPS"}
                                         </Badge>
-                                      )}
-                                      <Badge
-                                        bg="blackAlpha.400"
-                                        color="white.300"
-                                        px={2}
-                                        py={0.5}
-                                        borderRadius="md"
-                                        fontSize="xs"
-                                        fontWeight="medium"
-                                        minWidth="fit-content"
-                                      >
-                                        {user.bestSubmission.gflops !== null
-                                          ? user.bestSubmission.gflops >= 1000
-                                            ? `${(user.bestSubmission.gflops / 1000).toFixed(2)} T`
-                                            : `${user.bestSubmission.gflops.toFixed(2)} G`
-                                          : "0.00 G"}
-                                        {"FLOPS"}
-                                      </Badge>
+                                      </Flex>
                                     </Flex>
-                                  </Flex>
-                                ) : (
-                                  <Text fontSize="sm" color="whiteAlpha.600">
-                                    No submissions
-                                  </Text>
-                                )}
-                              </Td>
-                            </Tr>
-                          );
-                        })}
-                      </Tbody>
-                    </Table>
+                                  ) : (
+                                    <Text fontSize="sm" color="whiteAlpha.600">
+                                      No submissions
+                                    </Text>
+                                  )}
+                                </Td>
+                              </Tr>
+                            );
+                          })}
+                        </Tbody>
+                      </Table>
+                    )}
                   </Box>
                 ) : (
                   <Box
