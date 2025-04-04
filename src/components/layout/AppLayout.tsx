@@ -84,7 +84,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             display="flex"
             alignItems="center"
             justifyContent="center"
-            backgroundColor="rgba(13, 18, 30, 0.2)"
+            backgroundColor="rgba(13, 18, 30)"
             zIndex="9999"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
