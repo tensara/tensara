@@ -341,6 +341,9 @@ export const usersRouter = createTRPCRouter({
               status: "ACCEPTED",
             },
           },
+          rating: {
+            not: 0 || null,
+          },
         },
         select: {
           id: true,
