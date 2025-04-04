@@ -18,7 +18,7 @@ import {
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { SearchIcon } from "@chakra-ui/icons";
 import { TriangleDownIcon, TriangleUpIcon } from "@chakra-ui/icons";
 import { createServerSideHelpers } from "@trpc/react-query/server";
@@ -26,6 +26,7 @@ import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
+import { tagNames, tagAltNames } from "~/constants/problem";
 
 type SortField = "title" | "difficulty" | "submissionCount";
 type SortDirection = "asc" | "desc";
@@ -82,8 +83,17 @@ export default function ProblemsPage() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
   const [sortField, setSortField] = useState<SortField>("title");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    problems.forEach((problem) => {
+      problem.tags?.forEach((tag) => tags.add(tag));
+    });
+    return Array.from(tags).sort();
+  }, [problems]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -102,7 +112,9 @@ export default function ProblemsPage() {
       const matchesDifficulty =
         difficultyFilter === "all" ||
         problem.difficulty.toLowerCase() === difficultyFilter.toLowerCase();
-      return matchesSearch && matchesDifficulty;
+      const matchesTag =
+        tagFilter === "all" || problem.tags?.some((tag) => tag === tagFilter);
+      return matchesSearch && matchesDifficulty && matchesTag;
     })
     .sort((a, b) => {
       const multiplier = sortDirection === "asc" ? 1 : -1;
@@ -187,6 +199,24 @@ export default function ProblemsPage() {
             <option value="medium">Medium</option>
             <option value="hard">Hard</option>
           </Select>
+          <Select
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            maxW="200px"
+            bg="whiteAlpha.50"
+            border="1px solid"
+            borderColor="gray.700"
+            _hover={{ borderColor: "gray.600" }}
+            _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+            color="white"
+          >
+            <option value="all">All Tags</option>
+            {allTags.map((tag) => (
+              <option key={tag} value={tag}>
+                {tagAltNames[tag as keyof typeof tagAltNames]}
+              </option>
+            ))}
+          </Select>
         </HStack>
 
         <Text color="gray.400" fontSize="sm">
@@ -233,6 +263,17 @@ export default function ProblemsPage() {
                 <Th
                   color="gray.300"
                   fontSize="md"
+                  width="180px"
+                  borderBottom="1px solid"
+                  borderColor="gray.700"
+                  cursor="pointer"
+                  _hover={{ color: "white" }}
+                >
+                  Tags
+                </Th>
+                <Th
+                  color="gray.300"
+                  fontSize="md"
                   width="200px"
                   display={{ base: "none", md: "table-cell" }}
                   borderBottom="1px solid"
@@ -271,6 +312,27 @@ export default function ProblemsPage() {
                     >
                       {problem.difficulty}
                     </Badge>
+                  </Td>
+                  <Td color="white" borderBottom="none">
+                    {problem.tags && problem.tags.length > 0 && (
+                      <HStack spacing={1} flex="0 0 auto">
+                        {problem.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            bg="gray.600"
+                            color="gray.100"
+                            variant="solid"
+                            fontSize="xs"
+                            px={2}
+                            py={0.5}
+                            borderRadius="full"
+                            title={tagAltNames[tag as keyof typeof tagAltNames]}
+                          >
+                            {tagNames[tag as keyof typeof tagNames]}
+                          </Badge>
+                        ))}
+                      </HStack>
+                    )}
                   </Td>
                   <Td borderBottom="none">
                     <Text color="gray.400" fontSize="sm">

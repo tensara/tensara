@@ -94,6 +94,7 @@ model Problem {
   difficulty  Difficulty
   author      String
   parameters      Json  @default("[]")
+  tags        String[]
 
   definition  String? @db.Text
 

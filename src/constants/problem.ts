@@ -67,3 +67,45 @@ export const getStatusIcon = (status: string | null) => {
     return TimeIcon;
   }
 };
+
+export const tags = [
+  "convolution",
+  "pooling",
+  "normalization",
+  "activation-function",
+  "fused",
+  "loss-function",
+  "scalar",
+  "vector",
+  "matmul",
+  "scan",
+  "reduction",
+] as const;
+
+export const tagNames = {
+  convolution: "Convolution",
+  pooling: "Pooling",
+  normalization: "Normalization",
+  "activation-function": "Activations",
+  fused: "Fused",
+  "loss-function": "Loss",
+  scalar: "Scalar",
+  vector: "Vector",
+  matmul: "Matmul",
+  scan: "Scan",
+  reduction: "Reduction",
+} as const;
+
+export const tagAltNames = {
+  convolution: "Convolution",
+  pooling: "Pooling",
+  normalization: "Normalization",
+  "activation-function": "Activation Functions",
+  fused: "Fused Operations",
+  "loss-function": "Loss Functions",
+  scalar: "Scalar",
+  vector: "Vector",
+  matmul: "Matrix Multiplication",
+  scan: "Scan",
+  reduction: "Reduction",
+} as const;
