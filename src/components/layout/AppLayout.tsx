@@ -3,10 +3,8 @@ import { useRouter } from "next/router";
 import { useState, useEffect, type ReactNode } from "react";
 import { motion } from "framer-motion";
 
-// Define the Motion Box component
 const MotionBox = motion(Box);
 
-// Custom loading animation for route changes
 function LoadingAnimation() {
   return (
     <Box
