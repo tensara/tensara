@@ -133,7 +133,7 @@ const LeaderboardPage: NextPage = () => {
   // User rankings data
   const { data: rankedUsers, isLoading: isLoadingUsers } =
     api.users.getTopRankedPlayers.useQuery<UserRanking[]>(
-      { limit: 100 },
+      { limit: 50 },
       {
         staleTime: 300000, // 5 minutes
         refetchOnMount: false,
