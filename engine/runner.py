@@ -274,9 +274,9 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
                     input_tensors, 
                     actual_output,
                     language=language,
-                    min_iterations=5,
-                    max_iterations=20,
-                    target_cv=0.01  # 1% target coefficient of variation
+                    # min_iterations=5,
+                    # max_iterations=20,
+                    # target_cv=0.01  # 1% target coefficient of variation
                 )
                 
                 benchmark_results.append(benchmark_result)
