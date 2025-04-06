@@ -254,8 +254,8 @@ export const usersRouter = createTRPCRouter({
       const recentSubmissions = await ctx.db.submission.findMany({
         where: {
           userId: user.id,
-          // Only include public submissions or if current user is the owner
-          OR: [{ isPublic: true }, { userId: ctx.session?.user?.id }],
+          // Show all submissions for the viewed user
+          // Private details will be filtered in the response mapping
         },
         select: {
           id: true,

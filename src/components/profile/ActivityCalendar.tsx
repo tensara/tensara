@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   HStack,
-  VStack,
   Flex,
   Text,
   Icon,
@@ -17,7 +16,6 @@ import {
 import { FaFire } from "react-icons/fa";
 import { CheckIcon, ChevronDownIcon } from "@chakra-ui/icons";
 
-// Define the type for activity data
 interface ActivityItem {
   date: string;
   count: number;
@@ -47,79 +45,88 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
   data,
   joinedYear,
 }) => {
-  const weeks = 52;
-  const days = 7;
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const today = new Date();
-  const currentYear = today.getFullYear();
+  const { currentYear } = useMemo(() => {
+    const today = new Date();
+    return { today, currentYear: today.getFullYear() };
+  }, []);
 
-  const dateMap: Record<string, number> = {};
-  data.forEach((item) => {
-    const itemYear = parseInt(item.date.split("-")[0] ?? "0");
-    if (itemYear === selectedYear) {
-      dateMap[item.date] = (dateMap[item.date] ?? 0) + item.count;
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const calendarData = useMemo(() => {
+    const weeks = 52;
+    const days = 7;
+
+    const dateMap: Record<string, number> = {};
+    data.forEach((item) => {
+      const itemYear = parseInt(item.date.split("-")[0] ?? "0");
+      if (itemYear === selectedYear) {
+        dateMap[item.date] = (dateMap[item.date] ?? 0) + item.count;
+      }
+    });
+
+    // Day labels - show all days for better alignment
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+    // Calculate month positions more accurately
+    const monthLabels: { month: string; position: number }[] = [];
+
+    for (let month = 0; month < 12; month++) {
+      const firstDay = new Date(selectedYear, month, 1);
+      // Space months evenly across the 52 weeks
+      const position = Math.floor((month * 52) / 12);
+
+      monthLabels.push({
+        month: firstDay.toLocaleString("default", { month: "short" }),
+        position,
+      });
     }
-  });
 
-  type GridCell = { date: string; count: number; bgColor: string };
+    type GridCell = { date: string; count: number; bgColor: string };
 
-  const calendarGrid: GridCell[][] = Array(days)
-    .fill(null)
-    .map(() =>
-      Array(weeks)
-        .fill(null)
-        .map(() => ({ date: "", count: 0, bgColor: "whiteAlpha.100" }))
+    // Initialize the grid with empty cells
+    const calendarGrid: GridCell[][] = Array.from({ length: days }, () =>
+      Array.from({ length: weeks }, () => ({
+        date: "",
+        count: 0,
+        bgColor: "whiteAlpha.100",
+      }))
     );
 
-  const dayNames = ["Mon", "Wed", "Fri", "Sun"];
+    // Fill the grid with proper dates and data
+    const isCurrentYear = selectedYear === currentYear;
 
-  const months: string[] = [];
+    // Create date for January 1st of the selected year
+    const jan1 = new Date(selectedYear, 0, 1);
 
-  if (selectedYear === currentYear) {
-    for (let i = 0; i < 12; i++) {
-      const date = new Date();
-      date.setDate(1);
-      date.setMonth(today.getMonth() - 11 + i);
-      months.push(date.toLocaleString("default", { month: "short" }));
-    }
-  } else {
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(selectedYear, i, 1);
-      months.push(date.toLocaleString("default", { month: "short" }));
-    }
-  }
+    // Find the first Monday of the year or the last Monday of previous year
+    const firstMonday = new Date(jan1);
+    // Get days to subtract to reach the previous Monday
+    // Sunday is 0, so if it's 0, we need 6 days back to previous Monday
+    // If it's Monday (1), we need 0 days back
+    const daysToSubtract = (jan1.getDay() + 6) % 7;
+    firstMonday.setDate(jan1.getDate() - daysToSubtract);
 
-  const isCurrentYear = selectedYear === currentYear;
+    // Fill grid with dates
+    for (let w = 0; w < weeks; w++) {
+      for (let d = 0; d < days; d++) {
+        const cellDate = new Date(firstMonday);
+        cellDate.setDate(firstMonday.getDate() + w * 7 + d);
 
-  for (let w = 0; w < weeks; w++) {
-    for (let d = 0; d < days; d++) {
-      let date;
+        const dateStr = cellDate.toISOString().split("T")[0]!;
+        const count = dateMap[dateStr] ?? 0;
 
-      if (isCurrentYear) {
-        date = new Date();
-        date.setDate(today.getDate() - ((weeks - w - 1) * 7 + (days - d - 1)));
-      } else {
-        date = new Date(selectedYear, 0, 1);
-        const dayOfWeek = date.getDay();
+        let bgColor = "whiteAlpha.100";
 
-        date.setDate(date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+        // Only color cells from the selected year
+        if (cellDate.getFullYear() === selectedYear && count > 0) {
+          if (count < 3) bgColor = "green.100";
+          else if (count < 6) bgColor = "green.200";
+          else if (count < 10) bgColor = "green.400";
+          else if (count < 15) bgColor = "green.600";
+          else bgColor = "green.700";
+        }
 
-        date.setDate(date.getDate() + w * 7 + d);
-      }
-
-      const dateStr = date.toISOString().split("T")[0]!;
-      const count = dateMap[dateStr] ?? 0;
-
-      let bgColor = "whiteAlpha.100";
-      if (count > 0) {
-        if (count < 3) bgColor = "green.100";
-        else if (count < 6) bgColor = "green.200";
-        else if (count < 10) bgColor = "green.400";
-        else if (count < 15) bgColor = "green.600";
-        else bgColor = "green.700";
-      }
-
-      if (calendarGrid[d]) {
+        // The grid is organized with days as rows and weeks as columns
         calendarGrid[d]![w] = {
           date: dateStr,
           count,
@@ -127,24 +134,32 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
         };
       }
     }
-  }
 
-  const totalCount = Object.values(dateMap).reduce(
-    (sum, count) => sum + count,
-    0
-  );
+    const totalCount = Object.values(dateMap).reduce(
+      (sum, count) => sum + count,
+      0
+    );
 
-  const timeDisplayText =
-    selectedYear === currentYear ? "in the last year" : `in ${selectedYear}`;
+    return {
+      calendarGrid,
+      dayNames,
+      monthLabels,
+      totalCount,
+      isCurrentYear,
+    };
+  }, [selectedYear, data, currentYear]);
 
-  const availableYears = [];
-  for (let year = currentYear; year >= joinedYear; year--) {
-    availableYears.push(year);
-  }
+  const timeDisplayText = calendarData.isCurrentYear
+    ? "in the last year"
+    : `in ${selectedYear}`;
 
-  const handleYearChange = (year: number) => {
-    setSelectedYear(year);
-  };
+  const availableYears = useMemo(() => {
+    const years = [];
+    for (let year = currentYear; year >= joinedYear; year--) {
+      years.push(year);
+    }
+    return years;
+  }, [currentYear, joinedYear]);
 
   return (
     <Box>
@@ -153,12 +168,11 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
           <Icon as={FaFire} color="blue.300" w={5} h={5} />
           <Text fontSize="sm" color="whiteAlpha.800">
             <Text as="span" fontWeight="bold" fontSize="md" color="white">
-              {totalCount}
+              {calendarData.totalCount}
             </Text>{" "}
             submissions {timeDisplayText}
           </Text>
         </HStack>
-
         {/* Year dropdown */}
         <Menu>
           <MenuButton
@@ -189,7 +203,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
               <MenuItem
                 key={year}
                 value={year}
-                onClick={() => handleYearChange(year)}
+                onClick={() => setSelectedYear(year)}
                 bg={selectedYear === year ? "blue.900" : "gray.700"}
                 borderRadius="lg"
                 color="white"
@@ -206,74 +220,56 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
         </Menu>
       </HStack>
 
-      <Flex position="relative">
+      <Flex align="flex-start" width="100%" ml={5}>
         {/* Left side with day labels */}
-        <Box>
-          <Box h="20px"></Box> {/* Empty space to align with graph */}
-          <VStack spacing={2} align="flex-start" mt={1}>
-            {dayNames.map((day, index) => (
-              <Text
-                key={day}
-                fontSize="xs"
-                color="whiteAlpha.600"
-                h="10px"
-                mt={index > 0 ? "5px" : "0"}
-              >
-                {day}
-              </Text>
-            ))}
-          </VStack>
+        <Box pt={3} width="40px">
+          {calendarData.dayNames.map((day, index) => (
+            <Box key={index} height="10px" mb={1.5}>
+              {(index === 0 || index === 6) && (
+                <Text fontSize="xs" color="whiteAlpha.600">
+                  {day}
+                </Text>
+              )}
+            </Box>
+          ))}
         </Box>
 
-        {/* Main calendar area */}
-        <Box
-          flex="1"
-          ml={2}
-          key={selectedYear}
-          transition="opacity 0.9s ease"
-          opacity={1}
-          animation="fadeIn 0.9s"
-        >
+        {/* Calendar container */}
+        <Box flex="1" position="relative">
           {/* Month labels */}
-          <Flex mb={1} width="100%" ml={4}>
-            {months.map((month, i) => (
-              <Text
-                key={month + i}
-                fontSize="xs"
-                color="whiteAlpha.700"
-                width={`${100 / months.length}%`}
-                textAlign="left"
-              >
-                {month}
+          <HStack justifyContent="space-between" width="85%" ml={4}>
+            {calendarData.monthLabels.map((item) => (
+              <Text key={item.month} fontSize="xs" color="whiteAlpha.700">
+                {item.month}
               </Text>
             ))}
-          </Flex>
+          </HStack>
 
           {/* Grid of contribution cells */}
           <Box>
-            {calendarGrid.map((row, rowIndex) => (
-              <HStack key={rowIndex} spacing={1} mb={1}>
-                {row.map((day, colIndex) => (
+            {calendarData.calendarGrid.map((row, rowIndex) => (
+              <Flex key={rowIndex} mb={1.5} height="10px">
+                {row.map((cell, colIndex) => (
                   <Tooltip
                     key={`${rowIndex}-${colIndex}`}
                     label={
-                      day.date && day.count > 0
-                        ? `${day.count} submission${
-                            day.count === 1 ? "" : "s"
-                          } on ${new Date(day.date).toLocaleDateString(
+                      cell.date && cell.count > 0
+                        ? `${cell.count} submission${
+                            cell.count === 1 ? "" : "s"
+                          } on ${new Date(cell.date).toLocaleDateString(
                             "en-US",
                             {
                               month: "long",
                               day: "numeric",
                             }
-                          )}${getOrdinalSuffix(new Date(day.date).getDate())}.`
-                        : day.date
+                          )}${getOrdinalSuffix(new Date(cell.date).getDate())}.`
+                        : cell.date
                           ? `No submissions on ${new Date(
-                              day.date
+                              cell.date
                             ).toLocaleDateString("en-US", {
                               month: "long",
                               day: "numeric",
-                            })}${getOrdinalSuffix(new Date(day.date).getDate())}.`
+                            })}${getOrdinalSuffix(new Date(cell.date).getDate())}.`
                           : "No submissions"
                     }
                     placement="top"
@@ -282,15 +278,21 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
                     color="gray.800"
                     fontSize="xs"
                     px={2}
-                    py={1}
+                    py={2}
                   >
-                    <Box w="10px" h="10px" bg={day.bgColor} borderRadius="sm" />
+                    <Box
+                      w="10px"
+                      h="10px"
+                      bg={cell.bgColor}
+                      borderRadius="sm"
+                      mr={1}
+                    />
                   </Tooltip>
                 ))}
-              </HStack>
+              </Flex>
             ))}
 
-            {/* Less/More spectrum - styled nicely */}
+            {/* Less/More spectrum */}
             <Flex justify="flex-end" mt={4} width="100%">
               <Flex
                 alignItems="center"
