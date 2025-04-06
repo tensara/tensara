@@ -237,7 +237,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
         {/* Calendar container */}
         <Box flex="1" position="relative">
           {/* Month labels */}
-          <HStack justifyContent="space-between" width="85%" ml={4}>
+          <HStack justifyContent="space-between" width="85%" ml={4} pl={0.5}>
             {calendarData.monthLabels.map((item) => (
               <Text key={item.month} fontSize="xs" color="whiteAlpha.700">
                 {item.month}
