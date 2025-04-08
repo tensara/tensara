@@ -64,7 +64,7 @@ for gpu in gpu_runners:
 
 def gen_wrapper(gen):
     for event in gen:
-        yield "data: " + json.dumps(event, allow_nan=False) + "\n\n"
+        yield "data: " + json.dumps(event) + "\n\n"
 
 
 @web_app.post("/checker-{gpu}")
