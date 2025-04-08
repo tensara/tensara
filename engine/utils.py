@@ -14,6 +14,7 @@ import importlib.util
 from types import ModuleType
 import multiprocessing as mp
 import queue
+import math
 
 
 DTYPE_MAP = {
@@ -60,6 +61,21 @@ def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
     
     return cmd
 
+def sanitize_floats(obj):
+    if isinstance(obj, dict):
+        return {k: sanitize_floats(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_floats(v) for v in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj):
+            return "NaN"
+        elif math.isinf(obj):
+            return "Infinity"
+        else:
+            return obj
+    else:
+        return obj
+    
 def hash_dict(func):
     """Transform mutable dictionnary
     Into immutable
