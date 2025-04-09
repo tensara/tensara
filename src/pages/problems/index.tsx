@@ -200,7 +200,7 @@ export default function ProblemsPage() {
           <Menu>
             <MenuButton
               as={Button}
-              rightIcon={<ChevronDownIcon h={6} w={6} color="gray.400" />}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
