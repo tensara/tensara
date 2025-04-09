@@ -13,7 +13,6 @@ import {
   Spinner,
   Flex,
   Heading,
-  Select,
   SimpleGrid,
   Card,
   CardHeader,
@@ -35,6 +34,11 @@ import {
   PopoverBody,
   Divider,
   IconButton,
+  MenuItem,
+  MenuButton,
+  Menu,
+  MenuList,
+  Button,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { api } from "~/utils/api";
@@ -50,6 +54,7 @@ import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaExclamationCircle, FaFilter } from "react-icons/fa";
+import { ChevronDownIcon } from "@chakra-ui/icons";
 
 type UserRanking = {
   id: string;
@@ -201,22 +206,43 @@ const LeaderboardPage: NextPage = () => {
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Select
-                      value={selectedGpu}
-                      onChange={(e) => setSelectedGpu(e.target.value)}
-                      w="200px"
-                      bg="whiteAlpha.50"
-                      color="white"
-                      borderColor="whiteAlpha.200"
-                      _hover={{ borderColor: "whiteAlpha.400" }}
-                      _focus={{ borderColor: "blue.500" }}
-                    >
-                      {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
-                        <option key={key} value={key}>
-                          {value}
-                        </option>
-                      ))}
-                    </Select>
+                    <Menu>
+                      <MenuButton
+                        as={Button}
+                        rightIcon={
+                          <ChevronDownIcon h={4} w={4} color="gray.400" />
+                        }
+                        bg="whiteAlpha.50"
+                        _hover={{
+                          bg: "whiteAlpha.100",
+                          borderColor: "gray.600",
+                        }}
+                        _active={{ bg: "whiteAlpha.150" }}
+                        _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                        color="white"
+                        w="200px"
+                        fontWeight="normal"
+                        textAlign="left"
+                        justifyContent="flex-start"
+                      >
+                        {GPU_DISPLAY_NAMES[selectedGpu]}
+                      </MenuButton>
+                      <MenuList bg="gray.800" borderColor="gray.700">
+                        {Object.entries(GPU_DISPLAY_NAMES).map(
+                          ([key, value]) => (
+                            <MenuItem
+                              key={key}
+                              onClick={() => setSelectedGpu(key)}
+                              bg="gray.800"
+                              _hover={{ bg: "gray.700" }}
+                              color="white"
+                            >
+                              {value}
+                            </MenuItem>
+                          )
+                        )}
+                      </MenuList>
+                    </Menu>
                   </motion.div>
                 )}
                 {selectedTab === "problems" && isMobile && (

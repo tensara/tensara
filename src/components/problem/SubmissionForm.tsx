@@ -3,10 +3,13 @@ import {
   HStack,
   Box,
   Text,
-  Select,
   Button,
   IconButton,
   Flex,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react";
 
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
@@ -14,9 +17,10 @@ import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
 import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
 
-import { InfoIcon, RepeatIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon, InfoIcon, RepeatIcon } from "@chakra-ui/icons";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 interface SubmissionFormProps {
   selectedGpuType: string;
@@ -62,56 +66,83 @@ const SubmissionForm = ({
             GPU Type
             <GpuInfoModal />
           </Text>
-          <Select
-            size="sm"
-            bg="whiteAlpha.50"
-            borderColor="whiteAlpha.200"
-            _hover={{ borderColor: "whiteAlpha.300" }}
-            w={{ base: "110px", md: "140px" }}
-            value={selectedGpuType}
-            onChange={(e) => setSelectedGpuType(e.target.value)}
-            borderRadius="full"
-            sx={{
-              "& > option": {
-                bg: "gray.800",
-              },
-            }}
-          >
-            {Object.entries(GPU_DISPLAY_NAMES)
-              .filter(([key]) => key !== "all")
-              .map(([key, value]) => (
-                <option key={key} value={key}>
+          <Menu>
+            <MenuButton
+              size="sm"
+              as={Button}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color="white"
+              w={{ base: "110px", md: "140px" }}
+              fontWeight="normal"
+              textAlign="left"
+              justifyContent="flex-start"
+              borderRadius="full"
+            >
+              {GPU_DISPLAY_NAMES[selectedGpuType]}
+            </MenuButton>
+            <MenuList bg="gray.800" borderColor="gray.700">
+              {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
+                <MenuItem
+                  key={key}
+                  onClick={() => setSelectedGpuType(key)}
+                  bg="gray.800"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                >
                   {value}
-                </option>
+                </MenuItem>
               ))}
-          </Select>
+            </MenuList>
+          </Menu>
         </Box>
         <Box>
           <Text fontSize="sm" color="whiteAlpha.700">
             Language
             <LanguageInfoModal />
           </Text>
-          <Select
-            size="sm"
-            bg="whiteAlpha.50"
-            borderColor="whiteAlpha.200"
-            _hover={{ borderColor: "whiteAlpha.300" }}
-            onChange={(e) =>
-              setSelectedLanguage(e.target.value as ProgrammingLanguage)
-            }
-            value={selectedLanguage}
-            w={{ base: "110px", md: "140px" }}
-            defaultValue="cuda"
-            borderRadius="full"
-            sx={{
-              "& > option": {
-                bg: "gray.800",
-              },
-            }}
-          >
-            <option value="cuda">CUDA C++</option>
-            <option value="python">Python (Triton)</option>
-          </Select>
+          <Menu>
+            <MenuButton
+              size="sm"
+              as={Button}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color="white"
+              w={{ base: "110px", md: "140px" }}
+              fontWeight="normal"
+              textAlign="left"
+              justifyContent="flex-start"
+              borderRadius="full"
+            >
+              {selectedLanguage === "cuda" ? "CUDA C++" : "Python (Triton)"}
+            </MenuButton>
+            <MenuList bg="gray.800" borderColor="gray.700">
+              <MenuItem
+                key="cuda"
+                onClick={() => setSelectedLanguage("cuda")}
+                bg="gray.800"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+              >
+                CUDA C++
+              </MenuItem>
+              <MenuItem
+                key="python"
+                onClick={() => setSelectedLanguage("python")}
+                bg="gray.800"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+              >
+                Python (Triton)
+              </MenuItem>
+            </MenuList>
+          </Menu>
         </Box>
         <Box>
           <Text fontSize="sm" color="whiteAlpha.700">
@@ -127,32 +158,66 @@ const SubmissionForm = ({
               bg="transparent"
             />
           </Text>
-          <Select
-            size="sm"
-            bg="whiteAlpha.50"
-            borderColor="whiteAlpha.200"
-            _hover={{ borderColor: "whiteAlpha.300" }}
-            w={{ base: "110px", md: "140px" }}
-            value={selectedDataType}
-            onChange={(e) => setSelectedDataType(e.target.value as DataType)}
-            borderRadius="full"
-            sx={{
-              "& > option": {
-                bg: "gray.800",
-              },
-            }}
-          >
-            <option value="float32">float32</option>
-            <option value="float16" disabled>
-              float16
-            </option>
-            <option value="int32" disabled>
-              int32
-            </option>
-            <option value="int16" disabled>
-              int16
-            </option>
-          </Select>
+          <Menu>
+            <MenuButton
+              size="sm"
+              as={Button}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color="white"
+              w={{ base: "110px", md: "140px" }}
+              fontWeight="normal"
+              textAlign="left"
+              justifyContent="flex-start"
+              borderRadius="full"
+            >
+              {selectedDataType}
+            </MenuButton>
+            <MenuList bg="gray.800" borderColor="gray.700">
+              <MenuItem
+                key="float32"
+                onClick={() => setSelectedDataType("float32")}
+                bg="gray.800"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+              >
+                float32
+              </MenuItem>
+              <MenuItem
+                key="float16"
+                onClick={() => setSelectedDataType("float16")}
+                bg="gray.800"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+                isDisabled={true}
+              >
+                float16
+              </MenuItem>
+              <MenuItem
+                key="int32"
+                onClick={() => setSelectedDataType("int32")}
+                bg="gray.800"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+                isDisabled={true}
+              >
+                int32
+              </MenuItem>
+              <MenuItem
+                key="int16"
+                onClick={() => setSelectedDataType("int16")}
+                bg="gray.800"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+                isDisabled={true}
+              >
+                int16
+              </MenuItem>
+            </MenuList>
+          </Menu>
         </Box>
       </HStack>
 

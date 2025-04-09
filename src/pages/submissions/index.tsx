@@ -8,7 +8,6 @@ import {
   Th,
   Td,
   Text,
-  Select,
   HStack,
   Badge,
   Link as ChakraLink,
@@ -16,6 +15,11 @@ import {
   IconButton,
   Tooltip,
   Spinner,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Menu,
+  Button,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { api } from "~/utils/api";
@@ -106,6 +110,18 @@ const SubmissionsPage: NextPage = () => {
     }
   };
 
+  const STATUS_OPTIONS = {
+    all: "All Statuses",
+    ACCEPTED: "Accepted",
+    WRONG_ANSWER: "Wrong Answer",
+    CHECKING: "Checking",
+    BENCHMARKING: "Benchmarking",
+    COMPILE_ERROR: "Compile Error",
+    RUNTIME_ERROR: "Runtime Error",
+    TIME_LIMIT_EXCEEDED: "Time Limit Exceeded",
+    ERROR: "Error",
+  };
+
   const filteredAndSortedSubmissions = submissions
     ?.filter((submission: SubmissionWithProblem) => {
       const matchesStatus =
@@ -175,53 +191,96 @@ const SubmissionsPage: NextPage = () => {
 
         {/* Filters */}
         <HStack spacing={4} mb={6}>
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            w="250px"
-            bg="whiteAlpha.50"
-            borderColor="transparent"
-            _hover={{ borderColor: "gray.600" }}
-            _focus={{ borderColor: "gray.500" }}
-          >
-            <option value="all">All Statuses</option>
-            <option value="ACCEPTED">Accepted</option>
-            <option value="WRONG_ANSWER">Wrong Answer</option>
-            <option value="ERROR">Error</option>
-            <option value="CHECKING">Checking</option>
-            <option value="BENCHMARKING">Benchmarking</option>
-          </Select>
-
-          <Select
-            value={gpuFilter}
-            onChange={(e) => setGpuFilter(e.target.value)}
-            w="250px"
-            bg="whiteAlpha.50"
-            borderColor="transparent"
-            _hover={{ borderColor: "gray.600" }}
-            _focus={{ borderColor: "gray.500" }}
-          >
-            {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
-              <option key={key} value={key}>
-                {value}
-              </option>
-            ))}
-          </Select>
-          <Select
-            value={languageFilter}
-            onChange={(e) => setLanguageFilter(e.target.value)}
-            w="275px"
-            bg="whiteAlpha.50"
-            borderColor="transparent"
-            _hover={{ borderColor: "gray.600" }}
-            _focus={{ borderColor: "gray.500" }}
-          >
-            {Object.entries(LANGUAGE_DISPLAY_NAMES).map(([key, value]) => (
-              <option key={key} value={key}>
-                {value}
-              </option>
-            ))}
-          </Select>
+          <Menu>
+            <MenuButton
+              as={Button}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color="white"
+              w="300px"
+              fontWeight="normal"
+              textAlign="left"
+              justifyContent="flex-start"
+            >
+              {STATUS_OPTIONS[statusFilter as keyof typeof STATUS_OPTIONS]}
+            </MenuButton>
+            <MenuList bg="gray.800" borderColor="gray.700">
+              {Object.entries(STATUS_OPTIONS).map(([key, value]) => (
+                <MenuItem
+                  key={key}
+                  onClick={() => setStatusFilter(key)}
+                  bg="gray.800"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                >
+                  {value}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+          <Menu>
+            <MenuButton
+              as={Button}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color="white"
+              w="300px"
+              fontWeight="normal"
+              textAlign="left"
+              justifyContent="flex-start"
+            >
+              {GPU_DISPLAY_NAMES[gpuFilter]}
+            </MenuButton>
+            <MenuList bg="gray.800" borderColor="gray.700">
+              {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
+                <MenuItem
+                  key={key}
+                  onClick={() => setGpuFilter(key)}
+                  bg="gray.800"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                >
+                  {value}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+          <Menu>
+            <MenuButton
+              as={Button}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color="white"
+              w="300px"
+              fontWeight="normal"
+              textAlign="left"
+              justifyContent="flex-start"
+            >
+              {LANGUAGE_DISPLAY_NAMES[languageFilter]}
+            </MenuButton>
+            <MenuList bg="gray.800" borderColor="gray.700">
+              {Object.entries(LANGUAGE_DISPLAY_NAMES).map(([key, value]) => (
+                <MenuItem
+                  key={key}
+                  onClick={() => setLanguageFilter(key)}
+                  bg="gray.800"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                >
+                  {value}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
 
           <Input
             placeholder="Search by problem name..."
