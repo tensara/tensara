@@ -259,6 +259,13 @@ export default async function handler(
               );
               const errorMessage = `Failed on test ${failedTest?.test_id} (${failedTest?.name})`;
               const errorDetails = JSON.stringify(response.debug_info);
+              if (
+                response.total_tests !== undefined &&
+                response.passed_tests !== undefined
+              ) {
+                totalTests = response.total_tests;
+                passedTests = response.passed_tests;
+              }
               await db.submission.update({
                 where: { id: submission.id },
                 data: {

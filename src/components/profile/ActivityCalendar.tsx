@@ -13,8 +13,7 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 
-import { FaFire } from "react-icons/fa";
-import { CheckIcon, ChevronDownIcon } from "@chakra-ui/icons";
+import { FaFire, FaCheck, FaChevronDown } from "react-icons/fa";
 
 interface ActivityItem {
   date: string;
@@ -187,7 +186,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
             fontWeight="medium"
             _hover={{ borderColor: "blue.300", bg: "gray.650" }}
             _active={{ bg: "gray.650" }}
-            rightIcon={<ChevronDownIcon color="blue.300" />}
+            rightIcon={<FaChevronDown color="#a3cfff" size={10} />}
           >
             {selectedYear}
           </MenuButton>
@@ -212,7 +211,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
               >
                 <Text>{year}</Text>
                 {selectedYear === year && (
-                  <Icon as={CheckIcon} ml="auto" boxSize={3} />
+                  <Icon as={FaCheck} ml="auto" boxSize={3} />
                 )}
               </MenuItem>
             ))}

@@ -15,7 +15,7 @@ import {
   Td,
   Tooltip,
 } from "@chakra-ui/react";
-import { InfoIcon } from "@chakra-ui/icons";
+import { FaInfoCircle } from "react-icons/fa";
 import {
   PYTHON_VERSION,
   NVCC_CMD,
@@ -49,7 +49,7 @@ export const LanguageInfoModal = () => {
     <>
       <IconButton
         aria-label="Language Information"
-        icon={<InfoIcon />}
+        icon={<FaInfoCircle />}
         size="sm"
         variant="ghost"
         onClick={onOpen}

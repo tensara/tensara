@@ -7,7 +7,7 @@ import {
   Icon,
   Text,
 } from "@chakra-ui/react";
-import { TimeIcon } from "@chakra-ui/icons";
+import { IoMdTime } from "react-icons/io";
 import { FiTrendingUp } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -44,7 +44,7 @@ const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) => {
           py={1}
           fontSize="xs"
           onClick={onViewSubmissions}
-          leftIcon={<TimeIcon boxSize={3} />}
+          leftIcon={<IoMdTime size={16} />}
           borderRadius="full"
           borderColor="whiteAlpha.200"
           color="gray.300"
@@ -53,6 +53,7 @@ const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) => {
             bg: "whiteAlpha.50",
             color: "white",
           }}
+          // iconSpacing={1}
         >
           My Submissions
         </Button>

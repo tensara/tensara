@@ -25,7 +25,6 @@ import { useState } from "react";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
-import { ChevronUpIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { formatDistanceToNow } from "date-fns";
 import type { Submission } from "@prisma/client";
 import { createServerSideHelpers } from "@trpc/react-query/server";
@@ -37,6 +36,7 @@ import { auth } from "~/server/auth";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { formatStatus, getStatusColor } from "~/constants/problem";
+import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 type SortField =
   | "createdAt"
@@ -97,6 +97,15 @@ const SubmissionsPage: NextPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortOrder === "asc" ? (
+      <FaChevronUp color="#d4d4d8" size={10} />
+    ) : (
+      <FaChevronDown color="#d4d4d8" size={10} />
+    );
+  };
 
   const { data: submissions, isLoading } =
     api.submissions.getAllUserSubmissions.useQuery();
@@ -194,7 +203,7 @@ const SubmissionsPage: NextPage = () => {
           <Menu>
             <MenuButton
               as={Button}
-              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
@@ -224,7 +233,7 @@ const SubmissionsPage: NextPage = () => {
           <Menu>
             <MenuButton
               as={Button}
-              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
@@ -254,7 +263,7 @@ const SubmissionsPage: NextPage = () => {
           <Menu>
             <MenuButton
               as={Button}
-              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
@@ -308,15 +317,10 @@ const SubmissionsPage: NextPage = () => {
                         aria-label={`Sort ${
                           sortOrder === "asc" ? "descending" : "ascending"
                         }`}
-                        icon={
-                          sortOrder === "asc" ? (
-                            <ChevronUpIcon />
-                          ) : (
-                            <ChevronDownIcon />
-                          )
-                        }
+                        icon={<SortIcon field="problem" />}
                         size="xs"
                         variant="ghost"
+                        _active={{ bg: "whiteAlpha.200" }}
                       />
                     )}
                   </HStack>
@@ -333,15 +337,10 @@ const SubmissionsPage: NextPage = () => {
                         aria-label={`Sort ${
                           sortOrder === "asc" ? "descending" : "ascending"
                         }`}
-                        icon={
-                          sortOrder === "asc" ? (
-                            <ChevronUpIcon />
-                          ) : (
-                            <ChevronDownIcon />
-                          )
-                        }
+                        icon={<SortIcon field="status" />}
                         size="xs"
                         variant="ghost"
+                        _active={{ bg: "whiteAlpha.200" }}
                       />
                     )}
                   </HStack>
@@ -358,15 +357,10 @@ const SubmissionsPage: NextPage = () => {
                         aria-label={`Sort ${
                           sortOrder === "asc" ? "descending" : "ascending"
                         }`}
-                        icon={
-                          sortOrder === "asc" ? (
-                            <ChevronUpIcon />
-                          ) : (
-                            <ChevronDownIcon />
-                          )
-                        }
+                        icon={<SortIcon field="performance" />}
                         size="xs"
                         variant="ghost"
+                        _active={{ bg: "whiteAlpha.200" }}
                       />
                     )}
                   </HStack>
@@ -383,15 +377,10 @@ const SubmissionsPage: NextPage = () => {
                         aria-label={`Sort ${
                           sortOrder === "asc" ? "descending" : "ascending"
                         }`}
-                        icon={
-                          sortOrder === "asc" ? (
-                            <ChevronUpIcon />
-                          ) : (
-                            <ChevronDownIcon />
-                          )
-                        }
+                        icon={<SortIcon field="gpuType" />}
                         size="xs"
                         variant="ghost"
+                        _active={{ bg: "whiteAlpha.200" }}
                       />
                     )}
                   </HStack>
@@ -408,15 +397,10 @@ const SubmissionsPage: NextPage = () => {
                         aria-label={`Sort ${
                           sortOrder === "asc" ? "descending" : "ascending"
                         }`}
-                        icon={
-                          sortOrder === "asc" ? (
-                            <ChevronUpIcon />
-                          ) : (
-                            <ChevronDownIcon />
-                          )
-                        }
+                        icon={<SortIcon field="language" />}
                         size="xs"
                         variant="ghost"
+                        _active={{ bg: "whiteAlpha.200" }}
                       />
                     )}
                   </HStack>
@@ -433,15 +417,10 @@ const SubmissionsPage: NextPage = () => {
                         aria-label={`Sort ${
                           sortOrder === "asc" ? "descending" : "ascending"
                         }`}
-                        icon={
-                          sortOrder === "asc" ? (
-                            <ChevronUpIcon />
-                          ) : (
-                            <ChevronDownIcon />
-                          )
-                        }
+                        icon={<SortIcon field="createdAt" />}
                         size="xs"
                         variant="ghost"
+                        _active={{ bg: "whiteAlpha.200" }}
                       />
                     )}
                   </HStack>

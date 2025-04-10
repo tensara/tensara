@@ -23,12 +23,7 @@ import {
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useState, useMemo } from "react";
-import { SearchIcon } from "@chakra-ui/icons";
-import {
-  TriangleDownIcon,
-  TriangleUpIcon,
-  ChevronDownIcon,
-} from "@chakra-ui/icons";
+import { FaSearch, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
@@ -168,9 +163,9 @@ export default function ProblemsPage() {
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
     return sortDirection === "asc" ? (
-      <TriangleUpIcon ml={1} w={3} h={3} />
+      <FaChevronUp color="#d4d4d8" size={10} />
     ) : (
-      <TriangleDownIcon ml={1} w={3} h={3} />
+      <FaChevronDown color="#d4d4d8" size={10} />
     );
   };
 
@@ -184,7 +179,7 @@ export default function ProblemsPage() {
         <HStack spacing={4} w="full">
           <InputGroup maxW="400px">
             <InputLeftElement pointerEvents="none">
-              <SearchIcon color="gray.300" />
+              <FaSearch color="#d4d4d8" />
             </InputLeftElement>
             <Input
               placeholder="Search problems..."
@@ -200,7 +195,7 @@ export default function ProblemsPage() {
           <Menu>
             <MenuButton
               as={Button}
-              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
@@ -232,7 +227,7 @@ export default function ProblemsPage() {
           <Menu>
             <MenuButton
               as={Button}
-              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
@@ -296,8 +291,10 @@ export default function ProblemsPage() {
                   onClick={() => handleSort("title")}
                   _hover={{ color: "white" }}
                 >
-                  Title
-                  <SortIcon field="title" />
+                  <HStack spacing={2}>
+                    <Text>Title</Text>
+                    <SortIcon field="title" />
+                  </HStack>
                 </Th>
                 <Th
                   color="gray.300"
@@ -309,8 +306,10 @@ export default function ProblemsPage() {
                   onClick={() => handleSort("difficulty")}
                   _hover={{ color: "white" }}
                 >
-                  Difficulty
-                  <SortIcon field="difficulty" />
+                  <HStack spacing={2}>
+                    <Text>Difficulty</Text>
+                    <SortIcon field="difficulty" />
+                  </HStack>
                 </Th>
                 <Th
                   color="gray.300"
@@ -334,8 +333,10 @@ export default function ProblemsPage() {
                   onClick={() => handleSort("submissionCount")}
                   _hover={{ color: "white" }}
                 >
-                  Submissions
-                  <SortIcon field="submissionCount" />
+                  <HStack spacing={2}>
+                    <Text>Submissions</Text>
+                    <SortIcon field="submissionCount" />
+                  </HStack>
                 </Th>
               </Tr>
             </Thead>
