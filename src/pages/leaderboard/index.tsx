@@ -39,6 +39,7 @@ import {
   Menu,
   MenuList,
   Button,
+  HStack,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { api } from "~/utils/api";
@@ -53,7 +54,11 @@ import type { GetServerSideProps } from "next";
 import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaExclamationCircle, FaFilter } from "react-icons/fa";
+import {
+  FaExclamationCircle,
+  FaFilter,
+  FaExternalLinkAlt,
+} from "react-icons/fa";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 
 type UserRanking = {
@@ -312,13 +317,13 @@ const LeaderboardPage: NextPage = () => {
               {/* Tab Selector */}
               <TabList bg="whiteAlpha.100" p={1} borderRadius="full">
                 <Tab
-                  _selected={{ color: "white", bg: "blue.800" }}
+                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
                   onClick={() => setSelectedTab("users")}
                 >
                   Users
                 </Tab>
                 <Tab
-                  _selected={{ color: "white", bg: "blue.800" }}
+                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
                   onClick={() => setSelectedTab("problems")}
                 >
                   Problems
@@ -470,7 +475,6 @@ const LeaderboardPage: NextPage = () => {
                                   )
                                 }
                                 cursor="pointer"
-                                _hover={{ bg: "whiteAlpha.100" }}
                                 borderBottom="1px solid"
                                 borderColor="whiteAlpha.100"
                                 transition="background 0.2s"
@@ -646,22 +650,35 @@ const LeaderboardPage: NextPage = () => {
                           }}
                         >
                           <CardHeader pb={2}>
-                            <ChakraLink
-                              as={Link}
-                              href={`/leaderboard/${problem.slug}${
-                                selectedGpu !== "all"
-                                  ? `?gpu=${selectedGpu}`
-                                  : ""
-                              }`}
-                            >
-                              <Heading
-                                size="md"
-                                color="white"
-                                _hover={{ color: "blue.400" }}
+                            <Flex gap={3}>
+                              <ChakraLink
+                                as={Link}
+                                href={`/leaderboard/${problem.slug}${
+                                  selectedGpu !== "all"
+                                    ? `?gpu=${selectedGpu}`
+                                    : ""
+                                }`}
                               >
-                                {problem.title}
-                              </Heading>
-                            </ChakraLink>
+                                <Heading
+                                  size="md"
+                                  color="white"
+                                  _hover={{ color: "blue.400" }}
+                                >
+                                  {problem.title}
+                                </Heading>
+                              </ChakraLink>
+                              <ChakraLink
+                                href={`/problems/${problem.slug}`}
+                                isExternal
+                              >
+                                <Icon
+                                  as={FaExternalLinkAlt}
+                                  color="gray.400"
+                                  boxSize={3}
+                                  _hover={{ color: "blue.400" }}
+                                />
+                              </ChakraLink>
+                            </Flex>
                           </CardHeader>
                           <CardBody pt={2}>
                             {topSubmissions.length === 0 ? (
@@ -713,10 +730,10 @@ const LeaderboardPage: NextPage = () => {
                                       _hover={{
                                         bg: "whiteAlpha.50",
                                       }}
-                                      borderRadius="md"
+                                      borderRadius="lg"
                                       transition="background 0.15s"
                                     >
-                                      <Td pl={2}>
+                                      <Td pl={2} borderLeftRadius="lg">
                                         <Text color="whiteAlpha.600">
                                           #{index + 1}
                                         </Text>
@@ -752,7 +769,7 @@ const LeaderboardPage: NextPage = () => {
                                           </ChakraLink>
                                         </Tooltip>
                                       </Td>
-                                      <Td isNumeric>
+                                      <Td isNumeric borderRightRadius="lg">
                                         <Tooltip
                                           label={`Runtime: ${submission.runtime?.toFixed(
                                             2

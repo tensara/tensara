@@ -460,8 +460,7 @@ const SubmissionsPage: NextPage = () => {
                       as={Link}
                       href={`/problems/${submission.problem.slug}`}
                       style={{ display: "block", cursor: "pointer" }}
-                      color="blue.400"
-                      _hover={{ color: "blue.300" }}
+                      _hover={{ color: "blue.400" }}
                     >
                       {submission.problem.title}
                     </ChakraLink>
