@@ -21,6 +21,7 @@ import {
   Alert,
   AlertIcon,
   AlertDescription,
+  Button,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { Editor } from "@monaco-editor/react";
@@ -39,6 +40,8 @@ import {
   getStatusColor,
   getStatusIcon,
 } from "~/constants/problem";
+import { FiCopy } from "react-icons/fi";
+
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
@@ -192,6 +195,17 @@ const SubmissionPage: NextPage<{
   const hasCode = "code" in submission;
   const isPrivate = !submission.isPublic;
   const canViewCode = hasCode && (!isPrivate || isOwner);
+
+  const handleCopyCode = () => {
+    console.log("submission", submission);
+    void navigator.clipboard.writeText(code);
+    toast({
+      title: "Code copied",
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+    });
+  };
 
   return (
     <Layout
@@ -633,20 +647,36 @@ const SubmissionPage: NextPage<{
           >
             <HStack justify="space-between" align="center" mb={4}>
               <Text fontWeight="semibold">Submitted Code</Text>
-              {isOwner && (
-                <HStack spacing={2}>
-                  <Text fontSize="sm" color="whiteAlpha.600">
-                    Public
-                  </Text>
-                  <Switch
-                    id="public-toggle"
-                    isChecked={submission.isPublic}
-                    onChange={handleTogglePublic}
-                    colorScheme="blue"
+              <HStack spacing={4}>
+                {canViewCode && (
+                  <Button
+                    leftIcon={<Icon as={FiCopy} />}
                     size="sm"
-                  />
-                </HStack>
-              )}
+                    onClick={handleCopyCode}
+                    colorScheme="blue"
+                    variant="ghost"
+                    _focus={{ bg: "none" }}
+                    _hover={{ bg: "whiteAlpha.100" }}
+                    transition="background 0.5s"
+                  >
+                    Copy Code
+                  </Button>
+                )}
+                {isOwner && (
+                  <HStack spacing={2}>
+                    <Text fontSize="sm" color="whiteAlpha.600">
+                      Public
+                    </Text>
+                    <Switch
+                      id="public-toggle"
+                      isChecked={submission.isPublic}
+                      onChange={handleTogglePublic}
+                      colorScheme="blue"
+                      size="sm"
+                    />
+                  </HStack>
+                )}
+              </HStack>
             </HStack>
 
             {!canViewCode ? (

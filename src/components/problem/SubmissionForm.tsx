@@ -17,7 +17,8 @@ import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
 import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
 
-import { ChevronDownIcon, InfoIcon, RepeatIcon } from "@chakra-ui/icons";
+import { IoRepeat } from "react-icons/io5";
+import { FaInfoCircle, FaChevronDown } from "react-icons/fa";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
@@ -70,7 +71,7 @@ const SubmissionForm = ({
             <MenuButton
               size="sm"
               as={Button}
-              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
@@ -108,7 +109,7 @@ const SubmissionForm = ({
             <MenuButton
               size="sm"
               as={Button}
-              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
@@ -150,7 +151,7 @@ const SubmissionForm = ({
             {/* dummy button to align -- terrible hack */}
             <IconButton
               aria-label="Data Type Information"
-              icon={<InfoIcon />}
+              icon={<FaInfoCircle />}
               size="sm"
               variant="ghost"
               color="transparent"
@@ -162,7 +163,7 @@ const SubmissionForm = ({
             <MenuButton
               size="sm"
               as={Button}
-              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
               bg="whiteAlpha.50"
               _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
               _active={{ bg: "whiteAlpha.150" }}
@@ -239,7 +240,7 @@ const SubmissionForm = ({
               fontSize="sm"
               fontWeight="semibold"
               color="gray.300"
-              leftIcon={<RepeatIcon />}
+              leftIcon={<IoRepeat size={16} />}
               iconSpacing={2}
               px={4}
               _hover={{

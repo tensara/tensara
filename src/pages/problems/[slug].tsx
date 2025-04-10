@@ -24,7 +24,7 @@ import SubmissionResults from "~/components/problem/SubmissionResults";
 import ResetCodeModal from "~/components/problem/ResetCodeModal";
 import SplitPanel from "~/components/problem/SplitPanel";
 
-import { WarningIcon } from "@chakra-ui/icons";
+import { FaExclamationCircle } from "react-icons/fa";
 
 import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
@@ -281,7 +281,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       mb={4}
     >
       <VStack spacing={4} align="center">
-        <Icon as={WarningIcon} boxSize={10} color="yellow.400" />
+        <Icon as={FaExclamationCircle} boxSize={10} color="yellow.400" />
         <Heading size="md" textAlign="center">
           Desktop Required for Code Submission
         </Heading>

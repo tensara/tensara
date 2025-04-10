@@ -36,12 +36,13 @@ import {
 } from "~/types/submission";
 
 import {
-  CheckIcon,
-  TimeIcon,
-  WarningIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from "@chakra-ui/icons";
+  FaCheck,
+  FaTimes,
+  FaExclamationCircle,
+  FaClock,
+  FaChevronUp,
+  FaChevronDown,
+} from "react-icons/fa";
 
 import { FiArrowLeft } from "react-icons/fi";
 
@@ -142,7 +143,7 @@ const SubmissionResults = ({
             variant="ghost"
             size="sm"
             onClick={onViewSubmissions}
-            leftIcon={<TimeIcon />}
+            leftIcon={<FaClock />}
             borderRadius="full"
             color="gray.300"
             _hover={{
@@ -230,9 +231,9 @@ const SubmissionResults = ({
                         aria-label="Toggle test cases"
                         icon={
                           isTestCaseTableOpen ? (
-                            <ChevronUpIcon />
+                            <FaChevronUp />
                           ) : (
-                            <ChevronDownIcon />
+                            <FaChevronDown />
                           )
                         }
                         size="sm"
@@ -295,7 +296,7 @@ const SubmissionResults = ({
                           <Td py={3}>
                             <HStack spacing={2}>
                               <Icon
-                                as={CheckIcon}
+                                as={FaCheck}
                                 color="green.300"
                                 boxSize={4}
                               />
@@ -333,7 +334,7 @@ const SubmissionResults = ({
                                 <Td py={3}>
                                   <HStack spacing={2}>
                                     <Icon
-                                      as={WarningIcon}
+                                      as={FaExclamationCircle}
                                       color="red.300"
                                       boxSize={4}
                                     />

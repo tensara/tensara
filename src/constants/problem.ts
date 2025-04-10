@@ -1,11 +1,5 @@
-import {
-  CheckIcon,
-  TimeIcon,
-  WarningIcon,
-  LockIcon,
-  CloseIcon,
-} from "@chakra-ui/icons";
 import { isSubmissionError } from "~/types/submission";
+import { FaCheck, FaTimes, FaExclamationCircle, FaClock } from "react-icons/fa";
 
 export const DEFAULT_LANGUAGE = "cuda";
 export const DEFAULT_DATA_TYPE = "float32";
@@ -66,13 +60,13 @@ export const getStatusColor = (status: string | null) => {
 };
 export const getStatusIcon = (status: string | null) => {
   if (status === "ACCEPTED") {
-    return CheckIcon;
+    return FaCheck;
   } else if (status === "WRONG_ANSWER") {
-    return CloseIcon;
+    return FaTimes;
   } else if (isSubmissionError(status ?? "")) {
-    return WarningIcon;
+    return FaExclamationCircle;
   } else {
-    return TimeIcon;
+    return FaClock;
   }
 };
 

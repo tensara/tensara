@@ -58,8 +58,8 @@ import {
   FaExclamationCircle,
   FaFilter,
   FaExternalLinkAlt,
+  FaChevronDown,
 } from "react-icons/fa";
-import { ChevronDownIcon } from "@chakra-ui/icons";
 
 type UserRanking = {
   id: string;
@@ -214,9 +214,7 @@ const LeaderboardPage: NextPage = () => {
                     <Menu>
                       <MenuButton
                         as={Button}
-                        rightIcon={
-                          <ChevronDownIcon h={4} w={4} color="gray.400" />
-                        }
+                        rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
                         bg="whiteAlpha.50"
                         _hover={{
                           bg: "whiteAlpha.100",

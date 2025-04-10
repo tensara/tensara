@@ -22,7 +22,8 @@ import {
   Grid,
   GridItem,
 } from "@chakra-ui/react";
-import { InfoIcon } from "@chakra-ui/icons";
+import { FaInfoCircle } from "react-icons/fa";
+
 import {
   CUDA_DRIVER_VERSION,
   CUDA_RUNTIME_VERSION,
@@ -301,7 +302,7 @@ export const GpuInfoModal = () => {
     <>
       <IconButton
         aria-label="GPU Information"
-        icon={<InfoIcon />}
+        icon={<FaInfoCircle />}
         size="sm"
         variant="ghost"
         onClick={onOpen}

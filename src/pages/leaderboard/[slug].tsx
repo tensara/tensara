@@ -35,7 +35,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
-import { ChevronDownIcon } from "@chakra-ui/icons";
+import { FaChevronDown } from "react-icons/fa";
 
 type LeaderboardEntry = {
   id: string;
@@ -194,7 +194,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
             <Menu>
               <MenuButton
                 as={Button}
-                rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+                rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
                 bg="whiteAlpha.50"
                 _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
                 _active={{ bg: "whiteAlpha.150" }}
