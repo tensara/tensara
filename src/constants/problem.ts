@@ -1,4 +1,10 @@
-import { CheckIcon, TimeIcon, WarningIcon } from "@chakra-ui/icons";
+import {
+  CheckIcon,
+  TimeIcon,
+  WarningIcon,
+  LockIcon,
+  CloseIcon,
+} from "@chakra-ui/icons";
 import { isSubmissionError } from "~/types/submission";
 
 export const DEFAULT_LANGUAGE = "cuda";
@@ -61,7 +67,9 @@ export const getStatusColor = (status: string | null) => {
 export const getStatusIcon = (status: string | null) => {
   if (status === "ACCEPTED") {
     return CheckIcon;
-  } else if (isSubmissionError(status ?? "") || status === "WRONG_ANSWER") {
+  } else if (status === "WRONG_ANSWER") {
+    return CloseIcon;
+  } else if (isSubmissionError(status ?? "")) {
     return WarningIcon;
   } else {
     return TimeIcon;

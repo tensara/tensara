@@ -9,8 +9,13 @@ import {
   SimpleGrid,
   Icon,
   Link,
+  ButtonGroup,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiFilter } from "react-icons/fi";
 import { type Submission } from "@prisma/client";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import {
@@ -18,6 +23,8 @@ import {
   getStatusColor,
   getStatusIcon,
 } from "~/constants/problem";
+import { FaSortAmountDown } from "react-icons/fa";
+import { useState, useMemo } from "react";
 
 interface MySubmissionsProps {
   submissions: Submission[] | undefined;
@@ -30,11 +37,33 @@ const MySubmissions = ({
   isLoading,
   onBackToProblem,
 }: MySubmissionsProps) => {
+  const [statusFilter, setStatusFilter] = useState<string[]>(["all"]);
+  const [sortBy, setSortBy] = useState<"time" | "performance">("time");
+
+  const filteredSubmissions = useMemo(() => {
+    if (!submissions) return [];
+    const filtered = statusFilter.includes("all")
+      ? submissions
+      : submissions.filter((sub) => statusFilter.includes(sub.status ?? ""));
+
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "time") {
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      } else {
+        const aGflops = a.gflops ?? -1;
+        const bGflops = b.gflops ?? -1;
+        return bGflops - aGflops;
+      }
+    });
+  }, [submissions, statusFilter, sortBy]);
+
   return (
     <VStack spacing={4} align="stretch" p={6}>
-      <HStack justify="space-between">
-        <Heading size="md">My Submissions</Heading>
-        <HStack>
+      <VStack spacing={4} align="stretch">
+        <HStack justify="space-between">
+          <Heading size="md">My Submissions</Heading>
           <Button
             size="sm"
             variant="ghost"
@@ -50,19 +79,154 @@ const MySubmissions = ({
             Back to Problem
           </Button>
         </HStack>
-      </HStack>
+
+        <HStack justify="space-between" align="center">
+          <Box>
+            <ButtonGroup
+              size="sm"
+              variant="ghost"
+              spacing={1}
+              display={{ base: "none", xl: "flex" }}
+            >
+              {[
+                { value: ["all"], label: "All" },
+                { value: ["ACCEPTED"], label: "Accepted" },
+                { value: ["WRONG_ANSWER"], label: "Wrong Answer" },
+                {
+                  value: [
+                    "ERROR",
+                    "RUNTIME_ERROR",
+                    "COMPILE_ERROR",
+                    "TIME_LIMIT_EXCEEDED",
+                    "MEMORY_LIMIT_EXCEEDED",
+                  ],
+                  label: "Errors",
+                },
+              ].map((status) => (
+                <Button
+                  key={status.value.join(",")}
+                  onClick={() => setStatusFilter(status.value)}
+                  color={
+                    statusFilter.some((s) => status.value.includes(s))
+                      ? "white"
+                      : "whiteAlpha.600"
+                  }
+                  bg={
+                    statusFilter.some((s) => status.value.includes(s))
+                      ? "whiteAlpha.100"
+                      : "transparent"
+                  }
+                  leftIcon={
+                    status.value.includes("all") ? undefined : (
+                      <Icon
+                        as={getStatusIcon(status.value[0]!)}
+                        color={`${getStatusColor(status.value[0]!)}.400`}
+                      />
+                    )
+                  }
+                  _hover={{
+                    bg: "whiteAlpha.100",
+                    color: "white",
+                  }}
+                  fontSize="sm"
+                >
+                  {status.label}
+                </Button>
+              ))}
+            </ButtonGroup>
+
+            <Menu>
+              <MenuButton
+                as={Button}
+                display={{ base: "flex", xl: "none" }}
+                size="sm"
+                variant="ghost"
+                leftIcon={<Icon as={FiFilter} />}
+                color="whiteAlpha.600"
+                _hover={{
+                  bg: "whiteAlpha.100",
+                  color: "white",
+                }}
+              >
+                Filter
+              </MenuButton>
+              <MenuList bg="gray.800" borderColor="whiteAlpha.200">
+                {[
+                  { value: ["all"], label: "All" },
+                  { value: ["ACCEPTED"], label: "Accepted" },
+                  { value: ["WRONG_ANSWER"], label: "Wrong Answer" },
+                  {
+                    value: [
+                      "ERROR",
+                      "RUNTIME_ERROR",
+                      "COMPILE_ERROR",
+                      "TIME_LIMIT_EXCEEDED",
+                      "MEMORY_LIMIT_EXCEEDED",
+                    ],
+                    label: "Errors",
+                  },
+                ].map((status) => (
+                  <MenuItem
+                    key={status.value.join(",")}
+                    onClick={() => setStatusFilter(status.value)}
+                    bg={
+                      statusFilter.some((s) => status.value.includes(s))
+                        ? "whiteAlpha.100"
+                        : "transparent"
+                    }
+                    _hover={{
+                      bg: "whiteAlpha.200",
+                    }}
+                    icon={
+                      status.value.includes("all") ? undefined : (
+                        <Icon
+                          as={getStatusIcon(status.value[0]!)}
+                          color={`${getStatusColor(status.value[0]!)}.400`}
+                        />
+                      )
+                    }
+                  >
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </MenuList>
+            </Menu>
+          </Box>
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() =>
+              setSortBy(sortBy === "time" ? "performance" : "time")
+            }
+            color="gray.300"
+            leftIcon={<Icon as={FaSortAmountDown} color="gray.300" />}
+            bg="whiteAlpha.50"
+            _focus={{
+              bg: "whiteAlpha.100",
+            }}
+            _hover={{
+              bg: "whiteAlpha.100",
+            }}
+            fontSize="sm"
+            px={3}
+          >
+            {sortBy === "time" ? "Newest" : "Fastest"}
+          </Button>
+        </HStack>
+      </VStack>
 
       <VStack spacing={4} align="stretch">
         {isLoading ? (
           <Box display="flex" justifyContent="center" p={4}>
             <Spinner />
           </Box>
-        ) : submissions?.length === 0 ? (
+        ) : filteredSubmissions.length === 0 ? (
           <Box p={4} textAlign="center" color="whiteAlpha.700">
             No submissions yet
           </Box>
         ) : (
-          submissions?.map((submission) => (
+          filteredSubmissions.map((submission) => (
             <Link
               key={submission.id}
               href={`/submissions/${submission.id}`}
