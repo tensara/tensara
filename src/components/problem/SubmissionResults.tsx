@@ -334,7 +334,7 @@ const SubmissionResults = ({
                                 <Td py={3}>
                                   <HStack spacing={2}>
                                     <Icon
-                                      as={FaExclamationTriangle}
+                                      as={FaExclamationCircle}
                                       color="red.300"
                                       boxSize={4}
                                     />
