@@ -8,19 +8,27 @@ import {
   Td,
   Text,
   Input,
-  Select,
   HStack,
   VStack,
   Badge,
   InputGroup,
   InputLeftElement,
   Spinner,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Button,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useState, useMemo } from "react";
 import { SearchIcon } from "@chakra-ui/icons";
-import { TriangleDownIcon, TriangleUpIcon } from "@chakra-ui/icons";
+import {
+  TriangleDownIcon,
+  TriangleUpIcon,
+  ChevronDownIcon,
+} from "@chakra-ui/icons";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
@@ -86,6 +94,13 @@ export default function ProblemsPage() {
   const [tagFilter, setTagFilter] = useState("all");
   const [sortField, setSortField] = useState<SortField>("title");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const difficultyOptions = [
+    { label: "All Difficulties", value: "all" },
+    { label: "Easy", value: "easy" },
+    { label: "Medium", value: "medium" },
+    { label: "Hard", value: "hard" },
+  ];
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -176,47 +191,84 @@ export default function ProblemsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               bg="whiteAlpha.50"
-              border="1px solid"
-              borderColor="gray.700"
               _hover={{ borderColor: "gray.600" }}
               _focus={{ borderColor: "blue.500", boxShadow: "none" }}
               color="white"
             />
           </InputGroup>
-          <Select
-            value={difficultyFilter}
-            onChange={(e) => setDifficultyFilter(e.target.value)}
-            maxW="200px"
-            bg="whiteAlpha.50"
-            border="1px solid"
-            borderColor="gray.700"
-            _hover={{ borderColor: "gray.600" }}
-            _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-            color="white"
-          >
-            <option value="all">All Difficulties</option>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </Select>
-          <Select
-            value={tagFilter}
-            onChange={(e) => setTagFilter(e.target.value)}
-            maxW="200px"
-            bg="whiteAlpha.50"
-            border="1px solid"
-            borderColor="gray.700"
-            _hover={{ borderColor: "gray.600" }}
-            _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-            color="white"
-          >
-            <option value="all">All Tags</option>
-            {allTags.map((tag) => (
-              <option key={tag} value={tag}>
-                {tagAltNames[tag as keyof typeof tagAltNames]}
-              </option>
-            ))}
-          </Select>
+
+          <Menu>
+            <MenuButton
+              as={Button}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color="white"
+              w="200px"
+              fontWeight="normal"
+              textAlign="left"
+              justifyContent="flex-start"
+            >
+              {difficultyOptions.find((opt) => opt.value === difficultyFilter)
+                ?.label ?? "All Difficulties"}
+            </MenuButton>
+            <MenuList bg="gray.800" borderColor="gray.700">
+              {difficultyOptions.map((option) => (
+                <MenuItem
+                  key={option.value}
+                  onClick={() => setDifficultyFilter(option.value)}
+                  bg="gray.800"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                >
+                  {option.label}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+
+          <Menu>
+            <MenuButton
+              as={Button}
+              rightIcon={<ChevronDownIcon h={4} w={4} color="gray.400" />}
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color="white"
+              w="200px"
+              fontWeight="normal"
+              textAlign="left"
+              justifyContent="flex-start"
+            >
+              {tagFilter === "all"
+                ? "All Tags"
+                : tagAltNames[tagFilter as keyof typeof tagAltNames]}
+            </MenuButton>
+            <MenuList bg="gray.800" borderColor="gray.700">
+              <MenuItem
+                onClick={() => setTagFilter("all")}
+                bg="gray.800"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+              >
+                All Tags
+              </MenuItem>
+              {allTags.map((tag) => (
+                <MenuItem
+                  key={tag}
+                  onClick={() => setTagFilter(tag)}
+                  bg="gray.800"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                >
+                  {tagAltNames[tag as keyof typeof tagAltNames]}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
         </HStack>
 
         <Text color="gray.400" fontSize="sm">
