@@ -168,15 +168,25 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
           <HStack justify="space-between" align="center">
             <Heading size="lg">
               {problem?.title ? (
-                <>
+                <HStack>
                   <Link href="/leaderboard" passHref>
-                    <ChakraLink as="span" mr={2}>
+                    <Text
+                      _hover={{ color: "blue.500" }}
+                      transition="color 0.5s"
+                    >
                       Leaderboards
-                    </ChakraLink>
+                    </Text>
                   </Link>
-                  {"> "}
-                  {problem.title}
-                </>
+                  <Text>{" > "}</Text>
+                  <Link href={`/problems/${problem.slug}`} passHref>
+                    <Text
+                      _hover={{ color: "blue.500" }}
+                      transition="color 0.5s"
+                    >
+                      {problem.title}
+                    </Text>
+                  </Link>
+                </HStack>
               ) : (
                 "Leaderboard"
               )}

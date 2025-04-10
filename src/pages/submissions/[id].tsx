@@ -269,7 +269,11 @@ const SubmissionPage: NextPage<{
                       href={`/${submission.user.username}`}
                       _hover={{ textDecoration: "none" }}
                     >
-                      <Text color="blue.500" fontWeight="medium">
+                      <Text
+                        color="blue.500"
+                        fontWeight="medium"
+                        _hover={{ color: "blue.400" }}
+                      >
                         {submission.user.username ?? "Unknown User"}
                       </Text>
                     </ChakraLink>
