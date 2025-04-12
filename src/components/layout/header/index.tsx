@@ -15,6 +15,10 @@ import {
   DrawerOverlay,
   DrawerContent,
   DrawerCloseButton,
+  Menu,
+  MenuButton,
+  MenuList,
+  Avatar,
 } from "@chakra-ui/react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
@@ -23,12 +27,13 @@ import {
   FiCode,
   FiList,
   FiBookOpen,
-  FiLogOut,
   FiGithub,
   FiMenu,
   FiAward,
+  FiCalendar,
 } from "react-icons/fi";
 import { useState, useEffect } from "react";
+import UserMenu from "~/components/profile/user/UserMenu";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -56,10 +61,7 @@ export function Header() {
     { label: "Problems", href: "/problems", icon: FiCode },
     { label: "Leaderboards", href: "/leaderboard", icon: FiAward },
     { label: "Blog", href: "/blog", icon: FiBookOpen },
-  ];
-
-  const protectedNavItems = [
-    { label: "My Submissions", href: "/submissions", icon: FiList },
+    { label: "Contests", href: "/contests", icon: FiCalendar },
   ];
 
   const isActivePath = (path: string) => {
@@ -103,75 +105,51 @@ export function Header() {
           </Button>
         </Link>
       ))}
-      {mounted &&
-        status === "authenticated" &&
-        protectedNavItems.map((item) => (
-          <Link key={item.href} href={item.href} passHref legacyBehavior>
-            <Button
-              as="a"
-              variant="ghost"
-              color="white"
-              px={3}
-              bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
-              _hover={{
-                textDecoration: "none",
-                bg: "whiteAlpha.100",
-              }}
-              fontSize="sm"
-              leftIcon={<Icon as={item.icon} boxSize={4} />}
-              w={isMobile ? "full" : "auto"}
-              justifyContent={isMobile ? "flex-start" : "center"}
-            >
-              {item.label}
-            </Button>
-          </Link>
-        ))}
     </>
   );
 
-  const AuthSection = () => {
+  const AuthSection = ({ isMobile }: { isMobile: boolean }) => {
     if (!mounted) return null;
 
     return (
       <>
         {status === "authenticated" ? (
-          <HStack spacing={4}>
-            <Link href={`/${session.user?.username}`} passHref legacyBehavior>
-              <HStack
-                as="a"
-                spacing={3}
-                py={2}
-                px={3}
-                borderRadius="lg"
-                _hover={{
-                  bg: "whiteAlpha.200",
-                  cursor: "pointer",
-                }}
-              >
-                <Image
-                  src={session.user?.image ?? ""}
-                  alt="Profile"
+          <HStack
+            as="a"
+            spacing={3}
+            py={2}
+            px={3}
+            borderRadius="lg"
+            _hover={{
+              cursor: "pointer",
+            }}
+          >
+            {isMobile ? (
+              <Menu>
+                <Link href={`/${session?.user?.username}`}>
+                  <Avatar src={session?.user?.image ?? undefined} />
+                </Link>
+              </Menu>
+            ) : (
+              <Menu placement="bottom-end" offset={[29, 18]}>
+                <MenuButton
                   w={8}
                   h={8}
-                  rounded="full"
-                />
-                <Text color="white" fontSize="sm">
-                  {session.user?.username}
-                </Text>
-              </HStack>
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              color="white"
-              onClick={handleSignOut}
-              leftIcon={<Icon as={FiLogOut} boxSize={4} />}
-              _hover={{
-                bg: "whiteAlpha.200",
-              }}
-            >
-              Sign out
-            </Button>
+                  borderRadius="lg"
+                  bg="transparent"
+                  _hover={{ bg: "brand.navbar" }}
+                >
+                  <Avatar src={session?.user?.image ?? undefined} />
+                </MenuButton>
+                <MenuList
+                  bg="gray.900"
+                  borderRadius="lg"
+                  borderColor="gray.700"
+                >
+                  <UserMenu session={session} handleSignOut={handleSignOut} />
+                </MenuList>
+              </Menu>
+            )}
           </HStack>
         ) : (
           <Button
@@ -234,7 +212,7 @@ export function Header() {
         )}
 
         {/* Desktop Auth Section */}
-        {!isMobile && <AuthSection />}
+        {!isMobile && <AuthSection isMobile={false} />}
 
         {/* Mobile Drawer */}
         <Drawer isOpen={isOpen} placement="right" onClose={onClose}>
@@ -248,7 +226,7 @@ export function Header() {
               <VStack align="stretch" spacing={4} mt={4}>
                 <NavLinks />
                 <Box pt={4} borderTopWidth="1px">
-                  <AuthSection />
+                  <AuthSection isMobile={true} />
                 </Box>
               </VStack>
             </DrawerBody>
