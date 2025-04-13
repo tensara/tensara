@@ -216,7 +216,7 @@ const SubmissionsPage: NextPage = () => {
             >
               {STATUS_OPTIONS[statusFilter as keyof typeof STATUS_OPTIONS]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700">
+            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
               {Object.entries(STATUS_OPTIONS).map(([key, value]) => (
                 <MenuItem
                   key={key}
@@ -224,6 +224,7 @@ const SubmissionsPage: NextPage = () => {
                   bg="gray.800"
                   _hover={{ bg: "gray.700" }}
                   color="white"
+                  borderRadius="md"
                 >
                   {value}
                 </MenuItem>
@@ -246,7 +247,7 @@ const SubmissionsPage: NextPage = () => {
             >
               {GPU_DISPLAY_NAMES[gpuFilter]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700">
+            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
               {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                 <MenuItem
                   key={key}
@@ -254,6 +255,7 @@ const SubmissionsPage: NextPage = () => {
                   bg="gray.800"
                   _hover={{ bg: "gray.700" }}
                   color="white"
+                  borderRadius="md"
                 >
                   {value}
                 </MenuItem>
@@ -276,7 +278,7 @@ const SubmissionsPage: NextPage = () => {
             >
               {LANGUAGE_DISPLAY_NAMES[languageFilter]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700">
+            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
               {Object.entries(LANGUAGE_DISPLAY_NAMES).map(([key, value]) => (
                 <MenuItem
                   key={key}
@@ -284,6 +286,7 @@ const SubmissionsPage: NextPage = () => {
                   bg="gray.800"
                   _hover={{ bg: "gray.700" }}
                   color="white"
+                  borderRadius="md"
                 >
                   {value}
                 </MenuItem>

@@ -137,8 +137,22 @@ export const getServerSideProps: GetServerSideProps = async (_context) => {
 const LeaderboardPage: NextPage = () => {
   const router = useRouter();
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
-  const [selectedTab, setSelectedTab] = useState<string>("users");
+  const [selectedTab, setSelectedTab] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const savedTab = localStorage.getItem("leaderboardTab");
+      return savedTab === "problems" ? "problems" : "users";
+    }
+    return "users";
+  });
   const isMobile = useBreakpointValue({ base: true, md: false });
+
+  const handleTabChange = (index: number) => {
+    const newTab = index === 0 ? "users" : "problems";
+    setSelectedTab(newTab);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("leaderboardTab", newTab);
+    }
+  };
 
   // User rankings data
   const { data: rankedUsers, isLoading: isLoadingUsers } =
@@ -189,9 +203,8 @@ const LeaderboardPage: NextPage = () => {
           colorScheme="blue"
           mb={6}
           isLazy
-          onChange={(index) => {
-            setSelectedTab(index === 0 ? "users" : "problems");
-          }}
+          onChange={handleTabChange}
+          defaultIndex={selectedTab === "problems" ? 1 : 0}
         >
           <Flex
             justifyContent="space-between"
@@ -230,7 +243,7 @@ const LeaderboardPage: NextPage = () => {
                       >
                         {GPU_DISPLAY_NAMES[selectedGpu]}
                       </MenuButton>
-                      <MenuList bg="gray.800" borderColor="gray.700">
+                      <MenuList bg="gray.800" borderColor="gray.700" p={0}>
                         {Object.entries(GPU_DISPLAY_NAMES).map(
                           ([key, value]) => (
                             <MenuItem
@@ -239,6 +252,7 @@ const LeaderboardPage: NextPage = () => {
                               bg="gray.800"
                               _hover={{ bg: "gray.700" }}
                               color="white"
+                              borderRadius="md"
                             >
                               {value}
                             </MenuItem>

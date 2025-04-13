@@ -85,7 +85,7 @@ const SubmissionForm = ({
             >
               {GPU_DISPLAY_NAMES[selectedGpuType]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700">
+            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
               {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                 <MenuItem
                   key={key}
@@ -93,6 +93,7 @@ const SubmissionForm = ({
                   bg="gray.800"
                   _hover={{ bg: "gray.700" }}
                   color="white"
+                  borderRadius="md"
                 >
                   {value}
                 </MenuItem>
@@ -123,13 +124,14 @@ const SubmissionForm = ({
             >
               {selectedLanguage === "cuda" ? "CUDA C++" : "Python (Triton)"}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700">
+            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
               <MenuItem
                 key="cuda"
                 onClick={() => setSelectedLanguage("cuda")}
                 bg="gray.800"
                 _hover={{ bg: "gray.700" }}
                 color="white"
+                borderRadius="md"
               >
                 CUDA C++
               </MenuItem>
@@ -139,6 +141,7 @@ const SubmissionForm = ({
                 bg="gray.800"
                 _hover={{ bg: "gray.700" }}
                 color="white"
+                borderRadius="md"
               >
                 Python (Triton)
               </MenuItem>
@@ -177,13 +180,14 @@ const SubmissionForm = ({
             >
               {selectedDataType}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700">
+            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
               <MenuItem
                 key="float32"
                 onClick={() => setSelectedDataType("float32")}
                 bg="gray.800"
                 _hover={{ bg: "gray.700" }}
                 color="white"
+                borderRadius="md"
               >
                 float32
               </MenuItem>
@@ -194,6 +198,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
+                borderRadius="md"
               >
                 float16
               </MenuItem>
@@ -204,6 +209,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
+                borderRadius="md"
               >
                 int32
               </MenuItem>
@@ -214,6 +220,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
+                borderRadius="md"
               >
                 int16
               </MenuItem>

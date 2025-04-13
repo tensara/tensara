@@ -150,7 +150,7 @@ const MySubmissions = ({
               >
                 Filter
               </MenuButton>
-              <MenuList bg="gray.800" borderColor="whiteAlpha.200">
+              <MenuList bg="gray.800" borderColor="whiteAlpha.200" p={0}>
                 {[
                   { value: ["all"], label: "All" },
                   { value: ["ACCEPTED"], label: "Accepted" },
@@ -185,6 +185,7 @@ const MySubmissions = ({
                         />
                       )
                     }
+                    borderRadius="md"
                   >
                     {status.label}
                   </MenuItem>
