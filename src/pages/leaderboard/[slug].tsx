@@ -21,6 +21,7 @@ import {
   MenuList,
   MenuItem,
   Menu,
+  Icon,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { api } from "~/utils/api";
@@ -35,7 +36,14 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
-import { FaChevronDown } from "react-icons/fa";
+import {
+  FaChevronDown,
+  FaExternalLinkAlt,
+  FaEye,
+  FaLock,
+  FaChevronLeft,
+} from "react-icons/fa";
+import { useSession } from "next-auth/react";
 
 type LeaderboardEntry = {
   id: string;
@@ -61,6 +69,7 @@ type ProblemLeaderboardEntry = {
   createdAt: Date;
   gpuType: string | null;
   language: string | null;
+  isPublic: boolean;
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -105,9 +114,13 @@ const formatPerformance = (gflops: number | null | undefined): string => {
 
 const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [selectedGpu, setSelectedGpu] = useState<string>(
     (router.query.gpu as string) || "all"
   );
+
+  // Add this to get the current user data
+  const currentUsername = session?.user?.username;
 
   // Handle GPU selection change
   useEffect(() => {
@@ -165,27 +178,34 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
     >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <Flex direction="column" gap={6}>
+          <ChakraLink
+            as={Link}
+            href="/leaderboard"
+            alignSelf="flex-start"
+            mb={1}
+            display="flex"
+            alignItems="center"
+            color="blue.400"
+            _hover={{ color: "blue.300", textDecoration: "none" }}
+          >
+            <Icon as={FaChevronLeft} mr={1} boxSize={3} />
+            <Text fontSize="sm">Back to Leaderboards</Text>
+          </ChakraLink>
+
           <HStack justify="space-between" align="center">
             <Heading size="lg">
               {problem?.title ? (
-                <HStack>
-                  <Link href="/leaderboard" passHref>
-                    <Text
-                      _hover={{ color: "blue.500" }}
+                <HStack gap={4}>
+                  <Text>{problem.title}</Text>
+                  <ChakraLink href={`/problems/${problem.slug}`} isExternal>
+                    <Icon
+                      as={FaExternalLinkAlt}
+                      color="gray.400"
+                      boxSize={6}
+                      _hover={{ color: "blue.400" }}
                       transition="color 0.5s"
-                    >
-                      Leaderboards
-                    </Text>
-                  </Link>
-                  <Text>{" > "}</Text>
-                  <Link href={`/problems/${problem.slug}`} passHref>
-                    <Text
-                      _hover={{ color: "blue.500" }}
-                      transition="color 0.5s"
-                    >
-                      {problem.title}
-                    </Text>
-                  </Link>
+                    />
+                  </ChakraLink>
                 </HStack>
               ) : (
                 "Leaderboard"
@@ -207,7 +227,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
               >
                 {GPU_DISPLAY_NAMES[selectedGpu]}
               </MenuButton>
-              <MenuList bg="gray.800" borderColor="gray.700">
+              <MenuList bg="gray.800" borderColor="gray.700" p={0}>
                 {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                   <MenuItem
                     key={key}
@@ -215,6 +235,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                     bg="gray.800"
                     _hover={{ bg: "gray.700" }}
                     color="white"
+                    borderRadius="md"
                   >
                     {value}
                   </MenuItem>
@@ -239,6 +260,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                     {selectedGpu === "all" && <Th borderBottom="none">GPU</Th>}
                     <Th borderBottom="none">Language</Th>
                     <Th borderBottom="none">Date</Th>
+                    <Th borderBottom="none">Code</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -252,6 +274,8 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             : "#CD7F32"
                         : undefined;
 
+                    const isOwnSubmission =
+                      currentUsername && entry.username === currentUsername;
                     return (
                       <Tr
                         key={entry.id}
@@ -321,6 +345,13 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                               ago
                             </Text>
                           </Tooltip>
+                        </Td>
+                        <Td borderBottom="none">
+                          {entry.isPublic || isOwnSubmission ? (
+                            <FaEye color="#4CAF50" />
+                          ) : (
+                            <FaLock color="#d4d4d8" />
+                          )}
                         </Td>
                       </Tr>
                     );

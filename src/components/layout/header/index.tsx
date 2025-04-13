@@ -94,6 +94,7 @@ export function Header() {
               textDecoration: "none",
               bg: "whiteAlpha.100",
             }}
+            transition="background-color 0.7s"
             fontSize="sm"
             leftIcon={<Icon as={item.icon} boxSize={4} />}
             w={isMobile ? "full" : "auto"}
@@ -117,6 +118,7 @@ export function Header() {
                 textDecoration: "none",
                 bg: "whiteAlpha.100",
               }}
+              transition="background-color 0.7s"
               fontSize="sm"
               leftIcon={<Icon as={item.icon} boxSize={4} />}
               w={isMobile ? "full" : "auto"}
@@ -147,6 +149,7 @@ export function Header() {
                   bg: "whiteAlpha.200",
                   cursor: "pointer",
                 }}
+                transition="background-color 0.7s"
               >
                 <Image
                   src={session.user?.image ?? ""}
@@ -169,6 +172,7 @@ export function Header() {
               _hover={{
                 bg: "whiteAlpha.200",
               }}
+              transition="background-color 0.7s"
             >
               Sign out
             </Button>

@@ -209,7 +209,7 @@ export default function ProblemsPage() {
               {difficultyOptions.find((opt) => opt.value === difficultyFilter)
                 ?.label ?? "All Difficulties"}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700">
+            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
               {difficultyOptions.map((option) => (
                 <MenuItem
                   key={option.value}
@@ -217,6 +217,7 @@ export default function ProblemsPage() {
                   bg="gray.800"
                   _hover={{ bg: "gray.700" }}
                   color="white"
+                  borderRadius="md"
                 >
                   {option.label}
                 </MenuItem>
@@ -242,12 +243,13 @@ export default function ProblemsPage() {
                 ? "All Tags"
                 : tagAltNames[tagFilter as keyof typeof tagAltNames]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700">
+            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
               <MenuItem
                 onClick={() => setTagFilter("all")}
                 bg="gray.800"
                 _hover={{ bg: "gray.700" }}
                 color="white"
+                borderRadius="md"
               >
                 All Tags
               </MenuItem>
@@ -258,6 +260,7 @@ export default function ProblemsPage() {
                   bg="gray.800"
                   _hover={{ bg: "gray.700" }}
                   color="white"
+                  borderRadius="md"
                 >
                   {tagAltNames[tag as keyof typeof tagAltNames]}
                 </MenuItem>
