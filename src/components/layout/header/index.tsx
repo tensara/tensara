@@ -18,14 +18,12 @@ import {
   Menu,
   MenuButton,
   MenuList,
-  Avatar,
 } from "@chakra-ui/react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import {
   FiCode,
-  FiList,
   FiBookOpen,
   FiGithub,
   FiMenu,
@@ -127,7 +125,13 @@ export function Header() {
             {isMobile ? (
               <Menu>
                 <Link href={`/${session?.user?.username}`}>
-                  <Avatar src={session?.user?.image ?? undefined} />
+                  <Image
+                    src={session.user?.image ?? ""}
+                    alt="Profile"
+                    w={8}
+                    h={8}
+                    rounded="full"
+                  />
                 </Link>
               </Menu>
             ) : (
@@ -139,7 +143,11 @@ export function Header() {
                   bg="transparent"
                   _hover={{ bg: "brand.navbar" }}
                 >
-                  <Avatar src={session?.user?.image ?? undefined} />
+                  <Image
+                    src={session.user?.image ?? ""}
+                    alt="Profile"
+                    rounded="full"
+                  />
                 </MenuButton>
                 <MenuList
                   bg="gray.900"
