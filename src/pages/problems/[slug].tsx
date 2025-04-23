@@ -7,6 +7,7 @@ import {
   useToast,
   Icon,
   Heading,
+  Container,
 } from "@chakra-ui/react";
 import { useSession } from "next-auth/react";
 import superjson from "superjson";
@@ -299,14 +300,21 @@ export default function ProblemPage({ slug }: { slug: string }) {
       ogTitle={`${problem.title}`}
       ogImgSubtitle={`${problem.difficulty.charAt(0) + problem.difficulty.toLowerCase().slice(1)} | Problems | Tensara`}
     >
-      <SplitPanel leftContent={leftContent} rightContent={rightContent} />
-      {mobileWarning}
-
-      <ResetCodeModal
-        isOpen={isResetModalOpen}
-        onClose={() => setIsResetModalOpen(false)}
-        onReset={handleReset}
-      />
+      <Box
+        bg="#3C3D37"
+        borderRadius="xl"
+        h="100%"
+        p={{ base: 4, md: 6 }}
+        overflow="auto"
+      >
+        <SplitPanel leftContent={leftContent} rightContent={rightContent} />
+        {mobileWarning}
+        <ResetCodeModal
+          isOpen={isResetModalOpen}
+          onClose={() => setIsResetModalOpen(false)}
+          onReset={handleReset}
+        />
+      </Box>
     </Layout>
   );
 }

@@ -48,6 +48,7 @@ import {
   FaCode,
 } from "react-icons/fa";
 import { type IconType } from "react-icons";
+import AnimatedCudaEditor from "~/components/CudaEditor";
 
 // Create motion components
 const MotionVStack = motion(VStack);
@@ -218,23 +219,12 @@ export default function HomePage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const updateBadgeSize = useBreakpointValue({ base: "sm", md: "md" });
-
-  // Add this function to handle smooth scrolling
-  const scrollToSection = (id: string) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
   return (
     <Layout title="Home" ogImage="/tensara_ogimage.png">
-      <Box color="white" minH="100vh">
+      <Box color="white" minH="100vh" p={10}>
         {/* Hero Section */}
         <MotionBox
-          pt={16}
+          pt={10}
           pb={20}
           position="relative"
           initial={{ opacity: 0 }}
@@ -249,7 +239,7 @@ export default function HomePage() {
             right: 0,
             height: "100%",
             backgroundImage:
-              "radial-gradient(circle at 70% 45%, rgba(46, 204, 113, 0.15) 0%, rgba(10, 15, 20, 0) 30%)",
+              "radial-gradient(circle at 70% 50%, rgba(46, 204, 113, 0.15) 0%, rgba(10, 15, 20, 0) 30%)",
             zIndex: 0,
           }}
         >
@@ -258,7 +248,6 @@ export default function HomePage() {
               direction={{ base: "column", lg: "row" }}
               align="center"
               justify="space-between"
-              gap={16}
             >
               <MotionVStack
                 align="flex-start"
@@ -422,153 +411,7 @@ export default function HomePage() {
                   </Link>
                 </MotionFlex>
               </MotionVStack>
-
-              {/* Code Block */}
-              <MotionBox
-                maxW={{ base: "full", lg: "55%" }}
-                w="full"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.6 }}
-              >
-                <Box
-                  bg="rgba(15, 23, 42, 0.6)"
-                  borderRadius="lg"
-                  overflow="hidden"
-                  borderWidth="1px"
-                  borderColor="whiteAlpha.100"
-                  boxShadow="0 8px 30px rgba(0, 0, 0, 0.25)"
-                  position="relative"
-                >
-                  {/* Header bar */}
-                  <Flex
-                    bg="rgba(15, 23, 42, 0.9)"
-                    p={3}
-                    borderBottomWidth="1px"
-                    borderColor="whiteAlpha.100"
-                    align="center"
-                  >
-                    <Flex gap={2} ml={2}>
-                      <Box w="12px" h="12px" borderRadius="full" bg="red.400" />
-                      <Box
-                        w="12px"
-                        h="12px"
-                        borderRadius="full"
-                        bg="yellow.400"
-                      />
-                      <Box
-                        w="12px"
-                        h="12px"
-                        borderRadius="full"
-                        bg="green.400"
-                      />
-                    </Flex>
-                    <Text fontSize="sm" color="whiteAlpha.700" ml={4}>
-                      kernel.cu
-                    </Text>
-                  </Flex>
-
-                  {/* Code content */}
-                  <Box
-                    p={4}
-                    fontFamily="mono"
-                    fontSize="sm"
-                    position="relative"
-                  >
-                    <Box color="whiteAlpha.800">
-                      <Text color="#f56565" mb={2}>
-                        {"// CUDA kernel for matrix multiplication"}
-                      </Text>
-                      <Text color="#63b3ed" mb={1}>
-                        __global__ void matrixMul(float* A, float* B, float* C,
-                        int width) {"{"}
-                      </Text>
-
-                      <Box pl={4} mb={2}>
-                        <Text mb={1}>
-                          <Text as="span" color="#f6e05e">
-                            int
-                          </Text>{" "}
-                          row = blockIdx.y * blockDim.y + threadIdx.y;
-                        </Text>
-                        <Text mb={1}>
-                          <Text as="span" color="#f6e05e">
-                            int
-                          </Text>{" "}
-                          col = blockIdx.x * blockDim.x + threadIdx.x;
-                        </Text>
-                        <Text mb={1}>
-                          <Text as="span" color="#f6e05e">
-                            float
-                          </Text>{" "}
-                          sum = 0.0f;
-                        </Text>
-                      </Box>
-
-                      <Box pl={4} mb={2}>
-                        <Text color="#f56565" mb={1}>
-                          {"// Each thread computes one element of C"}
-                        </Text>
-                        <Text mb={1}>
-                          <Text as="span" color="#9f7aea">
-                            if
-                          </Text>
-                          (row &lt; width &amp;&amp; col &lt; width) {"{"}
-                        </Text>
-
-                        <Box pl={4} mb={1}>
-                          <Text mb={1}>
-                            <Text as="span" color="#9f7aea">
-                              for
-                            </Text>
-                            (
-                            <Text as="span" color="#f6e05e">
-                              int
-                            </Text>{" "}
-                            i = 0; i &lt; width; i++) {"{"}
-                          </Text>
-                          <Text pl={4} mb={1}>
-                            sum += A[row * width + i] * B[i * width + col];
-                          </Text>
-                          <Text mb={1}>{"}"}</Text>
-                          <Text mb={1}>C[row * width + col] = sum;</Text>
-                        </Box>
-
-                        <Text mb={1}>{"}"}</Text>
-                      </Box>
-
-                      <Text>{"}"}</Text>
-                    </Box>
-
-                    {/* Cursor animation */}
-                    <Box
-                      position="absolute"
-                      bottom="86px"
-                      left="128px"
-                      height="16px"
-                      width="8px"
-                      bg="#2ecc71"
-                    >
-                      <Box
-                        as="div"
-                        position="absolute"
-                        top="0"
-                        left="0"
-                        right="0"
-                        bottom="0"
-                        sx={{
-                          animation: "blink 1s infinite",
-                          "@keyframes blink": {
-                            "0%": { opacity: 1 },
-                            "50%": { opacity: 0 },
-                            "100%": { opacity: 1 },
-                          },
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                </Box>
-              </MotionBox>
+              <AnimatedCudaEditor />
             </Flex>
           </Container>
         </MotionBox>

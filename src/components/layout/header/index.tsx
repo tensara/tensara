@@ -104,7 +104,6 @@ export function Header() {
               zIndex={1}
               overflow="hidden"
               borderRadius="0.5rem"
-              cursor="pointer"
               onMouseEnter={() => setHoveredPath(item.href)}
             >
               {item.href === hoveredPath && (
@@ -132,7 +131,7 @@ export function Header() {
                 color="white"
                 px={3}
                 py={2}
-                fontSize="sm"
+                fontSize="1rem"
                 fontWeight="medium"
                 w={isMobile ? "full" : "auto"}
                 textAlign={isMobile ? "left" : "center"}
@@ -237,7 +236,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           {!isMobile && (
-            <HStack ml={5} spacing={3} pt={1}>
+            <HStack ml={5} spacing={3} pt={2}>
               <NavLinks />
             </HStack>
           )}
