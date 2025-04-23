@@ -67,22 +67,14 @@ export function Layout({
         <Box px={{ base: 2, md: 4 }} py={{ base: 2, md: 4 }}>
           <Header />
         </Box>
-
         <Box
           flex="1"
-          px={{ base: 2, md: 4 }}
-          pb={{ base: 2, md: 4 }}
-          overflow="hidden"
+          borderRadius="xl"
+          h="100%"
+          p={{ base: 4, md: 6 }}
+          overflow="auto"
         >
-          <Box
-            bg="brand.secondary"
-            borderRadius="xl"
-            h="100%"
-            p={{ base: 4, md: 6 }}
-            overflow="auto"
-          >
-            {children}
-          </Box>
+          {children}
         </Box>
       </Box>
     </>

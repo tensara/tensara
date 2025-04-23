@@ -19,6 +19,11 @@ import {
   Stack,
   Grid,
   GridItem,
+  Code,
+  Stat,
+  StatLabel,
+  StatHelpText,
+  StatNumber,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 import React, { useState, useEffect } from "react";
@@ -27,11 +32,13 @@ import {
   FiCpu,
   FiAward,
   FiUsers,
-  FiCode,
-  FiGitPullRequest,
-  FiPackage,
   FiTerminal,
   FiZap,
+  FiArrowRight,
+  FiExternalLink,
+  FiBarChart2,
+  FiGitPullRequest,
+  FiCode,
 } from "react-icons/fi";
 import {
   FaDiscord,
@@ -56,6 +63,143 @@ const updateTypes = {
   IMPROVEMENT: { color: "blue.400", label: "Improvement" },
   FIX: { color: "orange.400", label: "Fix" },
   RELEASE: { color: "purple.400", label: "Release" },
+};
+
+// Feature card component
+const FeatureCard = ({
+  icon,
+  title,
+  description,
+}: {
+  icon: IconType;
+  title: string;
+  description: string;
+}) => {
+  return (
+    <Box
+      bg="rgba(14, 35, 55, 0.4)"
+      borderRadius="xl"
+      p={6}
+      borderWidth="1px"
+      borderColor="rgba(46, 204, 113, 0.3)"
+      transition="all 0.3s"
+      _hover={{
+        transform: "translateY(-5px)",
+        boxShadow: "0 10px 30px rgba(46, 204, 113, 0.2)",
+        borderColor: "rgba(46, 204, 113, 0.5)",
+      }}
+    >
+      <Flex direction="column" align="flex-start">
+        <Flex
+          bg="rgba(14, 129, 68, 0.2)"
+          p={3}
+          borderRadius="md"
+          mb={4}
+          color="#2ecc71"
+        >
+          <Icon as={icon} boxSize={6} />
+        </Flex>
+        <Heading
+          size="md"
+          fontFamily="Space Grotesk, sans-serif"
+          mb={2}
+          color="white"
+        >
+          {title}
+        </Heading>
+        <Text color="whiteAlpha.800">{description}</Text>
+      </Flex>
+    </Box>
+  );
+};
+
+// Stat card component
+const StatCard = ({
+  label,
+  value,
+  helpText,
+  icon,
+}: {
+  label: string;
+  value: number;
+  helpText: string;
+  icon: IconType;
+}) => {
+  return (
+    <Box
+      borderRadius="xl"
+      p={6}
+      borderWidth="1px"
+      borderColor="rgba(255, 255, 255, 0.1)"
+    >
+      <Flex align="center" justify="space-between">
+        <Stat>
+          <StatLabel color="whiteAlpha.700">{label}</StatLabel>
+          <StatNumber fontSize="3xl" fontWeight="bold" color="white">
+            {value}
+          </StatNumber>
+          {helpText && (
+            <StatHelpText color="whiteAlpha.600">{helpText}</StatHelpText>
+          )}
+        </Stat>
+        <Box color="#2ecc71">
+          <Icon as={icon} boxSize={8} />
+        </Box>
+      </Flex>
+    </Box>
+  );
+};
+
+// Update card component
+const UpdateCard = ({
+  title,
+  type,
+  description,
+  date,
+}: {
+  title: string;
+  type: string;
+  description: string;
+  date: string;
+}) => {
+  const getBadgeColor = (type: string) => {
+    switch (type) {
+      case "FEATURE":
+        return "green";
+      case "IMPROVEMENT":
+        return "blue";
+      case "RELEASE":
+        return "purple";
+      default:
+        return "gray";
+    }
+  };
+
+  return (
+    <Box
+      p={4}
+      borderBottomWidth="1px"
+      borderColor="whiteAlpha.100"
+      _hover={{
+        bg: "rgba(14, 129, 68, 0.05)",
+      }}
+    >
+      <Flex justify="space-between" align="center" mb={2}>
+        <Heading size="sm" color="white">
+          {title}
+        </Heading>
+        <Badge colorScheme={getBadgeColor(type)} fontSize="xs">
+          {type}
+        </Badge>
+      </Flex>
+      <Text color="whiteAlpha.800" fontSize="sm" mb={1}>
+        {description}
+      </Text>
+      <Text color="whiteAlpha.500" fontSize="xs">
+        {date}
+      </Text>
+    </Box>
+  );
 };
 
 export default function HomePage() {
@@ -87,336 +231,508 @@ export default function HomePage() {
 
   return (
     <Layout title="Home" ogImage="/tensara_ogimage.png">
-      {/* Hero Section with Background */}
-      <Box position="relative" overflow="hidden" mb={10}>
-        {/* Background Graphic */}
-        <Box
-          position="absolute"
-          top="0"
-          left="0"
-          right="0"
-          bottom="0"
-          bgGradient="linear(to-b, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 1))"
-          zIndex={-1}
-        />
-
-        {/* Animated Particles */}
-        <Box
-          position="absolute"
-          top="0"
-          left="0"
-          right="0"
-          bottom="0"
-          opacity="0.2"
-          backgroundImage="url('/grid-pattern.svg')"
-          backgroundSize="cover"
-          zIndex={-1}
-        />
-
-        <Container
-          maxW="8xl"
-          px={{ base: 4, md: 8 }}
-          pt={{ base: 16, md: 20 }}
-          pb={{ base: 16, md: 24 }}
+      <Box color="white" minH="100vh">
+        {/* Hero Section */}
+        <MotionBox
+          pt={16}
+          pb={20}
+          position="relative"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+          overflow="hidden"
+          _before={{
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "100%",
+            backgroundImage:
+              "radial-gradient(circle at 70% 45%, rgba(46, 204, 113, 0.15) 0%, rgba(10, 15, 20, 0) 30%)",
+            zIndex: 0,
+          }}
         >
-          <MotionVStack
-            spacing={{ base: 8, md: 10 }}
-            textAlign="center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <Heading
-              as="h1"
-              fontSize={{ base: "3.5rem", md: "5rem", lg: "5rem" }}
-              fontWeight="semibold"
-              letterSpacing="tight"
-              fontFamily="Space Grotesk, sans-serif"
-              lineHeight={{ base: "1.2", md: "1.1" }}
-              color="white"
-              position="relative"
-              _before={{
-                content: '""',
-                position: "absolute",
-                left: "50%",
-                transform: "translateX(-50%)",
-                bottom: "-10px",
-                height: "4px",
-                width: "80px",
-                bg: "#0e8144",
-                borderRadius: "full",
-              }}
-            >
-              Optimize, Benchmark, Repeat
-            </Heading>
-
-            <Text
-              fontSize={{ base: "xl", md: "2xl" }}
-              color="whiteAlpha.900"
-              maxW="3xl"
-              lineHeight="tall"
-              px={{ base: 4, md: 0 }}
-            >
-              A platform for GPU programming challenges. Write efficient GPU
-              kernels and compare your solutions with other developers.
-            </Text>
-
+          <Container maxW="8xl" position="relative" zIndex={1}>
             <Flex
-              direction={{ base: "column", md: "row" }}
-              gap={6}
-              w="100%"
-              justifyContent="center"
+              direction={{ base: "column", lg: "row" }}
+              align="center"
+              justify="space-between"
+              gap={16}
             >
-              <Button
-                as="a"
-                href="/problems"
-                size={{ base: "lg", md: "lg" }}
-                height={{ base: "14", md: "16" }}
-                px={{ base: "8", md: "10" }}
-                fontSize={{ base: "md", md: "lg" }}
-                bg="#0e8144"
-                color="white"
-                leftIcon={<FiCode size={24} />}
-                _hover={{
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 0 20px rgba(46, 204, 113, 0.4)",
-                  bg: "#0a6434",
-                }}
-                transition="all 0.3s"
-                w={{ base: "full", md: "auto" }}
+              <MotionVStack
+                align="flex-start"
+                maxW={{ base: "full", lg: "40%" }}
+                spacing={8}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
               >
-                Start solving
-              </Button>
+                {/* Heading */}
+                <Heading
+                  fontSize={{ base: "4xl", md: "5xl", lg: "6xl" }}
+                  fontWeight="bold"
+                  lineHeight="1.1"
+                  color="white"
+                  position="relative"
+                  sx={{
+                    "&::after": {
+                      content: '""',
+                      position: "absolute",
+                      top: "-10px",
+                      left: "-10px",
+                      right: "-10px",
+                      bottom: "-10px",
+                      zIndex: -1,
+                      borderRadius: "xl",
+                      filter: "blur(8px)",
+                    },
+                  }}
+                >
+                  <MotionBox
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{
+                      duration: 0.7,
+                      delay: 0.2,
+                      type: "spring",
+                      stiffness: 100,
+                    }}
+                    bgGradient="linear(to-r, brand.primary, brand.navbar)"
+                    bgClip="text"
+                    display="inline-block"
+                  >
+                    Optimize
+                  </MotionBox>
+                  <MotionBox
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{
+                      duration: 0.7,
+                      delay: 0.4,
+                      type: "spring",
+                      stiffness: 100,
+                    }}
+                    bgGradient="linear(to-r, brand.primary, brand.navbar, brand.secondary)"
+                    bgClip="text"
+                    display="inline-block"
+                    mt={2}
+                    w="100%"
+                  >
+                    Benchmark
+                  </MotionBox>
+                  <MotionBox
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{
+                      duration: 0.7,
+                      delay: 0.6,
+                      type: "spring",
+                      stiffness: 100,
+                    }}
+                    bgGradient="linear(to-r, brand.primary, brand.navbar)"
+                    bgClip="text"
+                    display="inline-block"
+                    mt={2}
+                  >
+                    Repeat
+                  </MotionBox>
+                </Heading>
 
-              <Button
-                onClick={() =>
-                  window.open("https://github.com/tensara/tensara", "_blank")
-                }
-                variant="outline"
-                size={{ base: "lg", md: "lg" }}
-                height={{ base: "14", md: "16" }}
-                px={{ base: "8", md: "10" }}
-                fontSize={{ base: "md", md: "lg" }}
-                borderColor="whiteAlpha.400"
-                borderWidth="2px"
-                color="white"
-                leftIcon={<FaGithub size={24} />}
-                _hover={{
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 0 20px rgba(255, 255, 255, 0.2)",
-                  borderColor: "white",
-                  bg: "whiteAlpha.100",
-                }}
-                transition="all 0.3s"
-                w={{ base: "full", md: "auto" }}
-                cursor="pointer"
+                <MotionBox
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.8 }}
+                >
+                  <Text fontSize="xl" color="whiteAlpha.800">
+                    A platform for GPU programming challenges. Write efficient
+                    GPU kernels and compare your solutions with other
+                    developers.
+                  </Text>
+                </MotionBox>
+
+                <MotionFlex
+                  gap={4}
+                  direction={{ base: "column", sm: "row" }}
+                  width={{ base: "full", sm: "auto" }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 1 }}
+                >
+                  <Button
+                    as={motion.button}
+                    size="lg"
+                    bg="#0e8144"
+                    color="white"
+                    _hover={{
+                      bg: "#0a6434",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 5px 20px rgba(46, 204, 113, 0.4)",
+                    }}
+                    height="60px"
+                    px={8}
+                    leftIcon={<Icon as={FiCode} />}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Start Solving
+                  </Button>
+
+                  <Button
+                    as={motion.button}
+                    size="lg"
+                    variant="outline"
+                    borderColor="whiteAlpha.300"
+                    color="white"
+                    _hover={{
+                      borderColor: "whiteAlpha.500",
+                      bg: "whiteAlpha.50",
+                    }}
+                    height="60px"
+                    px={8}
+                    leftIcon={<Icon as={FaGithub} />}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    View on GitHub
+                  </Button>
+                </MotionFlex>
+
+                <MotionFlex
+                  align="center"
+                  gap={3}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 1.2 }}
+                >
+                  <Text color="whiteAlpha.600">
+                    Want to code from your own IDE? Check out the CLI tool.
+                  </Text>
+                  <Link href="/cli">
+                    <Button
+                      as={motion.button}
+                      size="sm"
+                      variant="outline"
+                      color="white"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      CLI
+                    </Button>
+                  </Link>
+                </MotionFlex>
+              </MotionVStack>
+
+              {/* Code Block */}
+              <MotionBox
+                maxW={{ base: "full", lg: "55%" }}
+                w="full"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
               >
-                Contribute!
-              </Button>
-            </Flex>
-
-            {/* Product Screenshot */}
-            <MotionBox
-              w="full"
-              maxW="7xl"
-              mt={{ base: 8, md: 12 }}
-              position="relative"
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-            >
-              {/* Static Image for Mobile / Video Loading */}
-              <Box
-                position="relative"
-                borderRadius="2xl"
-                overflow="hidden"
-                boxShadow="0 0 40px rgba(0, 0, 0, 0.3)"
-              >
-                <Image
-                  src="/demo-poster.jpg"
-                  alt="Demo preview"
-                  w="full"
-                  objectFit="cover"
-                  display={isMobile || !videoLoaded ? "block" : "none"}
-                />
-                {/* Video only for desktop */}
-                {!isMobile && (
-                  <Box
-                    as="video"
-                    src="/demo.mp4"
-                    poster="/demo-poster.jpg"
-                    preload="auto"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    w="full"
-                    objectFit="cover"
-                    display={videoLoaded ? "block" : "none"}
-                    onLoadedData={() => setVideoLoaded(true)}
-                  />
-                )}
-
-                {/* Overlay gradient */}
                 <Box
-                  position="absolute"
-                  top="0"
-                  left="0"
-                  right="0"
-                  bottom="0"
-                  bgGradient="linear(to-t, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0) 40%)"
-                  pointerEvents="none"
-                />
-              </Box>
-            </MotionBox>
-          </MotionVStack>
-        </Container>
-      </Box>
+                  bg="rgba(15, 23, 42, 0.6)"
+                  borderRadius="lg"
+                  overflow="hidden"
+                  borderWidth="1px"
+                  borderColor="whiteAlpha.100"
+                  boxShadow="0 8px 30px rgba(0, 0, 0, 0.25)"
+                  position="relative"
+                >
+                  {/* Header bar */}
+                  <Flex
+                    bg="rgba(15, 23, 42, 0.9)"
+                    p={3}
+                    borderBottomWidth="1px"
+                    borderColor="whiteAlpha.100"
+                    align="center"
+                  >
+                    <Flex gap={2} ml={2}>
+                      <Box w="12px" h="12px" borderRadius="full" bg="red.400" />
+                      <Box
+                        w="12px"
+                        h="12px"
+                        borderRadius="full"
+                        bg="yellow.400"
+                      />
+                      <Box
+                        w="12px"
+                        h="12px"
+                        borderRadius="full"
+                        bg="green.400"
+                      />
+                    </Flex>
+                    <Text fontSize="sm" color="whiteAlpha.700" ml={4}>
+                      kernel.cu
+                    </Text>
+                  </Flex>
 
-      <Container maxW="8xl" px={{ base: 4, md: 8 }}>
-        {/* Features Grid - Main Highlights */}
-        <Box py={{ base: 10, md: 16 }} position="relative">
-          <MotionGrid
-            templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
-            gap={{ base: 8, md: 10 }}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={{
-              visible: {
-                transition: {
-                  staggerChildren: 0.2,
-                },
-              },
-            }}
-          >
-            <FeatureCard
+                  {/* Code content */}
+                  <Box
+                    p={4}
+                    fontFamily="mono"
+                    fontSize="sm"
+                    position="relative"
+                  >
+                    <Box color="whiteAlpha.800">
+                      <Text color="#f56565" mb={2}>
+                        {"// CUDA kernel for matrix multiplication"}
+                      </Text>
+                      <Text color="#63b3ed" mb={1}>
+                        __global__ void matrixMul(float* A, float* B, float* C,
+                        int width) {"{"}
+                      </Text>
+
+                      <Box pl={4} mb={2}>
+                        <Text mb={1}>
+                          <Text as="span" color="#f6e05e">
+                            int
+                          </Text>{" "}
+                          row = blockIdx.y * blockDim.y + threadIdx.y;
+                        </Text>
+                        <Text mb={1}>
+                          <Text as="span" color="#f6e05e">
+                            int
+                          </Text>{" "}
+                          col = blockIdx.x * blockDim.x + threadIdx.x;
+                        </Text>
+                        <Text mb={1}>
+                          <Text as="span" color="#f6e05e">
+                            float
+                          </Text>{" "}
+                          sum = 0.0f;
+                        </Text>
+                      </Box>
+
+                      <Box pl={4} mb={2}>
+                        <Text color="#f56565" mb={1}>
+                          {"// Each thread computes one element of C"}
+                        </Text>
+                        <Text mb={1}>
+                          <Text as="span" color="#9f7aea">
+                            if
+                          </Text>
+                          (row &lt; width &amp;&amp; col &lt; width) {"{"}
+                        </Text>
+
+                        <Box pl={4} mb={1}>
+                          <Text mb={1}>
+                            <Text as="span" color="#9f7aea">
+                              for
+                            </Text>
+                            (
+                            <Text as="span" color="#f6e05e">
+                              int
+                            </Text>{" "}
+                            i = 0; i &lt; width; i++) {"{"}
+                          </Text>
+                          <Text pl={4} mb={1}>
+                            sum += A[row * width + i] * B[i * width + col];
+                          </Text>
+                          <Text mb={1}>{"}"}</Text>
+                          <Text mb={1}>C[row * width + col] = sum;</Text>
+                        </Box>
+
+                        <Text mb={1}>{"}"}</Text>
+                      </Box>
+
+                      <Text>{"}"}</Text>
+                    </Box>
+
+                    {/* Cursor animation */}
+                    <Box
+                      position="absolute"
+                      bottom="86px"
+                      left="128px"
+                      height="16px"
+                      width="8px"
+                      bg="#2ecc71"
+                    >
+                      <Box
+                        as="div"
+                        position="absolute"
+                        top="0"
+                        left="0"
+                        right="0"
+                        bottom="0"
+                        sx={{
+                          animation: "blink 1s infinite",
+                          "@keyframes blink": {
+                            "0%": { opacity: 1 },
+                            "50%": { opacity: 0 },
+                            "100%": { opacity: 1 },
+                          },
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                </Box>
+              </MotionBox>
+            </Flex>
+          </Container>
+        </MotionBox>
+
+        {/* Stats Section */}
+        <Container maxW="8xl" py={16}>
+          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
+            <StatCard
+              label="Active Problems"
+              value={54}
+              helpText="Across multiple GPU architectures"
               icon={FiCpu}
-              title="Real GPU Challenges"
-              description="Battle-tested problems that push your kernel optimization skills to the limit."
             />
-            <FeatureCard
-              icon={FiAward}
-              title="Live Rankings"
-              description="Compete for the highest GFLOPS and lowest kernel execution times on the leaderboard."
+            <StatCard
+              label="Total Submissions"
+              value={1000}
+              helpText="From developers worldwide"
+              icon={FiBarChart2}
             />
-            <FeatureCard
+            <StatCard
+              label="Community Members"
+              value={1000}
+              helpText="Growing every day"
               icon={FiUsers}
-              title="Global Competition"
-              description="Join the ranks of GPU programmers worldwide and prove your parallel programming prowess."
             />
-          </MotionGrid>
-        </Box>
+          </SimpleGrid>
+        </Container>
 
-        {/* Recent Updates Section */}
-        <Box id="updates" py={{ base: 14, md: 20 }} scrollMarginTop="100px">
-          <MotionVStack
-            spacing={10}
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true, margin: "-100px" }}
-          >
-            <Box textAlign="center" mb={4}>
-              <Heading
-                fontSize={{ base: "2xl", md: "4xl" }}
-                fontFamily="Space Grotesk, sans-serif"
-                color="white"
-                position="relative"
-                _after={{
-                  content: '""',
-                  position: "absolute",
-                  width: "60px",
-                  height: "4px",
-                  bottom: "-10px",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  bg: "#0e8144",
-                  borderRadius: "full",
-                }}
-              >
-                Recent Platform Updates
+        {/* Feature Section */}
+        <Container maxW="8xl" py={16}>
+          <VStack align="flex-start" spacing={16}>
+            <VStack align="flex-start" spacing={4} maxW="2xl">
+              <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
+                A platform built for GPU programmers
               </Heading>
-              <Text
-                mt={6}
-                fontSize="lg"
-                color="whiteAlpha.800"
-                maxW="3xl"
-                mx="auto"
-              >
-                Check out the latest improvements across all Tensara projects
+              <Text color="whiteAlpha.800" fontSize="lg">
+                Focus on writing efficient kernels while we handle the
+                infrastructure, benchmarking, and comparisons.
               </Text>
-            </Box>
+            </VStack>
 
-            <SimpleGrid
-              columns={{ base: 1, md: 3 }}
-              spacing={{ base: 6, md: 8 }}
-              width="100%"
-            >
-              <UpdateCard
-                icon={FiGitPullRequest}
-                title="Core Platform"
-                repo="tensara/tensara"
-                updates={[
-                  { type: "FEATURE", text: "Triton submission support" },
-                  { type: "FEATURE", text: "Rating & leaderboard system" },
-                  {
-                    type: "IMPROVEMENT",
-                    text: "Rate limiting & error handling",
-                  },
-                  { type: "FEATURE", text: "Test result streaming with SSE" },
-                ]}
-              />
-
-              <UpdateCard
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
+              <FeatureCard
                 icon={FiCpu}
-                title="Problem Repository"
-                repo="tensara/problems"
-                updates={[
-                  { type: "FEATURE", text: "PyTorch-based test cases" },
-                  {
-                    type: "FEATURE",
-                    text: "3D/4D Tensor matmul problems ",
-                  },
-                  { type: "IMPROVEMENT", text: "Python problem definitions" },
-                  {
-                    type: "FEATURE",
-                    text: "Sigmoid, Tanh, and more activation functions",
-                  },
-                ]}
+                title="Real GPU Challenges"
+                description="Battle-tested problems that push your kernel optimization skills to the limit."
               />
-
-              <UpdateCard
-                icon={FiTerminal}
-                title="CLI Tool"
-                repo="tensara/tensara-cli"
-                updates={[
-                  { type: "FEATURE", text: "CLI interface for platform" },
-                  { type: "FEATURE", text: "GitHub authentication system" },
-                  { type: "IMPROVEMENT", text: "Pretty printing for results" },
-                  { type: "RELEASE", text: "Version 0.2.0 released" },
-                ]}
+              <FeatureCard
+                icon={FiAward}
+                title="Live Rankings"
+                description="Compete for the highest GFLOPS and lowest kernel execution times on the leaderboard."
+              />
+              <FeatureCard
+                icon={FiUsers}
+                title="Global Competition"
+                description="Join the ranks of GPU programmers worldwide and prove your parallel programming prowess."
               />
             </SimpleGrid>
-          </MotionVStack>
+          </VStack>
+        </Container>
+
+        {/* Updates Section */}
+        <Box bg="rgba(14, 35, 55, 0.4)" py={16}>
+          <Container maxW="8xl">
+            <VStack align="flex-start" spacing={8}>
+              <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
+                Latest Updates
+              </Heading>
+
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} w="full">
+                <Box
+                  bg="rgba(15, 23, 42, 0.6)"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  borderWidth="1px"
+                  borderColor="whiteAlpha.100"
+                >
+                  <Flex
+                    p={4}
+                    borderBottomWidth="1px"
+                    borderColor="whiteAlpha.100"
+                    align="center"
+                  >
+                    <Icon as={FiGitPullRequest} color="#2ecc71" mr={2} />
+                    <Heading size="sm" color="white">
+                      Core Platform
+                    </Heading>
+                  </Flex>
+                  <Box>
+                    <UpdateCard
+                      title="Triton Kernel Support"
+                      type="FEATURE"
+                      description="Added support for Triton-based kernel submissions."
+                      date="3 days ago"
+                    />
+                    <UpdateCard
+                      title="Rating System"
+                      type="FEATURE"
+                      description="New ELO-based rating system for submissions."
+                      date="1 week ago"
+                    />
+                    <UpdateCard
+                      title="Error Handling"
+                      type="IMPROVEMENT"
+                      description="Improved error handling and rate limiting."
+                      date="2 weeks ago"
+                    />
+                  </Box>
+                </Box>
+
+                <Box
+                  bg="rgba(15, 23, 42, 0.6)"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  borderWidth="1px"
+                  borderColor="whiteAlpha.100"
+                >
+                  <Flex
+                    p={4}
+                    borderBottomWidth="1px"
+                    borderColor="whiteAlpha.100"
+                    align="center"
+                  >
+                    <Icon as={FiTerminal} color="#2ecc71" mr={2} />
+                    <Heading size="sm" color="white">
+                      CLI Tool
+                    </Heading>
+                  </Flex>
+                  <Box>
+                    <UpdateCard
+                      title="CLI Interface"
+                      type="FEATURE"
+                      description="CLI interface for the Tensara platform."
+                      date="4 days ago"
+                    />
+                    <UpdateCard
+                      title="Authentication"
+                      type="FEATURE"
+                      description="GitHub authentication system."
+                      date="1 week ago"
+                    />
+                    <UpdateCard
+                      title="v0.2.0 Release"
+                      type="RELEASE"
+                      description="Version 0.2.0 released with performance improvements."
+                      date="2 weeks ago"
+                    />
+                  </Box>
+                </Box>
+              </SimpleGrid>
+            </VStack>
+          </Container>
         </Box>
 
-        {/* Joining CTA */}
-        <MotionBox
-          mt={{ base: 10, md: 16 }}
-          mb={{ base: 20, md: 28 }}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-        >
+        {/* CTA Section */}
+        <Container maxW="8xl" py={20}>
           <Box
             bg="rgba(14, 129, 68, 0.15)"
             borderRadius="2xl"
             p={{ base: 8, md: 12 }}
-            textAlign="center"
             position="relative"
             overflow="hidden"
+            borderWidth="1px"
+            borderColor="rgba(46, 204, 113, 0.3)"
             boxShadow="0 0 30px rgba(14, 129, 68, 0.15)"
           >
             {/* Background pattern */}
@@ -432,21 +748,33 @@ export default function HomePage() {
               zIndex={0}
             />
 
-            <VStack spacing={6} position="relative" zIndex={1}>
-              <Icon as={FiZap} boxSize={10} color="#2ecc71" />
-              <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
-                Ready to push your GPU skills further?
-              </Heading>
-              <Text fontSize="lg" color="whiteAlpha.900" maxW="2xl">
-                Join our growing community of GPU programmers and tackle
-                real-world performance challenges.
-              </Text>
+            <Flex
+              direction={{ base: "column", md: "row" }}
+              align="center"
+              justify="space-between"
+              gap={8}
+              position="relative"
+              zIndex={1}
+            >
+              <VStack
+                align={{ base: "center", md: "flex-start" }}
+                spacing={4}
+                maxW={{ base: "full", md: "60%" }}
+              >
+                <Icon as={FiZap} boxSize={8} color="#2ecc71" />
+                <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
+                  Ready to push your GPU skills further?
+                </Heading>
+                <Text fontSize="lg" color="whiteAlpha.900">
+                  Join our growing community of GPU programmers and tackle
+                  real-world performance challenges.
+                </Text>
+              </VStack>
+
               <Button
-                as="a"
-                href="/problems"
                 size="lg"
-                height="16"
-                px="10"
+                height="60px"
+                px={8}
                 fontSize="lg"
                 bg="#0e8144"
                 color="white"
@@ -456,275 +784,156 @@ export default function HomePage() {
                   bg: "#0a6434",
                 }}
                 transition="all 0.3s"
+                rightIcon={<Icon as={FiArrowRight} />}
               >
                 Explore Problems
               </Button>
-            </VStack>
+            </Flex>
           </Box>
-        </MotionBox>
+        </Container>
 
         {/* Footer */}
-        <MotionBox
-          as="footer"
-          py={16}
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-        >
-          <Divider mb={10} />
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
-            {/* Company Info */}
-            <VStack align="start" spacing={4}>
-              <Heading size="md" fontFamily="Space Grotesk, sans-serif">
-                Tensara
-              </Heading>
-              <Text color="whiteAlpha.800">
-                Write efficient GPU code and compete with other developers.
-              </Text>
-            </VStack>
+        <Box bg="rgba(14, 35, 55, 0.4)" py={16}>
+          <Container maxW="8xl">
+            <Divider mb={10} borderColor="whiteAlpha.200" />
 
-            {/* Quick Links */}
-            <VStack align="start" spacing={4}>
-              <Heading size="md" fontFamily="Space Grotesk, sans-serif">
-                Quick Links
-              </Heading>
-              <Link
-                href="/problems"
-                color="whiteAlpha.800"
-                _hover={{ color: "#2ecc71" }}
-              >
-                Problems
-              </Link>
-              <Link
-                href="/submissions"
-                color="whiteAlpha.800"
-                _hover={{ color: "#2ecc71" }}
-              >
-                Submissions
-              </Link>
-              <Link
-                href="/blog"
-                color="whiteAlpha.800"
-                _hover={{ color: "#2ecc71" }}
-              >
-                Blog
-              </Link>
-            </VStack>
-
-            {/* Social Links */}
-            <VStack align="start" spacing={4}>
-              <Heading size="md" fontFamily="Space Grotesk, sans-serif">
-                Connect
-              </Heading>
-              <HStack spacing={4}>
-                <Link
-                  href="https://github.com/tensara"
-                  isExternal
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
+              {/* Company Info */}
+              <VStack align="flex-start" spacing={4}>
+                <Heading
+                  size="md"
+                  fontFamily="Space Grotesk, sans-serif"
+                  color="white"
                 >
-                  <Icon as={FaGithub} boxSize={6} />
-                </Link>
-                <Link
-                  href="https://twitter.com/tensarahq"
-                  isExternal
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
-                  <Icon as={FaTwitter} boxSize={6} />
-                </Link>
-                <Link
-                  href="mailto:hello@tensara.org"
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
-                  <Icon as={FaEnvelope} boxSize={6} />
-                </Link>
-                <Link
-                  href="https://discord.gg/YzBTfMxVQK"
-                  isExternal
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
-                  <Icon as={FaDiscord} boxSize={6} />
-                </Link>
-              </HStack>
-              <Text color="whiteAlpha.600" fontSize="sm" mt={4}>
-                © {new Date().getFullYear()} Tensara. All rights reserved.
-              </Text>
-            </VStack>
-          </SimpleGrid>
-        </MotionBox>
-      </Container>
-    </Layout>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: IconType;
-  title: string;
-  description: string;
-}) {
-  return (
-    <MotionVStack
-      bg="rgba(20, 40, 60, 0.6)"
-      p={8}
-      borderRadius="xl"
-      spacing={5}
-      align="start"
-      backdropFilter="blur(10px)"
-      borderWidth="1px"
-      borderColor="rgba(46, 204, 113, 0.2)"
-      boxShadow="0 4px 20px rgba(0, 0, 0, 0.3)"
-      position="relative"
-      overflow="hidden"
-      _before={{
-        content: '""',
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "6px",
-        height: "60%",
-        bg: "#0e8144",
-        borderTopLeftRadius: "xl",
-      }}
-      _hover={{
-        transform: "translateY(-8px)",
-        boxShadow: "0 12px 30px rgba(0, 0, 0, 0.4)",
-        borderColor: "rgba(46, 204, 113, 0.4)",
-      }}
-      style={{ transition: "all 0.3s ease" }}
-      variants={{
-        hidden: { opacity: 0, y: 20 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
-      }}
-    >
-      <Flex w="full" align="center" justify="space-between">
-        <Box
-          p={2}
-          bg="rgba(14, 129, 68, 0.2)"
-          borderRadius="lg"
-          boxShadow="0 0 10px rgba(46, 204, 113, 0.1)"
-        >
-          <Icon as={icon} boxSize={7} color="#2ecc71" />
-        </Box>
-      </Flex>
-      <Heading size="md" mt={2}>
-        {title}
-      </Heading>
-      <Text color="whiteAlpha.900">{description}</Text>
-    </MotionVStack>
-  );
-}
-
-interface UpdateItem {
-  type: keyof typeof updateTypes;
-  text: string;
-}
-
-function UpdateCard({
-  icon,
-  title,
-  repo,
-  updates,
-}: {
-  icon: IconType;
-  title: string;
-  repo: string;
-  updates: UpdateItem[];
-}) {
-  return (
-    <MotionCard
-      bg="rgba(20, 40, 60, 0.7)"
-      borderRadius="xl"
-      overflow="hidden"
-      boxShadow="0 4px 20px rgba(0, 0, 0, 0.3)"
-      borderWidth="1px"
-      borderColor="rgba(45, 85, 125, 0.5)"
-      position="relative"
-      variants={{
-        hidden: { opacity: 0, y: 20 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
-      }}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true }}
-      whileHover={{
-        y: -8,
-        boxShadow: "0 12px 30px rgba(0, 0, 0, 0.4)",
-        borderColor: "rgba(46, 204, 113, 0.3)",
-      }}
-      transition={{ duration: 0.3 }}
-    >
-      <CardBody>
-        <VStack align="start" spacing={4}>
-          <Flex w="100%" align="center" justify="space-between">
-            <HStack spacing={3}>
-              <Box
-                p={2}
-                bg="rgba(14, 129, 68, 0.2)"
-                borderRadius="lg"
-                boxShadow="0 0 10px rgba(46, 204, 113, 0.1)"
-                width="36px"
-                height="36px"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Icon as={icon} boxSize={5} color="#2ecc71" />
-              </Box>
-              <Heading
-                size="md"
-                fontFamily="Space Grotesk, sans-serif"
-                color="white"
-              >
-                {title}
-              </Heading>
-            </HStack>
-            <Link
-              href={`https://github.com/${repo}`}
-              isExternal
-              p={2}
-              borderRadius="full"
-              transition="all 0.2s"
-            >
-              <Icon color="white" as={FaGithub} boxSize={5} />
-            </Link>
-          </Flex>
-
-          <Divider opacity={0.3} />
-
-          <Stack spacing={3} width="100%">
-            {updates.map((update, index) => (
-              <Flex key={index} align="center" width="100%">
-                <Badge
-                  colorScheme={updateTypes[update.type].color.split(".")[0]}
-                  px={2}
-                  py={1}
-                  borderRadius="md"
-                  minW="90px"
-                  textAlign="center"
-                  fontSize="xs"
-                  mr={3}
-                  fontWeight="semibold"
-                  letterSpacing="0.4px"
-                  textTransform="uppercase"
-                >
-                  {updateTypes[update.type].label}
-                </Badge>
-                <Text fontSize="sm" color="whiteAlpha.900" noOfLines={1}>
-                  {update.text}
+                  Tensara
+                </Heading>
+                <Text color="whiteAlpha.800">
+                  Write efficient GPU code and compete with other developers.
                 </Text>
-              </Flex>
-            ))}
-          </Stack>
-        </VStack>
-      </CardBody>
-    </MotionCard>
+                <Flex gap={4} mt={2}>
+                  <Link
+                    href="https://github.com/tensara"
+                    isExternal
+                    color="whiteAlpha.800"
+                    _hover={{ color: "#2ecc71" }}
+                  >
+                    <Icon as={FaGithub} boxSize={5} />
+                  </Link>
+                  <Link
+                    href="https://twitter.com/tensarahq"
+                    isExternal
+                    color="whiteAlpha.800"
+                    _hover={{ color: "#2ecc71" }}
+                  >
+                    <Icon as={FaTwitter} boxSize={5} />
+                  </Link>
+                  <Link
+                    href="mailto:hello@tensara.org"
+                    color="whiteAlpha.800"
+                    _hover={{ color: "#2ecc71" }}
+                  >
+                    <Icon as={FaEnvelope} boxSize={5} />
+                  </Link>
+                  <Link
+                    href="https://discord.gg/YzBTfMxVQK"
+                    isExternal
+                    color="whiteAlpha.800"
+                    _hover={{ color: "#2ecc71" }}
+                  >
+                    <Icon as={FaDiscord} boxSize={5} />
+                  </Link>
+                </Flex>
+              </VStack>
+
+              {/* Quick Links */}
+              <VStack align="flex-start" spacing={4}>
+                <Heading
+                  size="md"
+                  fontFamily="Space Grotesk, sans-serif"
+                  color="white"
+                >
+                  Quick Links
+                </Heading>
+                <Link
+                  href="/problems"
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  Problems
+                </Link>
+                <Link
+                  href="/submissions"
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  Submissions
+                </Link>
+                <Link
+                  href="/leaderboard"
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  Leaderboard
+                </Link>
+                <Link
+                  href="/blog"
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  Blog
+                </Link>
+              </VStack>
+
+              {/* Resources */}
+              <VStack align="flex-start" spacing={4}>
+                <Heading
+                  size="md"
+                  fontFamily="Space Grotesk, sans-serif"
+                  color="white"
+                >
+                  Resources
+                </Heading>
+                <Link
+                  href="/docs"
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  Documentation
+                </Link>
+                <Link
+                  href="/docs/api"
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  API Reference
+                </Link>
+                <Link
+                  href="/docs/tutorials"
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  Tutorials
+                </Link>
+                <Link
+                  href="https://github.com/tensara/tensara/issues"
+                  isExternal
+                  color="whiteAlpha.800"
+                  _hover={{ color: "#2ecc71" }}
+                >
+                  <Flex align="center" gap={1}>
+                    Report Issues
+                    <Icon as={FiExternalLink} boxSize={3} />
+                  </Flex>
+                </Link>
+              </VStack>
+            </SimpleGrid>
+
+            <Text color="whiteAlpha.600" fontSize="sm" mt={10}>
+              © {new Date().getFullYear()} Tensara. All rights reserved.
+            </Text>
+          </Container>
+        </Box>
+      </Box>
+    </Layout>
   );
 }

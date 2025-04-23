@@ -29,6 +29,13 @@ import {
   FiAward,
 } from "react-icons/fi";
 import { useState, useEffect } from "react";
+import {
+  AnimatePresence,
+  AnimateSharedLayout,
+  LayoutGroup,
+  motion,
+} from "framer-motion";
+import { Span } from "next/dist/trace";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -53,13 +60,10 @@ export function Header() {
   }, []);
 
   const navItems = [
-    { label: "Problems", href: "/problems", icon: FiCode },
-    { label: "Leaderboards", href: "/leaderboard", icon: FiAward },
-    { label: "Blog", href: "/blog", icon: FiBookOpen },
-  ];
-
-  const protectedNavItems = [
-    { label: "My Submissions", href: "/submissions", icon: FiList },
+    { label: "Problems", href: "/problems" },
+    { label: "Leaderboards", href: "/leaderboard" },
+    { label: "Blog", href: "/blog" },
+    { label: "Contests", href: "/contests" },
   ];
 
   const isActivePath = (path: string) => {
@@ -80,56 +84,69 @@ export function Header() {
     signOut({ callbackUrl: "/" }).catch(console.error);
   };
 
-  const NavLinks = () => (
-    <>
-      {navItems.map((item) => (
-        <Link key={item.href} href={item.href} passHref legacyBehavior>
-          <Button
-            as="a"
-            variant="ghost"
-            color="white"
-            px={3}
-            bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
-            _hover={{
-              textDecoration: "none",
-              bg: "whiteAlpha.100",
-            }}
-            transition="background-color 0.7s"
-            fontSize="sm"
-            leftIcon={<Icon as={item.icon} boxSize={4} />}
-            w={isMobile ? "full" : "auto"}
-            justifyContent={isMobile ? "flex-start" : "center"}
-          >
-            {item.label}
-          </Button>
-        </Link>
-      ))}
-      {mounted &&
-        status === "authenticated" &&
-        protectedNavItems.map((item) => (
-          <Link key={item.href} href={item.href} passHref legacyBehavior>
-            <Button
-              as="a"
-              variant="ghost"
-              color="white"
-              px={3}
-              bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
-              _hover={{
-                textDecoration: "none",
-                bg: "whiteAlpha.100",
-              }}
-              transition="background-color 0.7s"
-              fontSize="sm"
-              leftIcon={<Icon as={item.icon} boxSize={4} />}
-              w={isMobile ? "full" : "auto"}
-              justifyContent={isMobile ? "flex-start" : "center"}
+  const NavLinks = () => {
+    const pathname = router.pathname || "/";
+    const [hoveredPath, setHoveredPath] = useState(pathname);
+
+    console.log("router.pathname", router.pathname);
+    console.log("hoveredPath", hoveredPath);
+    console.log(
+      "navItems",
+      navItems.map((item) => item.href)
+    );
+    return (
+      <LayoutGroup>
+        {navItems.map((item) => (
+          <Link key={item.href} href={item.href} passHref>
+            <Box
+              position="relative"
+              display="inline-block"
+              zIndex={1}
+              overflow="hidden"
+              borderRadius="0.5rem"
+              cursor="pointer"
+              onMouseEnter={() => setHoveredPath(item.href)}
             >
-              {item.label}
-            </Button>
+              {item.href === hoveredPath && (
+                <motion.div
+                  initial={false}
+                  layoutId="navHighlight"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "0.5rem",
+                    backgroundColor: "rgba(75, 85, 99, 0.5)",
+                  }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 30,
+                    mass: 1,
+                  }}
+                />
+              )}
+
+              <Text
+                color="white"
+                px={3}
+                py={2}
+                fontSize="sm"
+                fontWeight="medium"
+                w={isMobile ? "full" : "auto"}
+                textAlign={isMobile ? "left" : "center"}
+                position="relative"
+                zIndex={2}
+              >
+                {item.label}
+              </Text>
+            </Box>
           </Link>
         ))}
-    </>
-  );
+      </LayoutGroup>
+    );
+  };
 
   const AuthSection = () => {
     if (!mounted) return null;
@@ -196,7 +213,7 @@ export function Header() {
   };
 
   return (
-    <Box bg="brand.navbar" h="full" borderRadius="xl" px={4} py={2}>
+    <Box bg="transparent" h="full" borderRadius="xl" px={4} py={2}>
       <Flex h="full" alignItems="center" justifyContent="space-between">
         <HStack>
           <Link href="/" passHref legacyBehavior>
@@ -204,11 +221,11 @@ export function Header() {
               <Image
                 src="/tensara_logo_notext.png"
                 alt="Tensara Logo"
-                w={9}
-                h={9}
+                w={12}
+                h={12}
               />
               <Text
-                fontSize="lg"
+                fontSize="xl"
                 fontWeight="bold"
                 color="white"
                 _hover={{ textDecoration: "none" }}
@@ -220,7 +237,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           {!isMobile && (
-            <HStack ml={2} spacing={3}>
+            <HStack ml={5} spacing={3} pt={1}>
               <NavLinks />
             </HStack>
           )}
