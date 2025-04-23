@@ -6,20 +6,13 @@ import {
   Text,
   VStack,
   Icon,
-  Image,
   SimpleGrid,
-  HStack,
   Link,
   Divider,
   Badge,
   Flex,
-  useBreakpointValue,
   Card,
-  CardBody,
-  Stack,
   Grid,
-  GridItem,
-  Code,
   Stat,
   StatLabel,
   StatHelpText,
@@ -36,21 +29,14 @@ import {
   FiZap,
   FiArrowRight,
   FiExternalLink,
-  FiBarChart2,
   FiGitPullRequest,
   FiCode,
-  FiPower,
   FiBookOpen,
 } from "react-icons/fi";
-import {
-  FaDiscord,
-  FaGithub,
-  FaTwitter,
-  FaEnvelope,
-  FaCode,
-} from "react-icons/fa";
+import { FaDiscord, FaGithub, FaTwitter, FaEnvelope } from "react-icons/fa";
 import { type IconType } from "react-icons";
 import AnimatedCudaEditor from "~/components/CudaEditor";
+import TensaraPipelineProgress from "~/components/Pipeline";
 
 // Create motion components
 const MotionVStack = motion(VStack);
@@ -208,8 +194,6 @@ const UpdateCard = ({
 };
 
 export default function HomePage() {
-  // const { data: session } = useSession();
-  const [videoLoaded, setVideoLoaded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -397,26 +381,24 @@ export default function HomePage() {
                   transition={{ duration: 0.5, delay: 1.2 }}
                 >
                   <Text color="whiteAlpha.600">
-                    Want to code from your own IDE? Check out the CLI tool.
-                  </Text>
-                  <Link href="/cli">
-                    <Button
-                      as={motion.button}
-                      size="sm"
-                      variant="outline"
-                      color="white"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                    Want to code from your own IDE? Check out the{" "}
+                    <Link
+                      href="https://github.com/tensara/tensara-cli"
+                      isExternal
+                      color="#2ecc71"
+                      textDecoration="underline"
                     >
-                      CLI
-                    </Button>
-                  </Link>
+                      CLI tool
+                    </Link>
+                  </Text>
                 </MotionFlex>
               </MotionVStack>
               <AnimatedCudaEditor />
             </Flex>
           </Container>
         </MotionBox>
+
+        <TensaraPipelineProgress />
 
         {/* Updates Section */}
         <Box py={16}>
@@ -653,11 +635,15 @@ export default function HomePage() {
         </Container>
 
         {/* Footer */}
-        <Box bg="rgba(14, 35, 55, 0.4)" py={16}>
+        <Box bg="transparent" py={16} borderRadius="2xl">
           <Container maxW="8xl">
             <Divider mb={10} borderColor="whiteAlpha.200" />
 
-            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
+            <SimpleGrid
+              columns={{ base: 1, md: 3 }}
+              spacing={8}
+              justifyItems={"space-between"}
+            >
               {/* Company Info */}
               <VStack align="flex-start" spacing={4}>
                 <Heading

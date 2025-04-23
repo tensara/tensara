@@ -433,7 +433,7 @@ const LeaderboardPage: NextPage = () => {
                     ) : (
                       /* Desktop Users Leaderboard */
                       <Table variant="simple" size="md" layout="fixed">
-                        <Thead bg="gray.800" borderTopRadius="md">
+                        <Thead bg="brand.secondary" borderTopRadius="md">
                           <Tr>
                             <Th
                               borderBottom="none"
@@ -652,7 +652,7 @@ const LeaderboardPage: NextPage = () => {
                       return (
                         <Card
                           key={problem.slug}
-                          bg="gray.800"
+                          bg="brand.secondary"
                           borderColor="whiteAlpha.200"
                           borderWidth={1}
                           transition="transform 0.2s, box-shadow 0.2s"

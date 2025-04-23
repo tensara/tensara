@@ -283,7 +283,7 @@ export default function ProblemsPage() {
             borderColor="gray.700"
           >
             <Table variant="simple">
-              <Thead bg="gray.800">
+              <Thead bg="rgba(15, 23, 42, 0.6)">
                 <Tr>
                   <Th
                     color="gray.300"
@@ -376,7 +376,7 @@ export default function ProblemsPage() {
                           {problem.tags.map((tag) => (
                             <Badge
                               key={tag}
-                              bg="gray.600"
+                              bg="transparent"
                               color="gray.100"
                               variant="solid"
                               fontSize="xs"

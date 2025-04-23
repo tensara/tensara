@@ -131,7 +131,7 @@ const AnimatedCudaEditor = () => {
           maxW={{ base: "full", lg: "90%" }}
         >
           <Box>
-            <Text fontWeight="medium" color="whiteAlpha.800">
+            <Text fontWeight="medium" color="whiteAlpha.800" ml={1}>
               GPU Type
             </Text>
             <Box
@@ -148,7 +148,7 @@ const AnimatedCudaEditor = () => {
           </Box>
 
           <Box>
-            <Text fontWeight="medium" color="whiteAlpha.800">
+            <Text fontWeight="medium" color="whiteAlpha.800" ml={1}>
               Language
             </Text>
             <Box
@@ -165,7 +165,7 @@ const AnimatedCudaEditor = () => {
           </Box>
 
           <Box>
-            <Text fontWeight="medium" color="whiteAlpha.800">
+            <Text fontWeight="medium" color="whiteAlpha.800" ml={1}>
               Data Type
             </Text>
             <Box

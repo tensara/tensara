@@ -42,33 +42,33 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
 }) => {
   return (
     <Box
-      bg="gray.800"
+      bg="brand.secondary"
       borderRadius="xl"
       overflow="hidden"
       boxShadow="lg"
       borderWidth="1px"
-      borderColor="blue.900"
+      borderColor="brand.dark"
       flexGrow={1}
     >
       {/* Header */}
       <Flex
         px={5}
         py={4}
-        bg="gray.800"
+        bg="brand.secondary"
         borderBottom="1px solid"
-        borderColor="blue.800"
+        borderColor="brand.dark"
         align="center"
         justify="space-between"
       >
         <HStack spacing={3}>
-          <Icon as={FiList} color="blue.400" boxSize={5} />
+          <Icon as={FiList} color="brand.primary" boxSize={5} />
           <Heading size="md" color="white" fontWeight="semibold">
             Recent Submissions
           </Heading>
         </HStack>
       </Flex>
 
-      <Box bg="gray.850" px={0} py={0}>
+      <Box bg="brand.secondary" px={0} py={0}>
         {isLoading ? (
           <VStack spacing={1} align="stretch" p={2}>
             {Array(3)
@@ -78,8 +78,8 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                   <Skeleton
                     key={i}
                     height="80px"
-                    startColor="gray.700"
-                    endColor="gray.800"
+                    startColor="brand.secondary"
+                    endColor="brand.secondary"
                     borderRadius="md"
                   />
                 )
@@ -103,9 +103,9 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                   py={4}
                   px={5}
                   position="relative"
-                  bg="gray.800"
+                  bg="brand.secondary"
                   _hover={{
-                    bg: "gray.700",
+                    bg: "brand.secondary",
                     cursor: "pointer",
                   }}
                   transition="all 0.2s ease"
@@ -141,7 +141,7 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         <HStack spacing={1.5}>
                           <Icon
                             as={FiCalendar}
-                            color="blue.300"
+                            color="brand.primary"
                             boxSize="14px"
                           />
                           <Text color="whiteAlpha.700" fontSize="sm">
@@ -154,7 +154,7 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                     {/* Right side: Performance metrics */}
                     <Flex justify="flex-end">
                       <HStack
-                        spacing={3}
+                        spacing={4}
                         bg="gray.800"
                         borderRadius="lg"
                         p={2}
@@ -164,9 +164,11 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         {/* Language */}
                         <Box
                           px={3}
+                          pr={4}
                           py={1.5}
-                          borderRadius="md"
-                          bg="blue.900"
+                          borderRight="1px solid"
+                          borderColor="gray.600"
+                          bg="gray.800"
                           minW="80px"
                           textAlign="center"
                         >
@@ -187,9 +189,11 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         {/* GPU Type */}
                         <Box
                           px={3}
+                          pr={8}
                           py={1.5}
-                          borderRadius="md"
-                          bg="blue.900"
+                          borderRight="1px solid"
+                          borderColor="gray.600"
+                          bg="gray.800"
                           minW="80px"
                           textAlign="center"
                         >
@@ -211,8 +215,10 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         <Box
                           px={3}
                           py={1.5}
-                          borderRadius="md"
-                          bg="blue.900"
+                          pr={8}
+                          borderRight="1px solid"
+                          borderColor="gray.600"
+                          bg="gray.800"
                           minW="80px"
                           textAlign="center"
                         >
@@ -233,7 +239,7 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                           px={3}
                           py={1.5}
                           borderRadius="md"
-                          bg="blue.900"
+                          bg="gray.800"
                           minW="80px"
                           textAlign="center"
                         >

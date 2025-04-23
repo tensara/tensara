@@ -164,7 +164,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
     <Box>
       <HStack mb={4} justifyContent="space-between">
         <HStack spacing={3}>
-          <Icon as={FaFire} color="blue.300" w={5} h={5} />
+          <Icon as={FaFire} color="brand.primary" w={5} h={5} />
           <Text fontSize="sm" color="whiteAlpha.800">
             <Text as="span" fontWeight="bold" fontSize="md" color="white">
               {calendarData.totalCount}
@@ -178,7 +178,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
             as={Button}
             size="sm"
             width="100px"
-            bg="gray.700"
+            bg="gray.800"
             color="white"
             borderRadius="lg"
             borderColor="gray.600"
@@ -191,7 +191,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
             {selectedYear}
           </MenuButton>
           <MenuList
-            bg="gray.700"
+            bg="gray.800"
             borderColor="gray.600"
             borderRadius="lg"
             boxShadow="lg"
@@ -203,7 +203,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
                 key={year}
                 value={year}
                 onClick={() => setSelectedYear(year)}
-                bg={selectedYear === year ? "blue.900" : "gray.700"}
+                bg={selectedYear === year ? "blue.900" : "gray.800"}
                 borderRadius="lg"
                 color="white"
                 _hover={{ bg: "gray.600" }}
@@ -295,10 +295,11 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
             <Flex justify="flex-end" mt={4} width="100%">
               <Flex
                 alignItems="center"
-                bg="gray.700"
+                bg="gray.800"
                 py={1}
                 px={3}
                 borderRadius="md"
+                mr={3}
               >
                 <Text fontSize="xs" color="whiteAlpha.700" mr={2}>
                   Less

@@ -31,18 +31,18 @@ const UserLanguagesBox: React.FC<UserLanguagesBoxProps> = ({
       endColor="gray.800"
     >
       <Box
-        bg="gray.800"
+        bg="brand.secondary"
         borderRadius="xl"
         p={5}
         borderWidth="1px"
-        borderColor="blue.900"
+        borderColor="brand.dark"
         boxShadow="md"
       >
         <Flex justify="space-between" align="center" mb={4}>
           <Heading size="sm" color="white">
             Frameworks Used
           </Heading>
-          <Icon as={FiBarChart2} color="blue.200" boxSize={5} />
+          <Icon as={FiBarChart2} color="brand.primary" boxSize={5} />
         </Flex>
 
         <HStack spacing={2} flexWrap="wrap">

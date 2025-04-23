@@ -81,11 +81,11 @@ export function Header() {
               overflow="hidden"
               borderRadius="0.5rem"
               _hover={{
+                cursor: "pointer",
                 bg: "rgba(75, 85, 99, 0.5)",
                 transition: "all 0.3s ease-in-out",
                 transform: "translateY(-1px)",
                 boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                cursor: "pointer",
               }}
             >
               <Text
@@ -99,6 +99,7 @@ export function Header() {
                 textAlign={isMobile ? "left" : "center"}
                 position="relative"
                 zIndex={2}
+                cursor="pointer"
               >
                 {item.label}
               </Text>
