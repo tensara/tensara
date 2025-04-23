@@ -63,7 +63,7 @@ export function Layout({
 
       <GoogleAnalytics gaId={env.NEXT_PUBLIC_GA_ID} />
 
-      <Box h="100vh" bg="gray.900" display="flex" flexDirection="column">
+      <Box h="100vh" bg="brand.dark" display="flex" flexDirection="column">
         <Box px={{ base: 2, md: 2 }} py={{ base: 2, md: 1 }}>
           <Header />
         </Box>

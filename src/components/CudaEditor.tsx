@@ -52,7 +52,6 @@ const AnimatedCudaEditor = () => {
   const [currentChar, setCurrentChar] = useState(0);
   const [typingComplete, setTypingComplete] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [exitAnimation, setExitAnimation] = useState(false);
 
   // Add fade-in effect when component mounts
   useEffect(() => {
@@ -60,16 +59,6 @@ const AnimatedCudaEditor = () => {
       setIsVisible(true);
     }, 300);
   }, []);
-
-  useEffect(() => {
-    if (typingComplete) {
-      // Add a delay before starting the exit animation
-      const exitTimer = setTimeout(() => {
-        setExitAnimation(true);
-      }, 1000);
-      return () => clearTimeout(exitTimer);
-    }
-  }, [typingComplete]);
 
   useEffect(() => {
     if (typingComplete) return;
@@ -134,12 +123,6 @@ const AnimatedCudaEditor = () => {
         alignItems="center"
         flexDirection="column"
         opacity={isVisible ? 1 : 0}
-        transform={exitAnimation ? "translateX(100%)" : "translateX(0)"}
-        transition={
-          exitAnimation
-            ? "transform 0.8s ease-in-out"
-            : "opacity 0.8s ease-in-out"
-        }
       >
         <Flex
           mb={4}
@@ -152,7 +135,7 @@ const AnimatedCudaEditor = () => {
               GPU Type
             </Text>
             <Box
-              bg="rgba(15, 23, 42, 0.8)"
+              bg="brand.secondary"
               px={4}
               py={2}
               borderRadius="md"
@@ -169,7 +152,7 @@ const AnimatedCudaEditor = () => {
               Language
             </Text>
             <Box
-              bg="rgba(15, 23, 42, 0.8)"
+              bg="brand.secondary"
               px={4}
               py={2}
               borderRadius="md"
@@ -186,7 +169,7 @@ const AnimatedCudaEditor = () => {
               Data Type
             </Text>
             <Box
-              bg="rgba(15, 23, 42, 0.8)"
+              bg="brand.secondary"
               px={4}
               py={2}
               borderRadius="md"
@@ -201,7 +184,7 @@ const AnimatedCudaEditor = () => {
 
         {/* Terminal */}
         <Box
-          bg="rgba(15, 23, 42, 0.9)"
+          bg="#111111"
           borderRadius="lg"
           overflow="hidden"
           borderWidth="1px"
@@ -264,14 +247,13 @@ const AnimatedCudaEditor = () => {
                       if (!line) return null;
 
                       const isKeyword = [
-                        "const",
                         "int",
                         "float",
                         "void",
                         "if",
                         "for",
+                        "float*",
                       ].includes(word);
-                      const isType = ["float*"].includes(word);
                       const isFunction = word === "vectorAdd";
                       const isInclude = word === "#include";
                       const isDirective = word.startsWith("//");
@@ -282,16 +264,14 @@ const AnimatedCudaEditor = () => {
                             as="span"
                             color={
                               isKeyword
-                                ? "#F6E05E"
-                                : isType
-                                  ? "#63B3ED"
-                                  : isFunction
-                                    ? "#90CDF4"
-                                    : isInclude
-                                      ? "#63B3ED"
-                                      : isDirective
-                                        ? "#9CA3AF"
-                                        : undefined
+                                ? "#63ed78"
+                                : isFunction
+                                  ? "#6fb5e1"
+                                  : isInclude
+                                    ? "#63B3ED"
+                                    : isDirective
+                                      ? "#9CA3AF"
+                                      : undefined
                             }
                           >
                             {word}

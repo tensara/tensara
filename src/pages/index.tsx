@@ -39,6 +39,8 @@ import {
   FiBarChart2,
   FiGitPullRequest,
   FiCode,
+  FiPower,
+  FiBookOpen,
 } from "react-icons/fi";
 import {
   FaDiscord,
@@ -171,6 +173,8 @@ const UpdateCard = ({
         return "blue";
       case "RELEASE":
         return "purple";
+      case "IN PROGRESS":
+        return "yellow";
       default:
         return "gray";
     }
@@ -238,8 +242,6 @@ export default function HomePage() {
             left: 0,
             right: 0,
             height: "100%",
-            backgroundImage:
-              "radial-gradient(circle at 70% 50%, rgba(46, 204, 113, 0.15) 0%, rgba(10, 15, 20, 0) 30%)",
             zIndex: 0,
           }}
         >
@@ -416,29 +418,137 @@ export default function HomePage() {
           </Container>
         </MotionBox>
 
-        {/* Stats Section */}
-        <Container maxW="8xl" py={16}>
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
-            <StatCard
-              label="Active Problems"
-              value={54}
-              helpText="Across multiple GPU architectures"
-              icon={FiCpu}
-            />
-            <StatCard
-              label="Total Submissions"
-              value={1000}
-              helpText="From developers worldwide"
-              icon={FiBarChart2}
-            />
-            <StatCard
-              label="Community Members"
-              value={1000}
-              helpText="Growing every day"
-              icon={FiUsers}
-            />
-          </SimpleGrid>
-        </Container>
+        {/* Updates Section */}
+        <Box py={16}>
+          <Container maxW="8xl">
+            <VStack align="flex-start" spacing={8}>
+              <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
+                Latest Updates
+              </Heading>
+
+              <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
+                <Box
+                  bg="rgba(15, 23, 42, 0.6)"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  borderWidth="1px"
+                  borderColor="whiteAlpha.100"
+                >
+                  <Flex
+                    p={4}
+                    borderBottomWidth="1px"
+                    borderColor="whiteAlpha.100"
+                    align="center"
+                  >
+                    <Icon as={FiGitPullRequest} color="#2ecc71" mr={2} />
+                    <Heading size="sm" color="white">
+                      Core Platform
+                    </Heading>
+                  </Flex>
+                  <Box>
+                    <UpdateCard
+                      title="Rating System"
+                      type="FEATURE"
+                      description="New rating system for user rankings."
+                      date="2 weeks ago"
+                    />
+                    <UpdateCard
+                      title="Triton Kernel Support"
+                      type="FEATURE"
+                      description="Added support for Triton-based kernel submissions."
+                      date="3 weeks ago"
+                    />
+                    <UpdateCard
+                      title="Error Handling"
+                      type="IMPROVEMENT"
+                      description="Improved error handling and rate limiting."
+                      date="3 weeks ago"
+                    />
+                  </Box>
+                </Box>
+
+                <Box
+                  bg="rgba(15, 23, 42, 0.6)"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  borderWidth="1px"
+                  borderColor="whiteAlpha.100"
+                >
+                  <Flex
+                    p={4}
+                    borderBottomWidth="1px"
+                    borderColor="whiteAlpha.100"
+                    align="center"
+                  >
+                    <Icon as={FiTerminal} color="#2ecc71" mr={2} />
+                    <Heading size="sm" color="white">
+                      CLI Tool
+                    </Heading>
+                  </Flex>
+                  <Box>
+                    <UpdateCard
+                      title="CLI Submissions"
+                      type="IN PROGRESS"
+                      description="Allows users to submit to the leaderboard from the CLI."
+                      date="4 days ago"
+                    />
+                    <UpdateCard
+                      title="Authentication"
+                      type="FEATURE"
+                      description="GitHub authentication system."
+                      date="1 week ago"
+                    />
+                    <UpdateCard
+                      title="v0.2.0 Release"
+                      type="RELEASE"
+                      description="Version 0.2.0 released with performance improvements."
+                      date="2 weeks ago"
+                    />
+                  </Box>
+                </Box>
+                <Box
+                  bg="rgba(15, 23, 42, 0.6)"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  borderWidth="1px"
+                  borderColor="whiteAlpha.100"
+                >
+                  <Flex
+                    p={4}
+                    borderBottomWidth="1px"
+                    borderColor="whiteAlpha.100"
+                    align="center"
+                  >
+                    <Icon as={FiBookOpen} color="#2ecc71" mr={2} />
+                    <Heading size="sm" color="white">
+                      Problems
+                    </Heading>
+                  </Flex>
+                  <Box>
+                    <UpdateCard
+                      title="3D/4D Tensor matmul problems"
+                      type="UPDATE"
+                      description="Higher dimensional tensor matmul problems."
+                      date="4 days ago"
+                    />
+                    <UpdateCard
+                      title="Sigmoid, Tanh, and more activation"
+                      type="UPDATE"
+                      description="Added sigmoid, tanh, and more activation functions."
+                      date="1 week ago"
+                    />
+                    <UpdateCard
+                      title="Python problem definitions"
+                      type="FEATURE"
+                      description="Helps in velocity of adding new problems."
+                      date="2 weeks ago"
+                    />
+                  </Box>
+                </Box>
+              </SimpleGrid>
+            </VStack>
+          </Container>
+        </Box>
 
         {/* Feature Section */}
         <Container maxW="8xl" py={16}>
@@ -472,99 +582,6 @@ export default function HomePage() {
             </SimpleGrid>
           </VStack>
         </Container>
-
-        {/* Updates Section */}
-        <Box bg="rgba(14, 35, 55, 0.4)" py={16}>
-          <Container maxW="8xl">
-            <VStack align="flex-start" spacing={8}>
-              <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
-                Latest Updates
-              </Heading>
-
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} w="full">
-                <Box
-                  bg="rgba(15, 23, 42, 0.6)"
-                  borderRadius="xl"
-                  overflow="hidden"
-                  borderWidth="1px"
-                  borderColor="whiteAlpha.100"
-                >
-                  <Flex
-                    p={4}
-                    borderBottomWidth="1px"
-                    borderColor="whiteAlpha.100"
-                    align="center"
-                  >
-                    <Icon as={FiGitPullRequest} color="#2ecc71" mr={2} />
-                    <Heading size="sm" color="white">
-                      Core Platform
-                    </Heading>
-                  </Flex>
-                  <Box>
-                    <UpdateCard
-                      title="Triton Kernel Support"
-                      type="FEATURE"
-                      description="Added support for Triton-based kernel submissions."
-                      date="3 days ago"
-                    />
-                    <UpdateCard
-                      title="Rating System"
-                      type="FEATURE"
-                      description="New ELO-based rating system for submissions."
-                      date="1 week ago"
-                    />
-                    <UpdateCard
-                      title="Error Handling"
-                      type="IMPROVEMENT"
-                      description="Improved error handling and rate limiting."
-                      date="2 weeks ago"
-                    />
-                  </Box>
-                </Box>
-
-                <Box
-                  bg="rgba(15, 23, 42, 0.6)"
-                  borderRadius="xl"
-                  overflow="hidden"
-                  borderWidth="1px"
-                  borderColor="whiteAlpha.100"
-                >
-                  <Flex
-                    p={4}
-                    borderBottomWidth="1px"
-                    borderColor="whiteAlpha.100"
-                    align="center"
-                  >
-                    <Icon as={FiTerminal} color="#2ecc71" mr={2} />
-                    <Heading size="sm" color="white">
-                      CLI Tool
-                    </Heading>
-                  </Flex>
-                  <Box>
-                    <UpdateCard
-                      title="CLI Interface"
-                      type="FEATURE"
-                      description="CLI interface for the Tensara platform."
-                      date="4 days ago"
-                    />
-                    <UpdateCard
-                      title="Authentication"
-                      type="FEATURE"
-                      description="GitHub authentication system."
-                      date="1 week ago"
-                    />
-                    <UpdateCard
-                      title="v0.2.0 Release"
-                      type="RELEASE"
-                      description="Version 0.2.0 released with performance improvements."
-                      date="2 weeks ago"
-                    />
-                  </Box>
-                </Box>
-              </SimpleGrid>
-            </VStack>
-          </Container>
-        </Box>
 
         {/* CTA Section */}
         <Container maxW="8xl" py={20}>

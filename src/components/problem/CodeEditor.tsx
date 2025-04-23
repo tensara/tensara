@@ -17,20 +17,21 @@ function setupMonaco(monaco: Monaco) {
       { token: "", foreground: "cccccc" },
       { token: "comment", foreground: "6A9955", fontStyle: "italic" },
 
-      // Keywords and control flow
+      // Keywords and control flow (common to all languages)
       { token: "keyword", foreground: "569cd6" },
       { token: "keyword.control", foreground: "569cd6" },
 
-      // Types and variables - using the green color from the reference
+      // Types and variables (C++/CUDA)
       { token: "type", foreground: "4EC9B0" },
       { token: "variable", foreground: "cccccc" },
       { token: "variable.parameter", foreground: "9CDCFE" },
 
-      // Classes and interfaces
+      // Classes, structs, and interfaces
       { token: "class", foreground: "4EC9B0" },
+      { token: "struct", foreground: "4EC9B0" },
       { token: "interface", foreground: "4EC9B0" },
 
-      // Functions and methods - using the cyan color from the reference
+      // Functions and methods
       { token: "function", foreground: "4FC1FF" },
       { token: "function.declaration", foreground: "4FC1FF" },
 
@@ -38,7 +39,7 @@ function setupMonaco(monaco: Monaco) {
       { token: "string", foreground: "CE9178" },
       { token: "number", foreground: "B5CEA8" },
 
-      // Preprocessor directives
+      // Preprocessor directives (C++/CUDA)
       { token: "delimiter.directive", foreground: "569cd6" },
       { token: "keyword.directive", foreground: "569cd6" },
 
@@ -48,55 +49,70 @@ function setupMonaco(monaco: Monaco) {
       // Operators
       { token: "operator", foreground: "D4D4D4" },
 
-      // Special C++ tokens
+      // C++/CUDA specific tokens
       { token: "identifier.cpp", foreground: "D4D4D4" },
+
+      // CUDA specific tokens
+      { token: "keyword.cuda", foreground: "C586C0" }, // CUDA specific keywords
+      { token: "identifier.cuda", foreground: "DCDCAA" }, // CUDA specific identifiers
+
+      // Python specific tokens
+      { token: "keyword.python", foreground: "569cd6" },
+      { token: "function.python", foreground: "4FC1FF" },
+      { token: "class.python", foreground: "4EC9B0" },
+      { token: "decorator.python", foreground: "DCDCAA" },
+
+      // Triton specific tokens
+      { token: "keyword.triton", foreground: "C586C0" },
+      { token: "function.triton", foreground: "4FC1FF" },
+      { token: "decorator.triton", foreground: "DCDCAA" },
     ],
     colors: {
-      // Editor UI colors - darker gray background from the reference
-      "editor.background": "#1E1E1E",
+      // Editor UI colors - darker black background
+      "editor.background": "#111111",
       "editor.foreground": "#D4D4D4",
       "editorCursor.foreground": "#FFFFFF",
-      "editor.lineHighlightBackground": "#282828",
+      "editor.lineHighlightBackground": "#1A1A1A",
       "editorLineNumber.foreground": "#858585",
       "editor.selectionBackground": "#264F78",
       "editor.inactiveSelectionBackground": "#3A3D41",
-      "editorIndentGuide.background": "#404040",
+      "editorIndentGuide.background": "#303030",
 
       // Syntax highlighting
       "editor.wordHighlightBackground": "#575757B8",
       "editor.wordHighlightStrongBackground": "#004972B8",
 
       // UI elements
-      "editorGroupHeader.tabsBackground": "#252526",
-      "tab.activeBackground": "#1E1E1E",
-      "tab.inactiveBackground": "#2D2D2D",
+      "editorGroupHeader.tabsBackground": "#141414",
+      "tab.activeBackground": "#181818",
+      "tab.inactiveBackground": "#1C1C1C",
       "tab.activeForeground": "#FFFFFF",
       "tab.inactiveForeground": "#AAAAAA",
 
       // Borders and dividers
-      "editorGroup.border": "#444444",
-      "tab.border": "#252526",
+      "editorGroup.border": "#303030",
+      "tab.border": "#141414",
 
       // Status bar
-      "statusBar.background": "#252526",
+      "statusBar.background": "#141414",
       "statusBar.foreground": "#D4D4D4",
 
       // Activity bar
-      "activityBar.background": "#333333",
+      "activityBar.background": "#181818",
       "activityBar.foreground": "#D4D4D4",
 
       // Panel
-      "panel.background": "#1E1E1E",
-      "panel.border": "#444444",
+      "panel.background": "#111111",
+      "panel.border": "#303030",
 
       // Terminal
-      "terminal.background": "#1E1E1E",
+      "terminal.background": "#111111",
       "terminal.foreground": "#D4D4D4",
 
       // Scrollbar
-      "scrollbarSlider.background": "#424242AA",
-      "scrollbarSlider.hoverBackground": "#525252AA",
-      "scrollbarSlider.activeBackground": "#626262AA",
+      "scrollbarSlider.background": "#383838AA",
+      "scrollbarSlider.hoverBackground": "#454545AA",
+      "scrollbarSlider.activeBackground": "#505050AA",
     },
   });
 

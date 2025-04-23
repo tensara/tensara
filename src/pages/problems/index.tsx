@@ -175,232 +175,236 @@ export default function ProblemsPage() {
       ogTitle="Problems | Tensara"
       ogDescription="A collection of problems available to submit on Tensara."
     >
-      <VStack spacing={6} align="stretch" w="full">
-        <HStack spacing={4} w="full">
-          <InputGroup maxW="400px">
-            <InputLeftElement pointerEvents="none">
-              <FaSearch color="#d4d4d8" />
-            </InputLeftElement>
-            <Input
-              placeholder="Search problems..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              bg="whiteAlpha.50"
-              _hover={{ borderColor: "gray.600" }}
-              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-              color="white"
-            />
-          </InputGroup>
-
-          <Menu>
-            <MenuButton
-              as={Button}
-              rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-              bg="whiteAlpha.50"
-              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-              _active={{ bg: "whiteAlpha.150" }}
-              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-              color="white"
-              w="200px"
-              fontWeight="normal"
-              textAlign="left"
-              justifyContent="flex-start"
-            >
-              {difficultyOptions.find((opt) => opt.value === difficultyFilter)
-                ?.label ?? "All Difficulties"}
-            </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
-              {difficultyOptions.map((option) => (
-                <MenuItem
-                  key={option.value}
-                  onClick={() => setDifficultyFilter(option.value)}
-                  bg="gray.800"
-                  _hover={{ bg: "gray.700" }}
-                  color="white"
-                  borderRadius="md"
-                >
-                  {option.label}
-                </MenuItem>
-              ))}
-            </MenuList>
-          </Menu>
-
-          <Menu>
-            <MenuButton
-              as={Button}
-              rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-              bg="whiteAlpha.50"
-              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-              _active={{ bg: "whiteAlpha.150" }}
-              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-              color="white"
-              w="200px"
-              fontWeight="normal"
-              textAlign="left"
-              justifyContent="flex-start"
-            >
-              {tagFilter === "all"
-                ? "All Tags"
-                : tagAltNames[tagFilter as keyof typeof tagAltNames]}
-            </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
-              <MenuItem
-                onClick={() => setTagFilter("all")}
-                bg="gray.800"
-                _hover={{ bg: "gray.700" }}
+      <Box borderRadius="xl" h="100%" p={{ base: 4, md: 6 }} overflow="auto">
+        <VStack spacing={6} align="stretch" w="full">
+          <HStack spacing={4} w="full">
+            <InputGroup maxW="400px">
+              <InputLeftElement pointerEvents="none">
+                <FaSearch color="#d4d4d8" />
+              </InputLeftElement>
+              <Input
+                placeholder="Search problems..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                bg="whiteAlpha.50"
+                _hover={{ borderColor: "gray.600" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
                 color="white"
-                borderRadius="md"
+              />
+            </InputGroup>
+
+            <Menu>
+              <MenuButton
+                as={Button}
+                rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                bg="whiteAlpha.50"
+                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                _active={{ bg: "whiteAlpha.150" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                color="white"
+                w="200px"
+                fontWeight="normal"
+                textAlign="left"
+                justifyContent="flex-start"
               >
-                All Tags
-              </MenuItem>
-              {allTags.map((tag) => (
+                {difficultyOptions.find((opt) => opt.value === difficultyFilter)
+                  ?.label ?? "All Difficulties"}
+              </MenuButton>
+              <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+                {difficultyOptions.map((option) => (
+                  <MenuItem
+                    key={option.value}
+                    onClick={() => setDifficultyFilter(option.value)}
+                    bg="gray.800"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="md"
+                  >
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </MenuList>
+            </Menu>
+
+            <Menu>
+              <MenuButton
+                as={Button}
+                rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                bg="whiteAlpha.50"
+                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                _active={{ bg: "whiteAlpha.150" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                color="white"
+                w="200px"
+                fontWeight="normal"
+                textAlign="left"
+                justifyContent="flex-start"
+              >
+                {tagFilter === "all"
+                  ? "All Tags"
+                  : tagAltNames[tagFilter as keyof typeof tagAltNames]}
+              </MenuButton>
+              <MenuList bg="gray.800" borderColor="gray.700" p={0}>
                 <MenuItem
-                  key={tag}
-                  onClick={() => setTagFilter(tag)}
+                  onClick={() => setTagFilter("all")}
                   bg="gray.800"
                   _hover={{ bg: "gray.700" }}
                   color="white"
                   borderRadius="md"
                 >
-                  {tagAltNames[tag as keyof typeof tagAltNames]}
+                  All Tags
                 </MenuItem>
-              ))}
-            </MenuList>
-          </Menu>
-        </HStack>
+                {allTags.map((tag) => (
+                  <MenuItem
+                    key={tag}
+                    onClick={() => setTagFilter(tag)}
+                    bg="gray.800"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="md"
+                  >
+                    {tagAltNames[tag as keyof typeof tagAltNames]}
+                  </MenuItem>
+                ))}
+              </MenuList>
+            </Menu>
+          </HStack>
 
-        <Text color="gray.400" fontSize="sm">
-          Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "}
-          problems
-        </Text>
+          <Text color="gray.400" fontSize="sm">
+            Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "}
+            problems
+          </Text>
 
-        <Box
-          overflowX="auto"
-          borderRadius="xl"
-          bg="whiteAlpha.50"
-          border="1px solid"
-          borderColor="gray.700"
-        >
-          <Table variant="simple">
-            <Thead bg="gray.800">
-              <Tr>
-                <Th
-                  color="gray.300"
-                  fontSize="md"
-                  py={4}
-                  borderBottom="1px solid"
-                  borderColor="gray.700"
-                  cursor="pointer"
-                  onClick={() => handleSort("title")}
-                  _hover={{ color: "white" }}
-                >
-                  <HStack spacing={2}>
-                    <Text>Title</Text>
-                    <SortIcon field="title" />
-                  </HStack>
-                </Th>
-                <Th
-                  color="gray.300"
-                  fontSize="md"
-                  width="180px"
-                  borderBottom="1px solid"
-                  borderColor="gray.700"
-                  cursor="pointer"
-                  onClick={() => handleSort("difficulty")}
-                  _hover={{ color: "white" }}
-                >
-                  <HStack spacing={2}>
-                    <Text>Difficulty</Text>
-                    <SortIcon field="difficulty" />
-                  </HStack>
-                </Th>
-                <Th
-                  color="gray.300"
-                  fontSize="md"
-                  width="180px"
-                  borderBottom="1px solid"
-                  borderColor="gray.700"
-                  cursor="pointer"
-                  _hover={{ color: "white" }}
-                >
-                  Tags
-                </Th>
-                <Th
-                  color="gray.300"
-                  fontSize="md"
-                  width="200px"
-                  display={{ base: "none", md: "table-cell" }}
-                  borderBottom="1px solid"
-                  borderColor="gray.700"
-                  cursor="pointer"
-                  onClick={() => handleSort("submissionCount")}
-                  _hover={{ color: "white" }}
-                >
-                  <HStack spacing={2}>
-                    <Text>Submissions</Text>
-                    <SortIcon field="submissionCount" />
-                  </HStack>
-                </Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {filteredAndSortedProblems?.map((problem) => (
-                <Tr
-                  key={problem.id}
-                  _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
-                  transition="all 0.2s"
-                  cursor="pointer"
-                  onClick={() =>
-                    (window.location.href = `/problems/${problem.slug}`)
-                  }
-                  borderBottom="1px solid"
-                  borderColor="gray.800"
-                >
-                  <Td color="white" borderBottom="none">
-                    {problem.title}
-                  </Td>
-                  <Td borderBottom="none">
-                    <Badge
-                      colorScheme={getDifficultyColor(problem.difficulty)}
-                      px={2}
-                      py={1}
-                      borderRadius="full"
-                    >
-                      {problem.difficulty}
-                    </Badge>
-                  </Td>
-                  <Td color="white" borderBottom="none">
-                    {problem.tags && problem.tags.length > 0 && (
-                      <HStack spacing={1} flex="0 0 auto">
-                        {problem.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            bg="gray.600"
-                            color="gray.100"
-                            variant="solid"
-                            fontSize="xs"
-                            px={2}
-                            py={0.5}
-                            borderRadius="full"
-                            title={tagAltNames[tag as keyof typeof tagAltNames]}
-                          >
-                            {tagNames[tag as keyof typeof tagNames]}
-                          </Badge>
-                        ))}
-                      </HStack>
-                    )}
-                  </Td>
-                  <Td borderBottom="none">
-                    <Text color="gray.400" fontSize="sm">
-                      {problem.submissionCount}
-                    </Text>
-                  </Td>
+          <Box
+            overflowX="auto"
+            borderRadius="xl"
+            bg="whiteAlpha.50"
+            border="1px solid"
+            borderColor="gray.700"
+          >
+            <Table variant="simple">
+              <Thead bg="gray.800">
+                <Tr>
+                  <Th
+                    color="gray.300"
+                    fontSize="md"
+                    py={4}
+                    borderBottom="1px solid"
+                    borderColor="gray.700"
+                    cursor="pointer"
+                    onClick={() => handleSort("title")}
+                    _hover={{ color: "white" }}
+                  >
+                    <HStack spacing={2}>
+                      <Text>Title</Text>
+                      <SortIcon field="title" />
+                    </HStack>
+                  </Th>
+                  <Th
+                    color="gray.300"
+                    fontSize="md"
+                    width="180px"
+                    borderBottom="1px solid"
+                    borderColor="gray.700"
+                    cursor="pointer"
+                    onClick={() => handleSort("difficulty")}
+                    _hover={{ color: "white" }}
+                  >
+                    <HStack spacing={2}>
+                      <Text>Difficulty</Text>
+                      <SortIcon field="difficulty" />
+                    </HStack>
+                  </Th>
+                  <Th
+                    color="gray.300"
+                    fontSize="md"
+                    width="180px"
+                    borderBottom="1px solid"
+                    borderColor="gray.700"
+                    cursor="pointer"
+                    _hover={{ color: "white" }}
+                  >
+                    Tags
+                  </Th>
+                  <Th
+                    color="gray.300"
+                    fontSize="md"
+                    width="200px"
+                    display={{ base: "none", md: "table-cell" }}
+                    borderBottom="1px solid"
+                    borderColor="gray.700"
+                    cursor="pointer"
+                    onClick={() => handleSort("submissionCount")}
+                    _hover={{ color: "white" }}
+                  >
+                    <HStack spacing={2}>
+                      <Text>Submissions</Text>
+                      <SortIcon field="submissionCount" />
+                    </HStack>
+                  </Th>
                 </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        </Box>
-      </VStack>
+              </Thead>
+              <Tbody>
+                {filteredAndSortedProblems?.map((problem) => (
+                  <Tr
+                    key={problem.id}
+                    _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
+                    transition="all 0.2s"
+                    cursor="pointer"
+                    onClick={() =>
+                      (window.location.href = `/problems/${problem.slug}`)
+                    }
+                    borderBottom="1px solid"
+                    borderColor="gray.800"
+                  >
+                    <Td color="white" borderBottom="none">
+                      {problem.title}
+                    </Td>
+                    <Td borderBottom="none">
+                      <Badge
+                        colorScheme={getDifficultyColor(problem.difficulty)}
+                        px={2}
+                        py={1}
+                        borderRadius="full"
+                      >
+                        {problem.difficulty}
+                      </Badge>
+                    </Td>
+                    <Td color="white" borderBottom="none">
+                      {problem.tags && problem.tags.length > 0 && (
+                        <HStack spacing={1} flex="0 0 auto">
+                          {problem.tags.map((tag) => (
+                            <Badge
+                              key={tag}
+                              bg="gray.600"
+                              color="gray.100"
+                              variant="solid"
+                              fontSize="xs"
+                              px={2}
+                              py={0.5}
+                              borderRadius="full"
+                              title={
+                                tagAltNames[tag as keyof typeof tagAltNames]
+                              }
+                            >
+                              {tagNames[tag as keyof typeof tagNames]}
+                            </Badge>
+                          ))}
+                        </HStack>
+                      )}
+                    </Td>
+                    <Td borderBottom="none">
+                      <Text color="gray.400" fontSize="sm">
+                        {problem.submissionCount}
+                      </Text>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </Box>
+        </VStack>
+      </Box>
     </Layout>
   );
 }
