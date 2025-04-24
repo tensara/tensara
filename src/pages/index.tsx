@@ -428,13 +428,13 @@ export default function HomePage() {
                     <UpdateCard
                       title="Authentication"
                       type="FEATURE"
-                      description="GitHub authentication system."
+                      description="GitHub authentication via CLI."
                       date="1 week ago"
                     />
                     <UpdateCard
-                      title="v0.2.0 Release"
+                      title="v0.2.0 (Beta) Release"
                       type="RELEASE"
-                      description="Version 0.2.0 released with performance improvements."
+                      description="Released the beta version for the CLI tool."
                       date="2 weeks ago"
                     />
                   </Box>
@@ -473,7 +473,7 @@ export default function HomePage() {
                     <UpdateCard
                       title="Python problem definitions"
                       type="FEATURE"
-                      description="Helps in velocity of adding new problems."
+                      description="Adding problems is easier, check our GitHub repo."
                       date="2 weeks ago"
                     />
                   </Box>
