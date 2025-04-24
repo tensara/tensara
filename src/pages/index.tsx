@@ -36,7 +36,6 @@ import {
 import { FaDiscord, FaGithub, FaTwitter, FaEnvelope } from "react-icons/fa";
 import { type IconType } from "react-icons";
 import AnimatedCudaEditor from "~/components/CudaEditor";
-import TensaraPipelineProgress from "~/components/Pipeline";
 
 // Create motion components
 const MotionVStack = motion(VStack);
@@ -397,8 +396,6 @@ export default function HomePage() {
             </Flex>
           </Container>
         </MotionBox>
-
-        <TensaraPipelineProgress />
 
         {/* Updates Section */}
         <Box py={16}>
