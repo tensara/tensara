@@ -27,37 +27,6 @@ export default function ContestsPage() {
           gap={{ base: 4, sm: 0 }}
         >
           <Heading size="lg">Contests</Heading>
-
-          <Flex align="center" gap={4}>
-            <Tabs variant="soft-rounded" colorScheme="blue">
-              <TabList bg="brand.secondary" p={1} borderRadius="full">
-                <Tab
-                  _selected={{ color: "white", bg: "brand.secondary" }}
-                  onClick={() => setStatusFilter("ALL")}
-                >
-                  All
-                </Tab>
-                <Tab
-                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
-                  onClick={() => setStatusFilter("ACTIVE")}
-                >
-                  Active
-                </Tab>
-                <Tab
-                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
-                  onClick={() => setStatusFilter("UPCOMING")}
-                >
-                  Upcoming
-                </Tab>
-                <Tab
-                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
-                  onClick={() => setStatusFilter("COMPLETED")}
-                >
-                  Completed
-                </Tab>
-              </TabList>
-            </Tabs>
-          </Flex>
         </Flex>
 
         <MotionBox
