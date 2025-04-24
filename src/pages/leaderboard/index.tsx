@@ -243,13 +243,19 @@ const LeaderboardPage: NextPage = () => {
                       >
                         {GPU_DISPLAY_NAMES[selectedGpu]}
                       </MenuButton>
-                      <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+                      <MenuList
+                        bg="brand.secondary"
+                        borderColor="gray.800"
+                        p={0}
+                        borderRadius="md"
+                        minW="200px"
+                      >
                         {Object.entries(GPU_DISPLAY_NAMES).map(
                           ([key, value]) => (
                             <MenuItem
                               key={key}
                               onClick={() => setSelectedGpu(key)}
-                              bg="gray.800"
+                              bg="brand.secondary"
                               _hover={{ bg: "gray.700" }}
                               color="white"
                               borderRadius="md"

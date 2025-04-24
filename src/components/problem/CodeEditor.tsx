@@ -1,6 +1,8 @@
-import { Box } from "@chakra-ui/react";
+import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
+import { useState } from "react";
 
 interface CodeEditorProps {
   code: string;
@@ -254,9 +256,70 @@ function setupMonaco(monaco: Monaco) {
   });
 }
 
+const pulseAnimation = keyframes`
+  0% { opacity: 0.6; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.6; }
+`;
+
 const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
+  const [isEditorLoading, setIsEditorLoading] = useState(true);
+
   return (
-    <Box w="100%" h="100%" bg="gray.800" borderRadius="xl" overflow="hidden">
+    <Box
+      w="100%"
+      h="100%"
+      bg="brand.secondary"
+      borderRadius="xl"
+      overflow="hidden"
+      position="relative"
+    >
+      {isEditorLoading && (
+        <Flex
+          position="absolute"
+          w="100%"
+          h="100%"
+          zIndex="1"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Box
+            position="absolute"
+            top="0"
+            left="0"
+            right="0"
+            bottom="0"
+            bgGradient="linear(to-b, brand.dark, #191919)"
+            animation={`${pulseAnimation} 2s infinite ease-in-out`}
+          />
+
+          <Spinner
+            size="xl"
+            thickness="3px"
+            speed="0.8s"
+            color="brand.navbar"
+            zIndex="2"
+            mb="3"
+          />
+
+          <Text color="gray.300" fontFamily="mono" fontSize="sm" zIndex="2">
+            Loading editor...
+          </Text>
+
+          <Box mt="8" maxW="80%" zIndex="2">
+            <Text
+              color="gray.500"
+              fontSize="xs"
+              textAlign="center"
+              fontFamily="mono"
+            >
+              {selectedLanguage === "cuda" ? "CUDA C++" : "Python"} environment
+            </Text>
+          </Box>
+        </Flex>
+      )}
+
       <Editor
         height="100%"
         theme="tensara-dark"
@@ -264,6 +327,8 @@ const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
         onChange={(value) => setCode(value ?? "")}
         language={selectedLanguage === "cuda" ? "cpp" : "python"}
         beforeMount={setupMonaco}
+        onMount={() => setIsEditorLoading(false)}
+        loading={null}
         options={{
           minimap: { enabled: false },
           fontSize: 14,

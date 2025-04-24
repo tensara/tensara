@@ -117,10 +117,11 @@ const SplitPanel = ({
           top="50%"
           transform="translate(-50%, -50%)"
           width="6px"
-          height="80px"
-          bg="whiteAlpha.200"
+          height={isResizing ? "120px" : "80px"}
+          bg={"whiteAlpha.200"}
           borderRadius="full"
-          transition="all 0.2s"
+          transition="all 0.2s ease"
+          boxShadow={isResizing ? "0 0 10px 2px brand.dark" : "none"}
         />
       </Box>
 

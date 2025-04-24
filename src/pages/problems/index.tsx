@@ -210,12 +210,18 @@ export default function ProblemsPage() {
                 {difficultyOptions.find((opt) => opt.value === difficultyFilter)
                   ?.label ?? "All Difficulties"}
               </MenuButton>
-              <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+              <MenuList
+                bg="brand.secondary"
+                borderColor="gray.700"
+                p={0}
+                borderRadius="md"
+                minW="200px"
+              >
                 {difficultyOptions.map((option) => (
                   <MenuItem
                     key={option.value}
                     onClick={() => setDifficultyFilter(option.value)}
-                    bg="gray.800"
+                    bg="brand.secondary"
                     _hover={{ bg: "gray.700" }}
                     color="white"
                     borderRadius="md"
@@ -244,10 +250,15 @@ export default function ProblemsPage() {
                   ? "All Tags"
                   : tagAltNames[tagFilter as keyof typeof tagAltNames]}
               </MenuButton>
-              <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+              <MenuList
+                bg="brand.secondary"
+                borderColor="gray.700"
+                p={0}
+                minW="200px"
+              >
                 <MenuItem
                   onClick={() => setTagFilter("all")}
-                  bg="gray.800"
+                  bg="brand.secondary"
                   _hover={{ bg: "gray.700" }}
                   color="white"
                   borderRadius="md"
@@ -258,7 +269,7 @@ export default function ProblemsPage() {
                   <MenuItem
                     key={tag}
                     onClick={() => setTagFilter(tag)}
-                    bg="gray.800"
+                    bg="brand.secondary"
                     _hover={{ bg: "gray.700" }}
                     color="white"
                     borderRadius="md"
@@ -280,17 +291,17 @@ export default function ProblemsPage() {
             borderRadius="xl"
             bg="whiteAlpha.50"
             border="1px solid"
-            borderColor="gray.700"
+            borderColor="whiteAlpha.100"
           >
             <Table variant="simple">
-              <Thead bg="rgba(15, 23, 42, 0.6)">
+              <Thead bg="brand.card">
                 <Tr>
                   <Th
                     color="gray.300"
                     fontSize="md"
                     py={4}
                     borderBottom="1px solid"
-                    borderColor="gray.700"
+                    borderColor="brand.primary"
                     cursor="pointer"
                     onClick={() => handleSort("title")}
                     _hover={{ color: "white" }}
@@ -305,7 +316,7 @@ export default function ProblemsPage() {
                     fontSize="md"
                     width="180px"
                     borderBottom="1px solid"
-                    borderColor="gray.700"
+                    borderColor="brand.primary"
                     cursor="pointer"
                     onClick={() => handleSort("difficulty")}
                     _hover={{ color: "white" }}
@@ -320,7 +331,7 @@ export default function ProblemsPage() {
                     fontSize="md"
                     width="180px"
                     borderBottom="1px solid"
-                    borderColor="gray.700"
+                    borderColor="brand.primary"
                     cursor="pointer"
                     _hover={{ color: "white" }}
                   >
@@ -332,7 +343,7 @@ export default function ProblemsPage() {
                     width="200px"
                     display={{ base: "none", md: "table-cell" }}
                     borderBottom="1px solid"
-                    borderColor="gray.700"
+                    borderColor="brand.primary"
                     cursor="pointer"
                     onClick={() => handleSort("submissionCount")}
                     _hover={{ color: "white" }}
@@ -347,6 +358,7 @@ export default function ProblemsPage() {
               <Tbody>
                 {filteredAndSortedProblems?.map((problem) => (
                   <Tr
+                    bg="brand.secondary"
                     key={problem.id}
                     _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
                     transition="all 0.2s"

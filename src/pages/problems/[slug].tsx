@@ -301,8 +301,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
       ogImgSubtitle={`${problem.difficulty.charAt(0) + problem.difficulty.toLowerCase().slice(1)} | Problems | Tensara`}
     >
       <Box
-        bg="#181f2a"
+        bg="brand.secondary"
         borderRadius="xl"
+        border="1px solid"
+        borderColor="gray.800"
         h="100%"
         p={{ base: 4, md: 6 }}
         overflow="auto"

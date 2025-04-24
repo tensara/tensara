@@ -6,8 +6,8 @@ const AnimatedCudaEditor = () => {
     () => [
       "#include <cuda_runtime.h>",
       "",
-      "// Note: input vectors A, B and output C are all device pointers",
-      'extern "C" void vectorAdd(const float* A, const float* B, float* C, int N) {',
+      "",
+      "__global__ void vectorAdd(const float* A, const float* B, float* C, int N) {",
       "}",
     ],
     []
@@ -17,8 +17,8 @@ const AnimatedCudaEditor = () => {
     () => [
       "#include <cuda_runtime.h>",
       "",
-      "// Note: input vectors A, B and output C are all device pointers",
-      'extern "C" void vectorAdd(const float* A, const float* B, float* C, int N) {',
+      "",
+      "__global__ void vectorAdd(const float* A, const float* B, float* C, int N) {",
       "  // Get thread index",
       "  const int i = blockIdx.x * blockDim.x + threadIdx.x;",
       "",

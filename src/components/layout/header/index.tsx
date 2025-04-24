@@ -267,7 +267,6 @@ export function Header() {
                         px={4}
                         py={3}
                         _hover={{
-                          bg: "whiteAlpha.200",
                           transform: "translateX(3px)",
                         }}
                         onClick={onMenuClose}
@@ -305,7 +304,6 @@ export function Header() {
                         px={4}
                         py={3}
                         _hover={{
-                          bg: "whiteAlpha.200",
                           transform: "translateX(3px)",
                         }}
                         onClick={onMenuClose}
@@ -341,7 +339,6 @@ export function Header() {
                       px={4}
                       py={3}
                       _hover={{
-                        bg: "whiteAlpha.200",
                         transform: "translateX(3px)",
                       }}
                       onClick={() => {

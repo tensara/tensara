@@ -45,15 +45,6 @@ const MotionFlex = motion(Flex);
 const MotionCard = motion(Card);
 const MotionGrid = motion(Grid);
 
-// Define update types with different colors
-const updateTypes = {
-  FEATURE: { color: "green.400", label: "Feature" },
-  IMPROVEMENT: { color: "blue.400", label: "Improvement" },
-  FIX: { color: "orange.400", label: "Fix" },
-  RELEASE: { color: "purple.400", label: "Release" },
-};
-
-// Feature card component
 const FeatureCard = ({
   icon,
   title,
@@ -65,7 +56,7 @@ const FeatureCard = ({
 }) => {
   return (
     <Box
-      bg="rgba(14, 35, 55, 0.4)"
+      bg="brand.card"
       borderRadius="xl"
       p={6}
       borderWidth="1px"
@@ -96,43 +87,6 @@ const FeatureCard = ({
           {title}
         </Heading>
         <Text color="whiteAlpha.800">{description}</Text>
-      </Flex>
-    </Box>
-  );
-};
-
-// Stat card component
-const StatCard = ({
-  label,
-  value,
-  helpText,
-  icon,
-}: {
-  label: string;
-  value: number;
-  helpText: string;
-  icon: IconType;
-}) => {
-  return (
-    <Box
-      borderRadius="xl"
-      p={6}
-      borderWidth="1px"
-      borderColor="rgba(255, 255, 255, 0.1)"
-    >
-      <Flex align="center" justify="space-between">
-        <Stat>
-          <StatLabel color="whiteAlpha.700">{label}</StatLabel>
-          <StatNumber fontSize="3xl" fontWeight="bold" color="white">
-            {value}
-          </StatNumber>
-          {helpText && (
-            <StatHelpText color="whiteAlpha.600">{helpText}</StatHelpText>
-          )}
-        </Stat>
-        <Box color="#2ecc71">
-          <Icon as={icon} boxSize={8} />
-        </Box>
       </Flex>
     </Box>
   );
@@ -407,7 +361,7 @@ export default function HomePage() {
 
               <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
                 <Box
-                  bg="rgba(15, 23, 42, 0.6)"
+                  bg="brand.card"
                   borderRadius="xl"
                   overflow="hidden"
                   borderWidth="1px"
@@ -416,10 +370,10 @@ export default function HomePage() {
                   <Flex
                     p={4}
                     borderBottomWidth="1px"
-                    borderColor="whiteAlpha.100"
+                    borderColor="brand.primary"
                     align="center"
                   >
-                    <Icon as={FiGitPullRequest} color="#2ecc71" mr={2} />
+                    <Icon as={FiGitPullRequest} color="brand.primary" mr={2} />
                     <Heading size="sm" color="white">
                       Core Platform
                     </Heading>
@@ -447,7 +401,7 @@ export default function HomePage() {
                 </Box>
 
                 <Box
-                  bg="rgba(15, 23, 42, 0.6)"
+                  bg="brand.card"
                   borderRadius="xl"
                   overflow="hidden"
                   borderWidth="1px"
@@ -456,10 +410,10 @@ export default function HomePage() {
                   <Flex
                     p={4}
                     borderBottomWidth="1px"
-                    borderColor="whiteAlpha.100"
+                    borderColor="brand.primary"
                     align="center"
                   >
-                    <Icon as={FiTerminal} color="#2ecc71" mr={2} />
+                    <Icon as={FiTerminal} color="brand.primary" mr={2} />
                     <Heading size="sm" color="white">
                       CLI Tool
                     </Heading>
@@ -486,7 +440,7 @@ export default function HomePage() {
                   </Box>
                 </Box>
                 <Box
-                  bg="rgba(15, 23, 42, 0.6)"
+                  bg="brand.card"
                   borderRadius="xl"
                   overflow="hidden"
                   borderWidth="1px"
@@ -495,10 +449,10 @@ export default function HomePage() {
                   <Flex
                     p={4}
                     borderBottomWidth="1px"
-                    borderColor="whiteAlpha.100"
+                    borderColor="brand.primary"
                     align="center"
                   >
-                    <Icon as={FiBookOpen} color="#2ecc71" mr={2} />
+                    <Icon as={FiBookOpen} color="brand.primary" mr={2} />
                     <Heading size="sm" color="white">
                       Problems
                     </Heading>

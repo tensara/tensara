@@ -85,12 +85,18 @@ const SubmissionForm = ({
             >
               {GPU_DISPLAY_NAMES[selectedGpuType]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+            <MenuList
+              bg="brand.secondary"
+              borderColor="gray.700"
+              p={0}
+              borderRadius="md"
+              minW="140px"
+            >
               {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                 <MenuItem
                   key={key}
                   onClick={() => setSelectedGpuType(key)}
-                  bg="gray.800"
+                  bg="brand.secondary"
                   _hover={{ bg: "gray.700" }}
                   color="white"
                   borderRadius="md"
@@ -124,11 +130,17 @@ const SubmissionForm = ({
             >
               {selectedLanguage === "cuda" ? "CUDA C++" : "Python (Triton)"}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+            <MenuList
+              bg="brand.secondary"
+              borderColor="gray.700"
+              p={0}
+              borderRadius="md"
+              minW="140px"
+            >
               <MenuItem
                 key="cuda"
                 onClick={() => setSelectedLanguage("cuda")}
-                bg="gray.800"
+                bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="md"
@@ -138,7 +150,7 @@ const SubmissionForm = ({
               <MenuItem
                 key="python"
                 onClick={() => setSelectedLanguage("python")}
-                bg="gray.800"
+                bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="md"
@@ -180,11 +192,17 @@ const SubmissionForm = ({
             >
               {selectedDataType}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+            <MenuList
+              bg="brand.secondary"
+              borderColor="gray.700"
+              p={0}
+              borderRadius="md"
+              minW="140px"
+            >
               <MenuItem
                 key="float32"
                 onClick={() => setSelectedDataType("float32")}
-                bg="gray.800"
+                bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="md"
@@ -194,7 +212,7 @@ const SubmissionForm = ({
               <MenuItem
                 key="float16"
                 onClick={() => setSelectedDataType("float16")}
-                bg="gray.800"
+                bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
@@ -205,7 +223,7 @@ const SubmissionForm = ({
               <MenuItem
                 key="int32"
                 onClick={() => setSelectedDataType("int32")}
-                bg="gray.800"
+                bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
@@ -216,7 +234,7 @@ const SubmissionForm = ({
               <MenuItem
                 key="int16"
                 onClick={() => setSelectedDataType("int16")}
-                bg="gray.800"
+                bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
