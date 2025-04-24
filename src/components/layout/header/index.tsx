@@ -401,10 +401,11 @@ export function Header() {
           <Link href="/" passHref legacyBehavior>
             <HStack as="a">
               <Image
-                src="/tensara_logo_notext.png"
+                src="/logo_no_bg.png"
                 alt="Tensara Logo"
-                w={12}
-                h={12}
+                w={6}
+                h={6}
+                mr={1}
               />
               <Text
                 fontSize="xl"
