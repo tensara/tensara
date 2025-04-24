@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from "react";
-import { Box } from "@chakra-ui/react";
+import { Box, Image } from "@chakra-ui/react";
 
 interface SplitPanelProps {
   leftContent: React.ReactNode;
@@ -123,6 +123,20 @@ const SplitPanel = ({
           transition="all 0.2s ease"
           boxShadow={isResizing ? "0 0 10px 2px brand.dark" : "none"}
         />
+
+        {/* GPU Icon */}
+        <Box
+          position="absolute"
+          left="50%"
+          top="calc(50% + 50px)"
+          transform="translate(-50%, -50%)"
+          width="24px"
+          height="24px"
+          opacity={isResizing ? 0.9 : 0.5}
+          transition="all 0.3s ease"
+          _hover={{ opacity: 0.9 }}
+          filter={isResizing ? "brightness(1.5)" : "brightness(1)"}
+        ></Box>
       </Box>
 
       {/* Right Panel */}

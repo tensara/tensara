@@ -62,8 +62,8 @@ const UserHeaderBox: React.FC<UserHeaderBoxProps> = ({
         <Skeleton
           isLoaded={!isLoading}
           mx="auto"
-          startColor="brand.secondary"
-          endColor="brand.secondary"
+          startColor="gray.700"
+          endColor="gray.800"
         >
           <Image
             src={userData?.image ?? "https://via.placeholder.com/150"}

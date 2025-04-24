@@ -133,8 +133,9 @@ export default function UserProfile() {
                 <Skeleton
                   isLoaded={!isLoading}
                   height={isLoading ? "200px" : "auto"}
-                  startColor="brand.secondary"
-                  endColor="brand.secondary"
+                  startColor="gray.700"
+                  endColor="gray.800"
+                  borderRadius="xl"
                 >
                   {userData?.activityData &&
                     userData.activityData.length > 0 && (

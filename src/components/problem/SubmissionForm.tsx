@@ -21,7 +21,6 @@ import { IoRepeat } from "react-icons/io5";
 import { FaInfoCircle, FaChevronDown } from "react-icons/fa";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 interface SubmissionFormProps {
   selectedGpuType: string;

@@ -71,15 +71,15 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
       <Box bg="brand.secondary" px={0} py={0}>
         {isLoading ? (
           <VStack spacing={1} align="stretch" p={2}>
-            {Array(3)
+            {Array(4)
               .fill(undefined)
               .map(
                 (_: undefined, i: number): JSX.Element => (
                   <Skeleton
                     key={i}
                     height="80px"
-                    startColor="brand.secondary"
-                    endColor="brand.secondary"
+                    startColor="gray.700"
+                    endColor="gray.800"
                     borderRadius="md"
                   />
                 )
