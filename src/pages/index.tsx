@@ -132,7 +132,13 @@ const UpdateCard = ({
         <Heading size="sm" color="white">
           {title}
         </Heading>
-        <Badge colorScheme={getBadgeColor(type)} fontSize="xs" borderRadius="md" px={2} py={1}>
+        <Badge
+          colorScheme={getBadgeColor(type)}
+          fontSize="xs"
+          borderRadius="md"
+          px={2}
+          py={1}
+        >
           {type}
         </Badge>
       </Flex>

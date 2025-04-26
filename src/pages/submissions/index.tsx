@@ -457,7 +457,12 @@ const SubmissionsPage: NextPage = () => {
                         cursor: "pointer",
                       }}
                     >
-                      <Badge colorScheme={getStatusColor(submission.status)} borderRadius='md' py={0.5} px={2}>
+                      <Badge
+                        colorScheme={getStatusColor(submission.status)}
+                        borderRadius="md"
+                        py={0.5}
+                        px={2}
+                      >
                         {formatStatus(submission.status)}
                       </Badge>
                     </Link>

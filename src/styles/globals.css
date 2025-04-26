@@ -131,7 +131,9 @@ a {
 /* Base highlight styles */
 .highlight {
   transform: scaleX(0);
-  transition: transform 0.25s ease, opacity 0.15s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.15s ease;
 }
 
 /* Direction-specific transforms */

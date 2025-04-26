@@ -208,8 +208,9 @@ export default function ProblemsPage() {
                   textAlign="left"
                   justifyContent="flex-start"
                 >
-                  {difficultyOptions.find((opt) => opt.value === difficultyFilter)
-                    ?.label ?? "All Difficulties"}
+                  {difficultyOptions.find(
+                    (opt) => opt.value === difficultyFilter
+                  )?.label ?? "All Difficulties"}
                 </MenuButton>
                 <MenuList
                   bg="brand.secondary"
@@ -302,8 +303,14 @@ export default function ProblemsPage() {
                     color="gray.300"
                     fontSize="md"
                     py={4}
-                    borderBottom={filteredAndSortedProblems.length ? "1px solid" : "none"}
-                    borderColor={filteredAndSortedProblems.length ? "brand.primary" : "none"}
+                    borderBottom={
+                      filteredAndSortedProblems.length ? "1px solid" : "none"
+                    }
+                    borderColor={
+                      filteredAndSortedProblems.length
+                        ? "brand.primary"
+                        : "none"
+                    }
                     cursor="pointer"
                     onClick={() => handleSort("title")}
                     _hover={{ color: "white" }}
@@ -317,8 +324,14 @@ export default function ProblemsPage() {
                     color="gray.300"
                     fontSize="md"
                     width="180px"
-                    borderBottom={filteredAndSortedProblems.length ? "1px solid" : "none"}
-                    borderColor={filteredAndSortedProblems.length ? "brand.primary" : "none"}
+                    borderBottom={
+                      filteredAndSortedProblems.length ? "1px solid" : "none"
+                    }
+                    borderColor={
+                      filteredAndSortedProblems.length
+                        ? "brand.primary"
+                        : "none"
+                    }
                     cursor="pointer"
                     onClick={() => handleSort("difficulty")}
                     _hover={{ color: "white" }}
@@ -332,8 +345,14 @@ export default function ProblemsPage() {
                     color="gray.300"
                     fontSize="md"
                     width="180px"
-                    borderBottom={filteredAndSortedProblems.length ? "1px solid" : "none"}
-                    borderColor={filteredAndSortedProblems.length ? "brand.primary" : "none"}
+                    borderBottom={
+                      filteredAndSortedProblems.length ? "1px solid" : "none"
+                    }
+                    borderColor={
+                      filteredAndSortedProblems.length
+                        ? "brand.primary"
+                        : "none"
+                    }
                     cursor="pointer"
                     _hover={{ color: "white" }}
                   >
@@ -344,8 +363,14 @@ export default function ProblemsPage() {
                     fontSize="md"
                     width="200px"
                     display={{ base: "none", md: "table-cell" }}
-                    borderBottom={filteredAndSortedProblems.length ? "1px solid" : "none"}
-                    borderColor={filteredAndSortedProblems.length ? "brand.primary" : "none"}
+                    borderBottom={
+                      filteredAndSortedProblems.length ? "1px solid" : "none"
+                    }
+                    borderColor={
+                      filteredAndSortedProblems.length
+                        ? "brand.primary"
+                        : "none"
+                    }
                     cursor="pointer"
                     onClick={() => handleSort("submissionCount")}
                     _hover={{ color: "white" }}
