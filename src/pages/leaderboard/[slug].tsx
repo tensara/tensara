@@ -22,6 +22,7 @@ import {
   MenuItem,
   Menu,
   Icon,
+  textDecoration,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { api } from "~/utils/api";
@@ -43,6 +44,7 @@ import {
   FaLock,
   FaChevronLeft,
 } from "react-icons/fa";
+import { FiArrowLeft } from "react-icons/fi";
 import { useSession } from "next-auth/react";
 
 type LeaderboardEntry = {
@@ -185,11 +187,23 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
             mb={1}
             display="flex"
             alignItems="center"
-            color="blue.400"
-            _hover={{ color: "blue.300", textDecoration: "none" }}
+            _hover={{
+              textDecoration: "none",
+            }}
           >
-            <Icon as={FaChevronLeft} mr={1} boxSize={3} />
-            <Text fontSize="sm">Back to Leaderboards</Text>
+            <Button
+              size="sm"
+              variant="ghost"
+              leftIcon={<Icon as={FiArrowLeft} />}
+              borderRadius="lg"
+              color="gray.300"
+              _hover={{
+                bg: "whiteAlpha.50",
+                color: "white",
+              }}
+            >
+              Back to Leaderboards
+            </Button>
           </ChakraLink>
 
           <HStack justify="space-between" align="center">
@@ -285,6 +299,17 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                         borderBottom="1px solid"
                         borderColor="whiteAlpha.100"
                         my={medalColor ? 2 : 0}
+                        bg={
+                          medalColor
+                            ? `rgba(${
+                                medalColor
+                                  .replace("#", "")
+                                  .match(/../g)
+                                  ?.map((hex) => parseInt(hex, 16))
+                                  .join(",") ?? "0, 0, 0"
+                              }, 0.08)`
+                            : undefined
+                        }
                       >
                         <Td borderBottom="none">
                           <Text

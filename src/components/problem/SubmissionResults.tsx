@@ -159,7 +159,7 @@ const SubmissionResults = ({
             variant="ghost"
             onClick={onBackToProblem}
             leftIcon={<Icon as={FiArrowLeft} />}
-            borderRadius="full"
+            borderRadius="lg"
             color="gray.300"
             _hover={{
               bg: "whiteAlpha.50",
