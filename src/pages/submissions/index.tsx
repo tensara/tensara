@@ -247,7 +247,7 @@ const SubmissionsPage: NextPage = () => {
             >
               {GPU_DISPLAY_NAMES[gpuFilter]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+            <MenuList bg="gray.800" borderColor="gray.800" p={0}>
               {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                 <MenuItem
                   key={key}
@@ -278,7 +278,7 @@ const SubmissionsPage: NextPage = () => {
             >
               {LANGUAGE_DISPLAY_NAMES[languageFilter]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+            <MenuList bg="gray.800" borderColor="gray.800" p={0}>
               {Object.entries(LANGUAGE_DISPLAY_NAMES).map(([key, value]) => (
                 <MenuItem
                   key={key}
@@ -457,7 +457,7 @@ const SubmissionsPage: NextPage = () => {
                         cursor: "pointer",
                       }}
                     >
-                      <Badge colorScheme={getStatusColor(submission.status)}>
+                      <Badge colorScheme={getStatusColor(submission.status)} borderRadius='md' py={0.5} px={2}>
                         {formatStatus(submission.status)}
                       </Badge>
                     </Link>

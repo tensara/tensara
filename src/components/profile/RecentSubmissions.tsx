@@ -11,6 +11,7 @@ import {
   Divider,
   Tag,
   Skeleton,
+  Badge,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 
@@ -112,7 +113,7 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                   display="block"
                   borderLeftWidth="3px"
                   borderLeftColor={
-                    submission.status === "accepted" ? "green.400" : "red.400"
+                    submission.status === "accepted" ? "green.600" : "red.600"
                   }
                 >
                   <Grid templateColumns="3fr 2fr" gap={4} alignItems="center">
@@ -123,18 +124,16 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                           {submission.problemName}
                         </Text>
 
-                        <Tag
-                          size="sm"
-                          borderRadius="full"
-                          colorScheme={
-                            submission.status === "accepted" ? "green" : "red"
-                          }
-                          py={0.5}
+                        <Badge
+                          variant="solid"
+                          bg={submission.status === "accepted" ? "green.600" : "red.600"}
+                          fontSize="xs"
+                          px={2}
+                          py={1}
+                          borderRadius="lg"
                         >
-                          {submission.status === "accepted"
-                            ? "Accepted"
-                            : "Failed"}
-                        </Tag>
+                          {submission.status === "accepted" ? "ACCEPTED" : "FAILED"}
+                        </Badge>
                       </Flex>
 
                       <HStack spacing={4}>
@@ -238,7 +237,7 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         <Box
                           px={3}
                           py={1.5}
-                          borderRadius="md"
+                          borderRadius="lg"
                           bg="gray.800"
                           minW="80px"
                           textAlign="center"

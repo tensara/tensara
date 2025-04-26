@@ -132,7 +132,7 @@ const UpdateCard = ({
         <Heading size="sm" color="white">
           {title}
         </Heading>
-        <Badge colorScheme={getBadgeColor(type)} fontSize="xs">
+        <Badge colorScheme={getBadgeColor(type)} fontSize="xs" borderRadius="md" px={2} py={1}>
           {type}
         </Badge>
       </Flex>
@@ -229,6 +229,7 @@ export default function HomePage() {
                     bgGradient="linear(to-r, brand.primary, brand.navbar)"
                     bgClip="text"
                     display="inline-block"
+                    fontFamily="Space Grotesk, sans-serif"
                   >
                     Optimize
                   </MotionBox>
@@ -246,6 +247,7 @@ export default function HomePage() {
                     display="inline-block"
                     mt={2}
                     w="100%"
+                    fontFamily="Space Grotesk, sans-serif"
                   >
                     Benchmark
                   </MotionBox>
@@ -262,6 +264,7 @@ export default function HomePage() {
                     bgClip="text"
                     display="inline-block"
                     mt={2}
+                    fontFamily="Space Grotesk, sans-serif"
                   >
                     Repeat
                   </MotionBox>

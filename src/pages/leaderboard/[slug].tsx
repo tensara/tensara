@@ -227,7 +227,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
               >
                 {GPU_DISPLAY_NAMES[selectedGpu]}
               </MenuButton>
-              <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+              <MenuList bg="gray.800" borderColor="gray.800" p={0}>
                 {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                   <MenuItem
                     key={key}

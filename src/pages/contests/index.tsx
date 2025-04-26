@@ -104,7 +104,7 @@ export default function ContestsPage() {
           <MotionHeading
             size="2xl"
             textAlign="center"
-            bgGradient="linear(to-r, brand.primary, brand.navbar)"
+            bg="brand.primary"
             bgClip="text"
             fontWeight="bold"
             letterSpacing="wider"
@@ -143,27 +143,6 @@ export default function ContestsPage() {
             Check back soon for competitive challenges and prizes!
           </MotionBox>
 
-          {/* Animated countdown dots */}
-          <Flex mt={10} zIndex={1}>
-            {[0, 1, 2].map((i) => (
-              <MotionBox
-                key={i}
-                width="12px"
-                height="12px"
-                mx={1}
-                borderRadius="full"
-                bg="brand.primary"
-                initial={{ opacity: 0.3 }}
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  delay: i * 0.3,
-                  ease: "easeInOut",
-                }}
-              />
-            ))}
-          </Flex>
         </MotionBox>
       </Box>
     </Layout>

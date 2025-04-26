@@ -175,10 +175,10 @@ export default function ProblemsPage() {
       ogTitle="Problems | Tensara"
       ogDescription="A collection of problems available to submit on Tensara."
     >
-      <Box borderRadius="xl" h="100%" p={{ base: 4, md: 6 }} overflow="auto">
+      <Box maxW="7xl" mx="auto" px={4} py={8}>
         <VStack spacing={6} align="stretch" w="full">
-          <HStack spacing={4} w="full">
-            <InputGroup maxW="400px">
+          <HStack spacing={4} w="full" justify="space-between">
+            <InputGroup>
               <InputLeftElement pointerEvents="none">
                 <FaSearch color="#d4d4d8" />
               </InputLeftElement>
@@ -193,92 +193,94 @@ export default function ProblemsPage() {
               />
             </InputGroup>
 
-            <Menu>
-              <MenuButton
-                as={Button}
-                rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-                bg="whiteAlpha.50"
-                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-                _active={{ bg: "whiteAlpha.150" }}
-                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-                color="white"
-                w="200px"
-                fontWeight="normal"
-                textAlign="left"
-                justifyContent="flex-start"
-              >
-                {difficultyOptions.find((opt) => opt.value === difficultyFilter)
-                  ?.label ?? "All Difficulties"}
-              </MenuButton>
-              <MenuList
-                bg="brand.secondary"
-                borderColor="gray.700"
-                p={0}
-                borderRadius="md"
-                minW="200px"
-              >
-                {difficultyOptions.map((option) => (
-                  <MenuItem
-                    key={option.value}
-                    onClick={() => setDifficultyFilter(option.value)}
-                    bg="brand.secondary"
-                    _hover={{ bg: "gray.700" }}
-                    color="white"
-                    borderRadius="md"
-                  >
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </MenuList>
-            </Menu>
-
-            <Menu>
-              <MenuButton
-                as={Button}
-                rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-                bg="whiteAlpha.50"
-                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-                _active={{ bg: "whiteAlpha.150" }}
-                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-                color="white"
-                w="200px"
-                fontWeight="normal"
-                textAlign="left"
-                justifyContent="flex-start"
-              >
-                {tagFilter === "all"
-                  ? "All Tags"
-                  : tagAltNames[tagFilter as keyof typeof tagAltNames]}
-              </MenuButton>
-              <MenuList
-                bg="brand.secondary"
-                borderColor="gray.700"
-                p={0}
-                minW="200px"
-              >
-                <MenuItem
-                  onClick={() => setTagFilter("all")}
-                  bg="brand.secondary"
-                  _hover={{ bg: "gray.700" }}
+            <HStack spacing={4}>
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                  bg="whiteAlpha.50"
+                  _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                  _active={{ bg: "whiteAlpha.150" }}
+                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
                   color="white"
-                  borderRadius="md"
+                  w="200px"
+                  fontWeight="normal"
+                  textAlign="left"
+                  justifyContent="flex-start"
                 >
-                  All Tags
-                </MenuItem>
-                {allTags.map((tag) => (
+                  {difficultyOptions.find((opt) => opt.value === difficultyFilter)
+                    ?.label ?? "All Difficulties"}
+                </MenuButton>
+                <MenuList
+                  bg="brand.secondary"
+                  borderColor="gray.800"
+                  p={0}
+                  borderRadius="md"
+                  minW="200px"
+                >
+                  {difficultyOptions.map((option) => (
+                    <MenuItem
+                      key={option.value}
+                      onClick={() => setDifficultyFilter(option.value)}
+                      bg="brand.secondary"
+                      _hover={{ bg: "gray.700" }}
+                      color="white"
+                      borderRadius="md"
+                    >
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </MenuList>
+              </Menu>
+
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                  bg="whiteAlpha.50"
+                  _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                  _active={{ bg: "whiteAlpha.150" }}
+                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                  color="white"
+                  w="200px"
+                  fontWeight="normal"
+                  textAlign="left"
+                  justifyContent="flex-start"
+                >
+                  {tagFilter === "all"
+                    ? "All Tags"
+                    : tagAltNames[tagFilter as keyof typeof tagAltNames]}
+                </MenuButton>
+                <MenuList
+                  bg="brand.secondary"
+                  borderColor="gray.800"
+                  p={0}
+                  minW="200px"
+                >
                   <MenuItem
-                    key={tag}
-                    onClick={() => setTagFilter(tag)}
+                    onClick={() => setTagFilter("all")}
                     bg="brand.secondary"
                     _hover={{ bg: "gray.700" }}
                     color="white"
                     borderRadius="md"
                   >
-                    {tagAltNames[tag as keyof typeof tagAltNames]}
+                    All Tags
                   </MenuItem>
-                ))}
-              </MenuList>
-            </Menu>
+                  {allTags.map((tag) => (
+                    <MenuItem
+                      key={tag}
+                      onClick={() => setTagFilter(tag)}
+                      bg="brand.secondary"
+                      _hover={{ bg: "gray.700" }}
+                      color="white"
+                      borderRadius="md"
+                    >
+                      {tagAltNames[tag as keyof typeof tagAltNames]}
+                    </MenuItem>
+                  ))}
+                </MenuList>
+              </Menu>
+            </HStack>
           </HStack>
 
           <Text color="gray.400" fontSize="sm">
@@ -300,8 +302,8 @@ export default function ProblemsPage() {
                     color="gray.300"
                     fontSize="md"
                     py={4}
-                    borderBottom="1px solid"
-                    borderColor="brand.primary"
+                    borderBottom={filteredAndSortedProblems.length ? "1px solid" : "none"}
+                    borderColor={filteredAndSortedProblems.length ? "brand.primary" : "none"}
                     cursor="pointer"
                     onClick={() => handleSort("title")}
                     _hover={{ color: "white" }}
@@ -315,8 +317,8 @@ export default function ProblemsPage() {
                     color="gray.300"
                     fontSize="md"
                     width="180px"
-                    borderBottom="1px solid"
-                    borderColor="brand.primary"
+                    borderBottom={filteredAndSortedProblems.length ? "1px solid" : "none"}
+                    borderColor={filteredAndSortedProblems.length ? "brand.primary" : "none"}
                     cursor="pointer"
                     onClick={() => handleSort("difficulty")}
                     _hover={{ color: "white" }}
@@ -330,8 +332,8 @@ export default function ProblemsPage() {
                     color="gray.300"
                     fontSize="md"
                     width="180px"
-                    borderBottom="1px solid"
-                    borderColor="brand.primary"
+                    borderBottom={filteredAndSortedProblems.length ? "1px solid" : "none"}
+                    borderColor={filteredAndSortedProblems.length ? "brand.primary" : "none"}
                     cursor="pointer"
                     _hover={{ color: "white" }}
                   >
@@ -342,8 +344,8 @@ export default function ProblemsPage() {
                     fontSize="md"
                     width="200px"
                     display={{ base: "none", md: "table-cell" }}
-                    borderBottom="1px solid"
-                    borderColor="brand.primary"
+                    borderBottom={filteredAndSortedProblems.length ? "1px solid" : "none"}
+                    borderColor={filteredAndSortedProblems.length ? "brand.primary" : "none"}
                     cursor="pointer"
                     onClick={() => handleSort("submissionCount")}
                     _hover={{ color: "white" }}
@@ -376,8 +378,8 @@ export default function ProblemsPage() {
                       <Badge
                         colorScheme={getDifficultyColor(problem.difficulty)}
                         px={2}
-                        py={1}
-                        borderRadius="full"
+                        py={0.5}
+                        borderRadius="md"
                       >
                         {problem.difficulty}
                       </Badge>

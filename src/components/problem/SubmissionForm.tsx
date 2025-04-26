@@ -80,15 +80,15 @@ const SubmissionForm = ({
               fontWeight="normal"
               textAlign="left"
               justifyContent="flex-start"
-              borderRadius="full"
+              borderRadius="lg"
             >
               {GPU_DISPLAY_NAMES[selectedGpuType]}
             </MenuButton>
             <MenuList
               bg="brand.secondary"
-              borderColor="gray.700"
+              borderColor="gray.800"
               p={0}
-              borderRadius="md"
+              borderRadius="lg"
               minW="140px"
             >
               {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
@@ -98,7 +98,7 @@ const SubmissionForm = ({
                   bg="brand.secondary"
                   _hover={{ bg: "gray.700" }}
                   color="white"
-                  borderRadius="md"
+                  borderRadius="lg"
                 >
                   {value}
                 </MenuItem>
@@ -125,15 +125,15 @@ const SubmissionForm = ({
               fontWeight="normal"
               textAlign="left"
               justifyContent="flex-start"
-              borderRadius="full"
+              borderRadius="lg"
             >
               {selectedLanguage === "cuda" ? "CUDA C++" : "Python (Triton)"}
             </MenuButton>
             <MenuList
               bg="brand.secondary"
-              borderColor="gray.700"
+              borderColor="gray.800"
               p={0}
-              borderRadius="md"
+              borderRadius="lg"
               minW="140px"
             >
               <MenuItem
@@ -142,7 +142,7 @@ const SubmissionForm = ({
                 bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
-                borderRadius="md"
+                borderRadius="lg"
               >
                 CUDA C++
               </MenuItem>
@@ -152,7 +152,7 @@ const SubmissionForm = ({
                 bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
-                borderRadius="md"
+                borderRadius="lg"
               >
                 Python (Triton)
               </MenuItem>
@@ -187,15 +187,15 @@ const SubmissionForm = ({
               fontWeight="normal"
               textAlign="left"
               justifyContent="flex-start"
-              borderRadius="full"
+              borderRadius="lg"
             >
               {selectedDataType}
             </MenuButton>
             <MenuList
               bg="brand.secondary"
-              borderColor="gray.700"
+              borderColor="gray.800"
               p={0}
-              borderRadius="md"
+              borderRadius="lg"
               minW="140px"
             >
               <MenuItem
@@ -204,7 +204,7 @@ const SubmissionForm = ({
                 bg="brand.secondary"
                 _hover={{ bg: "gray.700" }}
                 color="white"
-                borderRadius="md"
+                borderRadius="lg"
               >
                 float32
               </MenuItem>
@@ -215,7 +215,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
-                borderRadius="md"
+                borderRadius="lg"
               >
                 float16
               </MenuItem>
@@ -226,7 +226,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
-                borderRadius="md"
+                borderRadius="lg"
               >
                 int32
               </MenuItem>
@@ -237,7 +237,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 isDisabled={true}
-                borderRadius="md"
+                borderRadius="lg"
               >
                 int16
               </MenuItem>
@@ -259,7 +259,7 @@ const SubmissionForm = ({
               size="md"
               variant="ghost"
               onClick={onResetClick}
-              borderRadius="full"
+              borderRadius="lg"
               height="40px"
               fontSize="sm"
               fontWeight="semibold"
@@ -285,7 +285,7 @@ const SubmissionForm = ({
           loadingText="Submit"
           spinner={<></>}
           disabled={isSubmitting}
-          borderRadius="full"
+          borderRadius="lg"
           height="40px"
           fontSize="sm"
           fontWeight="semibold"

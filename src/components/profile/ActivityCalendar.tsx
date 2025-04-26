@@ -118,11 +118,11 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
 
         // Only color cells from the selected year
         if (cellDate.getFullYear() === selectedYear && count > 0) {
-          if (count < 3) bgColor = "green.100";
-          else if (count < 6) bgColor = "green.200";
-          else if (count < 10) bgColor = "green.400";
-          else if (count < 15) bgColor = "green.600";
-          else bgColor = "green.700";
+          if (count < 3) bgColor = "green.800";
+          else if (count < 6) bgColor = "green.600";
+          else if (count < 10) bgColor = "green.500";
+          else if (count < 15) bgColor = "green.400";
+          else bgColor = "green.300";
         }
 
         // The grid is organized with days as rows and weeks as columns
@@ -192,7 +192,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
           </MenuButton>
           <MenuList
             bg="gray.800"
-            borderColor="gray.600"
+            borderColor="gray.800"
             borderRadius="lg"
             boxShadow="lg"
             py={1}
@@ -305,16 +305,10 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
                   Less
                 </Text>
                 <HStack spacing={1.5}>
-                  <Box
-                    w="10px"
-                    h="10px"
-                    borderRadius="sm"
-                    bg="whiteAlpha.100"
-                  />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="green.200" />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="green.400" />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="green.600" />
                   <Box w="10px" h="10px" borderRadius="sm" bg="green.700" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.600" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.400" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.200" />
                 </HStack>
                 <Text fontSize="xs" color="whiteAlpha.700" ml={2}>
                   More

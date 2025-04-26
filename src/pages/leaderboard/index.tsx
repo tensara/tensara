@@ -333,16 +333,42 @@ const LeaderboardPage: NextPage = () => {
                 )}
               </AnimatePresence>
               {/* Tab Selector */}
-              <TabList bg="whiteAlpha.100" p={1} borderRadius="full">
+              <TabList 
+                bg="whiteAlpha.50" 
+                p={1} 
+                borderRadius="lg"
+                h="40px"
+                gap={1}
+              >
                 <Tab
-                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
-                  onClick={() => setSelectedTab("users")}
+                  _selected={{ 
+                    color: "white", 
+                    bg: "whiteAlpha.100",
+                  }}
+                  _hover={{
+                    bg: "whiteAlpha.100",
+                    transition: "all 0.3s ease-in-out",
+                  }}
+                  color="white"
+                  borderRadius="lg"
+                  px={4}
+                  h="32px"
                 >
                   Users
                 </Tab>
                 <Tab
-                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
-                  onClick={() => setSelectedTab("problems")}
+                  _selected={{ 
+                    color: "white", 
+                    bg: "whiteAlpha.100",
+                  }}
+                  _hover={{
+                    bg: "whiteAlpha.100",
+                    transition: "all 0.3s ease-in-out", 
+                  }}
+                  color="white"
+                  borderRadius="lg"
+                  px={4}
+                  h="32px"
                 >
                   Problems
                 </Tab>
@@ -439,7 +465,7 @@ const LeaderboardPage: NextPage = () => {
                     ) : (
                       /* Desktop Users Leaderboard */
                       <Table variant="simple" size="md" layout="fixed">
-                        <Thead bg="brand.secondary" borderTopRadius="md">
+                        <Thead borderTopRadius="md">
                           <Tr>
                             <Th
                               borderBottom="none"

@@ -124,63 +124,6 @@ const AnimatedCudaEditor = () => {
         flexDirection="column"
         opacity={isVisible ? 1 : 0}
       >
-        <Flex
-          mb={4}
-          w="full"
-          justifyContent="space-evenly"
-          maxW={{ base: "full", lg: "90%" }}
-        >
-          <Box>
-            <Text fontWeight="medium" color="whiteAlpha.800" ml={1}>
-              GPU Type
-            </Text>
-            <Box
-              bg="brand.secondary"
-              px={4}
-              py={2}
-              borderRadius="md"
-              mt={1}
-              w="150px"
-              color="whiteAlpha.800"
-            >
-              NVIDIA H100
-            </Box>
-          </Box>
-
-          <Box>
-            <Text fontWeight="medium" color="whiteAlpha.800" ml={1}>
-              Language
-            </Text>
-            <Box
-              bg="brand.secondary"
-              px={4}
-              py={2}
-              borderRadius="md"
-              mt={1}
-              w="150px"
-              color="whiteAlpha.800"
-            >
-              CUDA C++
-            </Box>
-          </Box>
-
-          <Box>
-            <Text fontWeight="medium" color="whiteAlpha.800" ml={1}>
-              Data Type
-            </Text>
-            <Box
-              bg="brand.secondary"
-              px={4}
-              py={2}
-              borderRadius="md"
-              mt={1}
-              w="150px"
-              color="whiteAlpha.800"
-            >
-              float32
-            </Box>
-          </Box>
-        </Flex>
 
         {/* Terminal */}
         <Box

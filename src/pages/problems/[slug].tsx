@@ -306,7 +306,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
         border="1px solid"
         borderColor="gray.800"
         h="100%"
-        p={{ base: 4, md: 6 }}
+        p={{ base: 3, md: 4 }}
         overflow="auto"
       >
         <SplitPanel leftContent={leftContent} rightContent={rightContent} />

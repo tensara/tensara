@@ -92,7 +92,6 @@ export function Header() {
                 color="white"
                 px={3}
                 py={2}
-                pt={2.5}
                 fontSize="0.9rem"
                 fontWeight="medium"
                 w={isMobile ? "full" : "auto"}
@@ -245,7 +244,7 @@ export function Header() {
                   />
                   <VStack
                     bg="brand.secondary"
-                    borderRadius="xl"
+                    borderRadius="md"
                     overflow="hidden"
                     spacing={0}
                     border="1px solid"
@@ -265,35 +264,18 @@ export function Header() {
                         as="a"
                         w="full"
                         px={4}
-                        py={3}
+                        py={2}
+                        borderRadius="md"
                         _hover={{
-                          transform: "translateX(3px)",
+                          bg: "rgba(75, 85, 99, 0.5)",
+                          transition: "all 0.3s ease-in-out",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
                         }}
                         onClick={onMenuClose}
                         transition="all 0.15s ease"
                         role="group"
-                      >
-                        <HStack>
-                          <motion.div
-                            whileHover={{ scale: 1.2 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <Icon
-                              as={FiUser}
-                              color="brand.primary"
-                              _groupHover={{ color: "white" }}
-                              transition="color 0.2s"
-                            />
-                          </motion.div>
-                          <Text
-                            color="white"
-                            fontWeight="medium"
-                            _groupHover={{ pl: 1 }}
-                            transition="padding 0.15s ease"
-                          >
-                            My Profile
-                          </Text>
-                        </HStack>
+                      > 
+                        My Profile
                       </Box>
                     </Link>
 
@@ -302,44 +284,29 @@ export function Header() {
                         as="a"
                         w="full"
                         px={4}
-                        py={3}
+                        py={2}
+                        borderRadius="md"
                         _hover={{
-                          transform: "translateX(3px)",
+                          bg: "rgba(75, 85, 99, 0.5)",
+                          transition: "all 0.3s ease-in-out",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
                         }}
                         onClick={onMenuClose}
                         transition="all 0.15s ease"
                         role="group"
-                      >
-                        <HStack>
-                          <motion.div
-                            whileHover={{ scale: 1.2 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <Icon
-                              as={FiCode}
-                              color="brand.primary"
-                              _groupHover={{ color: "white" }}
-                              transition="color 0.2s"
-                            />
-                          </motion.div>
-                          <Text
-                            color="white"
-                            fontWeight="medium"
-                            _groupHover={{ pl: 1 }}
-                            transition="padding 0.15s ease"
-                          >
-                            Submissions
-                          </Text>
-                        </HStack>
+                      > 
+                        Submissions
                       </Box>
                     </Link>
 
                     <Box
                       w="full"
                       px={4}
-                      py={3}
+                      py={2}
                       _hover={{
-                        transform: "translateX(3px)",
+                        bg: "rgba(75, 85, 99, 0.5)",
+                        transition: "all 0.3s ease-in-out",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
                       }}
                       onClick={() => {
                         onMenuClose();
@@ -348,28 +315,9 @@ export function Header() {
                       cursor="pointer"
                       transition="all 0.15s ease"
                       role="group"
+                      borderRadius="md"
                     >
-                      <HStack>
-                        <motion.div
-                          whileHover={{ scale: 1.2 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <Icon
-                            as={FiLogOut}
-                            color="brand.primary"
-                            _groupHover={{ color: "white" }}
-                            transition="color 0.2s"
-                          />
-                        </motion.div>
-                        <Text
-                          color="white"
-                          fontWeight="medium"
-                          _groupHover={{ pl: 1 }}
-                          transition="padding 0.15s ease"
-                        >
-                          Sign Out
-                        </Text>
-                      </HStack>
+                      Sign Out
                     </Box>
                   </VStack>
                 </motion.div>
@@ -406,6 +354,7 @@ export function Header() {
                 w={6}
                 h={6}
                 mr={1}
+                ml={2}
               />
               <Text
                 fontSize="xl"
@@ -420,7 +369,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           {!isMobile && (
-            <HStack ml={8} spacing={3} pt={2}>
+            <HStack ml={6} spacing={3} pt={2}>
               <NavLinks />
             </HStack>
           )}
