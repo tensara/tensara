@@ -269,12 +269,12 @@ export function Header() {
                         _hover={{
                           bg: "rgba(75, 85, 99, 0.5)",
                           transition: "all 0.3s ease-in-out",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                         }}
                         onClick={onMenuClose}
                         transition="all 0.15s ease"
                         role="group"
-                      > 
+                      >
                         My Profile
                       </Box>
                     </Link>
@@ -289,12 +289,12 @@ export function Header() {
                         _hover={{
                           bg: "rgba(75, 85, 99, 0.5)",
                           transition: "all 0.3s ease-in-out",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                         }}
                         onClick={onMenuClose}
                         transition="all 0.15s ease"
                         role="group"
-                      > 
+                      >
                         Submissions
                       </Box>
                     </Link>
@@ -306,7 +306,7 @@ export function Header() {
                       _hover={{
                         bg: "rgba(75, 85, 99, 0.5)",
                         transition: "all 0.3s ease-in-out",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                       }}
                       onClick={() => {
                         onMenuClose();

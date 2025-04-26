@@ -126,13 +126,19 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
 
                         <Badge
                           variant="solid"
-                          bg={submission.status === "accepted" ? "green.600" : "red.600"}
+                          bg={
+                            submission.status === "accepted"
+                              ? "green.600"
+                              : "red.600"
+                          }
                           fontSize="xs"
                           px={2}
                           py={1}
                           borderRadius="lg"
                         >
-                          {submission.status === "accepted" ? "ACCEPTED" : "FAILED"}
+                          {submission.status === "accepted"
+                            ? "ACCEPTED"
+                            : "FAILED"}
                         </Badge>
                       </Flex>
 

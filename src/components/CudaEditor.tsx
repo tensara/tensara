@@ -124,7 +124,6 @@ const AnimatedCudaEditor = () => {
         flexDirection="column"
         opacity={isVisible ? 1 : 0}
       >
-
         {/* Terminal */}
         <Box
           bg="#111111"
