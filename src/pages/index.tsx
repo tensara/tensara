@@ -355,7 +355,7 @@ export default function HomePage() {
                   </Text>
                 </MotionFlex>
               </MotionVStack>
-              <AnimatedCudaEditor />
+              {!isMobile && <AnimatedCudaEditor />}
             </Flex>
           </Container>
         </MotionBox>

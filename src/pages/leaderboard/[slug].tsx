@@ -47,22 +47,6 @@ import {
 import { FiArrowLeft } from "react-icons/fi";
 import { useSession } from "next-auth/react";
 
-type LeaderboardEntry = {
-  id: string;
-  createdAt: Date;
-  runtime: number | null;
-  gflops: number | null;
-  user: {
-    username: string | null;
-  };
-  problem: {
-    slug: string;
-    title: string;
-  };
-  status: string | null;
-  gpuType: string | null;
-};
-
 type ProblemLeaderboardEntry = {
   id: string;
   username: string | null;
