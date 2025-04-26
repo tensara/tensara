@@ -18,8 +18,8 @@ import {
   StatHelpText,
   StatNumber,
 } from "@chakra-ui/react";
-import { motion } from "framer-motion";
-import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion"; // Import AnimatePresence
+import React, { useState, useEffect, useCallback } from "react"; // Import useCallback
 import { Layout } from "~/components/layout";
 import {
   FiCpu,
@@ -36,6 +36,7 @@ import {
 import { FaDiscord, FaGithub, FaTwitter, FaEnvelope } from "react-icons/fa";
 import { type IconType } from "react-icons";
 import AnimatedCudaEditor from "~/components/CudaEditor";
+import LandingBenchmarkDisplay from "~/components/landing/LandingBenchmarkDisplay"; // Import the new component
 
 // Create motion components
 const MotionVStack = motion(VStack);
@@ -132,7 +133,13 @@ const UpdateCard = ({
         <Heading size="sm" color="white">
           {title}
         </Heading>
-        <Badge colorScheme={getBadgeColor(type)} fontSize="xs" borderRadius="md" px={2} py={1}>
+        <Badge
+          colorScheme={getBadgeColor(type)}
+          fontSize="xs"
+          borderRadius="md"
+          px={2}
+          py={1}
+        >
           {type}
         </Badge>
       </Flex>
@@ -149,6 +156,49 @@ const UpdateCard = ({
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
 
+  // State for animation sequence
+  const [isTypingCode, setIsTypingCode] = useState(true); // Start with code typing
+  const [isFadingCode, setIsFadingCode] = useState(false); // Code is not fading initially
+  const [isShowingBenchmarks, setIsShowingBenchmarks] = useState(false); // Benchmarks hidden initially
+
+  // Dummy data for the benchmark display
+  const dummyBenchmarkData = [
+    { id: "1", name: "4096x4096, alpha=0.01", runtime_ms: 0.72, gflops: 27.1 },
+    { id: "2", name: "4096x4096, alpha=0.05", runtime_ms: 0.61, gflops: 27.79 },
+    { id: "3", name: "4096x4096, alpha=0.1", runtime_ms: 0.59, gflops: 28.39 },
+    { id: "4", name: "6144x4096, alpha=0.01", runtime_ms: 0.88, gflops: 28.63 },
+    { id: "5", name: "6144x4096, alpha=0.05", runtime_ms: 0.87, gflops: 28.86 },
+  ];
+
+  // Callback for when code typing completes
+  const handleTypingComplete = useCallback(() => {
+    console.log("HomePage: handleTypingComplete called"); // Log callback start
+    // Start fade-out after 1 second delay
+    const fadeOutTimer = setTimeout(() => {
+      console.log("HomePage: Setting isFadingCode=true, isTypingCode=false"); // Log fade out start
+      setIsFadingCode(true);
+      setIsTypingCode(false); // Stop rendering the typing component logically
+
+      // Start fade-in benchmarks after 0.5 second delay (overlaps fade-out)
+      const fadeInTimer = setTimeout(() => {
+        console.log("HomePage: Setting isShowingBenchmarks=true"); // Log benchmark show start
+        setIsShowingBenchmarks(true);
+      }, 500); // 0.5s delay for benchmark fade-in
+
+      // Cleanup benchmark timer on unmount or re-trigger
+      return () => {
+        console.log("HomePage: Clearing fadeInTimer"); // Log cleanup
+        clearTimeout(fadeInTimer);
+      };
+    }, 1000); // 1s delay before code fade-out
+
+    // Cleanup fade-out timer on unmount or re-trigger
+    return () => {
+      console.log("HomePage: Clearing fadeOutTimer"); // Log cleanup
+      clearTimeout(fadeOutTimer);
+    };
+  }, []); // Empty dependency array ensures this callback is created once
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -159,6 +209,12 @@ export default function HomePage() {
 
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  console.log("HomePage Rendering:", {
+    isTypingCode,
+    isFadingCode,
+    isShowingBenchmarks,
+  }); // Log state on render
 
   return (
     <Layout title="Home" ogImage="/tensara_ogimage.png">
@@ -171,7 +227,7 @@ export default function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
-          overflow="hidden"
+          // overflow="hidden" // Removed to allow glow to extend
           _before={{
             content: '""',
             position: "absolute",
@@ -183,6 +239,7 @@ export default function HomePage() {
           }}
         >
           <Container maxW="8xl" position="relative" zIndex={1}>
+            {/* Removed incorrect dedicated glow Box */}
             <Flex
               direction={{ base: "column", lg: "row" }}
               align="center"
@@ -349,7 +406,51 @@ export default function HomePage() {
                   </Text>
                 </MotionFlex>
               </MotionVStack>
-              <AnimatedCudaEditor />
+
+              {/* Right side container for animation - Adjusted for centering */}
+              <Flex
+                // Removed flex={1}
+                w={{ base: "full", lg: "60%" }} // Set explicit width percentage
+                maxW="container.lg" // Max width to prevent excessive stretching
+                mx="auto" // Center the container itself if needed within parent Flex
+                justify="center" // Center children horizontally
+                align="center" // Center children vertically
+                position="relative"
+                minH="420px"
+                // Removed the faulty _after glow style from here
+              >
+                <AnimatePresence initial={false}>
+                  {/* Wrap children in a Box to ensure consistent positioning during animation */}
+                  <Box
+                    position="absolute"
+                    w="full"
+                    display="flex"
+                    justifyContent="center"
+                  >
+                    {(isTypingCode || isFadingCode) && (
+                      <AnimatedCudaEditor
+                        key="cuda-editor" // Key for AnimatePresence
+                        onTypingComplete={handleTypingComplete}
+                        isFadingOut={isFadingCode}
+                      />
+                    )}
+                  </Box>
+                  <Box
+                    position="absolute"
+                    w="full"
+                    display="flex"
+                    justifyContent="center"
+                  >
+                    {isShowingBenchmarks && (
+                      <LandingBenchmarkDisplay
+                        key="benchmarks" // Key for AnimatePresence
+                        isVisible={isShowingBenchmarks}
+                        dummyData={dummyBenchmarkData}
+                      />
+                    )}
+                  </Box>
+                </AnimatePresence>
+              </Flex>
             </Flex>
           </Container>
         </MotionBox>
@@ -425,23 +526,24 @@ export default function HomePage() {
                     <UpdateCard
                       title="CLI Submissions"
                       type="IN PROGRESS"
-                      description="Allows users to submit to the leaderboard from the CLI."
-                      date="4 days ago"
-                    />
-                    <UpdateCard
-                      title="Authentication"
-                      type="FEATURE"
-                      description="GitHub authentication via CLI."
+                      description="Working on allowing direct submissions via CLI."
                       date="1 week ago"
                     />
                     <UpdateCard
-                      title="v0.2.0 (Beta) Release"
+                      title="CLI v0.1 Release"
                       type="RELEASE"
-                      description="Released the beta version for the CLI tool."
-                      date="2 weeks ago"
+                      description="Initial release of the Tensara CLI."
+                      date="1 month ago"
+                    />
+                    <UpdateCard
+                      title="Local Benchmarking"
+                      type="IMPROVEMENT"
+                      description="Improved local benchmarking accuracy."
+                      date="1 month ago"
                     />
                   </Box>
                 </Box>
+
                 <Box
                   bg="brand.card"
                   borderRadius="xl"
@@ -464,19 +566,19 @@ export default function HomePage() {
                     <UpdateCard
                       title="3D/4D Tensor matmul problems"
                       type="UPDATE"
-                      description="Higher dimensional tensor matmul problems."
-                      date="4 days ago"
+                      description="Added new matrix multiplication problems."
+                      date="2 days ago"
                     />
                     <UpdateCard
-                      title="Sigmoid, Tanh, and more activation"
-                      type="UPDATE"
-                      description="Added sigmoid, tanh, and more activation functions."
+                      title="Convolution Problems"
+                      type="FEATURE"
+                      description="New set of convolution challenges available."
                       date="1 week ago"
                     />
                     <UpdateCard
-                      title="Python problem definitions"
-                      type="FEATURE"
-                      description="Adding problems is easier, check our GitHub repo."
+                      title="Problem Difficulty Tags"
+                      type="IMPROVEMENT"
+                      description="Added difficulty tags to problems."
                       date="2 weeks ago"
                     />
                   </Box>
@@ -486,250 +588,207 @@ export default function HomePage() {
           </Container>
         </Box>
 
-        {/* Feature Section */}
+        {/* Features Section */}
         <Container maxW="8xl" py={16}>
           <VStack align="flex-start" spacing={16}>
             <VStack align="flex-start" spacing={4} maxW="2xl">
               <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
-                A platform built for GPU programmers
+                Why Tensara?
               </Heading>
               <Text color="whiteAlpha.800" fontSize="lg">
-                Focus on writing efficient kernels while we handle the
-                infrastructure, benchmarking, and comparisons.
+                Tensara provides a unique platform for honing your GPU
+                programming skills through competitive challenges and detailed
+                benchmarking.
               </Text>
             </VStack>
 
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
               <FeatureCard
                 icon={FiCpu}
-                title="Real GPU Challenges"
-                description="Battle-tested problems that push your kernel optimization skills to the limit."
+                title="Real Hardware Benchmarking"
+                description="Submissions are run on standardized GPU hardware for fair and accurate performance comparisons."
               />
               <FeatureCard
                 icon={FiAward}
-                title="Live Rankings"
-                description="Compete for the highest GFLOPS and lowest kernel execution times on the leaderboard."
+                title="Competitive Leaderboards"
+                description="See how your solutions stack up against others on detailed leaderboards for each problem."
               />
               <FeatureCard
                 icon={FiUsers}
-                title="Global Competition"
-                description="Join the ranks of GPU programmers worldwide and prove your parallel programming prowess."
+                title="Community & Collaboration"
+                description="Discuss strategies, share insights, and learn from fellow GPU programming enthusiasts."
               />
             </SimpleGrid>
           </VStack>
         </Container>
 
-        {/* CTA Section */}
+        {/* Call to Action Section */}
         <Container maxW="8xl" py={20}>
           <Box
-            bg="rgba(14, 129, 68, 0.15)"
-            borderRadius="2xl"
-            p={{ base: 8, md: 12 }}
+            bgGradient="linear(to-br, brand.primary, brand.secondary)"
+            borderRadius="3xl"
+            p={{ base: 8, md: 16 }}
+            textAlign="center"
             position="relative"
             overflow="hidden"
-            borderWidth="1px"
-            borderColor="rgba(46, 204, 113, 0.3)"
-            boxShadow="0 0 30px rgba(14, 129, 68, 0.15)"
+            _before={{
+              content: '""',
+              position: "absolute",
+              top: "-50%",
+              left: "-20%",
+              width: "100%",
+              height: "100%",
+              bg: "radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%)",
+              transform: "rotate(30deg)",
+            }}
           >
-            {/* Background pattern */}
-            <Box
-              position="absolute"
-              top="0"
-              left="0"
-              right="0"
-              bottom="0"
-              opacity="0.1"
-              backgroundImage="url('/grid-pattern.svg')"
-              backgroundSize="cover"
-              zIndex={0}
-            />
-
-            <Flex
-              direction={{ base: "column", md: "row" }}
-              align="center"
-              justify="space-between"
-              gap={8}
-              position="relative"
-              zIndex={1}
-            >
-              <VStack
-                align={{ base: "center", md: "flex-start" }}
-                spacing={4}
-                maxW={{ base: "full", md: "60%" }}
+            <Box position="relative" zIndex={1}>
+              <Heading
+                fontSize={{ base: "3xl", md: "4xl" }}
+                color="white"
+                mb={4}
+                fontFamily="Space Grotesk, sans-serif"
               >
-                <Icon as={FiZap} boxSize={8} color="#2ecc71" />
-                <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
-                  Ready to push your GPU skills further?
-                </Heading>
-                <Text fontSize="lg" color="whiteAlpha.900">
-                  Join our growing community of GPU programmers and tackle
-                  real-world performance challenges.
-                </Text>
-              </VStack>
-
+                Ready to Optimize?
+              </Heading>
+              <Text
+                fontSize="xl"
+                color="whiteAlpha.900"
+                mb={8}
+                maxW="xl"
+                mx="auto"
+              >
+                Dive into our GPU programming challenges, submit your kernels,
+                and climb the leaderboards.
+              </Text>
               <Button
                 size="lg"
+                bg="white"
+                color="brand.primary"
+                _hover={{ bg: "gray.100" }}
                 height="60px"
-                px={8}
-                fontSize="lg"
-                bg="#0e8144"
-                color="white"
-                _hover={{
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 0 20px rgba(46, 204, 113, 0.4)",
-                  bg: "#0a6434",
-                }}
-                transition="all 0.3s"
+                px={10}
                 rightIcon={<Icon as={FiArrowRight} />}
+                as={motion.button}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
               >
-                Explore Problems
+                Start Solving Now
               </Button>
-            </Flex>
+            </Box>
           </Box>
         </Container>
 
-        {/* Footer */}
+        {/* Footer Links */}
         <Box bg="transparent" py={16} borderRadius="2xl">
           <Container maxW="8xl">
-            <Divider mb={10} borderColor="whiteAlpha.200" />
-
+            {/* <Divider mb={10} borderColor="whiteAlpha.200" /> */}
             <SimpleGrid
-              columns={{ base: 1, md: 3 }}
+              columns={{ base: 1, sm: 2, md: 4 }}
               spacing={8}
-              justifyItems={"space-between"}
+              color="whiteAlpha.700"
             >
-              {/* Company Info */}
+              {/* About */}
               <VStack align="flex-start" spacing={4}>
-                <Heading
-                  size="md"
-                  fontFamily="Space Grotesk, sans-serif"
-                  color="white"
-                >
+                <Heading size="sm" color="white" mb={2}>
                   Tensara
                 </Heading>
-                <Text color="whiteAlpha.800">
-                  Write efficient GPU code and compete with other developers.
+                <Text fontSize="sm">
+                  GPU Programming Challenges & Benchmarking Platform
                 </Text>
+                {/* Social Icons */}
                 <Flex gap={4} mt={2}>
-                  <Link
-                    href="https://github.com/tensara"
-                    isExternal
-                    color="whiteAlpha.800"
-                    _hover={{ color: "#2ecc71" }}
-                  >
-                    <Icon as={FaGithub} boxSize={5} />
+                  <Link href="https://github.com/tensara" isExternal>
+                    <Icon
+                      as={FaGithub}
+                      boxSize={5}
+                      _hover={{ color: "white" }}
+                    />
                   </Link>
-                  <Link
-                    href="https://twitter.com/tensarahq"
-                    isExternal
-                    color="whiteAlpha.800"
-                    _hover={{ color: "#2ecc71" }}
-                  >
-                    <Icon as={FaTwitter} boxSize={5} />
+                  <Link href="#" isExternal>
+                    <Icon
+                      as={FaTwitter}
+                      boxSize={5}
+                      _hover={{ color: "white" }}
+                    />
                   </Link>
-                  <Link
-                    href="mailto:hello@tensara.org"
-                    color="whiteAlpha.800"
-                    _hover={{ color: "#2ecc71" }}
-                  >
-                    <Icon as={FaEnvelope} boxSize={5} />
+                  <Link href="#" isExternal>
+                    <Icon
+                      as={FaDiscord}
+                      boxSize={5}
+                      _hover={{ color: "white" }}
+                    />
                   </Link>
-                  <Link
-                    href="https://discord.gg/YzBTfMxVQK"
-                    isExternal
-                    color="whiteAlpha.800"
-                    _hover={{ color: "#2ecc71" }}
-                  >
-                    <Icon as={FaDiscord} boxSize={5} />
+                  <Link href="mailto:support@tensara.ai" isExternal>
+                    <Icon
+                      as={FaEnvelope}
+                      boxSize={5}
+                      _hover={{ color: "white" }}
+                    />
                   </Link>
                 </Flex>
               </VStack>
 
-              {/* Quick Links */}
+              {/* Navigation */}
               <VStack align="flex-start" spacing={4}>
-                <Heading
-                  size="md"
-                  fontFamily="Space Grotesk, sans-serif"
-                  color="white"
-                >
-                  Quick Links
+                <Heading size="sm" color="white" mb={2}>
+                  Navigate
                 </Heading>
-                <Link
-                  href="/problems"
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
+                <Link href="/problems" _hover={{ color: "white" }}>
                   Problems
                 </Link>
-                <Link
-                  href="/submissions"
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
-                  Submissions
+                <Link href="/leaderboard" _hover={{ color: "white" }}>
+                  Leaderboards
                 </Link>
-                <Link
-                  href="/leaderboard"
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
-                  Leaderboard
+                <Link href="/contests" _hover={{ color: "white" }}>
+                  Contests
                 </Link>
-                <Link
-                  href="/blog"
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
+                <Link href="/blog" _hover={{ color: "white" }}>
                   Blog
                 </Link>
               </VStack>
 
               {/* Resources */}
               <VStack align="flex-start" spacing={4}>
-                <Heading
-                  size="md"
-                  fontFamily="Space Grotesk, sans-serif"
-                  color="white"
-                >
+                <Heading size="sm" color="white" mb={2}>
                   Resources
                 </Heading>
-                <Link
-                  href="/docs"
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
+                <Link href="/docs" _hover={{ color: "white" }}>
                   Documentation
                 </Link>
-                <Link
-                  href="/docs/api"
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
-                  API Reference
+                <Link href="/faq" _hover={{ color: "white" }}>
+                  FAQ
+                </Link>
+                <Link href="/support" _hover={{ color: "white" }}>
+                  Support
                 </Link>
                 <Link
-                  href="/docs/tutorials"
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
-                >
-                  Tutorials
-                </Link>
-                <Link
-                  href="https://github.com/tensara/tensara/issues"
+                  href="https://github.com/tensara/tensara-cli"
                   isExternal
-                  color="whiteAlpha.800"
-                  _hover={{ color: "#2ecc71" }}
+                  _hover={{ color: "white" }}
                 >
                   <Flex align="center" gap={1}>
-                    Report Issues
-                    <Icon as={FiExternalLink} boxSize={3} />
+                    CLI Tool <Icon as={FiExternalLink} boxSize={3} />
                   </Flex>
                 </Link>
               </VStack>
-            </SimpleGrid>
 
-            <Text color="whiteAlpha.600" fontSize="sm" mt={10}>
-              © {new Date().getFullYear()} Tensara. All rights reserved.
+              {/* Legal */}
+              <VStack align="flex-start" spacing={4}>
+                <Heading size="sm" color="white" mb={2}>
+                  Legal
+                </Heading>
+                <Link href="/terms" _hover={{ color: "white" }}>
+                  Terms of Service
+                </Link>
+                <Link href="/privacy" _hover={{ color: "white" }}>
+                  Privacy Policy
+                </Link>
+              </VStack>
+            </SimpleGrid>
+            <Divider my={10} borderColor="whiteAlpha.200" />
+            <Text textAlign="center" fontSize="sm">
+              &copy; {new Date().getFullYear()} Tensara. All rights reserved.
             </Text>
           </Container>
         </Box>
