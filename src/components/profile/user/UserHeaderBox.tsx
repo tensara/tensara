@@ -49,12 +49,12 @@ const UserHeaderBox: React.FC<UserHeaderBoxProps> = ({
 }) => {
   return (
     <Box
-      bg="gray.800"
+      bg="brand.secondary"
       borderRadius="xl"
       overflow="hidden"
       boxShadow="xl"
       borderWidth="1px"
-      borderColor="blue.900"
+      borderColor="brand.dark"
       w="100%"
       position="relative"
     >
@@ -73,7 +73,7 @@ const UserHeaderBox: React.FC<UserHeaderBoxProps> = ({
             borderRadius="full"
             boxSize="100px"
             border="4px solid"
-            borderColor="blue.500"
+            borderColor="brand.primary"
             mx="auto"
             boxShadow="lg"
             bg="gray.700"
@@ -99,7 +99,7 @@ const UserHeaderBox: React.FC<UserHeaderBoxProps> = ({
             endColor="gray.800"
           >
             <HStack spacing={2}>
-              <Icon as={FiCalendar} color="blue.300" />
+              <Icon as={FiCalendar} color="brand.primary" />
               <Text color="whiteAlpha.800" fontSize="sm">
                 Joined{" "}
                 {userData
@@ -123,7 +123,7 @@ const UserHeaderBox: React.FC<UserHeaderBoxProps> = ({
             endColor="gray.800"
           >
             <Badge
-              colorScheme="blue"
+              bg="brand.primary"
               px={3}
               py={1.5}
               fontSize="md"

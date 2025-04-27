@@ -112,18 +112,18 @@ export default function UserProfile() {
             >
               {/* Activity Graph */}
               <Box
-                bg="gray.800"
+                bg="brand.secondary"
                 borderRadius="xl"
                 overflow="hidden"
                 boxShadow="xl"
                 p={6}
                 borderWidth="1px"
-                borderColor="blue.900"
+                borderColor="brand.dark"
                 position="relative"
               >
                 <Flex justify="space-between" align="center" mb={6}>
                   <HStack>
-                    <Icon as={FiTrendingUp} color="blue.300" boxSize={5} />
+                    <Icon as={FiTrendingUp} color="brand.primary" boxSize={5} />
                     <Heading size="md" color="white">
                       Activity
                     </Heading>
@@ -135,6 +135,7 @@ export default function UserProfile() {
                   height={isLoading ? "200px" : "auto"}
                   startColor="gray.700"
                   endColor="gray.800"
+                  borderRadius="xl"
                 >
                   {userData?.activityData &&
                     userData.activityData.length > 0 && (

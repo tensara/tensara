@@ -20,15 +20,16 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import {
-  FiCode,
-  FiList,
-  FiBookOpen,
   FiLogOut,
   FiGithub,
   FiMenu,
-  FiAward,
+  FiChevronDown,
+  FiUser,
+  FiCode,
 } from "react-icons/fi";
 import { useState, useEffect } from "react";
+import { LayoutGroup, motion, AnimatePresence } from "framer-motion";
+import React from "react";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -36,6 +37,7 @@ export function Header() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [hoveredPath, setHoveredPath] = useState(router.pathname);
 
   useEffect(() => {
     setMounted(true);
@@ -53,24 +55,11 @@ export function Header() {
   }, []);
 
   const navItems = [
-    { label: "Problems", href: "/problems", icon: FiCode },
-    { label: "Leaderboards", href: "/leaderboard", icon: FiAward },
-    { label: "Blog", href: "/blog", icon: FiBookOpen },
+    { label: "Problems", href: "/problems" },
+    { label: "Leaderboards", href: "/leaderboard" },
+    { label: "Blog", href: "/blog" },
+    { label: "Contests", href: "/contests" },
   ];
-
-  const protectedNavItems = [
-    { label: "My Submissions", href: "/submissions", icon: FiList },
-  ];
-
-  const isActivePath = (path: string) => {
-    if (path === "/problems") {
-      return (
-        router.pathname === "/problems" ||
-        router.pathname.startsWith("/problems/")
-      );
-    }
-    return router.pathname === path;
-  };
 
   const handleSignIn = () => {
     signIn("github", { callbackUrl: router.asPath }).catch(console.error);
@@ -80,76 +69,102 @@ export function Header() {
     signOut({ callbackUrl: "/" }).catch(console.error);
   };
 
-  const NavLinks = () => (
-    <>
-      {navItems.map((item) => (
-        <Link key={item.href} href={item.href} passHref legacyBehavior>
-          <Button
-            as="a"
-            variant="ghost"
-            color="white"
-            px={3}
-            bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
-            _hover={{
-              textDecoration: "none",
-              bg: "whiteAlpha.100",
-            }}
-            transition="background-color 0.7s"
-            fontSize="sm"
-            leftIcon={<Icon as={item.icon} boxSize={4} />}
-            w={isMobile ? "full" : "auto"}
-            justifyContent={isMobile ? "flex-start" : "center"}
-          >
-            {item.label}
-          </Button>
-        </Link>
-      ))}
-      {mounted &&
-        status === "authenticated" &&
-        protectedNavItems.map((item) => (
-          <Link key={item.href} href={item.href} passHref legacyBehavior>
-            <Button
-              as="a"
-              variant="ghost"
-              color="white"
-              px={3}
-              bg={isActivePath(item.href) ? "whiteAlpha.200" : "transparent"}
+  const NavLinks = () => {
+    return (
+      <LayoutGroup>
+        {navItems.map((item) => (
+          <Link key={item.href} href={item.href} passHref>
+            <Box
+              position="relative"
+              display="inline-block"
+              zIndex={1}
+              overflow="hidden"
+              borderRadius="0.5rem"
               _hover={{
-                textDecoration: "none",
-                bg: "whiteAlpha.100",
+                cursor: "pointer",
+                bg: "rgba(75, 85, 99, 0.5)",
+                transition: "all 0.3s ease-in-out",
+                transform: "translateY(-1px)",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
               }}
-              transition="background-color 0.7s"
-              fontSize="sm"
-              leftIcon={<Icon as={item.icon} boxSize={4} />}
-              w={isMobile ? "full" : "auto"}
-              justifyContent={isMobile ? "flex-start" : "center"}
             >
-              {item.label}
-            </Button>
+              <Text
+                color="white"
+                px={3}
+                py={2}
+                fontSize="0.9rem"
+                fontWeight="medium"
+                w={isMobile ? "full" : "auto"}
+                textAlign={isMobile ? "left" : "center"}
+                position="relative"
+                zIndex={2}
+                cursor="pointer"
+              >
+                {item.label}
+              </Text>
+            </Box>
           </Link>
         ))}
-    </>
-  );
+      </LayoutGroup>
+    );
+  };
 
   const AuthSection = () => {
+    const {
+      isOpen: isMenuOpen,
+      onOpen: onMenuOpen,
+      onClose: onMenuClose,
+      onToggle: onMenuToggle,
+    } = useDisclosure();
+    const menuRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          menuRef.current &&
+          !menuRef.current.contains(event.target as Node)
+        ) {
+          onMenuClose();
+        }
+      };
+
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, [menuRef, onMenuClose]);
+
     if (!mounted) return null;
 
     return (
       <>
         {status === "authenticated" ? (
-          <HStack spacing={4}>
-            <Link href={`/${session.user?.username}`} passHref legacyBehavior>
-              <HStack
-                as="a"
-                spacing={3}
-                py={2}
-                px={3}
-                borderRadius="lg"
-                _hover={{
-                  bg: "whiteAlpha.200",
-                  cursor: "pointer",
+          <Box position="relative" ref={menuRef}>
+            <HStack
+              spacing={3}
+              py={2}
+              px={7}
+              borderRadius="lg"
+              onClick={onMenuToggle}
+              _hover={{
+                cursor: "pointer",
+                transform: "translateY(-1px)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              }}
+              transition="all 0.3s ease"
+            >
+              <motion.div
+                animate={{
+                  scale: isMenuOpen ? 1.05 : 1,
+                  rotate: isMenuOpen ? 10 : 0,
                 }}
-                transition="background-color 0.7s"
+                whileHover={{ scale: 1.1 }}
+                transition={{
+                  duration: 0.3,
+                  type: "spring",
+                  stiffness: 260,
+                  damping: 20,
+                }}
               >
                 <Image
                   src={session.user?.image ?? ""}
@@ -157,26 +172,158 @@ export function Header() {
                   w={8}
                   h={8}
                   rounded="full"
+                  border="2px solid"
+                  borderColor={isMenuOpen ? "brand.primary" : "transparent"}
+                  transition="all 0.3s ease"
                 />
-                <Text color="white" fontSize="sm">
-                  {session.user?.username}
-                </Text>
-              </HStack>
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              color="white"
-              onClick={handleSignOut}
-              leftIcon={<Icon as={FiLogOut} boxSize={4} />}
-              _hover={{
-                bg: "whiteAlpha.200",
-              }}
-              transition="background-color 0.7s"
-            >
-              Sign out
-            </Button>
-          </HStack>
+              </motion.div>
+              <Text color="white" fontSize="sm" fontWeight="medium">
+                {session.user?.username}
+              </Text>
+              <motion.div
+                style={{
+                  display: "inline-flex",
+                  transformOrigin: "center center",
+                  width: "16px",
+                  height: "16px",
+                }}
+                animate={{
+                  rotate: isMenuOpen ? 180 : 0,
+                }}
+                transition={{
+                  duration: 0.3,
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 25,
+                }}
+              >
+                <Icon as={FiChevronDown} color="white" />
+              </motion.div>
+            </HStack>
+
+            {isMenuOpen && (
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                    transition: {
+                      duration: 0.25,
+                      ease: [0.16, 1, 0.3, 1],
+                    },
+                  }}
+                  exit={{
+                    opacity: 0,
+                    y: -10,
+                    scale: 0.95,
+                    transition: { duration: 0.2 },
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    right: 0,
+                    marginTop: "12px",
+                    zIndex: 10,
+                    width: "180px",
+                    transformOrigin: "top right",
+                    filter: "drop-shadow(0 10px 15px rgba(0,0,0,0.3))",
+                  }}
+                >
+                  <Box
+                    position="absolute"
+                    top="-5px"
+                    right="20px"
+                    width="0"
+                    height="0"
+                    borderLeft="5px solid transparent"
+                    borderRight="5px solid transparent"
+                    borderBottom="5px solid"
+                    borderBottomColor="brand.secondary"
+                  />
+                  <VStack
+                    bg="brand.secondary"
+                    borderRadius="md"
+                    overflow="hidden"
+                    spacing={0}
+                    border="1px solid"
+                    borderColor="whiteAlpha.200"
+                    backdropFilter="blur(10px)"
+                    style={{
+                      boxShadow:
+                        "0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2)",
+                    }}
+                  >
+                    <Link
+                      href={`/${session.user?.username}`}
+                      passHref
+                      legacyBehavior
+                    >
+                      <Box
+                        as="a"
+                        w="full"
+                        px={4}
+                        py={2}
+                        borderRadius="md"
+                        _hover={{
+                          bg: "rgba(75, 85, 99, 0.5)",
+                          transition: "all 0.3s ease-in-out",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        }}
+                        onClick={onMenuClose}
+                        transition="all 0.15s ease"
+                        role="group"
+                      >
+                        My Profile
+                      </Box>
+                    </Link>
+
+                    <Link href={`/submissions`} passHref legacyBehavior>
+                      <Box
+                        as="a"
+                        w="full"
+                        px={4}
+                        py={2}
+                        borderRadius="md"
+                        _hover={{
+                          bg: "rgba(75, 85, 99, 0.5)",
+                          transition: "all 0.3s ease-in-out",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        }}
+                        onClick={onMenuClose}
+                        transition="all 0.15s ease"
+                        role="group"
+                      >
+                        Submissions
+                      </Box>
+                    </Link>
+
+                    <Box
+                      w="full"
+                      px={4}
+                      py={2}
+                      _hover={{
+                        bg: "rgba(75, 85, 99, 0.5)",
+                        transition: "all 0.3s ease-in-out",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      }}
+                      onClick={() => {
+                        onMenuClose();
+                        handleSignOut();
+                      }}
+                      cursor="pointer"
+                      transition="all 0.15s ease"
+                      role="group"
+                      borderRadius="md"
+                    >
+                      Sign Out
+                    </Box>
+                  </VStack>
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </Box>
         ) : (
           <Button
             variant="ghost"
@@ -196,19 +343,21 @@ export function Header() {
   };
 
   return (
-    <Box bg="brand.navbar" h="full" borderRadius="xl" px={4} py={2}>
+    <Box bg="" h="full" borderRadius="xl" px={4} pt={2}>
       <Flex h="full" alignItems="center" justifyContent="space-between">
         <HStack>
           <Link href="/" passHref legacyBehavior>
             <HStack as="a">
               <Image
-                src="/tensara_logo_notext.png"
+                src="/logo_no_bg.png"
                 alt="Tensara Logo"
-                w={9}
-                h={9}
+                w={6}
+                h={6}
+                mr={1}
+                ml={2}
               />
               <Text
-                fontSize="lg"
+                fontSize="xl"
                 fontWeight="bold"
                 color="white"
                 _hover={{ textDecoration: "none" }}
@@ -220,7 +369,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           {!isMobile && (
-            <HStack ml={2} spacing={3}>
+            <HStack ml={6} spacing={3} pt={2}>
               <NavLinks />
             </HStack>
           )}

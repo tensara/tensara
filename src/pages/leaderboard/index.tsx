@@ -243,13 +243,19 @@ const LeaderboardPage: NextPage = () => {
                       >
                         {GPU_DISPLAY_NAMES[selectedGpu]}
                       </MenuButton>
-                      <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+                      <MenuList
+                        bg="brand.secondary"
+                        borderColor="gray.800"
+                        p={0}
+                        borderRadius="md"
+                        minW="200px"
+                      >
                         {Object.entries(GPU_DISPLAY_NAMES).map(
                           ([key, value]) => (
                             <MenuItem
                               key={key}
                               onClick={() => setSelectedGpu(key)}
-                              bg="gray.800"
+                              bg="brand.secondary"
                               _hover={{ bg: "gray.700" }}
                               color="white"
                               borderRadius="md"
@@ -327,16 +333,42 @@ const LeaderboardPage: NextPage = () => {
                 )}
               </AnimatePresence>
               {/* Tab Selector */}
-              <TabList bg="whiteAlpha.100" p={1} borderRadius="full">
+              <TabList
+                bg="whiteAlpha.50"
+                p={1}
+                borderRadius="lg"
+                h="40px"
+                gap={1}
+              >
                 <Tab
-                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
-                  onClick={() => setSelectedTab("users")}
+                  _selected={{
+                    color: "white",
+                    bg: "whiteAlpha.100",
+                  }}
+                  _hover={{
+                    bg: "whiteAlpha.100",
+                    transition: "all 0.3s ease-in-out",
+                  }}
+                  color="white"
+                  borderRadius="lg"
+                  px={4}
+                  h="32px"
                 >
                   Users
                 </Tab>
                 <Tab
-                  _selected={{ color: "white", bg: "whiteAlpha.100" }}
-                  onClick={() => setSelectedTab("problems")}
+                  _selected={{
+                    color: "white",
+                    bg: "whiteAlpha.100",
+                  }}
+                  _hover={{
+                    bg: "whiteAlpha.100",
+                    transition: "all 0.3s ease-in-out",
+                  }}
+                  color="white"
+                  borderRadius="lg"
+                  px={4}
+                  h="32px"
                 >
                   Problems
                 </Tab>
@@ -433,7 +465,7 @@ const LeaderboardPage: NextPage = () => {
                     ) : (
                       /* Desktop Users Leaderboard */
                       <Table variant="simple" size="md" layout="fixed">
-                        <Thead bg="gray.800" borderTopRadius="md">
+                        <Thead borderTopRadius="md">
                           <Tr>
                             <Th
                               borderBottom="none"
@@ -652,7 +684,7 @@ const LeaderboardPage: NextPage = () => {
                       return (
                         <Card
                           key={problem.slug}
-                          bg="gray.800"
+                          bg="brand.secondary"
                           borderColor="whiteAlpha.200"
                           borderWidth={1}
                           transition="transform 0.2s, box-shadow 0.2s"

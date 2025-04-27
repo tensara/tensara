@@ -18,6 +18,7 @@ import {
   Collapse,
   IconButton,
   Icon,
+  Image,
 } from "@chakra-ui/react";
 
 import {
@@ -137,7 +138,7 @@ const SubmissionResults = ({
   return (
     <VStack spacing={4} align="stretch" p={6}>
       <HStack justify="space-between">
-        <Heading size="md">Submission Results</Heading>
+        <Heading size="md">Results</Heading>
         <HStack>
           <Button
             variant="ghost"
@@ -158,7 +159,7 @@ const SubmissionResults = ({
             variant="ghost"
             onClick={onBackToProblem}
             leftIcon={<Icon as={FiArrowLeft} />}
-            borderRadius="full"
+            borderRadius="lg"
             color="gray.300"
             _hover={{
               bg: "whiteAlpha.50",
@@ -179,7 +180,7 @@ const SubmissionResults = ({
                 metaStatus === "CHECKED" ||
                 metaStatus === "BENCHMARKING" ||
                 metaStatus === "BENCHMARKED"
-              ? "blue.900"
+              ? "transparent"
               : "red.900"
         }
         p={4}

@@ -61,7 +61,7 @@ export const LanguageInfoModal = () => {
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="xl">
         <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
         <ModalContent
-          bg="gray.800"
+          bg="brand.secondary"
           borderColor="whiteAlpha.100"
           borderWidth={1}
         >

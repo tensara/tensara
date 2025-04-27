@@ -16,14 +16,14 @@ const UserScore: React.FC<UserScoreProps> = ({ score, isLoading }) => {
       endColor="gray.800"
     >
       <Box
-        bg="gray.800"
+        bg="brand.secondary"
         borderRadius="xl"
         py={5}
         px={5}
         position="relative"
         overflow="hidden"
         borderWidth="1px"
-        borderColor="blue.900"
+        borderColor="brand.dark"
         boxShadow="xl"
       >
         <Flex justify="center" mb={4}>

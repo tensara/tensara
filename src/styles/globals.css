@@ -127,3 +127,31 @@ a {
 .fadeIn {
   animation: fadeIn 0.3s ease;
 }
+
+/* Base highlight styles */
+.highlight {
+  transform: scaleX(0);
+  transition:
+    transform 0.25s ease,
+    opacity 0.15s ease;
+}
+
+/* Direction-specific transforms */
+.from-left .highlight {
+  transform-origin: left;
+}
+
+.from-right .highlight {
+  transform-origin: right;
+}
+
+/* Hover states */
+button:hover .highlight {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Active state styling */
+.active .highlight {
+  display: none;
+}

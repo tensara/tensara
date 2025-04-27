@@ -27,9 +27,10 @@ export const system = extendTheme({
   colors: {
     brand: {
       primary: "#10B981",
-      secondary: "#1E293B",
-      dark: "#0F172A",
+      secondary: "#181f2a",
+      dark: "#101723",
       navbar: "#0e8144",
+      card: "rgba(15, 23, 42, 0.6)",
     },
     gray: {
       700: "#334155",

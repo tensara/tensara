@@ -33,19 +33,19 @@ const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) => {
           colorScheme={getDifficultyColor(problem.difficulty)}
           px={2}
           py={1}
-          borderRadius="full"
+          borderRadius="lg"
         >
           {problem.difficulty}
         </Badge>
         <Button
           variant="outline"
           height="28px"
-          px={3}
+          px={2}
           py={1}
           fontSize="xs"
           onClick={onViewSubmissions}
           leftIcon={<IoMdTime size={16} />}
-          borderRadius="full"
+          borderRadius="lg"
           borderColor="whiteAlpha.200"
           color="gray.300"
           cursor="pointer"
@@ -60,14 +60,14 @@ const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) => {
         <Button
           variant="outline"
           height="28px"
-          px={3}
+          px={2}
           py={1}
           fontSize="xs"
           onClick={() => {
             window.location.href = `/leaderboard/${problem.slug}`;
           }}
           leftIcon={<Icon as={FiTrendingUp} boxSize={3} />}
-          borderRadius="full"
+          borderRadius="lg"
           borderColor="whiteAlpha.200"
           color="gray.300"
           cursor="pointer"

@@ -314,7 +314,7 @@ export const GpuInfoModal = () => {
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="6xl">
         <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
         <ModalContent
-          bg="gray.800"
+          bg="brand.secondary"
           borderColor="whiteAlpha.100"
           borderWidth={1}
           maxH="90vh"

@@ -118,11 +118,11 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
 
         // Only color cells from the selected year
         if (cellDate.getFullYear() === selectedYear && count > 0) {
-          if (count < 3) bgColor = "green.100";
-          else if (count < 6) bgColor = "green.200";
-          else if (count < 10) bgColor = "green.400";
-          else if (count < 15) bgColor = "green.600";
-          else bgColor = "green.700";
+          if (count < 3) bgColor = "green.800";
+          else if (count < 6) bgColor = "green.600";
+          else if (count < 10) bgColor = "green.500";
+          else if (count < 15) bgColor = "green.400";
+          else bgColor = "green.300";
         }
 
         // The grid is organized with days as rows and weeks as columns
@@ -164,7 +164,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
     <Box>
       <HStack mb={4} justifyContent="space-between">
         <HStack spacing={3}>
-          <Icon as={FaFire} color="blue.300" w={5} h={5} />
+          <Icon as={FaFire} color="brand.primary" w={5} h={5} />
           <Text fontSize="sm" color="whiteAlpha.800">
             <Text as="span" fontWeight="bold" fontSize="md" color="white">
               {calendarData.totalCount}
@@ -178,7 +178,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
             as={Button}
             size="sm"
             width="100px"
-            bg="gray.700"
+            bg="gray.800"
             color="white"
             borderRadius="lg"
             borderColor="gray.600"
@@ -191,8 +191,8 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
             {selectedYear}
           </MenuButton>
           <MenuList
-            bg="gray.700"
-            borderColor="gray.600"
+            bg="gray.800"
+            borderColor="gray.800"
             borderRadius="lg"
             boxShadow="lg"
             py={1}
@@ -203,7 +203,7 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
                 key={year}
                 value={year}
                 onClick={() => setSelectedYear(year)}
-                bg={selectedYear === year ? "blue.900" : "gray.700"}
+                bg={selectedYear === year ? "blue.900" : "gray.800"}
                 borderRadius="lg"
                 color="white"
                 _hover={{ bg: "gray.600" }}
@@ -295,25 +295,20 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
             <Flex justify="flex-end" mt={4} width="100%">
               <Flex
                 alignItems="center"
-                bg="gray.700"
+                bg="gray.800"
                 py={1}
                 px={3}
                 borderRadius="md"
+                mr={3}
               >
                 <Text fontSize="xs" color="whiteAlpha.700" mr={2}>
                   Less
                 </Text>
                 <HStack spacing={1.5}>
-                  <Box
-                    w="10px"
-                    h="10px"
-                    borderRadius="sm"
-                    bg="whiteAlpha.100"
-                  />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="green.200" />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="green.400" />
-                  <Box w="10px" h="10px" borderRadius="sm" bg="green.600" />
                   <Box w="10px" h="10px" borderRadius="sm" bg="green.700" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.600" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.400" />
+                  <Box w="10px" h="10px" borderRadius="sm" bg="green.200" />
                 </HStack>
                 <Text fontSize="xs" color="whiteAlpha.700" ml={2}>
                   More

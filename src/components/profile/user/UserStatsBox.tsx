@@ -19,14 +19,14 @@ const UserStats: React.FC<UserStatsProps> = ({ userData, isLoading }) => {
     <SimpleGrid columns={2} spacing={4} width="100%">
       <Skeleton isLoaded={!isLoading} startColor="gray.700" endColor="gray.800">
         <Box
-          bg="gray.800"
+          bg="brand.secondary"
           borderRadius="xl"
           py={4}
           px={4}
           textAlign="center"
           height="100%"
           borderWidth="1px"
-          borderColor="blue.900"
+          borderColor="brand.dark"
           boxShadow="md"
           position="relative"
           overflow="hidden"
@@ -49,7 +49,7 @@ const UserStats: React.FC<UserStatsProps> = ({ userData, isLoading }) => {
             position="relative"
             height="100%"
           >
-            <Icon as={FiList} color="blue.300" boxSize={5} mb={1} />
+            <Icon as={FiList} color="brand.primary" boxSize={5} mb={1} />
             <Text fontSize="2xl" color="white" fontWeight="bold">
               {userData?.stats?.submissions ?? 0}
             </Text>
@@ -62,14 +62,14 @@ const UserStats: React.FC<UserStatsProps> = ({ userData, isLoading }) => {
 
       <Skeleton isLoaded={!isLoading} startColor="gray.700" endColor="gray.800">
         <Box
-          bg="gray.800"
+          bg="brand.secondary"
           borderRadius="xl"
           py={4}
           px={4}
           textAlign="center"
           height="100%"
           borderWidth="1px"
-          borderColor="blue.900"
+          borderColor="brand.dark"
           boxShadow="md"
           position="relative"
           overflow="hidden"
@@ -82,7 +82,7 @@ const UserStats: React.FC<UserStatsProps> = ({ userData, isLoading }) => {
             right={0}
             bottom={0}
             opacity={0.05}
-            bgGradient="radial(blue.400, transparent 70%)"
+            bgGradient="radial(brand.primary, transparent 70%)"
           />
 
           <Flex
@@ -92,7 +92,7 @@ const UserStats: React.FC<UserStatsProps> = ({ userData, isLoading }) => {
             position="relative"
             height="100%"
           >
-            <Icon as={FiCode} color="blue.300" boxSize={5} mb={1} />
+            <Icon as={FiCode} color="brand.primary" boxSize={5} mb={1} />
             <Text fontSize="2xl" color="white" fontWeight="bold">
               {userData?.stats?.solvedProblems ?? 0}
             </Text>

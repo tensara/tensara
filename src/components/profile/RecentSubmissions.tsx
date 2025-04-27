@@ -11,6 +11,7 @@ import {
   Divider,
   Tag,
   Skeleton,
+  Badge,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 
@@ -42,36 +43,36 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
 }) => {
   return (
     <Box
-      bg="gray.800"
+      bg="brand.secondary"
       borderRadius="xl"
       overflow="hidden"
       boxShadow="lg"
       borderWidth="1px"
-      borderColor="blue.900"
+      borderColor="brand.dark"
       flexGrow={1}
     >
       {/* Header */}
       <Flex
         px={5}
         py={4}
-        bg="gray.800"
+        bg="brand.secondary"
         borderBottom="1px solid"
-        borderColor="blue.800"
+        borderColor="brand.dark"
         align="center"
         justify="space-between"
       >
         <HStack spacing={3}>
-          <Icon as={FiList} color="blue.400" boxSize={5} />
+          <Icon as={FiList} color="brand.primary" boxSize={5} />
           <Heading size="md" color="white" fontWeight="semibold">
             Recent Submissions
           </Heading>
         </HStack>
       </Flex>
 
-      <Box bg="gray.850" px={0} py={0}>
+      <Box bg="brand.secondary" px={0} py={0}>
         {isLoading ? (
           <VStack spacing={1} align="stretch" p={2}>
-            {Array(3)
+            {Array(4)
               .fill(undefined)
               .map(
                 (_: undefined, i: number): JSX.Element => (
@@ -103,16 +104,16 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                   py={4}
                   px={5}
                   position="relative"
-                  bg="gray.800"
+                  bg="brand.secondary"
                   _hover={{
-                    bg: "gray.700",
+                    bg: "brand.secondary",
                     cursor: "pointer",
                   }}
                   transition="all 0.2s ease"
                   display="block"
                   borderLeftWidth="3px"
                   borderLeftColor={
-                    submission.status === "accepted" ? "green.400" : "red.400"
+                    submission.status === "accepted" ? "green.600" : "red.600"
                   }
                 >
                   <Grid templateColumns="3fr 2fr" gap={4} alignItems="center">
@@ -123,25 +124,29 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                           {submission.problemName}
                         </Text>
 
-                        <Tag
-                          size="sm"
-                          borderRadius="full"
-                          colorScheme={
-                            submission.status === "accepted" ? "green" : "red"
+                        <Badge
+                          variant="solid"
+                          bg={
+                            submission.status === "accepted"
+                              ? "green.600"
+                              : "red.600"
                           }
-                          py={0.5}
+                          fontSize="xs"
+                          px={2}
+                          py={1}
+                          borderRadius="lg"
                         >
                           {submission.status === "accepted"
-                            ? "Accepted"
-                            : "Failed"}
-                        </Tag>
+                            ? "ACCEPTED"
+                            : "FAILED"}
+                        </Badge>
                       </Flex>
 
                       <HStack spacing={4}>
                         <HStack spacing={1.5}>
                           <Icon
                             as={FiCalendar}
-                            color="blue.300"
+                            color="brand.primary"
                             boxSize="14px"
                           />
                           <Text color="whiteAlpha.700" fontSize="sm">
@@ -154,7 +159,7 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                     {/* Right side: Performance metrics */}
                     <Flex justify="flex-end">
                       <HStack
-                        spacing={3}
+                        spacing={4}
                         bg="gray.800"
                         borderRadius="lg"
                         p={2}
@@ -164,9 +169,11 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         {/* Language */}
                         <Box
                           px={3}
+                          pr={4}
                           py={1.5}
-                          borderRadius="md"
-                          bg="blue.900"
+                          borderRight="1px solid"
+                          borderColor="gray.600"
+                          bg="gray.800"
                           minW="80px"
                           textAlign="center"
                         >
@@ -187,9 +194,11 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         {/* GPU Type */}
                         <Box
                           px={3}
+                          pr={8}
                           py={1.5}
-                          borderRadius="md"
-                          bg="blue.900"
+                          borderRight="1px solid"
+                          borderColor="gray.600"
+                          bg="gray.800"
                           minW="80px"
                           textAlign="center"
                         >
@@ -211,8 +220,10 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         <Box
                           px={3}
                           py={1.5}
-                          borderRadius="md"
-                          bg="blue.900"
+                          pr={8}
+                          borderRight="1px solid"
+                          borderColor="gray.600"
+                          bg="gray.800"
                           minW="80px"
                           textAlign="center"
                         >
@@ -232,8 +243,8 @@ const RecentSubmissions: React.FC<RecentSubmissionsProps> = ({
                         <Box
                           px={3}
                           py={1.5}
-                          borderRadius="md"
-                          bg="blue.900"
+                          borderRadius="lg"
+                          bg="gray.800"
                           minW="80px"
                           textAlign="center"
                         >

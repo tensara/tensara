@@ -21,7 +21,7 @@ const ResetCodeModal = ({ isOpen, onClose, onReset }: ResetCodeModalProps) => {
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
       <ModalContent
-        bg="gray.800"
+        bg="brand.secondary"
         borderColor="whiteAlpha.100"
         borderWidth={1}
         mx={4}
