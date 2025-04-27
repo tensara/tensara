@@ -333,16 +333,16 @@ const LeaderboardPage: NextPage = () => {
                 )}
               </AnimatePresence>
               {/* Tab Selector */}
-              <TabList 
-                bg="whiteAlpha.50" 
-                p={1} 
+              <TabList
+                bg="whiteAlpha.50"
+                p={1}
                 borderRadius="lg"
                 h="40px"
                 gap={1}
               >
                 <Tab
-                  _selected={{ 
-                    color: "white", 
+                  _selected={{
+                    color: "white",
                     bg: "whiteAlpha.100",
                   }}
                   _hover={{
@@ -357,13 +357,13 @@ const LeaderboardPage: NextPage = () => {
                   Users
                 </Tab>
                 <Tab
-                  _selected={{ 
-                    color: "white", 
+                  _selected={{
+                    color: "white",
                     bg: "whiteAlpha.100",
                   }}
                   _hover={{
                     bg: "whiteAlpha.100",
-                    transition: "all 0.3s ease-in-out", 
+                    transition: "all 0.3s ease-in-out",
                   }}
                   color="white"
                   borderRadius="lg"

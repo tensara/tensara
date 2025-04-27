@@ -216,12 +216,18 @@ const SubmissionsPage: NextPage = () => {
             >
               {STATUS_OPTIONS[statusFilter as keyof typeof STATUS_OPTIONS]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.700" p={0}>
+            <MenuList
+              bg="brand.secondary"
+              borderColor="gray.800"
+              minW="130px"
+              p={0}
+              borderRadius="md"
+            >
               {Object.entries(STATUS_OPTIONS).map(([key, value]) => (
                 <MenuItem
                   key={key}
                   onClick={() => setStatusFilter(key)}
-                  bg="gray.800"
+                  bg="brand.secondary"
                   _hover={{ bg: "gray.700" }}
                   color="white"
                   borderRadius="md"
@@ -247,12 +253,18 @@ const SubmissionsPage: NextPage = () => {
             >
               {GPU_DISPLAY_NAMES[gpuFilter]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.800" p={0}>
+            <MenuList
+              bg="brand.secondary"
+              borderColor="gray.800"
+              p={0}
+              borderRadius="md"
+              minW="180px"
+            >
               {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                 <MenuItem
                   key={key}
                   onClick={() => setGpuFilter(key)}
-                  bg="gray.800"
+                  bg="brand.secondary"
                   _hover={{ bg: "gray.700" }}
                   color="white"
                   borderRadius="md"
@@ -278,12 +290,18 @@ const SubmissionsPage: NextPage = () => {
             >
               {LANGUAGE_DISPLAY_NAMES[languageFilter]}
             </MenuButton>
-            <MenuList bg="gray.800" borderColor="gray.800" p={0}>
+            <MenuList
+              bg="brand.secondary"
+              borderColor="gray.800"
+              p={0}
+              borderRadius="md"
+              minW="180px"
+            >
               {Object.entries(LANGUAGE_DISPLAY_NAMES).map(([key, value]) => (
                 <MenuItem
                   key={key}
                   onClick={() => setLanguageFilter(key)}
-                  bg="gray.800"
+                  bg="brand.secondary"
                   _hover={{ bg: "gray.700" }}
                   color="white"
                   borderRadius="md"
@@ -457,7 +475,12 @@ const SubmissionsPage: NextPage = () => {
                         cursor: "pointer",
                       }}
                     >
-                      <Badge colorScheme={getStatusColor(submission.status)} borderRadius='md' py={0.5} px={2}>
+                      <Badge
+                        colorScheme={getStatusColor(submission.status)}
+                        borderRadius="md"
+                        py={0.5}
+                        px={2}
+                      >
                         {formatStatus(submission.status)}
                       </Badge>
                     </Link>

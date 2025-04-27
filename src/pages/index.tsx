@@ -403,7 +403,6 @@ export default function HomePage() {
                   </Text>
                 </MotionFlex>
               </MotionVStack>
-
               {/* Right side container for animation - Adjusted for centering */}
               <Flex
                 // Removed flex={1}

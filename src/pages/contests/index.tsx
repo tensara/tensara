@@ -142,7 +142,6 @@ export default function ContestsPage() {
             We&apos;re preparing exciting GPU programming contests for you.
             Check back soon for competitive challenges and prizes!
           </MotionBox>
-
         </MotionBox>
       </Box>
     </Layout>
