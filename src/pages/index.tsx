@@ -400,7 +400,6 @@ export default function HomePage() {
                     >
                       Discord
                     </Link>
-                    !
                   </Text>
                 </MotionFlex>
               </MotionVStack>
