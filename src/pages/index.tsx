@@ -344,43 +344,50 @@ export default function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 1 }}
                 >
-                  <Button
-                    as={motion.button}
-                    size="lg"
-                    bg="#0e8144"
-                    color="white"
-                    _hover={{
-                      bg: "#0a6434",
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 5px 20px rgba(46, 204, 113, 0.4)",
-                    }}
-                    height="60px"
-                    px={8}
-                    leftIcon={<Icon as={FiCode} />}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Start Solving
-                  </Button>
+                  <Link href="/problems" style={{ textDecoration: "none" }}>
+                    <Button
+                      as={motion.button}
+                      size="lg"
+                      bg="#0e8144"
+                      color="white"
+                      _hover={{
+                        bg: "#0a6434",
+                        transform: "translateY(-2px)",
+                        boxShadow: "0 5px 20px rgba(46, 204, 113, 0.4)",
+                      }}
+                      height="60px"
+                      px={8}
+                      leftIcon={<Icon as={FiCode} />}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Start Solving
+                    </Button>
+                  </Link>
 
-                  <Button
-                    as={motion.button}
-                    size="lg"
-                    variant="outline"
-                    borderColor="whiteAlpha.300"
-                    color="white"
-                    _hover={{
-                      borderColor: "whiteAlpha.500",
-                      bg: "whiteAlpha.50",
-                    }}
-                    height="60px"
-                    px={8}
-                    leftIcon={<Icon as={FaGithub} />}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.98 }}
+                  <Link
+                    href="https://github.com/tensara/tensara"
+                    style={{ textDecoration: "none" }}
                   >
-                    View on GitHub
-                  </Button>
+                    <Button
+                      as={motion.button}
+                      size="lg"
+                      variant="outline"
+                      borderColor="whiteAlpha.300"
+                      color="white"
+                      _hover={{
+                        borderColor: "whiteAlpha.500",
+                        bg: "whiteAlpha.50",
+                      }}
+                      height="60px"
+                      px={8}
+                      leftIcon={<Icon as={FaGithub} />}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      View on GitHub
+                    </Button>
+                  </Link>
                 </MotionFlex>
 
                 <MotionFlex
@@ -709,14 +716,14 @@ export default function HomePage() {
                 </Text>
                 {/* Social Icons */}
                 <Flex gap={4} mt={2}>
-                  <Link href="https://github.com/tensara" isExternal>
+                  <Link href="https://github.com/tensara/tensara" isExternal>
                     <Icon
                       as={FaGithub}
                       boxSize={5}
                       _hover={{ color: "white" }}
                     />
                   </Link>
-                  <Link href="#" isExternal>
+                  <Link href="https://x.com/tensarahq" isExternal>
                     <Icon
                       as={FaTwitter}
                       boxSize={5}
@@ -730,7 +737,7 @@ export default function HomePage() {
                       _hover={{ color: "white" }}
                     />
                   </Link>
-                  <Link href="mailto:support@tensara.ai" isExternal>
+                  <Link href="mailto:hello@tensara.org" isExternal>
                     <Icon
                       as={FaEnvelope}
                       boxSize={5}
