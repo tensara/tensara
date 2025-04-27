@@ -163,41 +163,38 @@ export default function HomePage() {
 
   // Dummy data for the benchmark display
   const dummyBenchmarkData = [
-    { id: "1", name: "4096x4096, alpha=0.01", runtime_ms: 0.72, gflops: 27.1 },
-    { id: "2", name: "4096x4096, alpha=0.05", runtime_ms: 0.61, gflops: 27.79 },
-    { id: "3", name: "4096x4096, alpha=0.1", runtime_ms: 0.59, gflops: 28.39 },
-    { id: "4", name: "6144x4096, alpha=0.01", runtime_ms: 0.88, gflops: 28.63 },
-    { id: "5", name: "6144x4096, alpha=0.05", runtime_ms: 0.87, gflops: 28.86 },
+    { id: "1", name: "n = 2^20", runtime_ms: 0.05, gflops: 19.79 },
+    { id: "2", name: "n = 2^22", runtime_ms: 0.20, gflops: 21.08 },
+    { id: "3", name: "n = 2^23", runtime_ms: 0.39, gflops: 21.29 },
+    { id: "4", name: "n = 2^25", runtime_ms: 1.56, gflops: 21.49 },
+    { id: "5", name: "n = 2^26", runtime_ms: 3.12, gflops: 21.53 },
+    { id: "6", name: "n = 2^29", runtime_ms: 24.94, gflops: 21.53 },
+    { id: "7", name: "n = 2^30", runtime_ms: 50.1, gflops: 21.43 },
   ];
 
-  // Callback for when code typing completes
   const handleTypingComplete = useCallback(() => {
-    console.log("HomePage: handleTypingComplete called"); // Log callback start
-    // Start fade-out after 1 second delay
+    console.log("HomePage: handleTypingComplete called");
     const fadeOutTimer = setTimeout(() => {
-      console.log("HomePage: Setting isFadingCode=true, isTypingCode=false"); // Log fade out start
+      console.log("HomePage: Setting isFadingCode=true, isTypingCode=false");
       setIsFadingCode(true);
-      setIsTypingCode(false); // Stop rendering the typing component logically
+      setIsTypingCode(false); 
 
-      // Start fade-in benchmarks after 0.5 second delay (overlaps fade-out)
       const fadeInTimer = setTimeout(() => {
-        console.log("HomePage: Setting isShowingBenchmarks=true"); // Log benchmark show start
+        console.log("HomePage: Setting isShowingBenchmarks=true");
         setIsShowingBenchmarks(true);
-      }, 500); // 0.5s delay for benchmark fade-in
+      }, 500);
 
-      // Cleanup benchmark timer on unmount or re-trigger
       return () => {
-        console.log("HomePage: Clearing fadeInTimer"); // Log cleanup
+        console.log("HomePage: Clearing fadeInTimer");
         clearTimeout(fadeInTimer);
       };
-    }, 1000); // 1s delay before code fade-out
+    }, 1000);
 
-    // Cleanup fade-out timer on unmount or re-trigger
     return () => {
-      console.log("HomePage: Clearing fadeOutTimer"); // Log cleanup
+      console.log("HomePage: Clearing fadeOutTimer");
       clearTimeout(fadeOutTimer);
     };
-  }, []); // Empty dependency array ensures this callback is created once
+  }, []); 
 
   useEffect(() => {
     const checkMobile = () => {

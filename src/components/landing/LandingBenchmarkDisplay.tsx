@@ -122,34 +122,17 @@ const LandingBenchmarkDisplay: React.FC<LandingBenchmarkDisplayProps> = ({
   return (
     <MotionBox
       w="full"
-      maxW={{ base: "full", lg: "90%" }}
+      maxW={{ base: "50%", lg: "70%" }}
       variants={containerVariants}
       initial="hidden"
       animate={isVisible ? "visible" : "hidden"}
       position="relative"
-      sx={{
-        "&::after": {
-          content: '""',
-          position: "absolute",
-          top: "-20px",
-          left: "-20px",
-          right: "-20px",
-          bottom: "-20px",
-          bgGradient:
-            "radial(circle, rgba(46, 204, 113, 0.15) 0%, transparent 70%)",
-          filter: "blur(30px)",
-          zIndex: -1,
-          borderRadius: "inherit",
-          pointerEvents: "none",
-        },
-      }}
+      mx="auto"
     >
       {/* Main content box */}
       <Box
         bg="whiteAlpha.50"
         borderRadius="xl"
-        borderWidth="1px"
-        borderColor="whiteAlpha.100"
         overflow="hidden"
       >
         <VStack
@@ -173,28 +156,6 @@ const LandingBenchmarkDisplay: React.FC<LandingBenchmarkDisplayProps> = ({
               </Heading>
               {hasAnimationStarted && !showFooter && (
                 <Spinner size="xs" color="gray.300" ml={2} />
-              )}
-              {dummyData.length > 0 && hasAnimationStarted && (
-                <IconButton
-                  aria-label="Toggle benchmark table"
-                  icon={isTableOpen ? <FaChevronUp /> : <FaChevronDown />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (showFooter) {
-                      setIsTableOpen(!isTableOpen);
-                    }
-                  }}
-                  color="gray.300"
-                  _hover={{
-                    bg: "whiteAlpha.50",
-                    color: "white",
-                  }}
-                  isDisabled={!showFooter}
-                  opacity={showFooter ? 1 : 0}
-                  transition="opacity 0.2s"
-                />
               )}
             </HStack>
           </HStack>
