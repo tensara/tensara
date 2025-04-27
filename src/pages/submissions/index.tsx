@@ -21,7 +21,7 @@ import {
   Menu,
   Button,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
@@ -36,7 +36,14 @@ import { auth } from "~/server/auth";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { formatStatus, getStatusColor } from "~/constants/problem";
-import { FaChevronDown, FaChevronUp } from "react-icons/fa";
+import {
+  FaChevronDown,
+  FaChevronUp,
+  FaChevronLeft,
+  FaChevronRight,
+  FaAngleDoubleLeft,
+  FaAngleDoubleRight,
+} from "react-icons/fa";
 
 type SortField =
   | "createdAt"
@@ -97,6 +104,19 @@ const SubmissionsPage: NextPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    statusFilter,
+    gpuFilter,
+    languageFilter,
+    searchQuery,
+    sortField,
+    sortOrder,
+  ]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
@@ -171,6 +191,14 @@ const SubmissionsPage: NextPage = () => {
           return 0;
       }
     });
+
+  const totalPages = Math.ceil(
+    (filteredAndSortedSubmissions?.length ?? 0) / itemsPerPage
+  );
+  const paginatedSubmissions = filteredAndSortedSubmissions?.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   if (isLoading) {
     return (
@@ -449,7 +477,7 @@ const SubmissionsPage: NextPage = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {filteredAndSortedSubmissions?.map((submission) => (
+              {paginatedSubmissions?.map((submission) => (
                 <Tr
                   key={submission.id}
                   _hover={{ bg: "whiteAlpha.50" }}
@@ -558,6 +586,51 @@ const SubmissionsPage: NextPage = () => {
               ))}
             </Tbody>
           </Table>
+
+          {/* Update pagination controls */}
+          <HStack spacing={4} justify="center" mt={6}>
+            <IconButton
+              aria-label="First page"
+              icon={<FaAngleDoubleLeft />}
+              onClick={() => setCurrentPage(1)}
+              isDisabled={currentPage === 1}
+              size="sm"
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100" }}
+            />
+            <IconButton
+              aria-label="Previous page"
+              icon={<FaChevronLeft />}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              isDisabled={currentPage === 1}
+              size="sm"
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100" }}
+            />
+            <Text>
+              Page {currentPage} of {totalPages}
+            </Text>
+            <IconButton
+              aria-label="Next page"
+              icon={<FaChevronRight />}
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              isDisabled={currentPage === totalPages}
+              size="sm"
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100" }}
+            />
+            <IconButton
+              aria-label="Last page"
+              icon={<FaAngleDoubleRight />}
+              onClick={() => setCurrentPage(totalPages)}
+              isDisabled={currentPage === totalPages}
+              size="sm"
+              bg="whiteAlpha.50"
+              _hover={{ bg: "whiteAlpha.100" }}
+            />
+          </HStack>
         </Box>
       </Box>
     </Layout>

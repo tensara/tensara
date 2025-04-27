@@ -391,15 +391,16 @@ export default function HomePage() {
                   transition={{ duration: 0.5, delay: 1.2 }}
                 >
                   <Text color="whiteAlpha.600">
-                    Want to code from your own IDE? Check out the{" "}
+                    Need help getting started? Join our community on{" "}
                     <Link
-                      href="https://github.com/tensara/tensara-cli"
+                      href="https://discord.gg/YzBTfMxVQK"
                       isExternal
                       color="#2ecc71"
                       textDecoration="underline"
                     >
-                      CLI tool
+                      Discord
                     </Link>
+                    !
                   </Text>
                 </MotionFlex>
               </MotionVStack>
@@ -450,6 +451,40 @@ export default function HomePage() {
             </Flex>
           </Container>
         </MotionBox>
+
+        {/* Features Section */}
+        <Container maxW="8xl" py={16}>
+          <VStack align="flex-start" spacing={16}>
+            <VStack align="flex-start" spacing={4} maxW="2xl">
+              <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
+                Why Tensara?
+              </Heading>
+              <Text color="whiteAlpha.800" fontSize="lg">
+                Tensara provides a unique platform for honing your GPU
+                programming skills through competitive challenges and detailed
+                benchmarking.
+              </Text>
+            </VStack>
+
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
+              <FeatureCard
+                icon={FiCpu}
+                title="Real Hardware Benchmarking"
+                description="Submissions are run on standardized GPU hardware for fair and accurate performance comparisons."
+              />
+              <FeatureCard
+                icon={FiAward}
+                title="Competitive Leaderboards"
+                description="See how your solutions stack up against others on detailed leaderboards for each problem."
+              />
+              <FeatureCard
+                icon={FiUsers}
+                title="Community & Collaboration"
+                description="Discuss strategies, share insights, and learn from fellow GPU programming enthusiasts."
+              />
+            </SimpleGrid>
+          </VStack>
+        </Container>
 
         {/* Updates Section */}
         <Box py={16}>
@@ -560,16 +595,16 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
-                      title="3D/4D Tensor matmul problems"
-                      type="UPDATE"
-                      description="Added new matrix multiplication problems."
-                      date="2 days ago"
-                    />
-                    <UpdateCard
                       title="Convolution Problems"
                       type="FEATURE"
                       description="New set of convolution challenges available."
                       date="1 week ago"
+                    />
+                    <UpdateCard
+                      title="3D/4D Tensor Matmul Problems"
+                      type="FEATURE"
+                      description="Added new matrix multiplication problems."
+                      date="2 weeks ago"
                     />
                     <UpdateCard
                       title="Problem Difficulty Tags"
@@ -583,40 +618,6 @@ export default function HomePage() {
             </VStack>
           </Container>
         </Box>
-
-        {/* Features Section */}
-        <Container maxW="8xl" py={16}>
-          <VStack align="flex-start" spacing={16}>
-            <VStack align="flex-start" spacing={4} maxW="2xl">
-              <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
-                Why Tensara?
-              </Heading>
-              <Text color="whiteAlpha.800" fontSize="lg">
-                Tensara provides a unique platform for honing your GPU
-                programming skills through competitive challenges and detailed
-                benchmarking.
-              </Text>
-            </VStack>
-
-            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
-              <FeatureCard
-                icon={FiCpu}
-                title="Real Hardware Benchmarking"
-                description="Submissions are run on standardized GPU hardware for fair and accurate performance comparisons."
-              />
-              <FeatureCard
-                icon={FiAward}
-                title="Competitive Leaderboards"
-                description="See how your solutions stack up against others on detailed leaderboards for each problem."
-              />
-              <FeatureCard
-                icon={FiUsers}
-                title="Community & Collaboration"
-                description="Discuss strategies, share insights, and learn from fellow GPU programming enthusiasts."
-              />
-            </SimpleGrid>
-          </VStack>
-        </Container>
 
         {/* Call to Action Section */}
         <Container maxW="8xl" py={20}>
@@ -640,43 +641,58 @@ export default function HomePage() {
           >
             <Box position="relative" zIndex={1}>
               <Heading
-                fontSize={{ base: "3xl", md: "4xl" }}
+                fontSize={{ base: "2xl", md: "4xl" }}
                 color="white"
-                mb={4}
+                mb={{ base: 3, md: 4 }}
                 fontFamily="Space Grotesk, sans-serif"
+                px={{ base: 2, md: 0 }}
               >
                 Ready to Optimize?
               </Heading>
               <Text
-                fontSize="xl"
+                fontSize={{ base: "lg", md: "xl" }}
                 color="whiteAlpha.900"
-                mb={8}
+                mb={{ base: 6, md: 8 }}
                 maxW="xl"
                 mx="auto"
+                px={{ base: 4, md: 0 }}
               >
                 Dive into our GPU programming challenges, submit your kernels,
                 and climb the leaderboards.
               </Text>
-              <Button
-                size="lg"
-                bg="white"
-                color="brand.primary"
-                _hover={{ bg: "gray.100" }}
-                height="60px"
-                px={10}
-                rightIcon={<Icon as={FiArrowRight} />}
-                as={motion.button}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
+              <Link
+                href="/problems"
+                _hover={{ textDecoration: "none" }}
+                display="inline-block"
+                w={{ base: "full", md: "auto" }}
               >
-                Start Solving Now
-              </Button>
+                <Button
+                  size="lg"
+                  bg="rgba(255, 255, 255, 0.1)"
+                  color="white"
+                  _hover={{
+                    bg: "rgba(255, 255, 255, 0.2)",
+                    transform: "translateY(-2px)",
+                  }}
+                  height={{ base: "50px", md: "60px" }}
+                  px={{ base: 6, md: 10 }}
+                  rightIcon={<Icon as={FiArrowRight} />}
+                  as={motion.button}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                  backdropFilter="blur(8px)"
+                  border="1px solid rgba(255, 255, 255, 0.2)"
+                  w={{ base: "full", md: "auto" }}
+                >
+                  Start Solving Now
+                </Button>
+              </Link>
             </Box>
           </Box>
         </Container>
 
         {/* Footer Links */}
-        <Box bg="transparent" py={16} borderRadius="2xl">
+        <Box bg="transparent" pt={16} borderRadius="2xl">
           <Container maxW="8xl">
             {/* <Divider mb={10} borderColor="whiteAlpha.200" /> */}
             <SimpleGrid
@@ -708,7 +724,7 @@ export default function HomePage() {
                       _hover={{ color: "white" }}
                     />
                   </Link>
-                  <Link href="#" isExternal>
+                  <Link href="https://discord.gg/YzBTfMxVQK" isExternal>
                     <Icon
                       as={FaDiscord}
                       boxSize={5}
@@ -749,23 +765,26 @@ export default function HomePage() {
                 <Heading size="sm" color="white" mb={2}>
                   Resources
                 </Heading>
-                <Link href="/docs" _hover={{ color: "white" }}>
-                  Documentation
+                <Link
+                  href="https://discord.gg/YzBTfMxVQK"
+                  isExternal
+                  _hover={{ color: "white" }}
+                >
+                  Learn
                 </Link>
-                <Link href="/faq" _hover={{ color: "white" }}>
-                  FAQ
-                </Link>
-                <Link href="/support" _hover={{ color: "white" }}>
-                  Support
+                <Link
+                  href="https://github.com/orgs/tensara/projects/1"
+                  isExternal
+                  _hover={{ color: "white" }}
+                >
+                  Roadmap
                 </Link>
                 <Link
                   href="https://github.com/tensara/tensara-cli"
                   isExternal
                   _hover={{ color: "white" }}
                 >
-                  <Flex align="center" gap={1}>
-                    CLI Tool <Icon as={FiExternalLink} boxSize={3} />
-                  </Flex>
+                  CLI Tool
                 </Link>
               </VStack>
 
