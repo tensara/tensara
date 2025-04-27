@@ -35,7 +35,7 @@ interface LandingBenchmarkDisplayProps {
 }
 
 const MotionBox = motion(Box);
-// const MotionTr = motion(Tr); // Not using MotionTr for this test
+const MotionTr = motion(Tr);
 
 const LandingBenchmarkDisplay: React.FC<LandingBenchmarkDisplayProps> = ({
   isVisible,
@@ -109,8 +109,19 @@ const LandingBenchmarkDisplay: React.FC<LandingBenchmarkDisplayProps> = ({
     visible: { opacity: 1, transition: { duration: 0.3 } },
   };
 
-  // rowVariants not needed for this test
-  // const rowVariants = { ... };
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.3,
+        type: "spring",
+        stiffness: 100,
+        opacity: { duration: 0.5 },
+      },
+    },
+  };
 
   const hasAnimationStarted = animationStartedRef.current;
   console.log("Rendering component", {
@@ -130,11 +141,7 @@ const LandingBenchmarkDisplay: React.FC<LandingBenchmarkDisplayProps> = ({
       mx="auto"
     >
       {/* Main content box */}
-      <Box
-        bg="whiteAlpha.50"
-        borderRadius="xl"
-        overflow="hidden"
-      >
+      <Box bg="whiteAlpha.50" borderRadius="xl" overflow="hidden">
         <VStack
           spacing={0}
           align="stretch"
@@ -182,30 +189,36 @@ const LandingBenchmarkDisplay: React.FC<LandingBenchmarkDisplayProps> = ({
                 </Tr>
               </Thead>
               <Tbody>
-                {/* *** No AnimatePresence or MotionTr *** */}
-                {dummyData.slice(0, loadedRowCount).map((result, index) => (
-                  <Tr // Use standard Tr
-                    key={result.id}
-                    _hover={{ bg: "whiteAlpha.100" }}
-                  >
-                    <Td py={3}>
-                      <HStack spacing={2}>
-                        <Icon as={FaCheck} color="green.300" boxSize={4} />
-                        <Text color="white">{result.name}</Text>
-                      </HStack>
-                    </Td>
-                    <Td py={3} isNumeric>
-                      <Text color="white">
-                        {result.runtime_ms.toFixed(2)} ms
-                      </Text>
-                    </Td>
-                    <Td py={3} isNumeric>
-                      <Text color="white">
-                        {result.gflops.toFixed(2)} GFLOPS
-                      </Text>
-                    </Td>
-                  </Tr>
-                ))}
+                {/* Using AnimatePresence for row animations */}
+                <AnimatePresence>
+                  {dummyData.slice(0, loadedRowCount).map((result, index) => (
+                    <MotionTr
+                      key={result.id}
+                      _hover={{ bg: "whiteAlpha.100" }}
+                      variants={rowVariants}
+                      initial="hidden"
+                      animate="visible"
+                      custom={index}
+                    >
+                      <Td py={3}>
+                        <HStack spacing={2}>
+                          <Icon as={FaCheck} color="green.300" boxSize={4} />
+                          <Text color="white">{result.name}</Text>
+                        </HStack>
+                      </Td>
+                      <Td py={3} isNumeric>
+                        <Text color="white">
+                          {result.runtime_ms.toFixed(2)} ms
+                        </Text>
+                      </Td>
+                      <Td py={3} isNumeric>
+                        <Text color="white">
+                          {result.gflops.toFixed(2)} GFLOPS
+                        </Text>
+                      </Td>
+                    </MotionTr>
+                  ))}
+                </AnimatePresence>
               </Tbody>
             </Table>
           </Box>
