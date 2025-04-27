@@ -15,20 +15,17 @@ import {
   DrawerOverlay,
   DrawerContent,
   DrawerCloseButton,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import {
-  FiLogOut,
-  FiGithub,
-  FiMenu,
-  FiChevronDown,
-  FiUser,
-  FiCode,
-} from "react-icons/fi";
+import { FiGithub, FiMenu, FiChevronDown } from "react-icons/fi";
 import { useState, useEffect } from "react";
-import { LayoutGroup, motion, AnimatePresence } from "framer-motion";
+import { LayoutGroup, motion } from "framer-motion";
 import React from "react";
 
 export function Header() {
@@ -111,41 +108,19 @@ export function Header() {
 
   const AuthSection = () => {
     const {
-      isOpen: isMenuOpen,
-      onOpen: onMenuOpen,
-      onClose: onMenuClose,
-      onToggle: onMenuToggle,
+      isOpen: menuIsOpen,
+      onOpen: menuOnOpen,
+      onClose: menuOnClose,
     } = useDisclosure();
-    const menuRef = React.useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (
-          menuRef.current &&
-          !menuRef.current.contains(event.target as Node)
-        ) {
-          onMenuClose();
-        }
-      };
-
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }, [menuRef, onMenuClose]);
 
     if (!mounted) return null;
 
     return (
       <>
         {status === "authenticated" ? (
-          <Box position="relative" ref={menuRef}>
-            <HStack
-              spacing={3}
-              py={2}
-              px={7}
-              borderRadius="lg"
-              onClick={onMenuToggle}
+          <Menu isOpen={menuIsOpen} onOpen={menuOnOpen} onClose={menuOnClose}>
+            <MenuButton
+              as={Box}
               _hover={{
                 cursor: "pointer",
                 transform: "translateY(-1px)",
@@ -153,177 +128,109 @@ export function Header() {
               }}
               transition="all 0.3s ease"
             >
-              <motion.div
-                animate={{
-                  scale: isMenuOpen ? 1.05 : 1,
-                  rotate: isMenuOpen ? 10 : 0,
-                }}
-                whileHover={{ scale: 1.1 }}
-                transition={{
-                  duration: 0.3,
-                  type: "spring",
-                  stiffness: 260,
-                  damping: 20,
-                }}
-              >
-                <Image
-                  src={session.user?.image ?? ""}
-                  alt="Profile"
-                  w={8}
-                  h={8}
-                  rounded="full"
-                  border="2px solid"
-                  borderColor={isMenuOpen ? "brand.primary" : "transparent"}
-                  transition="all 0.3s ease"
-                />
-              </motion.div>
-              <Text color="white" fontSize="sm" fontWeight="medium">
-                {session.user?.username}
-              </Text>
-              <motion.div
-                style={{
-                  display: "inline-flex",
-                  transformOrigin: "center center",
-                  width: "16px",
-                  height: "16px",
-                }}
-                animate={{
-                  rotate: isMenuOpen ? 180 : 0,
-                }}
-                transition={{
-                  duration: 0.3,
-                  type: "spring",
-                  stiffness: 200,
-                  damping: 25,
-                }}
-              >
-                <Icon as={FiChevronDown} color="white" />
-              </motion.div>
-            </HStack>
-
-            {isMenuOpen && (
-              <AnimatePresence>
+              <HStack spacing={3} py={2} px={7} borderRadius="lg">
                 <motion.div
-                  initial={{ opacity: 0, y: -20, scale: 0.9 }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    scale: 1,
-                    transition: {
-                      duration: 0.25,
-                      ease: [0.16, 1, 0.3, 1],
-                    },
-                  }}
-                  exit={{
-                    opacity: 0,
-                    y: -10,
-                    scale: 0.95,
-                    transition: { duration: 0.2 },
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    right: 0,
-                    marginTop: "12px",
-                    zIndex: 10,
-                    width: "180px",
-                    transformOrigin: "top right",
-                    filter: "drop-shadow(0 10px 15px rgba(0,0,0,0.3))",
+                  whileHover={{ scale: 1.1 }}
+                  transition={{
+                    duration: 0.3,
+                    type: "spring",
+                    stiffness: 260,
+                    damping: 20,
                   }}
                 >
-                  <Box
-                    position="absolute"
-                    top="-5px"
-                    right="20px"
-                    width="0"
-                    height="0"
-                    borderLeft="5px solid transparent"
-                    borderRight="5px solid transparent"
-                    borderBottom="5px solid"
-                    borderBottomColor="brand.secondary"
+                  <Image
+                    src={session.user?.image ?? ""}
+                    alt="Profile"
+                    w={8}
+                    h={8}
+                    rounded="full"
+                    border="2px solid"
+                    borderColor={menuIsOpen ? "brand.primary" : "transparent"}
+                    transition="all 0.3s ease"
                   />
-                  <VStack
-                    bg="brand.secondary"
-                    borderRadius="md"
-                    overflow="hidden"
-                    spacing={0}
-                    border="1px solid"
-                    borderColor="whiteAlpha.200"
-                    backdropFilter="blur(10px)"
-                    style={{
-                      boxShadow:
-                        "0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2)",
-                    }}
-                  >
-                    <Link
-                      href={`/${session.user?.username}`}
-                      passHref
-                      legacyBehavior
-                    >
-                      <Box
-                        as="a"
-                        w="full"
-                        px={4}
-                        py={2}
-                        borderRadius="md"
-                        _hover={{
-                          bg: "rgba(75, 85, 99, 0.5)",
-                          transition: "all 0.3s ease-in-out",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                        onClick={onMenuClose}
-                        transition="all 0.15s ease"
-                        role="group"
-                      >
-                        My Profile
-                      </Box>
-                    </Link>
-
-                    <Link href={`/submissions`} passHref legacyBehavior>
-                      <Box
-                        as="a"
-                        w="full"
-                        px={4}
-                        py={2}
-                        borderRadius="md"
-                        _hover={{
-                          bg: "rgba(75, 85, 99, 0.5)",
-                          transition: "all 0.3s ease-in-out",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                        onClick={onMenuClose}
-                        transition="all 0.15s ease"
-                        role="group"
-                      >
-                        Submissions
-                      </Box>
-                    </Link>
-
-                    <Box
-                      w="full"
-                      px={4}
-                      py={2}
-                      _hover={{
-                        bg: "rgba(75, 85, 99, 0.5)",
-                        transition: "all 0.3s ease-in-out",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                      }}
-                      onClick={() => {
-                        onMenuClose();
-                        handleSignOut();
-                      }}
-                      cursor="pointer"
-                      transition="all 0.15s ease"
-                      role="group"
-                      borderRadius="md"
-                    >
-                      Sign Out
-                    </Box>
-                  </VStack>
                 </motion.div>
-              </AnimatePresence>
-            )}
-          </Box>
+                <Text color="white" fontSize="sm" fontWeight="medium">
+                  {session.user?.username}
+                </Text>
+                <motion.div
+                  style={{
+                    display: "inline-flex",
+                    transformOrigin: "center center",
+                    width: "16px",
+                    height: "16px",
+                  }}
+                  animate={{
+                    rotate: menuIsOpen ? 180 : 0,
+                  }}
+                  transition={{
+                    duration: 0.3,
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 25,
+                  }}
+                >
+                  <Icon as={FiChevronDown} color="white" />
+                </motion.div>
+              </HStack>
+            </MenuButton>
+            <MenuList
+              bg="brand.secondary"
+              borderColor="whiteAlpha.200"
+              borderRadius="md"
+              p={0}
+              overflow="hidden"
+              minW="180px"
+              boxShadow="0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2)"
+            >
+              <MenuItem
+                as={Link}
+                href={`/${session.user?.username}`}
+                bg="transparent"
+                _hover={{
+                  bg: "rgba(75, 85, 99, 0.5)",
+                  transition: "all 0.3s ease-in-out",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+                transition="all 0.15s ease"
+                px={4}
+                py={2}
+                borderRadius="md"
+              >
+                My Profile
+              </MenuItem>
+              <MenuItem
+                as={Link}
+                href="/submissions"
+                bg="transparent"
+                _hover={{
+                  bg: "rgba(75, 85, 99, 0.5)",
+                  transition: "all 0.3s ease-in-out",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+                transition="all 0.15s ease"
+                px={4}
+                py={2}
+                borderRadius="md"
+              >
+                Submissions
+              </MenuItem>
+              <MenuItem
+                onClick={handleSignOut}
+                bg="transparent"
+                _hover={{
+                  bg: "rgba(75, 85, 99, 0.5)",
+                  transition: "all 0.3s ease-in-out",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+                transition="all 0.15s ease"
+                px={4}
+                py={2}
+                borderRadius="md"
+              >
+                Sign Out
+              </MenuItem>
+            </MenuList>
+          </Menu>
         ) : (
           <Button
             variant="ghost"
