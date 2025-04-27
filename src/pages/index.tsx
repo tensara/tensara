@@ -164,7 +164,7 @@ export default function HomePage() {
   // Dummy data for the benchmark display
   const dummyBenchmarkData = [
     { id: "1", name: "n = 2^20", runtime_ms: 0.05, gflops: 19.79 },
-    { id: "2", name: "n = 2^22", runtime_ms: 0.20, gflops: 21.08 },
+    { id: "2", name: "n = 2^22", runtime_ms: 0.2, gflops: 21.08 },
     { id: "3", name: "n = 2^23", runtime_ms: 0.39, gflops: 21.29 },
     { id: "4", name: "n = 2^25", runtime_ms: 1.56, gflops: 21.49 },
     { id: "5", name: "n = 2^26", runtime_ms: 3.12, gflops: 21.53 },
@@ -177,7 +177,7 @@ export default function HomePage() {
     const fadeOutTimer = setTimeout(() => {
       console.log("HomePage: Setting isFadingCode=true, isTypingCode=false");
       setIsFadingCode(true);
-      setIsTypingCode(false); 
+      setIsTypingCode(false);
 
       const fadeInTimer = setTimeout(() => {
         console.log("HomePage: Setting isShowingBenchmarks=true");
@@ -194,7 +194,7 @@ export default function HomePage() {
       console.log("HomePage: Clearing fadeOutTimer");
       clearTimeout(fadeOutTimer);
     };
-  }, []); 
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -404,49 +404,49 @@ export default function HomePage() {
                 </MotionFlex>
               </MotionVStack>
               {/* Right side container for animation - Adjusted for centering */}
-              <Flex
-                // Removed flex={1}
-                w={{ base: "full", lg: "60%" }} // Set explicit width percentage
-                maxW="container.lg" // Max width to prevent excessive stretching
-                mx="auto" // Center the container itself if needed within parent Flex
-                justify="center" // Center children horizontally
-                align="center" // Center children vertically
-                position="relative"
-                minH="420px"
-                // Removed the faulty _after glow style from here
-              >
-                <AnimatePresence initial={false}>
-                  {/* Wrap children in a Box to ensure consistent positioning during animation */}
-                  <Box
-                    position="absolute"
-                    w="full"
-                    display="flex"
-                    justifyContent="center"
-                  >
-                    {(isTypingCode || isFadingCode) && (
-                      <AnimatedCudaEditor
-                        key="cuda-editor" // Key for AnimatePresence
-                        onTypingComplete={handleTypingComplete}
-                        isFadingOut={isFadingCode}
-                      />
-                    )}
-                  </Box>
-                  <Box
-                    position="absolute"
-                    w="full"
-                    display="flex"
-                    justifyContent="center"
-                  >
-                    {isShowingBenchmarks && (
-                      <LandingBenchmarkDisplay
-                        key="benchmarks" // Key for AnimatePresence
-                        isVisible={isShowingBenchmarks}
-                        dummyData={dummyBenchmarkData}
-                      />
-                    )}
-                  </Box>
-                </AnimatePresence>
-              </Flex>
+              {!isMobile && (
+                <Flex
+                  // Removed flex={1}
+                  w={{ base: "full", lg: "60%" }}
+                  maxW="container.lg"
+                  mx="auto"
+                  justify="center"
+                  align="center"
+                  position="relative"
+                  minH="420px"
+                >
+                  <AnimatePresence initial={false}>
+                    <Box
+                      position="absolute"
+                      w="full"
+                      display="flex"
+                      justifyContent="center"
+                    >
+                      {(isTypingCode || isFadingCode) && (
+                        <AnimatedCudaEditor
+                          key="cuda-editor"
+                          onTypingComplete={handleTypingComplete}
+                          isFadingOut={isFadingCode}
+                        />
+                      )}
+                    </Box>
+                    <Box
+                      position="absolute"
+                      w="full"
+                      display="flex"
+                      justifyContent="center"
+                    >
+                      {isShowingBenchmarks && (
+                        <LandingBenchmarkDisplay
+                          key="benchmarks"
+                          isVisible={isShowingBenchmarks}
+                          dummyData={dummyBenchmarkData}
+                        />
+                      )}
+                    </Box>
+                  </AnimatePresence>
+                </Flex>
+              )}
             </Flex>
           </Container>
         </MotionBox>
