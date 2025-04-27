@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Box, Flex, Text, Container } from "@chakra-ui/react";
+import { motion } from "framer-motion";
 
-const AnimatedCudaEditor = () => {
+// Define props interface
+interface AnimatedCudaEditorProps {
+  onTypingComplete?: () => void; // Optional callback when typing finishes
+  isFadingOut?: boolean; // Controls the fade-out animation
+}
+
+const AnimatedCudaEditor: React.FC<AnimatedCudaEditorProps> = ({
+  onTypingComplete,
+  isFadingOut = false, // Default to not fading out
+}) => {
   const initialCode = useMemo(
     () => [
       "#include <cuda_runtime.h>",
@@ -61,12 +71,18 @@ const AnimatedCudaEditor = () => {
   }, []);
 
   useEffect(() => {
-    if (typingComplete) return;
+    if (typingComplete) {
+      // Call the callback only once when typing completes
+      if (onTypingComplete) {
+        onTypingComplete();
+      }
+      return; // Stop the effect if typing is complete
+    }
 
     const typingInterval = setInterval(() => {
       if (currentLine >= finalCode.length) {
         clearInterval(typingInterval);
-        setTypingComplete(true);
+        setTypingComplete(true); // Set complete flag, callback handled above
         return;
       }
 
@@ -114,151 +130,155 @@ const AnimatedCudaEditor = () => {
     }, 50); // Adjust typing speed here
 
     return () => clearInterval(typingInterval);
-  }, [currentLine, currentChar, typingComplete, finalCode]);
+  }, [currentLine, currentChar, typingComplete, finalCode, onTypingComplete]); // Add onTypingComplete to dependency array
+
+  const editorVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+    fadingOut: { opacity: 0, y: -20, transition: { duration: 0.5 } },
+  };
 
   return (
     <Container minW="lg">
-      <Flex
-        justifyContent="center"
-        alignItems="center"
-        flexDirection="column"
-        opacity={isVisible ? 1 : 0}
+      <motion.div
+        initial="hidden"
+        animate={isFadingOut ? "fadingOut" : isVisible ? "visible" : "hidden"}
+        variants={editorVariants}
       >
-        {/* Terminal */}
-        <Box
-          bg="#111111"
-          borderRadius="lg"
-          overflow="hidden"
-          borderWidth="1px"
-          borderColor="whiteAlpha.100"
-          boxShadow="0 8px 30px rgba(0, 0, 0, 0.25)"
-          position="relative"
-          w="full"
-          maxW={{ base: "full", lg: "90%" }}
-          h="380px" // Increased height to accommodate terminal header
+        <Flex
+          justifyContent="center"
+          alignItems="center"
+          flexDirection="column"
+          // Opacity is now handled by framer-motion
         >
-          {/* Terminal header */}
-          <Flex
-            bg="rgba(22, 27, 34, 1)"
-            p={2}
-            borderBottomWidth="1px"
-            borderColor="whiteAlpha.200"
-            alignItems="center"
-          >
-            <Text
-              color="whiteAlpha.900"
-              fontSize="xs"
-              fontFamily="mono"
-              flex="1"
-              textAlign="center"
-              fontWeight="medium"
-            >
-              vector-add.cu
-            </Text>
-          </Flex>
-
-          {/* Code content */}
+          {/* Terminal */}
           <Box
-            p={4}
-            fontFamily="mono"
-            fontSize="sm"
+            bg="#111111"
+            borderRadius="lg"
+            overflow="hidden"
+            borderWidth="1px"
+            borderColor="whiteAlpha.100"
+            boxShadow="0 10px 40px rgba(14, 129, 68, 0.2)" // Enhanced shadow
             position="relative"
-            h="calc(100% - 40px)" // Adjust for terminal header
+            w="full"
+            maxW={{ base: "full", lg: "90%" }}
+            h="380px" // Increased height to accommodate terminal header
+            // Removed _after pseudo-element for glow - will be handled by parent
           >
-            {displayText.map((line, lineIndex) => (
-              <Flex key={lineIndex} mb={1}>
-                <Text
-                  pl={
-                    lineIndents[lineIndex]
-                      ? `${lineIndents[lineIndex] * 0.5}rem`
-                      : 0
-                  }
-                  color={
-                    line.startsWith("//")
-                      ? "#9CA3AF"
-                      : line.includes("extern") || line.includes("#include")
-                        ? "#63B3ED"
-                        : "whiteAlpha.800"
-                  }
-                >
-                  {line
-                    .trim()
-                    .split(" ")
-                    .map((word, wordIndex, array) => {
-                      // Skip empty lines or process words
-                      if (!line) return null;
+            {/* Terminal header */}
+            <Flex
+              bg="rgba(22, 27, 34, 1)"
+              p={2}
+              borderBottomWidth="1px"
+              borderColor="whiteAlpha.200"
+              alignItems="center"
+            >
+              <Text
+                color="whiteAlpha.900"
+                fontSize="xs"
+                fontFamily="mono"
+                flex="1"
+                textAlign="center"
+                fontWeight="medium"
+              >
+                vector-add.cu
+              </Text>
+            </Flex>
 
-                      const isKeyword = [
-                        "int",
-                        "float",
-                        "void",
-                        "if",
-                        "for",
-                        "float*",
-                      ].includes(word);
-                      const isFunction = word === "vectorAdd";
-                      const isInclude = word === "#include";
-                      const isDirective = word.startsWith("//");
+            {/* Code content */}
+            <Box
+              p={4}
+              fontFamily="mono"
+              fontSize="sm"
+              position="relative"
+              h="calc(100% - 40px)" // Adjust for terminal header
+            >
+              {displayText.map((line, lineIndex) => (
+                <Flex key={lineIndex} mb={1}>
+                  <Text
+                    pl={
+                      lineIndents[lineIndex]
+                        ? `${lineIndents[lineIndex] * 0.5}rem`
+                        : 0
+                    }
+                    color={
+                      line.startsWith("//")
+                        ? "#9CA3AF"
+                        : line.includes("extern") || line.includes("#include")
+                          ? "#63B3ED"
+                          : "whiteAlpha.800"
+                    }
+                  >
+                    {line
+                      .trim()
+                      .split(" ")
+                      .map((word, wordIndex, array) => {
+                        // Skip empty lines or process words
+                        if (!line) return null;
 
-                      return (
-                        <React.Fragment key={wordIndex}>
-                          <Text
-                            as="span"
-                            color={
-                              isKeyword
-                                ? "#63ed78"
-                                : isFunction
-                                  ? "#6fb5e1"
-                                  : isInclude
-                                    ? "#63B3ED"
-                                    : isDirective
-                                      ? "#9CA3AF"
-                                      : undefined
-                            }
-                          >
-                            {word}
-                          </Text>
-                          {wordIndex < array.length - 1 && " "}
-                        </React.Fragment>
-                      );
-                    })}
-                  {lineIndex === currentLine && !typingComplete && (
-                    <Box
-                      as="span"
-                      display="inline-block"
-                      bg="#2ecc71"
-                      w="2px"
-                      h="14px"
-                      ml={1}
-                      position="relative"
-                      top="2px"
-                      sx={{
-                        animation: "blink 1s infinite",
-                        "@keyframes blink": {
-                          "0%": { opacity: 1 },
-                          "50%": { opacity: 0 },
-                          "100%": { opacity: 1 },
-                        },
-                      }}
-                    />
-                  )}
-                </Text>
-              </Flex>
-            ))}
+                        const isKeyword = [
+                          "int",
+                          "float",
+                          "void",
+                          "if",
+                          "for",
+                          "float*",
+                        ].includes(word);
+                        const isFunction = word === "vectorAdd";
+                        const isInclude = word === "#include";
+                        const isDirective = word.startsWith("//");
+
+                        return (
+                          <React.Fragment key={wordIndex}>
+                            <Text
+                              as="span"
+                              color={
+                                isKeyword
+                                  ? "#63ed78"
+                                  : isFunction
+                                    ? "#6fb5e1"
+                                    : isInclude
+                                      ? "#63B3ED"
+                                      : isDirective
+                                        ? "#9CA3AF"
+                                        : undefined
+                              }
+                            >
+                              {word}
+                            </Text>
+                            {wordIndex < array.length - 1 && " "}
+                          </React.Fragment>
+                        );
+                      })}
+                    {lineIndex === currentLine && !typingComplete && (
+                      <Box
+                        as="span"
+                        display="inline-block"
+                        bg="#2ecc71"
+                        w="2px"
+                        h="14px"
+                        ml={1}
+                        position="relative"
+                        top="2px"
+                        sx={{
+                          animation: "blink 1s infinite",
+                          "@keyframes blink": {
+                            "0%": { opacity: 1 },
+                            "50%": { opacity: 0 },
+                            "100%": { opacity: 1 },
+                          },
+                        }}
+                      />
+                    )}
+                  </Text>
+                </Flex>
+              ))}
+            </Box>
+
+            {/* Removed old simple glow effect, replaced by _after pseudo-element */}
           </Box>
-
-          {/* Terminal bottom glow effect */}
-          <Box
-            position="absolute"
-            bottom="0"
-            left="0"
-            right="0"
-            height="40px"
-            background="linear-gradient(to top, rgba(15, 23, 42, 0.5), transparent)"
-            pointerEvents="none"
-          />
-        </Box>
-      </Flex>
+        </Flex>
+      </motion.div>
     </Container>
   );
 };
