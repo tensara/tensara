@@ -50,12 +50,6 @@ export const authAPIKey = async (
       return { error: "Invalid API key" };
     }
 
-    if (apiKeyRecord.expiresAt && apiKeyRecord.expiresAt < new Date()) {
-      return {
-        error: "API key expired, generate a new one at https://tensara.org",
-      };
-    }
-
     try {
       const matches = await argon2.verify(apiKeyRecord.key, body);
       if (!matches) {
@@ -64,6 +58,12 @@ export const authAPIKey = async (
     } catch (err) {
       console.error("API key verification error:", err);
       return { error: "Invalid API key" };
+    }
+
+    if (apiKeyRecord.expiresAt && apiKeyRecord.expiresAt < new Date()) {
+      return {
+        error: "API key expired, generate a new one at https://tensara.org",
+      };
     }
 
     const session = {
