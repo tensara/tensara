@@ -7,14 +7,12 @@ import {
   useToast,
   Icon,
   Heading,
-  Container,
 } from "@chakra-ui/react";
 import { useSession } from "next-auth/react";
 import superjson from "superjson";
 
 import type { GetServerSideProps } from "next";
 import { type Problem, type Submission } from "@prisma/client";
-import { SubmissionError } from "~/types/submission";
 
 import { Layout } from "~/components/layout";
 import MySubmissions from "~/components/problem/MySubmissions";
@@ -118,27 +116,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setIsTestCaseTableOpen,
     processSubmission,
     startSubmission,
-    setMetaStatus,
     totalTests,
     getTypedResponse,
   } = useSubmissionStream(submissionsQuery.refetch);
-
-  // Create submission mutation
-  const createSubmissionMutation = api.problems.createSubmission.useMutation({
-    onSuccess: (data) => {
-      void processSubmission(data.id);
-    },
-    onError: (error) => {
-      setMetaStatus(SubmissionError.ERROR);
-      toast({
-        title: "Failed to create submission",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
 
   // Handle submission
   const handleSubmit = useCallback(() => {
@@ -168,7 +148,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     startSubmission();
     setViewType("result");
 
-    createSubmissionMutation.mutate({
+    void processSubmission({
       problemSlug: slug,
       code: code,
       language: selectedLanguage,
@@ -180,7 +160,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     code,
     selectedLanguage,
     selectedGpuType,
-    createSubmissionMutation,
+    processSubmission,
     startSubmission,
     setViewType,
     toast,

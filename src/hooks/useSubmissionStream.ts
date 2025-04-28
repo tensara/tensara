@@ -42,7 +42,6 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     BenchmarkResultResponse[]
   >([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] =
     useState<boolean>(false);
   const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
@@ -275,16 +274,19 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
   );
 
   const processSubmission = useCallback(
-    async (id: string) => {
-      setSubmissionId(id);
-
+    async (submissionData: {
+      code: string;
+      language: string;
+      gpuType: string;
+      problemSlug: string;
+    }) => {
       try {
         const response = await fetch("/api/submissions/direct-submit", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ submissionId: id }),
+          body: JSON.stringify(submissionData),
           cache: "no-store",
           credentials: "same-origin",
           keepalive: true,
@@ -347,7 +349,6 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     metaResponse,
     testResults,
     benchmarkResults,
-    submissionId,
     isTestCaseTableOpen,
     isBenchmarking,
     setIsTestCaseTableOpen,
