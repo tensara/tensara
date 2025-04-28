@@ -42,6 +42,10 @@ import {
   useColorModeValue,
   Icon,
   SimpleGrid,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { Layout } from "~/components/layout";
@@ -59,7 +63,19 @@ import {
   FiArrowRight,
   FiCode,
   FiPlay,
+  FiCoffee,
+  FiPackage,
+  FiBox,
+  FiLock,
+  FiHelpCircle,
+  FiSend,
+  FiCheckCircle,
+  FiZap,
+  FiGitBranch,
+  FiLayers,
+  FiCloud,
 } from "react-icons/fi";
+
 import { api } from "~/utils/api";
 import { type ApiKey } from "~/types/misc";
 
@@ -72,6 +88,24 @@ const MotionVStack = motion(VStack);
 const MotionButton = motion(Button);
 const MotionBadge = motion(Badge);
 
+interface FeatureProps {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}
+
+interface SectionHeaderProps {
+  icon: React.ElementType;
+  title: string;
+  description?: string;
+}
+
+interface CircleProps {
+  size: string;
+  bg: string;
+  mr?: number;
+}
+
 export default function CLI() {
   const [tabIndex, setTabIndex] = useState(0);
   const [newKeyData, setNewKeyData] = useState({
@@ -79,6 +113,7 @@ export default function CLI() {
     expiresIn: 30 * 24 * 60 * 60 * 1000,
   });
   const [newKey, setNewKey] = useState<ApiKey | null>(null);
+  const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -95,7 +130,7 @@ export default function CLI() {
         duration: 3000,
         isClosable: true,
         position: "top-right",
-        variant: "subtle",
+        variant: "solid",
       });
     },
     onError: (error) => {
@@ -106,21 +141,13 @@ export default function CLI() {
         duration: 3000,
         isClosable: true,
         position: "top-right",
-        variant: "subtle",
+        variant: "solid",
       });
     },
   });
   const deleteApiKeyMutation = api.apiKeys.delete.useMutation({
     onSuccess: () => {
       void refetchApiKeys();
-      toast({
-        title: "API key deleted successfully",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-        position: "top-right",
-        variant: "subtle",
-      });
     },
     onError: (error) => {
       toast({
@@ -130,35 +157,10 @@ export default function CLI() {
         duration: 3000,
         isClosable: true,
         position: "top-right",
-        variant: "subtle",
+        variant: "solid",
       });
     },
   });
-
-  // CLI installation steps
-  const installSteps = [
-    { title: "Install via NPM", command: "npm install -g tensara-cli" },
-    { title: "Install via Yarn", command: "yarn global add tensara-cli" },
-  ];
-
-  // CLI usage examples
-  const usageExamples = [
-    {
-      title: "Authentication",
-      command: "tensara login --key <your-api-key>",
-      description: "Authenticate with your Tensara API key",
-    },
-    {
-      title: "Checker Command",
-      command: "tensara checker -p <problem-id> -s <solution-file>",
-      description: "Command to check the solution against the problem",
-    },
-    {
-      title: "Help",
-      command: "tensara --help",
-      description: "Show available commands and options",
-    },
-  ];
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -190,7 +192,7 @@ export default function CLI() {
         duration: 3000,
         isClosable: true,
         position: "top-right",
-        variant: "subtle",
+        variant: "solid",
       });
       return;
     }
@@ -198,28 +200,139 @@ export default function CLI() {
   };
 
   const handleDeleteApiKey = (id: string) => {
-    deleteApiKeyMutation.mutate({ id });
+    setDeletingKeyId(id);
+    deleteApiKeyMutation.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          setDeletingKeyId(null);
+          void refetchApiKeys();
+        },
+        onError: (error) => {
+          setDeletingKeyId(null);
+          toast({
+            title: "Failed to delete API key",
+            description: error.message,
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+            position: "top-right",
+            variant: "solid",
+          });
+        },
+      }
+    );
   };
 
-  // Terminal Box Component with animations
+  // CLI installation steps
+  const installSteps = [
+    {
+      title: "Install for Mac/Linux",
+      command:
+        "curl -sSL https://tensara.github.io/tensara-cli/install.sh | bash",
+      icon: FiPackage,
+    },
+    {
+      title: "Install for Windows",
+      command:
+        "iwr -useb https://tensara.github.io/tensara-cli/install.ps1 | iex",
+      icon: FiBox,
+    },
+  ];
+
+  // CLI usage examples
+  const usageExamples = [
+    {
+      title: "Authentication",
+      command: "tensara login --key <your-api-key>",
+      description: "Authenticate with your Tensara API key",
+      icon: FiLock,
+    },
+    {
+      title: "Checker Command",
+      command: "tensara check -p <problem-id> -s <solution-file>",
+      description: "Validate your solution against the problem specification",
+      icon: FiCheckCircle,
+    },
+    {
+      title: "Submit Solution",
+      command: "tensara submit -p <problem-id> -s <solution-file>",
+      description: "Submit your solution for official evaluation",
+      icon: FiSend,
+    },
+    {
+      title: "Help",
+      command: "tensara --help",
+      description: "Show available commands and options",
+      icon: FiHelpCircle,
+    },
+  ];
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        when: "beforeChildren",
+        staggerChildren: 0.1,
+        duration: 0.5,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { duration: 0.4 },
+    },
+  };
+
   const TerminalBox = ({ command }: { command: string }) => {
     const { hasCopied, onCopy } = useClipboard(command);
+    const [isHovered, setIsHovered] = useState(false);
 
     return (
       <MotionBox
         bg="gray.900"
         color="whiteAlpha.900"
-        borderRadius="md"
+        borderRadius="lg"
         overflow="hidden"
-        whileHover={{ scale: 1.01 }}
+        borderWidth="1px"
+        borderColor={"gray.700"}
+        boxShadow={"0 4px 6px rgba(0,0,0,0.1)"}
         transition={{ duration: 0.2 }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
+        {/* Terminal Header */}
+        <Flex
+          bg="gray.800"
+          p={2}
+          borderBottomWidth="1px"
+          borderColor="gray.700"
+          align="center"
+        >
+          <Flex mr={2}>
+            <Circle size="10px" bg="red.500" mr={1} />
+            <Circle size="10px" bg="yellow.500" mr={1} />
+            <Circle size="10px" bg="green.500" />
+          </Flex>
+          <Text fontSize="xs" color="gray.400" ml="auto">
+            tensara-cli
+          </Text>
+        </Flex>
+
         {/* Terminal Content */}
-        <Flex p={3} position="relative" fontFamily="mono" fontSize="sm">
-          <Text color="green.400" mr={2}>
+        <Flex p={2} position="relative" fontFamily="mono" fontSize="sm">
+          <Text color="green.400" mr={2} fontWeight="bold">
             $
           </Text>
-          <Text flex="1">{command}</Text>
+          <Text flex="1" fontSize="small">
+            {command}
+          </Text>
           <Tooltip
             label={hasCopied ? "Copied!" : "Copy command"}
             placement="top"
@@ -228,13 +341,10 @@ export default function CLI() {
             <IconButton
               aria-label="Copy command"
               icon={hasCopied ? <FiCheck /> : <FiCopy />}
-              size="xs"
+              size="small"
               variant="ghost"
               color={hasCopied ? "green.400" : "whiteAlpha.700"}
-              _hover={{ color: "whiteAlpha.900" }}
-              position="absolute"
-              right={2}
-              top={2}
+              _hover={{ color: "brand.500" }}
               onClick={onCopy}
             />
           </Tooltip>
@@ -243,27 +353,51 @@ export default function CLI() {
     );
   };
 
-  // Animation variants
-  const fadeIn = {
-    initial: { opacity: 0 },
-    animate: { opacity: 1 },
-    exit: { opacity: 0 },
-    transition: { duration: 0.3 },
+  // Feature Component
+  const Feature = ({ icon, title, description }: FeatureProps) => {
+    return (
+      <HStack align="start" spacing={4}>
+        <Box
+          bg="rgba(66, 153, 225, 0.1)"
+          p={2}
+          borderRadius="md"
+          color="brand.400"
+        >
+          <Icon as={icon} boxSize={5} />
+        </Box>
+        <Box>
+          <Text fontWeight="bold" color="white" mb={1}>
+            {title}
+          </Text>
+          <Text color="gray.400" fontSize="sm">
+            {description}
+          </Text>
+        </Box>
+      </HStack>
+    );
   };
 
-  const slideUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -20 },
-    transition: { duration: 0.4 },
+  // Section Header Component
+  const SectionHeader = ({ icon, title, description }: SectionHeaderProps) => {
+    return (
+      <Box mb={6}>
+        <Flex align="center" mb={2}>
+          <Icon as={icon} color="brand.400" mr={2} />
+          <Heading size="md" color="white">
+            {title}
+          </Heading>
+        </Flex>
+        {description && (
+          <Text color="gray.400" fontSize="md">
+            {description}
+          </Text>
+        )}
+      </Box>
+    );
   };
 
-  const staggerChildren = {
-    animate: {
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+  const Circle = ({ size, bg, mr }: CircleProps) => {
+    return <Box borderRadius="full" w={size} h={size} bg={bg} mr={mr} />;
   };
 
   return (
@@ -309,219 +443,209 @@ export default function CLI() {
           </TabList>
           <TabPanels>
             {/* CLI Tab Content */}
-            {/* CLI Tab Content */}
             <TabPanel>
               <MotionBox
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
+                initial="hidden"
+                animate="visible"
+                variants={containerVariants}
+                overflow="hidden"
+                w="full"
               >
-                <Box maxW="900px" mx="auto">
-                  <MotionHeading
-                    size="lg"
-                    mb={6}
-                    bgGradient="linear(to-r, brand.primary, green.400)"
+                {/* Hero Section */}
+                <MotionBox mb={12} textAlign="center">
+                  <Heading
+                    as="h1"
+                    size="2xl"
+                    bgGradient="linear(to-r, brand.400, cyan.400, green.400)"
                     bgClip="text"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    fontWeight="bold"
                     letterSpacing="tight"
+                    fontWeight="extrabold"
+                    mb={4}
                   >
-                    Tensara Command Line Interface
-                  </MotionHeading>
+                    Tensara CLI
+                  </Heading>
+                  <Text fontSize="xl" color="gray.300" maxW="2xl" mx="auto">
+                    Write GPU code from your IDE
+                  </Text>
+                </MotionBox>
 
-                  {/* Introduction Card */}
-                  <MotionBox
+                {/* Main Features Card */}
+                <MotionBox
+                  variants={itemVariants}
+                  bg="gray.800"
+                  borderRadius="2xl"
+                  p={8}
+                  mb={12}
+                  boxShadow="xl"
+                  borderWidth="1px"
+                  borderColor="gray.700"
+                  position="relative"
+                  overflow="hidden"
+                >
+                  <Box
+                    position="absolute"
+                    top="-10%"
+                    right="-5%"
+                    width="300px"
+                    height="300px"
+                    bg="radial-gradient(circle, rgba(0,128,255,0.1) 0%, rgba(0,0,0,0) 70%)"
+                    zIndex="0"
+                  />
+
+                  <Flex direction="column" position="relative" zIndex="1">
+                    <Flex align="center" mb={6}>
+                      <Icon
+                        as={FiTerminal}
+                        boxSize={10}
+                        color="brand.400"
+                        mr={4}
+                      />
+                      <Box>
+                        <Text color="gray.300" lineHeight="tall" fontSize="lg">
+                          The Tensara CLI provides a way to develop, test, and
+                          submit GPU-accelerated solutions directly from your
+                          local environment.
+                        </Text>
+                      </Box>
+                    </Flex>
+
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                      <Feature
+                        icon={FiZap}
+                        title="Lightning-fast Execution"
+                        description="Run your code on our powerful GPU infrastructure without complex setup"
+                      />
+                      <Feature
+                        icon={FiCloud}
+                        title="Seamless Cloud Integration"
+                        description="Submit solutions directly to Tensara competitions with one command"
+                      />
+                      <Feature
+                        icon={FiGitBranch}
+                        title="Version Control Friendly"
+                        description="Works perfectly with Git and your existing development workflow"
+                      />
+                      <Feature
+                        icon={FiLayers}
+                        title="Cross-platform"
+                        description="Available for Windows, macOS, and Linux systems"
+                      />
+                    </SimpleGrid>
+                  </Flex>
+                </MotionBox>
+
+                {/* Installation Section */}
+                <MotionBox variants={itemVariants} mb={16}>
+                  <SectionHeader
+                    icon={FiDownload}
+                    title="Installation"
+                    description="Get started with Tensara CLI in seconds"
+                  />
+
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                    {installSteps.map((step, index) => (
+                      <MotionBox key={index} variants={itemVariants}>
+                        <TerminalBox command={step.command} />
+                      </MotionBox>
+                    ))}
+                  </SimpleGrid>
+                </MotionBox>
+
+                {/* Authentication Section */}
+                <MotionBox variants={itemVariants} mb={16}>
+                  <SectionHeader
+                    icon={FiKey}
+                    title="Authentication"
+                    description="Securely connect to your Tensara account"
+                  />
+
+                  <Box
                     bg="gray.800"
                     borderRadius="xl"
                     p={6}
-                    mb={8}
-                    boxShadow="lg"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.1 }}
+                    borderLeft="4px solid"
+                    borderColor="brand.500"
+                    mb={6}
                   >
-                    <Flex gap={4} align="center" mb={4}>
-                      <Icon as={FiTerminal} boxSize={6} color="brand.primary" />
-                      <Text fontSize="lg" fontWeight="medium" color="white">
-                        Write GPU code from your IDE and compete at Tensara
-                      </Text>
-                    </Flex>
-                    <Text color="gray.300" lineHeight="tall">
-                      The Tensara CLI provides a seamless way to run GPU code
-                      for problems on Tensara.
-                    </Text>
-                  </MotionBox>
-
-                  {/* Installation Section */}
-                  <MotionFlex
-                    direction="column"
-                    mb={10}
-                    initial="initial"
-                    animate="animate"
-                    variants={staggerChildren}
-                  >
-                    <Flex align="center" mb={4}>
-                      <Icon as={FiDownload} color="green.400" mr={2} />
-                      <Heading size="md">Installation</Heading>
-                    </Flex>
-
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                      {installSteps.map((step, index) => (
-                        <MotionBox
-                          key={index}
-                          variants={slideUp}
-                          bg="gray.900"
-                          borderRadius="lg"
-                          overflow="hidden"
-                          borderWidth="1px"
-                          borderColor="gray.700"
-                          transition={{ duration: 0.3 }}
-                          _hover={{
-                            borderColor: "brand.primary",
-                            transform: "translateY(-2px)",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-                          }}
-                        >
-                          <Box p={4} bg="gray.800">
-                            <Text fontWeight="medium" color="white">
-                              {step.title}
-                            </Text>
-                          </Box>
-                          <TerminalBox command={step.command} />
-                        </MotionBox>
-                      ))}
-                    </SimpleGrid>
-                  </MotionFlex>
-
-                  {/* Getting Started Section */}
-                  <MotionBox
-                    mb={10}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
-                  >
-                    <Flex align="center" mb={4}>
-                      <Icon as={FiPlay} color="green.400" mr={2} />
-                      <Heading size="md">Getting Started</Heading>
-                    </Flex>
-
-                    <Box
-                      bg="gray.800"
-                      borderRadius="lg"
-                      p={5}
-                      mb={5}
-                      borderLeft="4px solid"
-                      borderColor="brand.primary"
-                    >
-                      <Text mb={4} color="gray.300" fontSize="sm">
-                        After installation, authenticate the CLI with your API
-                        key. You can create one in the
-                        <Button
+                    <Text mb={4} color="gray.300">
+                      After installation, authenticate the CLI with your API
+                      key. You can create or manage your keys in the
+                      <Menu>
+                        <MenuButton
+                          as={Button}
                           variant="link"
                           colorScheme="brand"
-                          size="sm"
-                          onClick={() => setTabIndex(1)}
                           mx={2}
                           fontWeight="bold"
                           _hover={{
                             textDecoration: "none",
-                            color: "brand.600",
+                            color: "brand.400",
                           }}
                         >
                           API Keys
-                        </Button>
-                        tab.
-                      </Text>
-                      <TerminalBox command="tensara auth --key tsra_yourapikey" />
-                    </Box>
-                  </MotionBox>
+                        </MenuButton>
+                        <MenuList>
+                          <MenuItem onClick={() => setTabIndex(1)}>
+                            View API Keys
+                          </MenuItem>
+                          <MenuItem onClick={onOpen}>Create New Key</MenuItem>
+                        </MenuList>
+                      </Menu>
+                      tab.
+                    </Text>
+                    <TerminalBox command="tensara auth --key tsra_yourapikey" />
+                  </Box>
+                </MotionBox>
 
-                  {/* Usage Examples Section */}
-                  <MotionFlex
-                    direction="column"
-                    mb={10}
-                    initial="initial"
-                    animate="animate"
-                    variants={staggerChildren}
-                  >
-                    <Flex align="center" mb={5}>
-                      <Icon as={FiCode} color="green.400" mr={2} />
-                      <Heading size="md">Command Examples</Heading>
-                    </Flex>
+                {/* Commands Section */}
+                <MotionBox variants={itemVariants} mb={16}>
+                  <SectionHeader
+                    icon={FiCode}
+                    title="Command Examples"
+                    description="Essential commands to get you started"
+                  />
 
-                    <SimpleGrid columns={{ base: 1, md: 1, lg: 1 }} spacing={4}>
-                      {usageExamples.map((example, index) => (
-                        <MotionBox
-                          key={index}
-                          variants={slideUp}
-                          bg="gray.800"
-                          borderRadius="lg"
-                          p={5}
-                          transition={{ duration: 0.3 }}
-                          _hover={{
-                            bg: "gray.750",
-                            transform: "translateY(-2px)",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                          }}
-                        >
-                          <Flex justify="space-between" align="center" mb={2}>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                    {usageExamples.map((example, index) => (
+                      <MotionBox
+                        key={index}
+                        variants={itemVariants}
+                        bg="gray.800"
+                        borderRadius="xl"
+                        p={6}
+                        borderWidth="1px"
+                        borderColor="gray.700"
+                        _hover={{
+                          borderColor: "brand.500",
+                          boxShadow: "0 8px 16px rgba(0,0,0,0.2)",
+                          transform: "translateY(-4px)",
+                        }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Flex justify="space-between" align="center" mb={3}>
+                          <HStack>
+                            <Icon as={example.icon} color="brand.500" />
                             <Text fontWeight="bold" color="white">
                               {example.title}
                             </Text>
-                            <Badge colorScheme="green" variant="subtle">
-                              Command
-                            </Badge>
-                          </Flex>
-                          <TerminalBox command={example.command} />
-                          <Text fontSize="sm" color="gray.400" mt={2}>
-                            {example.description}
-                          </Text>
-                        </MotionBox>
-                      ))}
-                    </SimpleGrid>
-                  </MotionFlex>
-
-                  {/* Documentation Section */}
-                  <MotionBox
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.6 }}
-                    bg="gray.800"
-                    borderRadius="xl"
-                    p={6}
-                    borderWidth="1px"
-                    borderColor="gray.700"
-                  >
-                    <Flex align="center" mb={4}>
-                      <Icon
-                        as={FiBook}
-                        color="brand.primary"
-                        boxSize={5}
-                        mr={3}
-                      />
-                      <Heading size="md">Documentation</Heading>
-                    </Flex>
-                    <Text color="gray.300" mb={4}>
-                      For detailed documentation and advanced usage examples,
-                      visit our comprehensive guides.
-                    </Text>
-                    <Button
-                      as="a"
-                      href="/docs/cli"
-                      rightIcon={<FiArrowRight />}
-                      colorScheme="brand"
-                      size="md"
-                      borderRadius="md"
-                      fontWeight="medium"
-                      _hover={{ transform: "translateY(-1px)" }}
-                      transition="all 0.2s"
-                    >
-                      View CLI Documentation
-                    </Button>
-                  </MotionBox>
-                </Box>
+                          </HStack>
+                          <Badge
+                            colorScheme="brand"
+                            variant="solid"
+                            borderRadius="full"
+                            px={3}
+                          >
+                            Command
+                          </Badge>
+                        </Flex>
+                        <TerminalBox command={example.command} />
+                        <Text fontSize="sm" color="gray.400" mt={3}>
+                          {example.description}
+                        </Text>
+                      </MotionBox>
+                    ))}
+                  </SimpleGrid>
+                </MotionBox>
               </MotionBox>
             </TabPanel>
 
@@ -657,7 +781,7 @@ export default function CLI() {
                                     colorScheme="red"
                                     variant="ghost"
                                     onClick={() => handleDeleteApiKey(key.id)}
-                                    isLoading={deleteApiKeyMutation.isPending}
+                                    isLoading={deletingKeyId === key.id}
                                   />
                                 </Tooltip>
                               </Td>
@@ -750,7 +874,7 @@ export default function CLI() {
                   onClose();
                   setNewKey(null);
                 }}
-                size="md"
+                size="xl"
               >
                 <ModalOverlay backdropFilter="blur(4px)" />
                 <ModalContent
@@ -763,7 +887,7 @@ export default function CLI() {
                     {newKey ? "API Key Created" : "Create New API Key"}
                   </ModalHeader>
                   <ModalCloseButton />
-                  <ModalBody py={6}>
+                  <ModalBody py={6} minW={"190px"}>
                     {newKey ? (
                       <MotionVStack
                         spacing={6}
@@ -775,7 +899,6 @@ export default function CLI() {
                         <Box
                           p={4}
                           bg="green.900"
-                          opacity={0.3}
                           borderRadius="md"
                           borderWidth="1px"
                           borderColor="green.700"
@@ -790,9 +913,11 @@ export default function CLI() {
                             This is the only time your full API key will be
                             shown. Copy it now!
                           </Text>
-                          <Box
+                          <Flex
                             bg="gray.900"
                             p={3}
+                            justifyContent="space-between"
+                            alignItems="center"
                             borderRadius="md"
                             color="whiteAlpha.900"
                             fontFamily="mono"
@@ -800,7 +925,9 @@ export default function CLI() {
                             position="relative"
                             mb={2}
                           >
-                            <Text wordBreak="break-all">{newKey.key}</Text>
+                            <Text wordBreak="break-all" flex={1} mr={6}>
+                              {newKey.key}
+                            </Text>
                             <IconButton
                               aria-label="Copy API key"
                               icon={<FiCopy />}
@@ -816,12 +943,12 @@ export default function CLI() {
                                   duration: 2000,
                                   isClosable: true,
                                   position: "top-right",
-                                  variant: "subtle",
+                                  variant: "solid",
                                 });
                               }}
                               variant="ghost"
                             />
-                          </Box>
+                          </Flex>
                           <Text fontSize="xs" color="gray.500">
                             API Key ID: {newKey.id}
                           </Text>
