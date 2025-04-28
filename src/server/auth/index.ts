@@ -2,7 +2,7 @@ import { getServerSession, type Session } from "next-auth";
 import { type GetServerSidePropsContext } from "next";
 import { authConfig } from "./config";
 import { db } from "../db";
-import crypto from "crypto";
+import argon2 from "argon2";
 
 export const auth = (
   req?: GetServerSidePropsContext["req"],
@@ -23,31 +23,46 @@ export const authAPIKey = async (
 
   try {
     const apiKey = authorization.substring(7); // Remove "Bearer " prefix
-    const hashedApiKey = crypto
-      .createHash("sha256")
-      .update(apiKey)
-      .digest("hex");
+    const parts = apiKey.split("_");
+    if (parts.length !== 3 || parts[0] !== "tsra") {
+      return null;
+    }
 
-    const apiRecord = await db.apiKey.findUnique({
-      where: { key: hashedApiKey },
+    const [_, prefix, body] = parts;
+    if (!body) {
+      return null;
+    }
+
+    const apiKeyRecord = await db.apiKey.findFirst({
+      where: {
+        keyPrefix: prefix,
+        expiresAt: { gte: new Date() },
+      },
       include: { user: true },
     });
 
-    if (
-      apiRecord?.user &&
-      apiRecord.expiresAt &&
-      apiRecord.expiresAt >= new Date()
-    ) {
-      const session = {
-        user: apiRecord.user,
-        expires: apiRecord.expiresAt.toISOString(),
-      } as Session;
-      return session;
+    if (!apiKeyRecord) {
+      return null;
     }
-  } catch (error) {
-    console.error("API key authentication error:", error);
-  }
 
+    try {
+      const matches = await argon2.verify(apiKeyRecord.key, body);
+      if (!matches) {
+        return null;
+      }
+    } catch (err) {
+      console.error("API key verification error:", err);
+      return null;
+    }
+
+    const session = {
+      user: apiKeyRecord.user,
+      expires: apiKeyRecord.expiresAt?.toISOString(),
+    } as Session;
+    return session;
+  } catch (error) {
+    console.error("API key authentication error", error);
+  }
   return null;
 };
 

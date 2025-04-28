@@ -153,11 +153,14 @@ enum Difficulty {
 }
 
 model ApiKey {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
+  user      User     @relation(fields: [userId], references: [id])
   name      String
-  key       String    @unique
-  createdAt DateTime  @default(now())
-  expiresAt DateTime?
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyPrefix String   @unique
+  key       String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }
