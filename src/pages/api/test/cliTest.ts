@@ -4,6 +4,9 @@ import { combinedAuth } from "~/server/auth";
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const authResult = await combinedAuth(req, res);
+  if (authResult && "error" in authResult) {
+    return res.status(401).json({ error: authResult.error });
+  }
   if (!authResult) {
     return res.status(401).json({ error: "Unauthorized" });
   }

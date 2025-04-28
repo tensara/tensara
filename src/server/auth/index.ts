@@ -4,6 +4,8 @@ import { authConfig } from "./config";
 import { db } from "../db";
 import argon2 from "argon2";
 
+type AuthResult = Session | { error: string } | null;
+
 export const auth = (
   req?: GetServerSidePropsContext["req"],
   res?: GetServerSidePropsContext["res"]
@@ -16,47 +18,52 @@ export const auth = (
 
 export const authAPIKey = async (
   authorization?: string
-): Promise<Session | null> => {
+): Promise<AuthResult> => {
   if (!authorization) {
-    return null;
+    return { error: "No authorization header" };
   }
 
   if (!authorization.startsWith("Bearer ")) {
-    return null;
+    return { error: "Invalid authorization header" };
   }
 
   try {
     const apiKey = authorization.substring(7); // Remove "Bearer " prefix
     const parts = apiKey.split("_");
     if (parts.length !== 3 || parts[0] !== "tsra") {
-      return null;
+      return { error: "Invalid API key" };
     }
 
-    const [_, prefix, body] = parts;
+    const [, prefix, body] = parts;
     if (!body) {
-      return null;
+      return { error: "Invalid API key" };
     }
 
     const apiKeyRecord = await db.apiKey.findFirst({
       where: {
         keyPrefix: prefix,
-        expiresAt: { gte: new Date() },
       },
       include: { user: true },
     });
 
     if (!apiKeyRecord) {
-      return null;
+      return { error: "Invalid API key" };
+    }
+
+    if (apiKeyRecord.expiresAt && apiKeyRecord.expiresAt < new Date()) {
+      return {
+        error: "API key expired, generate a new one at https://tensara.org",
+      };
     }
 
     try {
       const matches = await argon2.verify(apiKeyRecord.key, body);
       if (!matches) {
-        return null;
+        return { error: "Invalid API key" };
       }
     } catch (err) {
       console.error("API key verification error:", err);
-      return null;
+      return { error: "Invalid API key" };
     }
 
     const session = {
@@ -66,14 +73,14 @@ export const authAPIKey = async (
     return session;
   } catch (error) {
     console.error("API key authentication error", error);
+    return { error: "API key authentication error" };
   }
-  return null;
 };
 
 export const combinedAuth = async (
   req?: GetServerSidePropsContext["req"],
   res?: GetServerSidePropsContext["res"]
-) => {
+): Promise<AuthResult> => {
   return (
     (await auth(req, res)) ?? (await authAPIKey(req?.headers.authorization))
   );
