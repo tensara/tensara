@@ -105,11 +105,6 @@ const SplitPanel = ({
         zIndex={2}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={handleMouseDown}
-        _hover={{
-          "& > div": {
-            bg: "whiteAlpha.400",
-          },
-        }}
       >
         <Box
           position="absolute"
