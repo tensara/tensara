@@ -34,23 +34,41 @@ export default async function handler(
     return;
   }
 
-  const { submissionId } = req.body as { submissionId: string };
+  const { problemSlug, code, language, gpuType } = req.body as {
+    problemSlug: string;
+    code: string;
+    language: string;
+    gpuType: string;
+  };
 
-  if (!submissionId) {
-    res.status(400).json({ error: "Missing submissionId" });
+  const requiredFields = { problemSlug, code, language, gpuType };
+  const missingFields = Object.entries(requiredFields).filter(
+    ([_, value]) => value === undefined
+  );
+
+  if (missingFields.length > 0) {
+    res.status(400).json({
+      error: `Missing required fields: ${missingFields.map(([key]) => key).join(", ")}`,
+    });
     return;
   }
 
   const rateLimit = await checkRateLimit(session.user.id);
   if (!rateLimit.allowed) {
-    await db.submission.deleteMany({
-      where: { id: submissionId },
-    });
     res.status(rateLimit.statusCode ?? 429).json({
       status: SubmissionError.RATE_LIMIT_EXCEEDED as SubmissionErrorType,
       error: rateLimit.error,
       details: rateLimit.error,
     });
+    return;
+  }
+
+  const problem = await db.problem.findUnique({
+    where: { slug: problemSlug },
+  });
+
+  if (!problem) {
+    res.status(404).json({ error: "Problem not found" });
     return;
   }
 
@@ -94,14 +112,21 @@ export default async function handler(
     }
   }, 30000);
 
-  try {
-    const submission = await db.submission.findUnique({
-      where: { id: submissionId },
-      include: {
-        problem: true,
-      },
-    });
+  const submission = await db.submission.create({
+    data: {
+      code,
+      language,
+      gpuType: gpuType || "T4",
+      status: SubmissionStatus.IN_QUEUE,
+      problem: { connect: { id: problem.id } },
+      user: { connect: { id: session.user.id } },
+    },
+    include: {
+      problem: true,
+    },
+  });
 
+  try {
     if (!submission) {
       res.status(404).json({ error: "Submission not found" });
       return;
@@ -114,7 +139,7 @@ export default async function handler(
 
     // TODO:
     await db.submission.update({
-      where: { id: submissionId },
+      where: { id: submission.id },
       data: {
         status: SubmissionStatus.CHECKING,
       },
@@ -207,6 +232,9 @@ export default async function handler(
             const parsed = JSON.parse(response_json) as {
               status: string;
             };
+            if (!parsed) {
+              continue;
+            }
             const response_status = parsed.status;
 
             if (response_status === SubmissionStatus.TEST_RESULT) {
@@ -413,6 +441,9 @@ export default async function handler(
             const parsed = JSON.parse(response_json) as {
               status: string;
             };
+            if (!parsed) {
+              continue;
+            }
             const response_status = parsed.status;
 
             if (response_status === SubmissionStatus.BENCHMARK_RESULT) {
@@ -485,10 +516,10 @@ export default async function handler(
   } catch (error) {
     console.error("Error in direct-submit handler:", error);
 
-    if (submissionId) {
+    if (submission.id) {
       try {
         await db.submission.update({
-          where: { id: submissionId },
+          where: { id: submission.id },
           data: {
             status: SubmissionError.ERROR,
             errorMessage:
