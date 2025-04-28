@@ -227,6 +227,9 @@ export default async function handler(
             const parsed = JSON.parse(response_json) as {
               status: string;
             };
+            if (!parsed) {
+              continue;
+            }
             const response_status = parsed.status;
 
             if (response_status === SubmissionStatus.TEST_RESULT) {
@@ -433,6 +436,9 @@ export default async function handler(
             const parsed = JSON.parse(response_json) as {
               status: string;
             };
+            if (!parsed) {
+              continue;
+            }
             const response_status = parsed.status;
 
             if (response_status === SubmissionStatus.BENCHMARK_RESULT) {

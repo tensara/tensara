@@ -127,11 +127,8 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
             break;
 
           case "BENCHMARK_RESULT":
-            // Set benchmark flags when we start receiving benchmark results
-            if (!isBenchmarking) {
-              setIsBenchmarking(true);
-              setIsTestCaseTableOpen(true);
-            }
+            setIsBenchmarking(true);
+            setIsTestCaseTableOpen(true);
 
             const benchmarkResultData = JSON.parse(
               eventData
@@ -207,7 +204,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         );
       }
     },
-    [isBenchmarking, refetchSubmissions, toast]
+    [refetchSubmissions, toast]
   );
 
   const processEventStream = useCallback(
