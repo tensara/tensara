@@ -41,9 +41,14 @@ export default async function handler(
     gpuType: string;
   };
 
-  if (!problemSlug || !code || !language || !gpuType) {
+  const requiredFields = { problemSlug, code, language, gpuType };
+  const missingFields = Object.entries(requiredFields).filter(
+    ([_, value]) => value === undefined
+  );
+
+  if (missingFields.length > 0) {
     res.status(400).json({
-      error: "Missing required fields, please raise an issue if this persists",
+      error: `Missing required fields: ${missingFields.map(([key]) => key).join(", ")}`,
     });
     return;
   }
