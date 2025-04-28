@@ -1,7 +1,7 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { db } from "~/server/db";
 import { env } from "~/env";
-import { auth, combinedAuth } from "~/server/auth";
+import { combinedAuth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
 import {
   isSubmissionError,
