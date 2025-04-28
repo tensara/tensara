@@ -117,7 +117,9 @@ export default async function handler(
   }, 30000);
 
   try {
-    sendSSE(SubmissionStatus.IN_QUEUE, {});
+    sendSSE(SubmissionStatus.IN_QUEUE, {
+      status: SubmissionStatus.IN_QUEUE,
+    });
 
     console.log("Starting checker process");
     const checkerResponse = await fetch(
@@ -222,6 +224,14 @@ export default async function handler(
 
               res.end();
               return;
+            } else if (response_status == SubmissionStatus.COMPILING) {
+              sendSSE(SubmissionStatus.COMPILING, {
+                status: SubmissionStatus.COMPILING,
+              });
+            } else if (response_status == SubmissionStatus.CHECKING) {
+              sendSSE(SubmissionStatus.CHECKING, {
+                status: SubmissionStatus.CHECKING,
+              });
             } else if (response_status === SubmissionStatus.WRONG_ANSWER) {
               const response = JSON.parse(response_json) as WrongAnswerResponse;
               const failedTest = response.test_results?.find(
