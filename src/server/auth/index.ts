@@ -17,7 +17,11 @@ export const auth = (
 export const authAPIKey = async (
   authorization?: string
 ): Promise<Session | null> => {
-  if (!authorization?.startsWith("Bearer ")) {
+  if (!authorization) {
+    return null;
+  }
+
+  if (!authorization.startsWith("Bearer ")) {
     return null;
   }
 
