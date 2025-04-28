@@ -35,7 +35,7 @@ export default async function handler(req: NextRequest) {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#1E293B", // gray.900
+          backgroundColor: "#101723", // gray.900
           padding: "40px",
         }}
       >
