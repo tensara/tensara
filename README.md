@@ -117,7 +117,7 @@ MODAL_ENDPOINT=""
 
 ## Sponsors
 
-Thank you to our sponsors who help make tensara possible:
+Thank you to our sponsors who help make Tensara possible:
 
 - [Modal](https://www.modal.com?utm_source=github&utm_medium=github&utm_campaign=tensara) - Modal lets you run
 jobs in the cloud, by just writing a few lines of Python. Customers use Modal to deploy Gen AI models at large scale,
