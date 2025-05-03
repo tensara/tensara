@@ -5,6 +5,8 @@ import {
   Heading,
   Text,
   VStack,
+  HStack, // Added HStack
+  Image, // Added Image
   Icon,
   SimpleGrid,
   Link,
@@ -490,6 +492,39 @@ export default function HomePage() {
               />
             </SimpleGrid>
           </VStack>
+        </Container>
+        <Container
+          maxW="8xl"
+          display="flex"
+          justifyContent="center"
+          mt={4}
+          mb={8}
+        >
+          <Flex
+            direction={{ base: "column", md: "row" }}
+            // gap={{ base: 2, md: 2 }}
+            align="center"
+          >
+            <Text
+              fontSize={{ base: "30px", md: "35px" }}
+              fontWeight={500}
+              color="gray.500"
+            >
+              Powered by
+            </Text>
+            <Link isExternal href="https://modal.com/">
+              <Image
+                src="/modal_logo_whitetext.png"
+                alt="Modal Logo"
+                height={{ base: "100px", md: "110px" }}
+                borderRadius="20px"
+                transition="all 0.2s ease-in-out"
+                _hover={{
+                  transform: "translateY(-1px)",
+                }}
+              />
+            </Link>
+          </Flex>
         </Container>
 
         {/* Updates Section */}
