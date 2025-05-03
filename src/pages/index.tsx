@@ -502,7 +502,7 @@ export default function HomePage() {
         >
           <Flex
             direction={{ base: "column", md: "row" }}
-            // gap={{ base: 2, md: 2 }}
+            gap={{ base: 4, md: 6 }}
             align="center"
           >
             <Text
@@ -514,10 +514,9 @@ export default function HomePage() {
             </Text>
             <Link isExternal href="https://modal.com/">
               <Image
-                src="/modal_logo_whitetext.png"
+                src="/Primary-Modal-Wordmark-Light.svg"
                 alt="Modal Logo"
-                height={{ base: "100px", md: "110px" }}
-                borderRadius="20px"
+                height={{ base: "40px", md: "40px" }}
                 transition="all 0.2s ease-in-out"
                 _hover={{
                   transform: "translateY(-1px)",
