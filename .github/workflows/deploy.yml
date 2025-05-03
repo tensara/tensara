@@ -6,16 +6,16 @@ on:
       - main
 
 jobs:
-  modal:
-    uses: ./.github/workflows/modal.yml
-    secrets:
-      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+#  modal:
+#    uses: ./.github/workflows/modal.yml
+#    secrets:
+#      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+#      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
     
   deploy:
     environment: tensara
     runs-on: ubuntu-latest
-    needs: modal
+#    needs: modal
 
     steps:
       - name: Configure SSH
