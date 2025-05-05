@@ -1,4 +1,5 @@
 import json
+import simplejson
 from threading import Thread
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
@@ -12,7 +13,7 @@ RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
 
-PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton"]
+PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton", "simplejson"]
 LOCAL_SOURCE = ["utils", "runner", "problem"]
 
 devel_image = (
@@ -64,7 +65,8 @@ for gpu in gpu_runners:
 
 def gen_wrapper(gen):
     for event in gen:
-        yield "data: " + json.dumps(event) + "\n\n"
+        data = simplejson.dumps(event, ignore_nan=True)
+        yield "data: " + data + "\n\n"
 
 
 @web_app.post("/checker-{gpu}")

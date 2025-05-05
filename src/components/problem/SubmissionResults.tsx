@@ -465,10 +465,10 @@ const SubmissionResults = ({
                                     {value.expected.toFixed(7)}
                                   </Td>
                                   <Td color="red.100" isNumeric>
-                                    {value.actual.toFixed(7)}
+                                    {value.actual?.toFixed(7) ?? "NaN or inf"}
                                   </Td>
                                   <Td color="red.100" isNumeric>
-                                    {value.diff.toFixed(7)}
+                                    {value.diff?.toFixed(7)}
                                   </Td>
                                 </Tr>
                               ))}
