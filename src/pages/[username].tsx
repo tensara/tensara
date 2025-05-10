@@ -137,13 +137,12 @@ export default function UserProfile() {
                   endColor="gray.800"
                   borderRadius="xl"
                 >
-                  {userData?.activityData &&
-                    userData.activityData.length > 0 && (
-                      <ActivityCalendar
-                        data={userData.activityData as ActivityItem[]}
-                        joinedYear={joinedYear}
-                      />
-                    )}
+                  {userData?.activityData && (
+                    <ActivityCalendar
+                      data={userData.activityData as ActivityItem[]}
+                      joinedYear={joinedYear}
+                    />
+                  )}
                 </Skeleton>
               </Box>
 

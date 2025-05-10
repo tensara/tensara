@@ -1,7 +1,7 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { db } from "~/server/db";
 import { env } from "~/env";
-import { auth } from "~/server/auth";
+import { combinedAuth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
 import {
   isSubmissionError,
@@ -28,9 +28,15 @@ export default async function handler(
     return;
   }
 
-  const session = await auth(req, res);
+  const session = await combinedAuth(req, res);
+
   if (!session) {
     res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  if (session && "error" in session) {
+    res.status(401).json({ error: session.error });
     return;
   }
 
