@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Any 
+from typing import List, Dict, Tuple, Any
 import torch
 
 class Problem(ABC):
     """Base class for defining problems."""
-    
     
     def __init__(self, name: str, time_limit: int = 100):
         """
@@ -12,14 +11,21 @@ class Problem(ABC):
         
         Args:
             name: Name of the problem
+            time_limit: Max time limit in seconds for test execution
         """
         self.name = name
         self.time_limit = time_limit
     
     @abstractmethod
-    def reference_solution(self, *args, **kwargs) -> Any:
+    def reference_solution(self, *args) -> Any:
         """
         Reference implementation using PyTorch.
+        
+        Args:
+            *args: Input parameters for the problem
+            
+        Returns:
+            Expected output for the given inputs
         """
         pass
     
@@ -28,6 +34,14 @@ class Problem(ABC):
         """
         Generate test cases for this problem.
         
+        Each test case dictionary must include:
+        - 'name': Descriptive name for the test case
+        - 'create_inputs': Function that returns ALL parameters needed for both
+          the reference solution and the user solution (including metadata like dimensions)
+        
+        Args:
+            dtype: Data type to use for tensor operations
+            
         Returns:
             List of test case dictionaries
         """
@@ -41,6 +55,7 @@ class Problem(ABC):
         Args:
             expected_output: Output from reference solution
             actual_output: Output from submitted solution
+            dtype: Data type used for comparison
             
         Returns:
             Tuple of (is_correct, debug_info)
@@ -69,15 +84,3 @@ class Problem(ABC):
             Number of floating point operations
         """
         pass
-    
-    def get_extra_params(self, test_case: Dict[str, Any]) -> List[Any]:
-        """
-        Get extra parameters to pass to the CUDA solution for a specific test case.
-        
-        Args:
-            test_case: The test case dictionary
-            
-        Returns:
-            List of extra parameters
-        """
-        return []

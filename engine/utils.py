@@ -156,18 +156,8 @@ def read_bytes_as_cuda_lib(compiled_lib: bytes):
     
     return cuda_lib
 
-def cast_to_ctype(data, argtypes, language="cuda"):
-    """Cast data to ctypes"""
-    data_casted = []
-    if language == "cuda":
-        for tensor, argtype in zip(data, argtypes):
-            if isinstance(tensor, torch.Tensor):
-                data_casted.append(ctypes.cast(tensor.data_ptr(), argtype))
-            else:
-                data_casted.append(argtype(tensor))
-        return data_casted
-    else:
-        return data
+# This function has been merged into run_dynamic_benchmark and other call sites
+# and is no longer needed as a separate function
 
 def load_problem_module(problem_type: str, problem_def: str = None) -> Problem:
     """
@@ -220,18 +210,19 @@ def prepare_gpu():
     time.sleep(0.5)
 
 
-def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tensors, actual_output, 
+def run_dynamic_benchmark(solution_func, problem, test_id, test_case, all_params, actual_output, 
                           language="cuda", min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0):
     """
-    Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
+    Run a benchmark with dynamic stopping based on GFLOPS variance.
     If kernel execution time exceeds threshold, run fixed number of iterations instead.
     
     Args:
-        solution_func: CUDA library with the solution function
+        solution_func: CUDA library or Python/Triton function with the solution
         problem: Problem definition with verification methods
+        test_id: ID of the test case
         test_case: The specific test case to benchmark
-        input_tensors: Input tensors for the CUDA function
-        actual_output: Output tensor for the CUDA function
+        all_params: All input parameters for the function
+        actual_output: Output tensor for the function
         language: Programming language of the solution ("cuda" or "python")
         min_iterations: Minimum number of iterations to run
         max_iterations: Maximum number of iterations to run
@@ -241,12 +232,23 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
     Returns:
         benchmark_result: Dictionary with benchmark results
     """
-    # Prepare pointers for CUDA
-    extra_params = problem.get_extra_params(test_case)
+    # Prepare CUDA inputs if needed
     if language == "cuda":
-        input_ptrs = cast_to_ctype(input_tensors, solution_func.argtypes[:len(input_tensors)], language)
-        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_tensors)])
-        extra_params_casted = cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
+        # Convert inputs to ctypes for CUDA
+        param_count = len(all_params)
+        
+        # Process all parameters for CUDA
+        all_inputs = []
+        for param, argtype in zip(all_params, solution_func.argtypes[:param_count]):
+            if isinstance(param, torch.Tensor):
+                all_inputs.append(ctypes.cast(param.data_ptr(), argtype))
+            else:
+                all_inputs.append(argtype(param))
+        
+        # Add output tensor
+        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[param_count])
+        all_inputs.append(output_ptr)
+    
     # Calculate FLOPS for this test case
     flops = problem.get_flops(test_case)
     
@@ -259,9 +261,9 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
     
     start_event.record()
     if language == "cuda":
-        solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
+        solution_func(*all_inputs)
     elif language == "python":
-        solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+        solution_func(*(list(all_params) + [actual_output]))
     end_event.record()
     torch.cuda.synchronize()
     
@@ -290,9 +292,9 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         
         # Run the kernel
         if language == "cuda":
-            solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
+            solution_func(*all_inputs)
         elif language == "python":
-            solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+            solution_func(*(list(all_params) + [actual_output]))
         
         # End timing
         end_event.record()
