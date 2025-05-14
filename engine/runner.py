@@ -12,29 +12,28 @@ import traceback
 import time
 
 
-def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str) -> Iterator[str]:
+def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str) -> Iterator[dict]:
     """
     Check a submitted solution against the reference implementation
     and stream results as they become available
     
     Args:
         problem_name: Name of the problem
-        problem_def: Problem instance
+        problem_def: Problem instance definition string
         compiled: Compiled CUDA code for the submitted solution (only for CUDA)
         solution: Source code of the solution (only for Triton)
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda" or "python")
         
     Returns:
-        Iterator that yields JSON strings with test results
+        Iterator that yields dictionaries with test results
     """
     
     try:
-
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
         
-
+        # Load solution function based on language
         if language == "cuda":
             if not compiled:
                 raise ValueError("Compiled bytes required for CUDA submissions")
@@ -83,9 +82,9 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                 return
 
             test_name = test_case["name"]
-            input_tensors = test_case["create_inputs"]()
+            all_params = test_case["create_inputs"]()
             
-            # Get the reference solution and move it to CPU
+            # For reference solution, we pass all inputs to get the expected output
             with torch.autocast("cuda", enabled=False, dtype=dtype):
                 old_tf32_setting = torch.backends.cuda.matmul.allow_tf32
                 old_cudnn_tf32_setting = torch.backends.cudnn.allow_tf32
@@ -93,7 +92,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                 torch.backends.cuda.matmul.allow_tf32 = False
                 torch.backends.cudnn.allow_tf32 = False
 
-                expected_output = problem.reference_solution(*input_tensors).cpu()
+                expected_output = problem.reference_solution(*all_params).cpu()
 
                 torch.backends.cuda.matmul.allow_tf32 = old_tf32_setting
                 torch.backends.cudnn.allow_tf32 = old_cudnn_tf32_setting
@@ -101,20 +100,28 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
 
+            # For user solution, we need to handle CUDA vs Python differently
             if language == "cuda":
-                input_ptrs = []
-                for tensor, argtype in zip(input_tensors, solution_func.argtypes[:len(input_tensors)]):
-                    if isinstance(tensor, torch.Tensor):
-                        input_ptrs.append(ctypes.cast(tensor.data_ptr(), argtype))
+                # Convert inputs to ctypes for CUDA
+                param_count = len(all_params)
+                
+                # Process all parameters for CUDA
+                all_inputs = []
+                for param, argtype in zip(all_params, solution_func.argtypes[:param_count]):
+                    if isinstance(param, torch.Tensor):
+                        all_inputs.append(ctypes.cast(param.data_ptr(), argtype))
                     else:
-                        input_ptrs.append(argtype(tensor))
-                output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
-                extra_params = problem.get_extra_params(test_case)
-                extra_params_casted = utils.cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
-                solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
+                        all_inputs.append(argtype(param))
+                
+                # Add output tensor
+                output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[param_count])
+                all_inputs.append(output_ptr)
+                
+                # Call the solution with all parameters
+                solution_func(*all_inputs)
             else:
-                extra_params = problem.get_extra_params(test_case)
-                solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+                # For Python/Triton, pass all parameters plus the output tensor
+                solution_func(*(list(all_params) + [actual_output]))
 
             torch.cuda.synchronize()
 
@@ -130,9 +137,9 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
 
             # Clean up memory
-            del input_tensors, expected_output, actual_output
+            del all_params, expected_output, actual_output
             if language == "cuda":
-                del input_ptrs, output_ptr
+                del all_inputs, output_ptr
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -174,7 +181,6 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             "total_tests": total_tests
         }
 
-
     except utils.NVCCError as e:
         yield {
             "status": "RUNTIME_ERROR",
@@ -198,14 +204,14 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
 
 
 
-def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
+def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str) -> Iterator[dict]:
     """
     Run benchmark on compiled CUDA solution
     
     Args:
         problem_name: Name of the problem
-        problem_def: Problem instance  
-        compiled: Compiled CUDA code for the submitted solution
+        problem_def: Problem instance definition string
+        compiled: Compiled CUDA code for the submitted solution (only for CUDA)
         solution: Source code of the solution (only for Triton)
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda" or "python")
@@ -217,6 +223,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
 
+        # Load solution function based on language
         if language == "cuda":
             if not compiled:
                 raise ValueError("Compiled bytes required for CUDA submissions")
@@ -261,9 +268,10 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
             test_name = test_case["name"]
             
             try:
-                # Create inputs and reference output
-                input_tensors = test_case["create_inputs"]()
-                expected_output = problem.reference_solution(*input_tensors).cpu()
+                # Get all parameters from the test case
+                all_params = test_case["create_inputs"]()
+                # Calculate reference output using all parameters
+                expected_output = problem.reference_solution(*all_params).cpu()
                 actual_output = torch.zeros_like(expected_output, device='cuda')
                 
                 benchmark_result = utils.run_dynamic_benchmark(
@@ -271,7 +279,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
                     problem, 
                     test_id,
                     test_case, 
-                    input_tensors, 
+                    all_params, 
                     actual_output,
                     language=language,
                     min_iterations=5,
@@ -288,7 +296,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
                 }
                 
                 # Clean up memory
-                del input_tensors, expected_output, actual_output
+                del all_params, expected_output, actual_output
                 gc.collect()
                 torch.cuda.empty_cache()
                 
@@ -315,7 +323,6 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
         
         if language == "python":
             shutil.rmtree(temp_dir)
-
 
         # Return final summary with additional metrics
         yield {
