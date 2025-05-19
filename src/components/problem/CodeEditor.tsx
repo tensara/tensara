@@ -69,7 +69,7 @@ function setupMonaco(monaco: Monaco) {
       { token: "keyword.triton", foreground: "C586C0" },
       { token: "function.triton", foreground: "4FC1FF" },
       { token: "decorator.triton", foreground: "DCDCAA" },
-      
+
       // Mojo specific tokens
       { token: "keyword.mojo", foreground: "569cd6" },
       { token: "type.mojo", foreground: "4EC9B0" },
@@ -196,7 +196,7 @@ function setupMonaco(monaco: Monaco) {
   });
 
   // Register Mojo language tokenizer
-  monaco.languages.register({ id: 'mojo' });
+  monaco.languages.register({ id: "mojo" });
   monaco.languages.setMonarchTokensProvider("mojo", {
     defaultToken: "",
     tokenizer: {
@@ -212,63 +212,69 @@ function setupMonaco(monaco: Monaco) {
         [/@[a-zA-Z_][\w$]*/, "decorator"],
 
         // Keywords
-        [/\b(fn|struct|def|var|let|alias|trait|impl|for|while|if|else|elif|return|break|continue|match|and|or|not|in|is|as|from|import|with|as|try|except|finally|raise|assert|await|async|del|global|nonlocal|lambda|pass|yield|None|True|False|Self|self|owned|inout|mutates|borrowed|raises)\b/, "keyword"],
+        [
+          /\b(fn|struct|def|var|let|alias|trait|impl|for|while|if|else|elif|return|break|continue|match|and|or|not|in|is|as|from|import|with|as|try|except|finally|raise|assert|await|async|del|global|nonlocal|lambda|pass|yield|None|True|False|Self|self|owned|inout|mutates|borrowed|raises)\b/,
+          "keyword",
+        ],
 
         // Types
-        [/\b(Int|UInt|Int8|Int16|Int32|Int64|UInt8|UInt16|UInt32|UInt64|Float16|Float32|Float64|Bool|String|SIMD|DType|Scalar|StringLiteral|AnyType|NoneType)\b/, "type"],
-        
+        [
+          /\b(Int|UInt|Int8|Int16|Int32|Int64|UInt8|UInt16|UInt32|UInt64|Float16|Float32|Float64|Bool|String|SIMD|DType|Scalar|StringLiteral|AnyType|NoneType)\b/,
+          "type",
+        ],
+
         // Special control keywords
         [/\b(return|yield|raise|break|continue|pass)\b/, "keyword.control"],
 
         // Functions
         [/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/, "function.mojo"],
-        
+
         // Strings
         [/"([^"\\]|\\.)*$/, "string.invalid"],
         [/'([^'\\]|\\.)*$/, "string.invalid"],
         [/"/, "string", "@string_double"],
         [/'/, "string", "@string_single"],
-        
+
         // Numbers
         [/\b(0[xX][0-9a-fA-F]+)\b/, "number.hex"],
         [/\b(0[oO][0-7]+)\b/, "number.octal"],
         [/\b(0[bB][01]+)\b/, "number.binary"],
         [/\b(\d+\.\d+([eE][\-+]?\d+)?)\b/, "number.float"],
         [/\b(\d+([eE][\-+]?\d+)?)\b/, "number"],
-        
+
         // Operators
         [/[{}()\[\]]/, "@brackets"],
         [/[<>=%&|+\-*/~^]+/, "operator"],
-        
+
         // Identifiers
         [/[a-zA-Z_]\w*/, "identifier"],
       ],
-      
+
       comment: [
         [/[^/*]+/, "comment"],
         [/\/\*/, "comment", "@push"],
         [/\*\//, "comment", "@pop"],
         [/[/*]/, "comment"],
       ],
-      
+
       multilineString: [
         [/[^']+/, "comment"],
         [/'''/, "comment", "@pop"],
         [/'/, "comment"],
       ],
-      
+
       multilineDocstring: [
         [/[^"]+/, "comment"],
         [/"""/, "comment", "@pop"],
         [/"/, "comment"],
       ],
-      
+
       string_double: [
         [/[^"\\]+/, "string"],
         [/\\./, "string.escape"],
         [/"/, "string", "@pop"],
       ],
-      
+
       string_single: [
         [/[^'\\]+/, "string"],
         [/\\./, "string.escape"],
@@ -416,8 +422,8 @@ const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
         value={code}
         onChange={(value) => setCode(value ?? "")}
         language={
-          selectedLanguage === "cuda" 
-            ? "cpp" 
+          selectedLanguage === "cuda"
+            ? "cpp"
             : selectedLanguage === "mojo"
               ? "mojo"
               : "python"

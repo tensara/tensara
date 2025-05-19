@@ -44,7 +44,7 @@ const MySubmissions = ({
   const { splitRatio } = useSplitPanel();
 
   const useCompactLabels = splitRatio < 40;
-  
+
   const filteredSubmissions = useMemo(() => {
     if (!submissions) return [];
     const filtered = statusFilter.includes("all")
@@ -77,8 +77,8 @@ const MySubmissions = ({
         "MEMORY_LIMIT_EXCEEDED",
       ],
       label: "Errors",
-      shortLabel: "Err"
-    }
+      shortLabel: "Err",
+    },
   ];
 
   return (
@@ -247,7 +247,12 @@ const MySubmissions = ({
                     </Text>
                     <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
                       {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language]} •{" "}
-                      {GPU_DISPLAY_ON_PROFILE[(submission.gpuType ?? "T4") as keyof typeof GPU_DISPLAY_ON_PROFILE]}
+                      {
+                        GPU_DISPLAY_ON_PROFILE[
+                          (submission.gpuType ??
+                            "T4") as keyof typeof GPU_DISPLAY_ON_PROFILE
+                        ]
+                      }
                     </Text>
                   </HStack>
                   <Text color="whiteAlpha.700" fontSize="sm">

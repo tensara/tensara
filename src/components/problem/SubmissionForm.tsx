@@ -96,20 +96,20 @@ const SubmissionForm = ({
               {Object.entries(GPU_DISPLAY_NAMES)
                 .filter(([key]) => key !== "all")
                 .map(([key, value]) => (
-                <MenuItem
-                  key={key}
-                  onClick={() => {
-                    setSelectedGpuType(key);
-                  }}
-                  bg="brand.secondary"
-                  _hover={{ bg: "gray.700" }}
-                  color="white"
-                  borderRadius="lg"
-                  isDisabled={key === "T4" && selectedLanguage === "mojo"}
-                >
-                  {value}
-                </MenuItem>
-              ))}
+                  <MenuItem
+                    key={key}
+                    onClick={() => {
+                      setSelectedGpuType(key);
+                    }}
+                    bg="brand.secondary"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="lg"
+                    isDisabled={key === "T4" && selectedLanguage === "mojo"}
+                  >
+                    {value}
+                  </MenuItem>
+                ))}
             </MenuList>
           </Menu>
         </Box>
@@ -163,8 +163,8 @@ const SubmissionForm = ({
               >
                 Triton
               </MenuItem>
-              <Tooltip 
-                label="Mojo does not support NVIDIA T4 GPUs" 
+              <Tooltip
+                label="Mojo does not support NVIDIA T4 GPUs"
                 isDisabled={selectedGpuType !== "T4"}
                 placement="right"
                 hasArrow

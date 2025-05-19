@@ -1,6 +1,12 @@
 import { type Parameter } from "~/types/problem";
 import { type DataType } from "~/types/misc";
-import { CPP_TYPES, PYTHON_TYPES, MOJO_TYPES, PYTHON_MISC_TYPES, MOJO_MISC_TYPES } from "~/constants/datatypes";
+import {
+  CPP_TYPES,
+  PYTHON_TYPES,
+  MOJO_TYPES,
+  PYTHON_MISC_TYPES,
+  MOJO_MISC_TYPES,
+} from "~/constants/datatypes";
 
 export const generateStarterCode = (
   parameters: Parameter[],

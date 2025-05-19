@@ -29,11 +29,10 @@ export const PYTHON_TYPES: Record<DataType, string> = {
 } as const;
 
 export const PYTHON_MISC_TYPES: Record<string, string> = {
-  "float": "float",
-  "int": "int",
-  "size_t": "int"
+  float: "float",
+  int: "int",
+  size_t: "int",
 } as const;
-
 
 export const MOJO_TYPES: Record<DataType, string> = {
   float32: "Float32",
@@ -43,7 +42,7 @@ export const MOJO_TYPES: Record<DataType, string> = {
 } as const;
 
 export const MOJO_MISC_TYPES: Record<string, string> = {
-  "float": "Float32",
-  "int": "Int32",
-  "size_t": "Int32"
+  float: "Float32",
+  int: "Int32",
+  size_t: "Int32",
 } as const;

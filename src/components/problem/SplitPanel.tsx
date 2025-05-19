@@ -1,4 +1,10 @@
-import React, { useCallback, useState, useEffect, createContext, useContext } from "react";
+import React, {
+  useCallback,
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+} from "react";
 import { Box, Image } from "@chakra-ui/react";
 
 // Create context for split ratio
