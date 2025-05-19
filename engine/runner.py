@@ -23,7 +23,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
         compiled: Compiled CUDA code for the submitted solution (only for CUDA)
         solution: Source code of the solution (only for Triton)
         dtype: Data type for the problem
-        language: Programming language of the solution ("cuda" or "python")
+        language: Programming language of the solution ("cuda", "triton", or "mojo")
         
     Returns:
         Iterator that yields JSON strings with test results
@@ -39,12 +39,20 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             if not compiled:
                 raise ValueError("Compiled bytes required for CUDA submissions")
                 
-            cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
+            cuda_lib = utils.read_bytes_as_lib(compiled)
             func_sig = problem.get_function_signature()
             cuda_lib.solution.argtypes = func_sig["argtypes"]
             cuda_lib.solution.restype = func_sig["restype"]
             solution_func = cuda_lib.solution
-        elif language == "python":
+
+        elif language == "mojo":
+            mojo_lib = utils.read_bytes_as_lib(compiled)
+            func_sig = problem.get_function_signature()
+            mojo_lib.solution.argtypes = func_sig["argtypes"]
+            mojo_lib.solution.restype = func_sig["restype"]
+            solution_func = mojo_lib.solution
+
+        elif language == "triton":
             if not solution:
                 raise ValueError("Source code required for Triton submissions")
             
@@ -101,7 +109,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
 
-            if language == "cuda":
+            if language == "cuda" or language == "mojo":
                 input_ptrs = []
                 for tensor, argtype in zip(input_tensors, solution_func.argtypes[:len(input_tensors)]):
                     if isinstance(tensor, torch.Tensor):
@@ -131,7 +139,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
 
             # Clean up memory
             del input_tensors, expected_output, actual_output
-            if language == "cuda":
+            if language == "cuda" or language == "mojo":
                 del input_ptrs, output_ptr
             gc.collect()
             torch.cuda.empty_cache()
@@ -164,7 +172,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
                 "total_tests": total_tests,
             }
                 
-        if language == "python":
+        if language == "triton":
             shutil.rmtree(temp_dir)
 
         # Final status message
@@ -208,7 +216,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
         compiled: Compiled CUDA code for the submitted solution
         solution: Source code of the solution (only for Triton)
         dtype: Data type for the problem
-        language: Programming language of the solution ("cuda" or "python")
+        language: Programming language of the solution ("cuda", "triton", or "mojo")
     
     Yields:
         Dictionary objects with benchmark status updates
@@ -221,12 +229,20 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
             if not compiled:
                 raise ValueError("Compiled bytes required for CUDA submissions")
                 
-            cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
+            cuda_lib = utils.read_bytes_as_lib(compiled)
             func_sig = problem.get_function_signature()
             cuda_lib.solution.argtypes = func_sig["argtypes"]
             cuda_lib.solution.restype = func_sig["restype"]
             solution_func = cuda_lib.solution
-        elif language == "python":
+            
+        elif language == "mojo":
+            mojo_lib = utils.read_bytes_as_lib(compiled)
+            func_sig = problem.get_function_signature()
+            mojo_lib.solution.argtypes = func_sig["argtypes"]
+            mojo_lib.solution.restype = func_sig["restype"]
+            solution_func = mojo_lib.solution
+
+        elif language == "triton":
             if not solution:
                 raise ValueError("Source code required for Triton submissions")
             
@@ -313,7 +329,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
             avg_gflops = 0
             avg_runtime_ms = 0
         
-        if language == "python":
+        if language == "triton":
             shutil.rmtree(temp_dir)
 
 

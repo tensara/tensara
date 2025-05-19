@@ -1,28 +1,40 @@
 #!/bin/bash
 
-python_mode=false
-if [[ "$1" == "--python" ]]; then
-  python_mode=true
+mode="cuda"  # default mode
+if [[ "$1" == "--triton" ]]; then
+  mode="triton"
+  shift
+elif [[ "$1" == "--cuda" ]]; then
+  mode="cuda"
+  shift
+elif [[ "$1" == "--mojo" ]]; then
+  mode="mojo"
   shift
 fi
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 [--python] <problem_name> [api_endpoint]"
-  echo "Example: $0 matrix_multiplication https://api.example.com/submit"
+  echo "Usage: $0 [--triton|--cuda|--mojo] <problem_name> [api_endpoint]"
+  echo "Example: $0 --cuda matrix_multiplication https://api.example.com/submit"
   exit 1
 fi
 
 problem_name="$1"
 api_endpoint="${2:-https://api.example.com/submit}"
 
-
-if $python_mode; then
-  solution_file="solution.py"
-  language="python"
-else
-  solution_file="solution.cu"
-  language="cuda"
-fi
+case $mode in
+  "triton")
+    solution_file="solution.py"
+    language="triton"
+    ;;
+  "cuda")
+    solution_file="solution.cu"
+    language="cuda"
+    ;;
+  "mojo")
+    solution_file="solution.mojo"
+    language="mojo"
+    ;;
+esac
 
 if [ ! -f "$solution_file" ]; then
   echo "Error: $solution_file file not found in the current directory."

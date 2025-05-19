@@ -14,10 +14,11 @@ CURR_DIR = Path(__file__).parent
 
 PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton"]
 LOCAL_SOURCE = ["utils", "runner", "problem"]
+APT_PACKAGES = ["build-essential", "gcc", "g++"]
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
-    .apt_install(["build-essential", "gcc", "g++"])
+    .apt_install(APT_PACKAGES)
     .env({"CC": "gcc"})
     .pip_install(PIP_PACKAGES)
     .add_local_python_source(*LOCAL_SOURCE)
@@ -25,9 +26,9 @@ devel_image = (
 
 runtime_image = (
     modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
-    .apt_install(["build-essential", "gcc", "g++"])
+    .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
     .env({"CC": "gcc"})
-    .pip_install(PIP_PACKAGES)
+    .pip_install(PIP_PACKAGES + ["modular"])
     .add_local_python_source(*LOCAL_SOURCE)
 )
 
@@ -38,6 +39,18 @@ web_app = FastAPI()
 @utils.subproc_generator(timeout=60)
 def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_name: str, problem_def: str, dtype: str, language: str):
     gen = None
+    
+    if language == "mojo" and compiled_lib is None:
+        try:
+            compiled_lib = utils.run_mojo_and_return_bytes(solution_code, type)
+        except utils.MojoError as e:
+            yield {
+                "status": "COMPILE_ERROR",
+                "message": "Compilation Failed",
+                "details": e.args[0],
+            }
+            return
+    
     if type == "checker":
         gen = runner.run_checker(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
     elif type == "benchmark":
