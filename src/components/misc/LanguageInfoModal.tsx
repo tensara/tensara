@@ -22,6 +22,7 @@ import {
   TRITON_VERSION,
   CUDA_RUNTIME_VERSION,
   CUDA_DRIVER_VERSION,
+  MOJO_CMD,
 } from "~/constants/deviceQuery";
 
 export const LanguageInfoModal = () => {
@@ -48,7 +49,7 @@ export const LanguageInfoModal = () => {
   return (
     <>
       <IconButton
-        aria-label="Language Information"
+        aria-label="Framework Information"
         icon={<FaInfoCircle />}
         size="sm"
         variant="ghost"
@@ -66,7 +67,7 @@ export const LanguageInfoModal = () => {
           borderWidth={1}
         >
           <ModalHeader color="white">
-            Language Information
+            Framework Information
             <Text fontSize="sm" color="gray.400" mt={1}>
               CUDA Driver Version: {CUDA_DRIVER_VERSION} | Runtime Version:{" "}
               {CUDA_RUNTIME_VERSION}
@@ -99,7 +100,7 @@ export const LanguageInfoModal = () => {
               </TableWrapper>
             </Box>
 
-            <Box>
+            <Box mb={6}>
               <Text fontWeight="semibold" mb={3} color="gray.300">
                 Python (Triton)
               </Text>
@@ -119,6 +120,24 @@ export const LanguageInfoModal = () => {
                     </Td>
                     <Td color="white" textAlign="left">
                       {TRITON_VERSION}
+                    </Td>
+                  </Tr>
+                </Tbody>
+              </TableWrapper>
+            </Box>
+
+            <Box>
+              <Text fontWeight="semibold" mb={3} color="gray.300">
+                Mojo
+              </Text>
+              <TableWrapper>
+                <Tbody>
+                  <Tr>
+                    <Td color="gray.400" pl={0}>
+                      Build Command
+                    </Td>
+                    <Td color="white">
+                      <code style={{ cursor: "pointer" }}>{MOJO_CMD}</code>
                     </Td>
                   </Tr>
                 </Tbody>

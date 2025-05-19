@@ -1,5 +1,15 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, createContext, useContext } from "react";
 import { Box, Image } from "@chakra-ui/react";
+
+// Create context for split ratio
+export const SplitPanelContext = createContext<{
+  splitRatio: number;
+}>({
+  splitRatio: 30,
+});
+
+// Custom hook to use split ratio
+export const useSplitPanel = () => useContext(SplitPanelContext);
 
 interface SplitPanelProps {
   leftContent: React.ReactNode;
@@ -12,7 +22,7 @@ interface SplitPanelProps {
 const SplitPanel = ({
   leftContent,
   rightContent,
-  initialRatio = 40,
+  initialRatio = 30,
   minLeftWidth = 30,
   minRightWidth = 50,
 }: SplitPanelProps) => {
@@ -73,78 +83,80 @@ const SplitPanel = ({
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
-    <Box
-      id="split-container"
-      display="flex"
-      flexDirection={{ base: "column", md: "row" }}
-      h="100%"
-      maxH="calc(100vh - 120px)"
-      position="relative"
-    >
-      {/* Left Panel */}
+    <SplitPanelContext.Provider value={{ splitRatio }}>
       <Box
-        w={{ base: "100%", md: `${splitRatio}%` }}
-        h={{ base: "auto", md: "100%" }}
-        overflowY="auto"
-        pr={{ base: 0, md: 4 }}
-        mb={{ base: 4, md: 0 }}
-        maxH={{ base: "auto", md: "100%" }}
+        id="split-container"
+        display="flex"
+        flexDirection={{ base: "column", md: "row" }}
+        h="100%"
+        maxH="calc(100vh - 120px)"
+        position="relative"
       >
-        {leftContent}
-      </Box>
-
-      {/* Resizer Handle - Only visible on desktop */}
-      <Box
-        display={{ base: "none", md: "block" }}
-        position="absolute"
-        left={`${splitRatio}%`}
-        transform="translateX(-50%)"
-        width="6px"
-        height="100%"
-        cursor="col-resize"
-        zIndex={2}
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={handleMouseDown}
-      >
+        {/* Left Panel */}
         <Box
+          w={{ base: "100%", md: `${splitRatio}%` }}
+          h={{ base: "auto", md: "100%" }}
+          overflowY="auto"
+          pr={{ base: 0, md: 4 }}
+          mb={{ base: 4, md: 0 }}
+          maxH={{ base: "auto", md: "100%" }}
+        >
+          {leftContent}
+        </Box>
+
+        {/* Resizer Handle - Only visible on desktop */}
+        <Box
+          display={{ base: "none", md: "block" }}
           position="absolute"
-          left="50%"
-          top="50%"
-          transform="translate(-50%, -50%)"
+          left={`${splitRatio}%`}
+          transform="translateX(-50%)"
           width="6px"
-          height={isResizing ? "120px" : "80px"}
-          bg={"whiteAlpha.200"}
-          borderRadius="full"
-          transition="all 0.2s ease"
-          boxShadow={isResizing ? "0 0 10px 2px brand.dark" : "none"}
-        />
+          height="100%"
+          cursor="col-resize"
+          zIndex={2}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={handleMouseDown}
+        >
+          <Box
+            position="absolute"
+            left="50%"
+            top="50%"
+            transform="translate(-50%, -50%)"
+            width="6px"
+            height={isResizing ? "120px" : "80px"}
+            bg={"whiteAlpha.200"}
+            borderRadius="full"
+            transition="all 0.2s ease"
+            boxShadow={isResizing ? "0 0 10px 2px brand.dark" : "none"}
+          />
 
-        {/* GPU Icon */}
+          {/* GPU Icon */}
+          <Box
+            position="absolute"
+            left="50%"
+            top="calc(50% + 50px)"
+            transform="translate(-50%, -50%)"
+            width="24px"
+            height="24px"
+            opacity={isResizing ? 0.9 : 0.5}
+            transition="all 0.3s ease"
+            _hover={{ opacity: 0.9 }}
+            filter={isResizing ? "brightness(1.5)" : "brightness(1)"}
+          ></Box>
+        </Box>
+
+        {/* Right Panel */}
         <Box
-          position="absolute"
-          left="50%"
-          top="calc(50% + 50px)"
-          transform="translate(-50%, -50%)"
-          width="24px"
-          height="24px"
-          opacity={isResizing ? 0.9 : 0.5}
-          transition="all 0.3s ease"
-          _hover={{ opacity: 0.9 }}
-          filter={isResizing ? "brightness(1.5)" : "brightness(1)"}
-        ></Box>
+          display={{ base: "none", md: "block" }}
+          w={{ base: "100%", md: `${100 - splitRatio}%` }}
+          h={{ base: "auto", md: "100%" }}
+          minH={{ base: "50vh", md: "auto" }}
+          pl={{ base: 0, md: 4 }}
+        >
+          {rightContent}
+        </Box>
       </Box>
-
-      {/* Right Panel */}
-      <Box
-        display={{ base: "none", md: "block" }}
-        w={{ base: "100%", md: `${100 - splitRatio}%` }}
-        h={{ base: "auto", md: "100%" }}
-        minH={{ base: "50vh", md: "auto" }}
-        pl={{ base: 0, md: 4 }}
-      >
-        {rightContent}
-      </Box>
-    </Box>
+    </SplitPanelContext.Provider>
   );
 };
 

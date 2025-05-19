@@ -10,6 +10,7 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Tooltip,
 } from "@chakra-ui/react";
 
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
@@ -92,14 +93,19 @@ const SubmissionForm = ({
               borderRadius="lg"
               minW="140px"
             >
-              {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
+              {Object.entries(GPU_DISPLAY_NAMES)
+                .filter(([key]) => key !== "all")
+                .map(([key, value]) => (
                 <MenuItem
                   key={key}
-                  onClick={() => setSelectedGpuType(key)}
+                  onClick={() => {
+                    setSelectedGpuType(key);
+                  }}
                   bg="brand.secondary"
                   _hover={{ bg: "gray.700" }}
                   color="white"
                   borderRadius="lg"
+                  isDisabled={key === "T4" && selectedLanguage === "mojo"}
                 >
                   {value}
                 </MenuItem>
@@ -157,16 +163,25 @@ const SubmissionForm = ({
               >
                 Triton
               </MenuItem>
-              <MenuItem
-                key="mojo"
-                onClick={() => setSelectedLanguage("mojo")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
+              <Tooltip 
+                label="Mojo does not support NVIDIA T4 GPUs" 
+                isDisabled={selectedGpuType !== "T4"}
+                placement="right"
+                hasArrow
+                bg="gray.700"
               >
-                Mojo
-              </MenuItem>
+                <MenuItem
+                  key="mojo"
+                  onClick={() => setSelectedLanguage("mojo")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="lg"
+                  isDisabled={selectedGpuType === "T4"}
+                >
+                  Mojo
+                </MenuItem>
+              </Tooltip>
             </MenuList>
           </Menu>
         </Box>

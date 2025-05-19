@@ -285,7 +285,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         test_case: The specific test case to benchmark
         input_tensors: Input tensors for the CUDA function
         actual_output: Output tensor for the CUDA function
-        language: Programming language of the solution ("cuda" or "python")
+        language: Programming language of the solution ("cuda", "mojo", or "python")
         min_iterations: Minimum number of iterations to run
         max_iterations: Maximum number of iterations to run
         target_cv: Target coefficient of variation to achieve
@@ -313,7 +313,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
     start_event.record()
     if language == "cuda" or language == "mojo":
         solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
-    elif language == "triton":
+    elif language == "python":
         solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
     end_event.record()
     torch.cuda.synchronize()
@@ -344,7 +344,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         # Run the kernel
         if language == "cuda" or language == "mojo":
             solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
-        elif language == "triton":
+        elif language == "python":
             solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
         
         # End timing

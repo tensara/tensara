@@ -1,8 +1,8 @@
 #!/bin/bash
 
 mode="cuda"  # default mode
-if [[ "$1" == "--triton" ]]; then
-  mode="triton"
+if [[ "$1" == "--python" ]]; then
+  mode="python"
   shift
 elif [[ "$1" == "--cuda" ]]; then
   mode="cuda"
@@ -22,9 +22,9 @@ problem_name="$1"
 api_endpoint="${2:-https://api.example.com/submit}"
 
 case $mode in
-  "triton")
+  "python")
     solution_file="solution.py"
-    language="triton"
+    language="python"
     ;;
   "cuda")
     solution_file="solution.cu"
