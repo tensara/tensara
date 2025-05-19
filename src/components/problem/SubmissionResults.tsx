@@ -145,7 +145,7 @@ const SubmissionResults = ({
             size="sm"
             onClick={onViewSubmissions}
             leftIcon={<FaClock />}
-            borderRadius="full"
+            borderRadius="lg"
             color="gray.300"
             _hover={{
               bg: "whiteAlpha.50",

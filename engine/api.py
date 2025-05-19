@@ -97,7 +97,7 @@ async def checker(gpu: str, request: Request):
 
         def compile_benchmark():
             try:
-                utils.run_nvcc_and_return_bytes(gpu, solution_code, "solution")
+                utils.run_nvcc_and_return_bytes(gpu, solution_code, "benchmark")
             except Exception:
                 pass
 
