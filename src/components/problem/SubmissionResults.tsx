@@ -48,6 +48,7 @@ import {
 import { FiArrowLeft } from "react-icons/fi";
 
 import { getStatusIcon } from "~/constants/problem";
+import { useSplitPanel } from "./SplitPanel";
 
 // Define interface for sample differences in debug info
 interface DebugSampleDifference {
@@ -133,6 +134,8 @@ const SubmissionResults = ({
   onBackToProblem,
   onViewSubmissions,
 }: SubmissionResultsProps) => {
+  const { splitRatio } = useSplitPanel();
+  const useCompactLabels = splitRatio < 40;
   if (!metaStatus) return null;
 
   return (
@@ -152,7 +155,7 @@ const SubmissionResults = ({
               color: "white",
             }}
           >
-            My Submissions
+            {useCompactLabels ? "Submissions" : "My Submissions"}
           </Button>
           <Button
             size="sm"
@@ -166,7 +169,7 @@ const SubmissionResults = ({
               color: "white",
             }}
           >
-            Back to Problem
+            {useCompactLabels ? "Back" : "Back to Problem"}
           </Button>
         </HStack>
       </HStack>
