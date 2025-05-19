@@ -3,6 +3,7 @@ import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
 import { useState } from "react";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 interface CodeEditorProps {
   code: string;
@@ -314,7 +315,7 @@ const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
               textAlign="center"
               fontFamily="mono"
             >
-              {selectedLanguage === "cuda" ? "CUDA C++" : "Python"} environment
+              {LANGUAGE_DISPLAY_NAMES[selectedLanguage]} environment
             </Text>
           </Box>
         </Flex>

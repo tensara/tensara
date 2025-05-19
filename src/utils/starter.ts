@@ -1,6 +1,6 @@
 import { type Parameter } from "~/types/problem";
 import { type DataType } from "~/types/misc";
-import { CPP_TYPES, PYTHON_TYPES } from "~/constants/datatypes";
+import { CPP_TYPES, PYTHON_TYPES, MOJO_TYPES, PYTHON_MISC_TYPES, MOJO_MISC_TYPES } from "~/constants/datatypes";
 
 export const generateStarterCode = (
   parameters: Parameter[],
@@ -34,7 +34,7 @@ extern "C" void solution(${paramStr}) {
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.name}${parameter.pointer === "true" ? "" : parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[dataType]}` : ": int"}`
+          `${parameter.name}${parameter.pointer === "true" ? "" : parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[dataType]}` : `: ${PYTHON_MISC_TYPES[parameter.type]}`}`
       )
       .join(", ");
     return `import triton
@@ -42,6 +42,27 @@ import triton.language as tl
 
 # Note: ${names.join(", ")} are all ${dataType} device tensors
 def solution(${paramStr}):
+  `;
+  }
+  if (language === "mojo") {
+    const names = parameters
+      .map((parameter: Parameter) =>
+        parameter.pointer === "true" ? parameter.name : null
+      )
+      .filter(Boolean);
+    const paramStr = parameters
+      .map(
+        (parameter: Parameter) =>
+          `${parameter.name}: ${parameter.pointer === "true" ? `UnsafePointer[${MOJO_TYPES[dataType]}]` : parameter.type === "[VAR]" ? MOJO_TYPES[dataType] : MOJO_MISC_TYPES[parameter.type]}`
+      )
+      .join(", ");
+    return `from gpu.host import DeviceContext
+from gpu.id import block_dim, block_idx, thread_idx
+from memory import UnsafePointer
+
+# Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
+@export
+fn solution(${paramStr}) raises:
   `;
   }
   return "";

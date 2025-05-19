@@ -21,6 +21,7 @@ import { IoRepeat } from "react-icons/io5";
 import { FaInfoCircle, FaChevronDown } from "react-icons/fa";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 interface SubmissionFormProps {
   selectedGpuType: string;
@@ -127,7 +128,7 @@ const SubmissionForm = ({
               justifyContent="flex-start"
               borderRadius="lg"
             >
-              {selectedLanguage === "cuda" ? "CUDA C++" : "Python (Triton)"}
+              {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
             </MenuButton>
             <MenuList
               bg="brand.secondary"
@@ -154,7 +155,17 @@ const SubmissionForm = ({
                 color="white"
                 borderRadius="lg"
               >
-                Python (Triton)
+                Triton
+              </MenuItem>
+              <MenuItem
+                key="mojo"
+                onClick={() => setSelectedLanguage("mojo")}
+                bg="brand.secondary"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+                borderRadius="lg"
+              >
+                Mojo
               </MenuItem>
             </MenuList>
           </Menu>

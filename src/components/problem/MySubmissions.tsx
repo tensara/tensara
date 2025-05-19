@@ -25,6 +25,7 @@ import {
 } from "~/constants/problem";
 import { FaSortAmountDown } from "react-icons/fa";
 import { useState, useMemo } from "react";
+import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
 
 interface MySubmissionsProps {
   submissions: Submission[] | undefined;
@@ -250,7 +251,7 @@ const MySubmissions = ({
                       {formatStatus(submission.status)}
                     </Text>
                     <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
-                      {submission.language === "cuda" ? "CUDA" : "Python"} •{" "}
+                      {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language]} •{" "}
                       {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
                     </Text>
                   </HStack>
