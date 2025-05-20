@@ -13,7 +13,7 @@ CURR_DIR = Path(__file__).parent
 
 
 PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton"]
-LOCAL_SOURCE = ["utils", "runner", "problem"]
+LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
 APT_PACKAGES = ["build-essential", "gcc", "g++"]
 
 devel_image = (
