@@ -11,6 +11,7 @@ import {
   MenuList,
   MenuItem,
   Tooltip,
+  Badge,
 } from "@chakra-ui/react";
 
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
@@ -106,6 +107,7 @@ const SubmissionForm = ({
                     color="white"
                     borderRadius="lg"
                     isDisabled={key === "T4" && selectedLanguage === "mojo"}
+                    fontSize="sm"
                   >
                     {value}
                   </MenuItem>
@@ -150,6 +152,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
                 CUDA C++
               </MenuItem>
@@ -160,6 +163,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
                 Triton
               </MenuItem>
@@ -178,8 +182,9 @@ const SubmissionForm = ({
                   color="white"
                   borderRadius="lg"
                   isDisabled={selectedGpuType === "T4"}
+                  fontSize="sm"
                 >
-                  Mojo
+                  Mojo <Badge ml={1} colorScheme="cyan" fontSize="2xs" variant="subtle" rounded="sm">BETA</Badge>
                 </MenuItem>
               </Tooltip>
             </MenuList>
@@ -231,6 +236,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
                 float32
               </MenuItem>
@@ -242,6 +248,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 float16
               </MenuItem>
@@ -253,6 +260,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 int32
               </MenuItem>
@@ -264,6 +272,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 int16
               </MenuItem>

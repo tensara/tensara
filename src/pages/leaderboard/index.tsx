@@ -259,6 +259,7 @@ const LeaderboardPage: NextPage = () => {
                               _hover={{ bg: "gray.700" }}
                               color="white"
                               borderRadius="md"
+                              fontSize="sm"
                             >
                               {value}
                             </MenuItem>
@@ -702,6 +703,7 @@ const LeaderboardPage: NextPage = () => {
                                     ? `?gpu=${selectedGpu}`
                                     : ""
                                 }`}
+                                _hover={{ textDecoration: "none" }}
                               >
                                 <Heading
                                   size="md"

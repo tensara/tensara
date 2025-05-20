@@ -182,6 +182,7 @@ const MySubmissions = ({
                       )
                     }
                     borderRadius="md"
+                    fontSize="sm"
                   >
                     {status.label}
                   </MenuItem>
