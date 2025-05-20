@@ -9,6 +9,7 @@ interface CodeEditorProps {
   code: string;
   setCode: (code: string) => void;
   selectedLanguage: ProgrammingLanguage;
+  isEditable?: boolean;
 }
 
 function setupMonaco(monaco: Monaco) {
@@ -202,7 +203,6 @@ function setupMonaco(monaco: Monaco) {
     tokenizer: {
       root: [
         // Comments
-        [/\/\/.*$/, "comment"],
         [/#.*$/, "comment"],
         [/'''/, "comment", "@multilineString"],
         [/"""/, "comment", "@multilineDocstring"],
@@ -358,7 +358,12 @@ const pulseAnimation = keyframes`
   100% { opacity: 0.6; }
 `;
 
-const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
+const CodeEditor = ({
+  code,
+  setCode,
+  selectedLanguage,
+  isEditable = true,
+}: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
 
   return (
@@ -420,7 +425,7 @@ const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
         height="100%"
         theme="tensara-dark"
         value={code}
-        onChange={(value) => setCode(value ?? "")}
+        onChange={(value) => isEditable && setCode(value ?? "")}
         language={
           selectedLanguage === "cuda"
             ? "cpp"
@@ -439,6 +444,7 @@ const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
           automaticLayout: true,
           padding: { top: 16, bottom: 16 },
           fontFamily: "JetBrains Mono, monospace",
+          readOnly: !isEditable,
         }}
       />
     </Box>
