@@ -68,6 +68,7 @@ gpu_runners = {
         name=f"runner_{gpu}",
         gpu=gpu,
         enable_memory_snapshot=True,
+        serialized=True,
     )(binary_runner)
     for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
 }
