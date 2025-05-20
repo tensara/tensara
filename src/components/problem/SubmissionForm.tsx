@@ -184,7 +184,16 @@ const SubmissionForm = ({
                   isDisabled={selectedGpuType === "T4"}
                   fontSize="sm"
                 >
-                  Mojo <Badge ml={1} colorScheme="cyan" fontSize="2xs" variant="subtle" rounded="sm">BETA</Badge>
+                  Mojo{" "}
+                  <Badge
+                    ml={1}
+                    colorScheme="cyan"
+                    fontSize="2xs"
+                    variant="subtle"
+                    rounded="sm"
+                  >
+                    BETA
+                  </Badge>
                 </MenuItem>
               </Tooltip>
             </MenuList>
