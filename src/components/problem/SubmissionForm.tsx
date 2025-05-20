@@ -10,6 +10,8 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Tooltip,
+  Badge,
 } from "@chakra-ui/react";
 
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
@@ -21,6 +23,7 @@ import { IoRepeat } from "react-icons/io5";
 import { FaInfoCircle, FaChevronDown } from "react-icons/fa";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 interface SubmissionFormProps {
   selectedGpuType: string;
@@ -91,18 +94,24 @@ const SubmissionForm = ({
               borderRadius="lg"
               minW="140px"
             >
-              {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
-                <MenuItem
-                  key={key}
-                  onClick={() => setSelectedGpuType(key)}
-                  bg="brand.secondary"
-                  _hover={{ bg: "gray.700" }}
-                  color="white"
-                  borderRadius="lg"
-                >
-                  {value}
-                </MenuItem>
-              ))}
+              {Object.entries(GPU_DISPLAY_NAMES)
+                .filter(([key]) => key !== "all")
+                .map(([key, value]) => (
+                  <MenuItem
+                    key={key}
+                    onClick={() => {
+                      setSelectedGpuType(key);
+                    }}
+                    bg="brand.secondary"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="lg"
+                    isDisabled={key === "T4" && selectedLanguage === "mojo"}
+                    fontSize="sm"
+                  >
+                    {value}
+                  </MenuItem>
+                ))}
             </MenuList>
           </Menu>
         </Box>
@@ -127,7 +136,7 @@ const SubmissionForm = ({
               justifyContent="flex-start"
               borderRadius="lg"
             >
-              {selectedLanguage === "cuda" ? "CUDA C++" : "Python (Triton)"}
+              {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
             </MenuButton>
             <MenuList
               bg="brand.secondary"
@@ -143,6 +152,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
                 CUDA C++
               </MenuItem>
@@ -153,9 +163,39 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
-                Python (Triton)
+                Triton
               </MenuItem>
+              <Tooltip
+                label="Mojo does not support NVIDIA T4 GPUs"
+                isDisabled={selectedGpuType !== "T4"}
+                placement="right"
+                hasArrow
+                bg="gray.700"
+              >
+                <MenuItem
+                  key="mojo"
+                  onClick={() => setSelectedLanguage("mojo")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="lg"
+                  isDisabled={selectedGpuType === "T4"}
+                  fontSize="sm"
+                >
+                  Mojo{" "}
+                  <Badge
+                    ml={1}
+                    colorScheme="cyan"
+                    fontSize="2xs"
+                    variant="subtle"
+                    rounded="sm"
+                  >
+                    BETA
+                  </Badge>
+                </MenuItem>
+              </Tooltip>
             </MenuList>
           </Menu>
         </Box>
@@ -205,6 +245,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
                 float32
               </MenuItem>
@@ -216,6 +257,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 float16
               </MenuItem>
@@ -227,6 +269,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 int32
               </MenuItem>
@@ -238,6 +281,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 int16
               </MenuItem>

@@ -555,6 +555,12 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
+                      title="Experimental Mojo Support"
+                      type="FEATURE"
+                      description="Added support for Mojo submissions."
+                      date="12 hours ago"
+                    />
+                    <UpdateCard
                       title="Rating System"
                       type="FEATURE"
                       description="New rating system for user rankings."
@@ -564,12 +570,6 @@ export default function HomePage() {
                       title="Triton Kernel Support"
                       type="FEATURE"
                       description="Added support for Triton-based kernel submissions."
-                      date="3 weeks ago"
-                    />
-                    <UpdateCard
-                      title="Error Handling"
-                      type="IMPROVEMENT"
-                      description="Improved error handling and rate limiting."
                       date="3 weeks ago"
                     />
                   </Box>
