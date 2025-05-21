@@ -65,7 +65,7 @@ def mojo_command(srcs: list[Path | str], out: Path | str):
     srcs = [str(src) for src in srcs]
     out = str(out)
 
-    cmd = ["mojo", "build", "--optimization-level=2"]
+    cmd = ["mojo", "build"]
 
     if str(out).endswith('.so'):
         cmd.append("--emit=shared-lib")
