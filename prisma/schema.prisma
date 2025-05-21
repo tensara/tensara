@@ -7,27 +7,42 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+enum ContestStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  username      String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  refreshToken  String?   @unique
-  lastLogin     DateTime?
+  id             String    @id @default(cuid())
+  name           String?
+  username       String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  refreshToken   String?   @unique
+  lastLogin      DateTime?
   lastLimitReset DateTime?
   currentLimit   Int?
   rating         Int?
   rank           Int?
 
-  accounts     Account[]
-  problems     Problem[]
-  submissions  Submission[]
-  RevokedToken RevokedToken[]
-  Session      Session[]
+  accounts            Account[]
+  problems            Problem[]
+  submissions         Submission[]
+  RevokedToken        RevokedToken[]
+  Session             Session[]
+  contestParticipants ContestParticipant[]
 
   @@index([email])
   @@index([createdAt])
@@ -93,10 +108,10 @@ model Problem {
   description String?
   difficulty  Difficulty
   author      String
-  parameters      Json  @default("[]")
+  parameters  Json       @default("[]")
   tags        String[]
 
-  definition  String? @db.Text
+  definition String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -104,6 +119,8 @@ model Problem {
   submissions Submission[]
   User        User?        @relation(fields: [userId], references: [id])
   userId      String?
+  contest     Contest?     @relation(fields: [contestId], references: [id])
+  contestId   String?
 
   @@index([author])
   @@index([difficulty])
@@ -144,9 +161,41 @@ model Submission {
   @@index([createdAt])
 }
 
-enum Difficulty {
-  EASY
-  MEDIUM
-  HARD
-  EXPERT
+model Contest {
+  id                    String        @id @default(cuid())
+  title                 String
+  slug                  String        @unique
+  description           String?       @db.Text
+  startTime             DateTime
+  endTime               DateTime
+  registrationStartTime DateTime
+  registrationEndTime   DateTime
+  status                ContestStatus @default(UPCOMING)
+  image                 Bytes?
+  problemIds            String[]
+  participantCount      Int           @default(0)
+  winners               Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  participants ContestParticipant[]
+  Problem      Problem[]
+}
+
+model ContestParticipant {
+  id          String   @id @default(cuid())
+  contestId   String
+  userId      String
+  joinedAt    DateTime @default(now())
+  score       Int?     @default(0)
+  rank        Int?
+  submissions Json?
+
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contestId, userId]) // Since, we want a user to participate in a contest only once
+  @@index([contestId])
+  @@index([userId])
+  @@index([score])
 }
