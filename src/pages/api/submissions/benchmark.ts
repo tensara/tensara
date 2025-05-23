@@ -118,13 +118,8 @@ export default async function handler(
   }, 30000);
 
   try {
-    sendSSE(SubmissionStatus.BENCHMARKING, {
-      passedTests,
-      totalTests,
-    });
-
     const benchmarkResponse = await fetch(
-      env.MODAL_ENDPOINT + "/benchmark-" + (gpuType ?? "t4"),
+      env.MODAL_ENDPOINT + "/benchmark_cli-" + (gpuType ?? "T4"),
       {
         method: "POST",
         headers: {
@@ -191,7 +186,21 @@ export default async function handler(
               continue;
             }
             const response_status = parsed.status;
+            console.log(response_status);
 
+            if (response_status === "COMPILING") {
+              sendSSE(SubmissionStatus.COMPILING, {
+                status: SubmissionStatus.COMPILING,
+              });
+            } else if (response_status === "SANITY_CHECK_PASSED") {
+              sendSSE(SubmissionStatus.SANITY_CHECK_PASSED, {
+                status: SubmissionStatus.SANITY_CHECK_PASSED,
+              });
+            } else if (response_status === "BENCHMARKING") {
+              sendSSE(SubmissionStatus.BENCHMARKING, {
+                status: SubmissionStatus.BENCHMARKING,
+              });
+            }
             if (response_status === SubmissionStatus.BENCHMARK_RESULT) {
               const response = JSON.parse(
                 response_json

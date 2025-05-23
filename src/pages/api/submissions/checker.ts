@@ -2,6 +2,7 @@ import { type NextApiRequest, type NextApiResponse } from "next";
 import { env } from "~/env";
 import { combinedAuth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
+
 import {
   isSubmissionError,
   SubmissionError,
@@ -33,7 +34,7 @@ export default async function handler(
     return;
   }
 
-  if (session && "error" in session) {
+  if ("error" in session) {
     res.status(401).json({ error: session.error });
     return;
   }
