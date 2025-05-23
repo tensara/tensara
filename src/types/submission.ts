@@ -10,6 +10,7 @@ export const SubmissionStatus = {
   BENCHMARK_RESULT: "BENCHMARK_RESULT",
   BENCHMARKED: "BENCHMARKED",
   ACCEPTED: "ACCEPTED",
+  SANITY_CHECK_PASSED: "SANITY_CHECK_PASSED",
 } as const;
 
 // Submission Errors
