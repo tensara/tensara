@@ -46,6 +46,8 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  UnorderedList,
+  ListItem,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { Layout } from "~/components/layout";
@@ -74,6 +76,7 @@ import {
   FiGitBranch,
   FiLayers,
   FiCloud,
+  FiFolder,
 } from "react-icons/fi";
 
 import { api } from "~/utils/api";
@@ -227,15 +230,18 @@ export default function CLI() {
   // CLI installation steps
   const installSteps = [
     {
-      title: "Install for Mac/Linux",
-      command:
-        "curl -sSL https://tensara.github.io/tensara-cli/install.sh | bash",
+      title: "Mac/Linux",
+      commands: {
+        bash: "curl -sSL https://get.tensara.org/install.sh | bash",
+        zsh: "curl -sSL https://get.tensara.org/install.sh | zsh",
+      },
       icon: FiPackage,
     },
     {
-      title: "Install for Windows",
-      command:
-        "iwr -useb https://tensara.github.io/tensara-cli/install.ps1 | iex",
+      title: "Windows",
+      commands: {
+        powershell: "iwr -useb https://get.tensara.org/install.ps1 | iex",
+      },
       icon: FiBox,
     },
   ];
@@ -243,28 +249,29 @@ export default function CLI() {
   // CLI usage examples
   const usageExamples = [
     {
-      title: "Authentication",
-      command: "tensara login --key <your-api-key>",
-      description: "Authenticate with your Tensara API key",
-      icon: FiLock,
+      title: "Initialization",
+      command: "tensara init <directory> -p <problem_name> -l <language>",
+      description:
+        "Create a template solution file and a problem file in the specified directory",
+      icon: FiFolder,
     },
     {
       title: "Checker Command",
-      command: "tensara check -p <problem-id> -s <solution-file>",
+      command: "tensara checker -g <gpu> -p <problem> -s <solution_file>",
       description: "Validate your solution against the problem specification",
       icon: FiCheckCircle,
     },
     {
-      title: "Submit Solution",
-      command: "tensara submit -p <problem-id> -s <solution-file>",
-      description: "Submit your solution for official evaluation",
-      icon: FiSend,
+      title: "Benchmark Command",
+      command: "tensara benchmark -g <gpu> -p <problem> -s <solution_file>",
+      description: "Benchmark your solution on Tensara problems",
+      icon: FiZap,
     },
     {
-      title: "Help",
-      command: "tensara --help",
-      description: "Show available commands and options",
-      icon: FiHelpCircle,
+      title: "Submit Solution",
+      command: "tensara submit -g <gpu> -p <problem> -s <solution_file>",
+      description: "Submit your solution for official evaluation",
+      icon: FiSend,
     },
   ];
 
@@ -357,16 +364,25 @@ export default function CLI() {
   const Feature = ({ icon, title, description }: FeatureProps) => {
     return (
       <HStack align="start" spacing={4}>
-        <Box
+        <Flex
           bg="rgba(66, 153, 225, 0.1)"
-          p={2}
+          w="40px"
+          h="40px"
           borderRadius="md"
           color="brand.400"
+          align="center"
+          justify="center"
+          flexShrink={0}
         >
           <Icon as={icon} boxSize={5} />
-        </Box>
+        </Flex>
         <Box>
-          <Text fontWeight="bold" color="white" mb={1}>
+          <Text
+            fontWeight="bold"
+            color="white"
+            mb={1}
+            fontFamily="Space Grotesk, sans-serif"
+          >
             {title}
           </Text>
           <Text color="gray.400" fontSize="sm">
@@ -383,7 +399,11 @@ export default function CLI() {
       <Box mb={6}>
         <Flex align="center" mb={2}>
           <Icon as={icon} color="brand.400" mr={2} />
-          <Heading size="md" color="white">
+          <Heading
+            size="md"
+            color="white"
+            fontFamily="Space Grotesk, sans-serif"
+          >
             {title}
           </Heading>
         </Flex>
@@ -402,8 +422,8 @@ export default function CLI() {
 
   return (
     <Layout
-      title="CLI & API Keys | Tensara"
-      ogTitle="CLI & API Keys | Tensara"
+      title="CLI & API Keys"
+      ogTitle="CLI & API Keys"
       ogDescription="Tensara CLI and API key management tools."
     >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
@@ -452,20 +472,21 @@ export default function CLI() {
                 w="full"
               >
                 {/* Hero Section */}
-                <MotionBox mb={12} textAlign="center">
+                <MotionBox mb={12} textAlign="center" mt={8}>
                   <Heading
                     as="h1"
                     size="2xl"
-                    bgGradient="linear(to-r, brand.400, cyan.400, green.400)"
+                    bgGradient="linear(to-r, #2ecc71, #27ae60)"
                     bgClip="text"
                     letterSpacing="tight"
                     fontWeight="extrabold"
                     mb={4}
+                    fontFamily="Space Grotesk, sans-serif"
                   >
                     Tensara CLI
                   </Heading>
                   <Text fontSize="xl" color="gray.300" maxW="2xl" mx="auto">
-                    Write GPU code from your IDE
+                    Write & test GPU code from your IDE
                   </Text>
                 </MotionBox>
 
@@ -518,7 +539,7 @@ export default function CLI() {
                       <Feature
                         icon={FiCloud}
                         title="Seamless Cloud Integration"
-                        description="Submit solutions directly to Tensara competitions with one command"
+                        description="Submit solutions directly to Tensara problems with one command"
                       />
                       <Feature
                         icon={FiGitBranch}
@@ -542,13 +563,39 @@ export default function CLI() {
                     description="Get started with Tensara CLI in seconds"
                   />
 
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    {installSteps.map((step, index) => (
-                      <MotionBox key={index} variants={itemVariants}>
-                        <TerminalBox command={step.command} />
-                      </MotionBox>
-                    ))}
-                  </SimpleGrid>
+                  {installSteps.map((step, index) => (
+                    <Box
+                      key={index}
+                      mb={6}
+                      p={6}
+                      bg="gray.800"
+                      borderRadius="lg"
+                      borderWidth="1px"
+                      borderColor="gray.700"
+                    >
+                      <Flex align="center" mb={4}>
+                        <Icon
+                          as={step.icon}
+                          color="brand.400"
+                          boxSize={5}
+                          mr={2}
+                        />
+                        <Text fontWeight="bold" color="white">
+                          {step.title}
+                        </Text>
+                      </Flex>
+                      {Object.entries(step.commands).map(([shell, command]) => (
+                        <Box key={shell} mb={shell === "bash" ? 4 : 0}>
+                          {Object.keys(step.commands).length > 1 && (
+                            <Text color="gray.400" mb={2} fontSize="sm">
+                              Using {shell}:
+                            </Text>
+                          )}
+                          <TerminalBox command={command as string} />
+                        </Box>
+                      ))}
+                    </Box>
+                  ))}
                 </MotionBox>
 
                 {/* Authentication Section */}
@@ -563,8 +610,8 @@ export default function CLI() {
                     bg="gray.800"
                     borderRadius="xl"
                     p={6}
-                    borderLeft="4px solid"
-                    borderColor="brand.500"
+                    borderWidth="1px"
+                    borderColor="gray.700"
                     mb={6}
                   >
                     <Text mb={4} color="gray.300">
@@ -593,7 +640,7 @@ export default function CLI() {
                       </Menu>
                       tab.
                     </Text>
-                    <TerminalBox command="tensara auth --key tsra_yourapikey" />
+                    <TerminalBox command="tensara auth -t <your_api_token>" />
                   </Box>
                 </MotionBox>
 
@@ -629,14 +676,6 @@ export default function CLI() {
                               {example.title}
                             </Text>
                           </HStack>
-                          <Badge
-                            colorScheme="brand"
-                            variant="solid"
-                            borderRadius="full"
-                            px={3}
-                          >
-                            Command
-                          </Badge>
                         </Flex>
                         <TerminalBox command={example.command} />
                         <Text fontSize="sm" color="gray.400" mt={3}>
@@ -655,6 +694,7 @@ export default function CLI() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
+                mt={4}
               >
                 <Flex justify="space-between" align="center" mb={6}>
                   <MotionHeading
@@ -664,6 +704,7 @@ export default function CLI() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.1 }}
+                    fontFamily="Space Grotesk, sans-serif"
                   >
                     API Keys
                   </MotionHeading>
@@ -675,6 +716,10 @@ export default function CLI() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     transition={{ duration: 0.2 }}
+                    bg="#0e8144"
+                    _hover={{
+                      bg: "#0a6434",
+                    }}
                   >
                     Create New Key
                   </MotionButton>
@@ -811,6 +856,10 @@ export default function CLI() {
                       colorScheme="brand"
                       onClick={onOpen}
                       size="sm"
+                      bg="#0e8144"
+                      _hover={{
+                        bg: "#0a6434",
+                      }}
                     >
                       Create your first API key
                     </Button>
@@ -833,36 +882,47 @@ export default function CLI() {
                     <Heading size="md">About API Keys</Heading>
                   </HStack>
                   <VStack spacing={4} align="stretch" color="gray.300">
-                    <Text>
-                      <Text as="span" fontWeight="bold" color="white">
-                        Format:
-                      </Text>{" "}
-                      API keys follow the format{" "}
-                      <Code colorScheme="gray">tsra_prefix_keyBody</Code> where
-                      only the prefix is stored in our database for
-                      identification.
-                    </Text>
-                    <Text>
-                      <Text as="span" fontWeight="bold" color="white">
-                        Security:
-                      </Text>{" "}
-                      Keys are hashed using Argon2id before storage. The full
-                      key is only shown once at creation time.
-                    </Text>
-                    <Text>
-                      <Text as="span" fontWeight="bold" color="white">
-                        Expiration:
-                      </Text>{" "}
-                      Keys have a default 30-day expiration which can be
-                      customized.
-                    </Text>
-                    <Text>
-                      <Text as="span" fontWeight="bold" color="white">
-                        Permissions:
-                      </Text>{" "}
-                      Currently all keys have full access to your account.
-                      Scoped permissions are coming soon.
-                    </Text>
+                    <Box>
+                      <Heading size="sm" mb={1} color="white">
+                        Format
+                      </Heading>
+                      <Text>
+                        API keys follow the format{" "}
+                        <Code colorScheme="brand">tsra_prefix_keyBody</Code>{" "}
+                        where only the prefix is stored in our database for
+                        identification.
+                      </Text>
+                    </Box>
+
+                    <Box>
+                      <Heading size="sm" mb={1} color="white">
+                        Security
+                      </Heading>
+                      <Text>
+                        Keys are hashed using Argon2id before storage. The full
+                        key is only shown once at creation time.
+                      </Text>
+                    </Box>
+
+                    <Box>
+                      <Heading size="sm" mb={1} color="white">
+                        Expiration
+                      </Heading>
+                      <Text>
+                        Keys have a default 30-day expiration which can be
+                        customized.
+                      </Text>
+                    </Box>
+
+                    <Box>
+                      <Heading size="sm" mb={1} color="white">
+                        Permissions
+                      </Heading>
+                      <Text>
+                        Currently all keys have full access to your account.
+                        Scoped permissions are coming soon.
+                      </Text>
+                    </Box>
                   </VStack>
                 </MotionBox>
               </MotionBox>

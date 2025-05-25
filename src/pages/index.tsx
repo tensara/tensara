@@ -558,7 +558,7 @@ export default function HomePage() {
                       title="Experimental Mojo Support"
                       type="FEATURE"
                       description="Added support for Mojo submissions."
-                      date="12 hours ago"
+                      date="3 days ago"
                     />
                     <UpdateCard
                       title="Rating System"
@@ -595,21 +595,21 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
-                      title="CLI Submissions"
-                      type="IN PROGRESS"
-                      description="Working on allowing direct submissions via CLI."
-                      date="1 week ago"
+                      title="v1 Release"
+                      type="RELEASE"
+                      description="Fully integrated CLI tool for Tensara."
+                      date="1 hour ago"
                     />
                     <UpdateCard
-                      title="CLI v0.1 Release"
+                      title="Submissions"
+                      type="FEATURE"
+                      description="Allows direct submissions via CLI."
+                      date="5 hours ago"
+                    />
+                    <UpdateCard
+                      title="v0.1 Release"
                       type="RELEASE"
                       description="Initial release of the Tensara CLI."
-                      date="1 month ago"
-                    />
-                    <UpdateCard
-                      title="Local Benchmarking"
-                      type="IMPROVEMENT"
-                      description="Improved local benchmarking accuracy."
                       date="1 month ago"
                     />
                   </Box>
@@ -635,6 +635,12 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
+                      title="Graphics Problems"
+                      type="IN PROGRESS"
+                      description="Image processing problems in progress."
+                      date="1 day ago"
+                    />
+                    <UpdateCard
                       title="Convolution Problems"
                       type="FEATURE"
                       description="New set of convolution challenges available."
@@ -644,12 +650,6 @@ export default function HomePage() {
                       title="3D/4D Tensor Matmul Problems"
                       type="FEATURE"
                       description="Added new matrix multiplication problems."
-                      date="2 weeks ago"
-                    />
-                    <UpdateCard
-                      title="Problem Difficulty Tags"
-                      type="IMPROVEMENT"
-                      description="Added difficulty tags to problems."
                       date="2 weeks ago"
                     />
                   </Box>

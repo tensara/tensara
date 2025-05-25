@@ -56,7 +56,6 @@ export function Header() {
     { label: "Leaderboards", href: "/leaderboard" },
     { label: "Blog", href: "/blog" },
     { label: "Contests", href: "/contests" },
-    { label: "CLI", href: "/cli" },
   ];
 
   const handleSignIn = () => {
@@ -214,6 +213,22 @@ export function Header() {
                 borderRadius="md"
               >
                 Submissions
+              </MenuItem>
+              <MenuItem
+                as={Link}
+                href="/cli"
+                bg="transparent"
+                _hover={{
+                  bg: "rgba(75, 85, 99, 0.5)",
+                  transition: "all 0.3s ease-in-out",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+                transition="all 0.15s ease"
+                px={4}
+                py={2}
+                borderRadius="md"
+              >
+                CLI & API Keys
               </MenuItem>
               <MenuItem
                 onClick={handleSignOut}
