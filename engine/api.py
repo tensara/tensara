@@ -55,6 +55,8 @@ def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_na
         gen = runner.run_checker(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
     elif type == "benchmark":
         gen = runner.run_benchmark(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
+    elif type == "sanity_check":
+        gen = runner.run_sanity_check(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
     else:
         raise ValueError(f"Unknown binary type: {type}")
 
@@ -165,6 +167,50 @@ async def benchmark(gpu: str, request: Request):
     stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
 
+@web_app.post("/benchmark_cli-{gpu}")
+async def benchmark_cli(gpu: str, request: Request):
+    req = await request.json()
+    if gpu not in gpu_runners:
+        return 404
+
+    solution_code = req["solution_code"]
+    problem_def = req["problem_def"]
+    dtype = req["dtype"]
+
+    language = req["language"]
+    problem_name = utils.convert_slug_to_module_name(req["problem"])
+
+    def create_stream():
+        yield {"status": "COMPILING"}
+
+        if language == "cuda":
+            try:
+                benchmark_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "benchmark")
+            except utils.NVCCError as e:
+                yield { 
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": e.args[0],
+                }
+                return
+        else:
+            benchmark_compiled = None
+
+        runner = gpu_runners[gpu]
+        sanity_check_stream = runner.remote_gen("sanity_check", benchmark_compiled, solution_code, problem_name, problem_def, dtype, language)
+        for event in sanity_check_stream:
+            yield event
+            if event["status"] == "SANITY_CHECK_PASSED":
+                break
+            elif event["status"] == "RUNTIME_ERROR" or event["status"] == "ERROR" or event["status"] == "COMPILE_ERROR" or event["status"] == "WRONG_ANSWER":
+                return
+
+        stream = runner.remote_gen("benchmark", benchmark_compiled, solution_code, problem_name, problem_def, dtype, language)
+        for event in stream:
+            yield event
+    
+    stream = gen_wrapper(create_stream())
+    return StreamingResponse(stream, media_type="text/event-stream")
 
 @app.function()
 @modal.asgi_app()

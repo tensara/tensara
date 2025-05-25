@@ -8,16 +8,16 @@ generator client {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  username      String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  refreshToken  String?   @unique
-  lastLogin     DateTime?
+  id             String    @id @default(cuid())
+  name           String?
+  username       String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  refreshToken   String?   @unique
+  lastLogin      DateTime?
   lastLimitReset DateTime?
   currentLimit   Int?
   rating         Int?
@@ -28,6 +28,7 @@ model User {
   submissions  Submission[]
   RevokedToken RevokedToken[]
   Session      Session[]
+  ApiKey       ApiKey[]
 
   @@index([email])
   @@index([createdAt])
@@ -93,10 +94,10 @@ model Problem {
   description String?
   difficulty  Difficulty
   author      String
-  parameters      Json  @default("[]")
+  parameters  Json       @default("[]")
   tags        String[]
 
-  definition  String? @db.Text
+  definition String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -149,4 +150,17 @@ enum Difficulty {
   MEDIUM
   HARD
   EXPERT
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  keyPrefix String   @unique
+  key       String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }
