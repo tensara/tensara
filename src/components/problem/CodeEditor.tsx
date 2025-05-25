@@ -3,11 +3,13 @@ import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
 import { useState } from "react";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 interface CodeEditorProps {
   code: string;
   setCode: (code: string) => void;
   selectedLanguage: ProgrammingLanguage;
+  isEditable?: boolean;
 }
 
 function setupMonaco(monaco: Monaco) {
@@ -68,6 +70,13 @@ function setupMonaco(monaco: Monaco) {
       { token: "keyword.triton", foreground: "C586C0" },
       { token: "function.triton", foreground: "4FC1FF" },
       { token: "decorator.triton", foreground: "DCDCAA" },
+
+      // Mojo specific tokens
+      { token: "keyword.mojo", foreground: "569cd6" },
+      { token: "type.mojo", foreground: "4EC9B0" },
+      { token: "function.mojo", foreground: "C586C0" },
+      { token: "decorator.mojo", foreground: "DCDCAA" },
+      { token: "struct.mojo", foreground: "4EC9B0" },
     ],
     colors: {
       // Editor UI colors - darker black background
@@ -187,6 +196,93 @@ function setupMonaco(monaco: Monaco) {
     },
   });
 
+  // Register Mojo language tokenizer
+  monaco.languages.register({ id: "mojo" });
+  monaco.languages.setMonarchTokensProvider("mojo", {
+    defaultToken: "",
+    tokenizer: {
+      root: [
+        // Comments
+        [/#.*$/, "comment"],
+        [/'''/, "comment", "@multilineString"],
+        [/"""/, "comment", "@multilineDocstring"],
+        [/\/\*/, "comment", "@comment"],
+
+        // Decorators
+        [/@[a-zA-Z_][\w$]*/, "decorator"],
+
+        // Keywords
+        [
+          /\b(fn|struct|def|var|let|alias|trait|impl|for|while|if|else|elif|return|break|continue|match|and|or|not|in|is|as|from|import|with|as|try|except|finally|raise|assert|await|async|del|global|nonlocal|lambda|pass|yield|None|True|False|Self|self|owned|inout|mutates|borrowed|raises)\b/,
+          "keyword",
+        ],
+
+        // Types
+        [
+          /\b(Int|UInt|Int8|Int16|Int32|Int64|UInt8|UInt16|UInt32|UInt64|Float16|Float32|Float64|Bool|String|SIMD|DType|Scalar|StringLiteral|AnyType|NoneType)\b/,
+          "type",
+        ],
+
+        // Special control keywords
+        [/\b(return|yield|raise|break|continue|pass)\b/, "keyword.control"],
+
+        // Functions
+        [/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/, "function.mojo"],
+
+        // Strings
+        [/"([^"\\]|\\.)*$/, "string.invalid"],
+        [/'([^'\\]|\\.)*$/, "string.invalid"],
+        [/"/, "string", "@string_double"],
+        [/'/, "string", "@string_single"],
+
+        // Numbers
+        [/\b(0[xX][0-9a-fA-F]+)\b/, "number.hex"],
+        [/\b(0[oO][0-7]+)\b/, "number.octal"],
+        [/\b(0[bB][01]+)\b/, "number.binary"],
+        [/\b(\d+\.\d+([eE][\-+]?\d+)?)\b/, "number.float"],
+        [/\b(\d+([eE][\-+]?\d+)?)\b/, "number"],
+
+        // Operators
+        [/[{}()\[\]]/, "@brackets"],
+        [/[<>=%&|+\-*/~^]+/, "operator"],
+
+        // Identifiers
+        [/[a-zA-Z_]\w*/, "identifier"],
+      ],
+
+      comment: [
+        [/[^/*]+/, "comment"],
+        [/\/\*/, "comment", "@push"],
+        [/\*\//, "comment", "@pop"],
+        [/[/*]/, "comment"],
+      ],
+
+      multilineString: [
+        [/[^']+/, "comment"],
+        [/'''/, "comment", "@pop"],
+        [/'/, "comment"],
+      ],
+
+      multilineDocstring: [
+        [/[^"]+/, "comment"],
+        [/"""/, "comment", "@pop"],
+        [/"/, "comment"],
+      ],
+
+      string_double: [
+        [/[^"\\]+/, "string"],
+        [/\\./, "string.escape"],
+        [/"/, "string", "@pop"],
+      ],
+
+      string_single: [
+        [/[^'\\]+/, "string"],
+        [/\\./, "string.escape"],
+        [/'/, "string", "@pop"],
+      ],
+    },
+  });
+
   monaco.languages.setMonarchTokensProvider("cpp", {
     defaultToken: "",
 
@@ -262,7 +358,12 @@ const pulseAnimation = keyframes`
   100% { opacity: 0.6; }
 `;
 
-const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
+const CodeEditor = ({
+  code,
+  setCode,
+  selectedLanguage,
+  isEditable = true,
+}: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
 
   return (
@@ -314,7 +415,7 @@ const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
               textAlign="center"
               fontFamily="mono"
             >
-              {selectedLanguage === "cuda" ? "CUDA C++" : "Python"} environment
+              {LANGUAGE_DISPLAY_NAMES[selectedLanguage]} environment
             </Text>
           </Box>
         </Flex>
@@ -324,8 +425,14 @@ const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
         height="100%"
         theme="tensara-dark"
         value={code}
-        onChange={(value) => setCode(value ?? "")}
-        language={selectedLanguage === "cuda" ? "cpp" : "python"}
+        onChange={(value) => isEditable && setCode(value ?? "")}
+        language={
+          selectedLanguage === "cuda"
+            ? "cpp"
+            : selectedLanguage === "mojo"
+              ? "mojo"
+              : "python"
+        }
         beforeMount={setupMonaco}
         onMount={() => setIsEditorLoading(false)}
         loading={null}
@@ -337,6 +444,7 @@ const CodeEditor = ({ code, setCode, selectedLanguage }: CodeEditorProps) => {
           automaticLayout: true,
           padding: { top: 16, bottom: 16 },
           fontFamily: "JetBrains Mono, monospace",
+          readOnly: !isEditable,
         }}
       />
     </Box>

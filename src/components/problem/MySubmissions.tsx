@@ -17,7 +17,7 @@ import {
 } from "@chakra-ui/react";
 import { FiArrowLeft, FiFilter } from "react-icons/fi";
 import { type Submission } from "@prisma/client";
-import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { GPU_DISPLAY_NAMES, GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
 import {
   formatStatus,
   getStatusColor,
@@ -25,6 +25,8 @@ import {
 } from "~/constants/problem";
 import { FaSortAmountDown } from "react-icons/fa";
 import { useState, useMemo } from "react";
+import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
+import { useSplitPanel } from "./SplitPanel";
 
 interface MySubmissionsProps {
   submissions: Submission[] | undefined;
@@ -39,6 +41,9 @@ const MySubmissions = ({
 }: MySubmissionsProps) => {
   const [statusFilter, setStatusFilter] = useState<string[]>(["all"]);
   const [sortBy, setSortBy] = useState<"time" | "performance">("time");
+  const { splitRatio } = useSplitPanel();
+
+  const useCompactLabels = splitRatio < 40;
 
   const filteredSubmissions = useMemo(() => {
     if (!submissions) return [];
@@ -58,6 +63,23 @@ const MySubmissions = ({
       }
     });
   }, [submissions, statusFilter, sortBy]);
+
+  const filterOptions = [
+    { value: ["all"], label: "All", shortLabel: "All" },
+    { value: ["ACCEPTED"], label: "Accepted", shortLabel: "AC" },
+    { value: ["WRONG_ANSWER"], label: "Wrong Answer", shortLabel: "WA" },
+    {
+      value: [
+        "ERROR",
+        "RUNTIME_ERROR",
+        "COMPILE_ERROR",
+        "TIME_LIMIT_EXCEEDED",
+        "MEMORY_LIMIT_EXCEEDED",
+      ],
+      label: "Errors",
+      shortLabel: "Err",
+    },
+  ];
 
   return (
     <VStack spacing={4} align="stretch" p={6}>
@@ -86,23 +108,10 @@ const MySubmissions = ({
               size="sm"
               variant="ghost"
               spacing={1}
-              display={{ base: "none", xl: "flex" }}
+              display={{ base: "none", md: "flex" }}
+              flexWrap="wrap"
             >
-              {[
-                { value: ["all"], label: "All" },
-                { value: ["ACCEPTED"], label: "Accepted" },
-                { value: ["WRONG_ANSWER"], label: "Wrong Answer" },
-                {
-                  value: [
-                    "ERROR",
-                    "RUNTIME_ERROR",
-                    "COMPILE_ERROR",
-                    "TIME_LIMIT_EXCEEDED",
-                    "MEMORY_LIMIT_EXCEEDED",
-                  ],
-                  label: "Errors",
-                },
-              ].map((status) => (
+              {filterOptions.map((status) => (
                 <Button
                   key={status.value.join(",")}
                   onClick={() => setStatusFilter(status.value)}
@@ -129,8 +138,9 @@ const MySubmissions = ({
                     color: "white",
                   }}
                   fontSize="sm"
+                  title={status.label}
                 >
-                  {status.label}
+                  {useCompactLabels ? status.shortLabel : status.label}
                 </Button>
               ))}
             </ButtonGroup>
@@ -138,7 +148,7 @@ const MySubmissions = ({
             <Menu>
               <MenuButton
                 as={Button}
-                display={{ base: "flex", xl: "none" }}
+                display={{ base: "flex", md: "none" }}
                 size="sm"
                 variant="ghost"
                 leftIcon={<Icon as={FiFilter} />}
@@ -151,21 +161,7 @@ const MySubmissions = ({
                 Filter
               </MenuButton>
               <MenuList bg="gray.800" borderColor="whiteAlpha.200" p={0}>
-                {[
-                  { value: ["all"], label: "All" },
-                  { value: ["ACCEPTED"], label: "Accepted" },
-                  { value: ["WRONG_ANSWER"], label: "Wrong Answer" },
-                  {
-                    value: [
-                      "ERROR",
-                      "RUNTIME_ERROR",
-                      "COMPILE_ERROR",
-                      "TIME_LIMIT_EXCEEDED",
-                      "MEMORY_LIMIT_EXCEEDED",
-                    ],
-                    label: "Errors",
-                  },
-                ].map((status) => (
+                {filterOptions.map((status) => (
                   <MenuItem
                     key={status.value.join(",")}
                     onClick={() => setStatusFilter(status.value)}
@@ -186,6 +182,7 @@ const MySubmissions = ({
                       )
                     }
                     borderRadius="md"
+                    fontSize="sm"
                   >
                     {status.label}
                   </MenuItem>
@@ -250,14 +247,19 @@ const MySubmissions = ({
                       {formatStatus(submission.status)}
                     </Text>
                     <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
-                      {submission.language === "cuda" ? "CUDA" : "Python"} •{" "}
-                      {GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]}
+                      {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language]} •{" "}
+                      {
+                        GPU_DISPLAY_ON_PROFILE[
+                          (submission.gpuType ??
+                            "T4") as keyof typeof GPU_DISPLAY_ON_PROFILE
+                        ]
+                      }
                     </Text>
                   </HStack>
                   <Text color="whiteAlpha.700" fontSize="sm">
                     {new Date(submission.createdAt).toLocaleString("en-US", {
-                      year: "numeric",
-                      month: "short",
+                      year: useCompactLabels ? "2-digit" : "numeric",
+                      month: useCompactLabels ? "numeric" : "short",
                       day: "numeric",
                       hour: "numeric",
                       minute: "2-digit",

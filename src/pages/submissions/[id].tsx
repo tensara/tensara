@@ -24,7 +24,6 @@ import {
   Button,
 } from "@chakra-ui/react";
 import Link from "next/link";
-import { Editor } from "@monaco-editor/react";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { createServerSideHelpers } from "@trpc/react-query/server";
@@ -41,6 +40,8 @@ import {
   getStatusIcon,
 } from "~/constants/problem";
 import { FiCopy } from "react-icons/fi";
+import CodeEditor from "~/components/problem/CodeEditor";
+import { type ProgrammingLanguage } from "~/types/misc";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -690,23 +691,11 @@ const SubmissionPage: NextPage<{
               </Alert>
             ) : (
               <Box h="600px" borderRadius="lg" overflow="hidden">
-                <Editor
-                  height="100%"
-                  language={
-                    submission.language === "cuda" ? "cpp" : submission.language
-                  }
-                  value={code}
-                  theme="vs-dark"
-                  options={{
-                    readOnly: true,
-                    minimap: { enabled: true },
-                    fontSize: 14,
-                    lineNumbers: "on",
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    padding: { top: 16, bottom: 16 },
-                    fontFamily: "JetBrains Mono, monospace",
-                  }}
+                <CodeEditor
+                  code={code}
+                  setCode={setCode}
+                  selectedLanguage={submission.language as ProgrammingLanguage}
+                  isEditable={false}
                 />
               </Box>
             )}

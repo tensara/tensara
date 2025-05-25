@@ -43,6 +43,7 @@ export const CUDA_DRIVER_VERSION = 12.8;
 export const CUDA_RUNTIME_VERSION = 12.8;
 export const PYTHON_VERSION = "3.11.5";
 export const NVCC_CMD = "nvcc -std=c++20 -O2 -Xcompiler -fPIC";
+export const MOJO_CMD = "mojo build --optimization-level=3";
 export const TRITON_VERSION = "3.2.0";
 
 export const DEVICE_QUERY_GPU_MAP: Record<string, DeviceQueryGpu> = {

@@ -114,3 +114,16 @@ MODAL_BENCHMARK_SLUG=""
 
 MODAL_ENDPOINT=""
 ```
+
+## Sponsors
+
+Thank you to our sponsors who help make Tensara possible:
+
+- [Modal](https://www.modal.com?utm_source=github&utm_medium=github&utm_campaign=tensara) - Modal lets you run
+jobs in the cloud, by just writing a few lines of Python. Customers use Modal to deploy Gen AI models at large scale,
+fine-tune large language models, run protein folding simulations, and much more.
+
+We use Modal to securely run accurate benchmarks on various GPUs.
+
+Interested in sponsoring? Contact us at [sponsor@tensara.org](mailto:sponsor@tensara.org)
+

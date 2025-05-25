@@ -5,6 +5,8 @@ import {
   Heading,
   Text,
   VStack,
+  HStack, // Added HStack
+  Image, // Added Image
   Icon,
   SimpleGrid,
   Link,
@@ -491,6 +493,38 @@ export default function HomePage() {
             </SimpleGrid>
           </VStack>
         </Container>
+        <Container
+          maxW="8xl"
+          display="flex"
+          justifyContent="center"
+          mt={4}
+          mb={8}
+        >
+          <Flex
+            direction={{ base: "column", md: "row" }}
+            gap={{ base: 4, md: 6 }}
+            align="center"
+          >
+            <Text
+              fontSize={{ base: "30px", md: "35px" }}
+              fontWeight={500}
+              color="gray.500"
+            >
+              Powered by
+            </Text>
+            <Link isExternal href="https://modal.com/">
+              <Image
+                src="/Primary-Modal-Wordmark-Light.svg"
+                alt="Modal Logo"
+                height={{ base: "40px", md: "40px" }}
+                transition="all 0.2s ease-in-out"
+                _hover={{
+                  transform: "translateY(-1px)",
+                }}
+              />
+            </Link>
+          </Flex>
+        </Container>
 
         {/* Updates Section */}
         <Box py={16}>
@@ -521,6 +555,12 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
+                      title="Experimental Mojo Support"
+                      type="FEATURE"
+                      description="Added support for Mojo submissions."
+                      date="12 hours ago"
+                    />
+                    <UpdateCard
                       title="Rating System"
                       type="FEATURE"
                       description="New rating system for user rankings."
@@ -530,12 +570,6 @@ export default function HomePage() {
                       title="Triton Kernel Support"
                       type="FEATURE"
                       description="Added support for Triton-based kernel submissions."
-                      date="3 weeks ago"
-                    />
-                    <UpdateCard
-                      title="Error Handling"
-                      type="IMPROVEMENT"
-                      description="Improved error handling and rate limiting."
                       date="3 weeks ago"
                     />
                   </Box>
