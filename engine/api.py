@@ -50,11 +50,12 @@ def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_na
                 "details": e.args[0],
             }
             return
-    
+    problem = utils.load_problem_module(problem_name, problem_def)
+    solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)    
     if type == "checker":
-        gen = runner.run_checker(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
+        gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
     elif type == "benchmark":
-        gen = runner.run_benchmark(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
+        gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, language)
     else:
         raise ValueError(f"Unknown binary type: {type}")
 
