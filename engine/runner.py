@@ -216,7 +216,7 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
             if not compiled:
                 raise ValueError("Compiled bytes required for CUDA submissions")
                 
-            cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
+            cuda_lib = utils.read_bytes_as_lib(compiled)
             func_sig = problem.get_function_signature()
             cuda_lib.solution.argtypes = func_sig["argtypes"]
             cuda_lib.solution.restype = func_sig["restype"]
