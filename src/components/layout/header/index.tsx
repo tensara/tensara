@@ -56,6 +56,7 @@ export function Header() {
     { label: "Leaderboards", href: "/leaderboard" },
     { label: "Blog", href: "/blog" },
     { label: "Contests", href: "/contests" },
+    { label: "Sandbox", href: "/sandbox" },
   ];
 
   const handleSignIn = () => {
