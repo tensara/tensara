@@ -12,7 +12,7 @@ import traceback
 import time
 
 
-def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str) -> Iterator[str]:
+def run_checker(problem_name: str, problem_def: str, solution_func, dtype: str, language: str) -> Iterator[str]:
     """
     Check a submitted solution against the reference implementation
     and stream results as they become available
@@ -20,8 +20,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
     Args:
         problem_name: Name of the problem
         problem_def: Problem instance
-        compiled: Compiled CUDA code for the submitted solution (only for CUDA)
-        solution: Source code of the solution (only for Triton)
+        solution_func: Callable function for the submitted solution
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
         
@@ -34,42 +33,6 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
         
-
-        if language == "cuda":
-            if not compiled:
-                raise ValueError("Compiled bytes required for CUDA submissions")
-                
-            cuda_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            cuda_lib.solution.argtypes = func_sig["argtypes"]
-            cuda_lib.solution.restype = func_sig["restype"]
-            solution_func = cuda_lib.solution
-
-        elif language == "mojo":
-            mojo_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            mojo_lib.solution.argtypes = func_sig["argtypes"]
-            mojo_lib.solution.restype = func_sig["restype"]
-            solution_func = mojo_lib.solution
-
-        elif language == "python":
-            if not solution:
-                raise ValueError("Source code required for Triton submissions")
-            
-            temp_dir = tempfile.mkdtemp()
-            temp_path = os.path.join(temp_dir, "triton_solution.py")
-            
-            # This is needed because @jit has to read the source code
-            with open(temp_path, 'w') as f:
-                f.write(solution)
-                
-            spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            solution_func = module.solution
-        else:
-            raise ValueError(f"Unsupported language: {language}")
-
         test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
         test_results = []
@@ -172,6 +135,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             }
                 
         if language == "python":
+            temp_dir = os.path.dirname(solution_func.__code__.co_filename)
             shutil.rmtree(temp_dir)
 
         # Final status message
@@ -203,7 +167,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             "details": traceback.format_exc(),
         }
 
-def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
+def run_sanity_check(problem_name: str, problem_def: str, solution_func, dtype: str, language: str):
     """
     Run sanity check on compiled CUDA solution
     """
@@ -211,33 +175,6 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
 
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
-
-        if language == "cuda":
-            if not compiled:
-                raise ValueError("Compiled bytes required for CUDA submissions")
-                
-            cuda_lib = utils.read_bytes_as_cuda_lib(compiled)
-            func_sig = problem.get_function_signature()
-            cuda_lib.solution.argtypes = func_sig["argtypes"]
-            cuda_lib.solution.restype = func_sig["restype"]
-            solution_func = cuda_lib.solution
-        elif language == "python":
-            if not solution:
-                raise ValueError("Source code required for Triton submissions")
-            
-            temp_dir = tempfile.mkdtemp()
-            temp_path = os.path.join(temp_dir, "triton_solution.py")
-            
-            # This is needed because @jit has to read the source code
-            with open(temp_path, 'w') as f:
-                f.write(solution)
-                
-            spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            solution_func = module.solution
-        else:
-            raise ValueError(f"Unsupported language: {language}")
 
         test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
@@ -331,6 +268,7 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
                 return
                 
         if language == "python":
+            temp_dir = os.path.dirname(solution_func.__code__.co_filename)
             shutil.rmtree(temp_dir)
 
     except utils.NVCCError as e:
@@ -355,15 +293,14 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
         }
 
 
-def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
+def run_benchmark(problem_name: str, problem_def: str, solution_func, dtype: str, language: str):
     """
     Run benchmark on compiled CUDA solution
     
     Args:
         problem_name: Name of the problem
         problem_def: Problem instance  
-        compiled: Compiled CUDA code for the submitted solution
-        solution: Source code of the solution (only for Triton)
+        solution_func: Callable function for the submitted solution
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
     
@@ -373,41 +310,6 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
     try:
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
-
-        if language == "cuda":
-            if not compiled:
-                raise ValueError("Compiled bytes required for CUDA submissions")
-                
-            cuda_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            cuda_lib.solution.argtypes = func_sig["argtypes"]
-            cuda_lib.solution.restype = func_sig["restype"]
-            solution_func = cuda_lib.solution
-            
-        elif language == "mojo":
-            mojo_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            mojo_lib.solution.argtypes = func_sig["argtypes"]
-            mojo_lib.solution.restype = func_sig["restype"]
-            solution_func = mojo_lib.solution
-
-        elif language == "python":
-            if not solution:
-                raise ValueError("Source code required for Triton submissions")
-            
-            temp_dir = tempfile.mkdtemp()
-            temp_path = os.path.join(temp_dir, "triton_solution.py")
-            
-            # This is needed because @jit has to read the source code
-            with open(temp_path, 'w') as f:
-                f.write(solution)
-                
-            spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            solution_func = module.solution
-        else:
-            raise ValueError(f"Unsupported language: {language}")
 
         yield {"status": "BENCHMARKING"}
             
@@ -479,6 +381,7 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
             avg_runtime_ms = 0
         
         if language == "python":
+            temp_dir = os.path.dirname(solution_func.__code__.co_filename)
             shutil.rmtree(temp_dir)
 
 

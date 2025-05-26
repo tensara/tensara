@@ -429,3 +429,39 @@ def subproc_generator(timeout=None):
 
         return wrapper
     return _subproc_generator
+
+def make_solution_func(language: str, solution_code: str, compiled: bytes, problem: Problem):
+    if language == "cuda":
+        if not compiled:
+            raise ValueError("Compiled bytes required for CUDA submissions")
+            
+        cuda_lib = read_bytes_as_lib(compiled)
+        func_sig = problem.get_function_signature()
+        cuda_lib.solution.argtypes = func_sig["argtypes"]
+        cuda_lib.solution.restype = func_sig["restype"]
+        return cuda_lib.solution
+
+    elif language == "mojo":
+        mojo_lib = read_bytes_as_lib(compiled)
+        func_sig = problem.get_function_signature()
+        mojo_lib.solution.argtypes = func_sig["argtypes"]
+        mojo_lib.solution.restype = func_sig["restype"]
+        return mojo_lib.solution
+
+    elif language == "python":
+        if not solution_code:
+            raise ValueError("Source code required for Triton submissions")
+        
+        temp_dir = tempfile.mkdtemp()
+        temp_path = os.path.join(temp_dir, "triton_solution.py")
+        
+        # This is needed because @jit has to read the source code
+        with open(temp_path, 'w') as f:
+            f.write(solution_code)
+            
+        spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.solution
+    else:
+        raise ValueError(f"Unsupported language: {language}")
