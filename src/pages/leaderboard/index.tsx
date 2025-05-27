@@ -773,19 +773,25 @@ const LeaderboardPage: NextPage = () => {
                                     } else if (index === 1) {
                                       if (
                                         topSubmissions[0] &&
-                                        typeof topSubmissions[0].gflops === "number" &&
+                                        typeof topSubmissions[0].gflops ===
+                                          "number" &&
                                         typeof submission.gflops === "number"
                                       ) {
-                                        const diff = topSubmissions[0].gflops - submission.gflops;
+                                        const diff =
+                                          topSubmissions[0].gflops -
+                                          submission.gflops;
                                         interval = `-${diff.toFixed(2)} G`;
                                       }
                                     } else if (index === 2) {
                                       if (
                                         topSubmissions[1] &&
-                                        typeof topSubmissions[1].gflops === "number" &&
+                                        typeof topSubmissions[1].gflops ===
+                                          "number" &&
                                         typeof submission.gflops === "number"
                                       ) {
-                                        const diff = topSubmissions[1].gflops - submission.gflops;
+                                        const diff =
+                                          topSubmissions[1].gflops -
+                                          submission.gflops;
                                         interval = `-${diff.toFixed(2)} G`;
                                       }
                                     }
@@ -826,7 +832,8 @@ const LeaderboardPage: NextPage = () => {
                                             <ChakraLink
                                               as={Link}
                                               href={`/${
-                                                submission.username ?? "anonymous"
+                                                submission.username ??
+                                                "anonymous"
                                               }`}
                                               onClick={(e) => {
                                                 e.stopPropagation();
@@ -837,7 +844,8 @@ const LeaderboardPage: NextPage = () => {
                                               }}
                                               _hover={{ color: "blue.400" }}
                                             >
-                                              {submission.username ?? "Anonymous"}
+                                              {submission.username ??
+                                                "Anonymous"}
                                             </ChakraLink>
                                           </Tooltip>
                                         </Td>
@@ -860,7 +868,9 @@ const LeaderboardPage: NextPage = () => {
                                             </Text>
                                           </Tooltip>
                                         </Td>
-                                        <Td isNumeric>{interval}</Td>
+                                        <Td color={"white"} isNumeric>
+                                          {interval}
+                                        </Td>
                                       </Tr>
                                     );
                                   })}
