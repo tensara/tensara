@@ -760,82 +760,110 @@ const LeaderboardPage: NextPage = () => {
                                     <Th isNumeric color="whiteAlpha.600">
                                       FLOPS
                                     </Th>
+                                    <Th isNumeric color="whiteAlpha.600">
+                                      Interval
+                                    </Th>
                                   </Tr>
                                 </Thead>
                                 <Tbody>
-                                  {topSubmissions.map((submission, index) => (
-                                    <Tr
-                                      key={submission.id}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        void router.push(
-                                          `/submissions/${submission.id}`
-                                        );
-                                      }}
-                                      cursor="pointer"
-                                      _hover={{
-                                        bg: "whiteAlpha.50",
-                                      }}
-                                      borderRadius="lg"
-                                      transition="background 0.15s"
-                                    >
-                                      <Td pl={2} borderLeftRadius="lg">
-                                        <Text color="whiteAlpha.600">
-                                          #{index + 1}
-                                        </Text>
-                                      </Td>
-                                      <Td color="white">
-                                        <Tooltip
-                                          label={`${
-                                            LANGUAGE_DISPLAY_NAMES[
-                                              submission.language ?? ""
-                                            ] ?? "Unknown"
-                                          } | ${
-                                            GPU_DISPLAY_NAMES[
-                                              submission.gpuType ?? ""
-                                            ] ?? "Unknown GPU"
-                                          }`}
-                                          hasArrow
-                                        >
-                                          <ChakraLink
-                                            as={Link}
-                                            href={`/${
-                                              submission.username ?? "anonymous"
-                                            }`}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              e.preventDefault();
-                                              void router.push(
-                                                `/${submission.username ?? "anonymous"}`
-                                              );
-                                            }}
-                                            _hover={{ color: "blue.400" }}
-                                          >
-                                            {submission.username ?? "Anonymous"}
-                                          </ChakraLink>
-                                        </Tooltip>
-                                      </Td>
-                                      <Td isNumeric borderRightRadius="lg">
-                                        <Tooltip
-                                          label={`Runtime: ${submission.runtime?.toFixed(
-                                            2
-                                          )} ms`}
-                                          hasArrow
-                                        >
-                                          <Text
-                                            color={getMedalColor(index)}
-                                            fontWeight="bold"
-                                            fontFamily="mono"
-                                            fontSize="sm"
-                                          >
-                                            {formatPerformance(
-                                              submission.gflops
-                                            )}
+                                  {topSubmissions.map((submission, index) => {
+                                    let interval = "";
+                                    if (index === 0) {
+                                      interval = "Top";
+                                    } else if (index === 1) {
+                                      if (
+                                        topSubmissions[0] &&
+                                        typeof topSubmissions[0].gflops === "number" &&
+                                        typeof submission.gflops === "number"
+                                      ) {
+                                        const diff = topSubmissions[0].gflops - submission.gflops;
+                                        interval = `-${diff.toFixed(2)} G`;
+                                      }
+                                    } else if (index === 2) {
+                                      if (
+                                        topSubmissions[1] &&
+                                        typeof topSubmissions[1].gflops === "number" &&
+                                        typeof submission.gflops === "number"
+                                      ) {
+                                        const diff = topSubmissions[1].gflops - submission.gflops;
+                                        interval = `-${diff.toFixed(2)} G`;
+                                      }
+                                    }
+                                    return (
+                                      <Tr
+                                        key={submission.id}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          void router.push(
+                                            `/submissions/${submission.id}`
+                                          );
+                                        }}
+                                        cursor="pointer"
+                                        _hover={{
+                                          bg: "whiteAlpha.50",
+                                        }}
+                                        borderRadius="lg"
+                                        transition="background 0.15s"
+                                      >
+                                        <Td pl={2} borderLeftRadius="lg">
+                                          <Text color="whiteAlpha.600">
+                                            #{index + 1}
                                           </Text>
-                                        </Tooltip>
-                                      </Td>
-                                    </Tr>
-                                  ))}
+                                        </Td>
+                                        <Td color="white">
+                                          <Tooltip
+                                            label={`${
+                                              LANGUAGE_DISPLAY_NAMES[
+                                                submission.language ?? ""
+                                              ] ?? "Unknown"
+                                            } | ${
+                                              GPU_DISPLAY_NAMES[
+                                                submission.gpuType ?? ""
+                                              ] ?? "Unknown GPU"
+                                            }`}
+                                            hasArrow
+                                          >
+                                            <ChakraLink
+                                              as={Link}
+                                              href={`/${
+                                                submission.username ?? "anonymous"
+                                              }`}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                void router.push(
+                                                  `/${submission.username ?? "anonymous"}`
+                                                );
+                                              }}
+                                              _hover={{ color: "blue.400" }}
+                                            >
+                                              {submission.username ?? "Anonymous"}
+                                            </ChakraLink>
+                                          </Tooltip>
+                                        </Td>
+                                        <Td isNumeric borderRightRadius="lg">
+                                          <Tooltip
+                                            label={`Runtime: ${submission.runtime?.toFixed(
+                                              2
+                                            )} ms`}
+                                            hasArrow
+                                          >
+                                            <Text
+                                              color={getMedalColor(index)}
+                                              fontWeight="bold"
+                                              fontFamily="mono"
+                                              fontSize="sm"
+                                            >
+                                              {formatPerformance(
+                                                submission.gflops
+                                              )}
+                                            </Text>
+                                          </Tooltip>
+                                        </Td>
+                                        <Td isNumeric>{interval}</Td>
+                                      </Tr>
+                                    );
+                                  })}
                                 </Tbody>
                               </Table>
                             )}
