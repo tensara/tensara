@@ -780,7 +780,10 @@ const LeaderboardPage: NextPage = () => {
                                         const diff =
                                           topSubmissions[0].gflops -
                                           submission.gflops;
-                                        interval = `-${diff.toFixed(2)} G`;
+                                        interval =
+                                          diff >= 1000
+                                            ? `-${(diff / 1000).toFixed(2)} T`
+                                            : `-${diff.toFixed(2)} G`;
                                       }
                                     } else if (index === 2) {
                                       if (
@@ -792,7 +795,10 @@ const LeaderboardPage: NextPage = () => {
                                         const diff =
                                           topSubmissions[1].gflops -
                                           submission.gflops;
-                                        interval = `-${diff.toFixed(2)} G`;
+                                        interval =
+                                          diff >= 1000
+                                            ? `-${(diff / 1000).toFixed(2)} T`
+                                            : `-${diff.toFixed(2)} G`;
                                       }
                                     }
                                     return (
