@@ -761,7 +761,7 @@ const LeaderboardPage: NextPage = () => {
                                       FLOPS
                                     </Th>
                                     <Th isNumeric color="whiteAlpha.600">
-                                      Interval
+                                      Delta
                                     </Th>
                                   </Tr>
                                 </Thead>
