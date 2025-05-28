@@ -22,6 +22,7 @@ import SubmissionForm from "~/components/problem/SubmissionForm";
 import SubmissionResults from "~/components/problem/SubmissionResults";
 import ResetCodeModal from "~/components/problem/ResetCodeModal";
 import SplitPanel from "~/components/problem/SplitPanel";
+import ResizableConsole from "~/components/problem/Console";
 
 import { FaExclamationCircle } from "react-icons/fa";
 
@@ -75,6 +76,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
+  const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+
 
   // Get problem data
   const { data: problem, isLoading } = api.problems.getById.useQuery(
@@ -166,6 +170,17 @@ export default function ProblemPage({ slug }: { slug: string }) {
     toast,
   ]);
 
+  const handleRun = () => {
+    setIsRunning(true);
+    setConsoleOutput((prev) => [...prev, `Run triggered at ${new Date().toLocaleTimeString()}`]);
+  
+    setTimeout(() => {
+      setConsoleOutput((prev) => [...prev, `Execution complete.`]);
+      setIsRunning(false);
+    }, 1000);
+  };
+
+
   if (isLoading) {
     return (
       <Layout title="Loading...">
@@ -242,14 +257,18 @@ export default function ProblemPage({ slug }: { slug: string }) {
         onResetClick={() => setIsResetModalOpen(true)}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+        onRun={handleRun}
+        isRunning={isRunning}
       />
       <CodeEditor
         code={code}
         setCode={setCode}
         selectedLanguage={selectedLanguage}
       />
+      <ResizableConsole output={consoleOutput} />
     </VStack>
   );
+   
 
   // Mobile warning
   const mobileWarning = (
