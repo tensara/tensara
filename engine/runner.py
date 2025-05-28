@@ -12,7 +12,7 @@ import traceback
 import time
 
 
-def run_checker(problem_name: str, problem_def: str, solution_func, dtype: str, language: str) -> Iterator[str]:
+def run_checker(problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func = None) -> Iterator[str]:
     """
     Check a submitted solution against the reference implementation
     and stream results as they become available
@@ -71,20 +71,11 @@ def run_checker(problem_name: str, problem_def: str, solution_func, dtype: str, 
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
 
-            if language == "cuda" or language == "mojo":
-                input_ptrs = []
-                for tensor, argtype in zip(input_tensors, solution_func.argtypes[:len(input_tensors)]):
-                    if isinstance(tensor, torch.Tensor):
-                        input_ptrs.append(ctypes.cast(tensor.data_ptr(), argtype))
-                    else:
-                        input_ptrs.append(argtype(tensor))
-                output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
-                extra_params = problem.get_extra_params(test_case)
-                extra_params_casted = utils.cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
-                solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
+            if param_func is None:
+                parameters = utils.make_parameters(language, solution_func, input_tensors, actual_output, problem, test_case)
             else:
-                extra_params = problem.get_extra_params(test_case)
-                solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+                parameters = param_func(language, solution_func, input_tensors, actual_output, problem, test_case)
+            solution_func(*parameters)
 
             torch.cuda.synchronize()
 
@@ -100,9 +91,7 @@ def run_checker(problem_name: str, problem_def: str, solution_func, dtype: str, 
             is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
 
             # Clean up memory
-            del input_tensors, expected_output, actual_output
-            if language == "cuda" or language == "mojo":
-                del input_ptrs, output_ptr
+            del input_tensors, expected_output, actual_output, parameters
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -167,7 +156,7 @@ def run_checker(problem_name: str, problem_def: str, solution_func, dtype: str, 
             "details": traceback.format_exc(),
         }
 
-def run_sanity_check(problem_name: str, problem_def: str, solution_func, dtype: str, language: str):
+def run_sanity_check(problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func = None):
     """
     Run sanity check on compiled CUDA solution
     """
@@ -212,20 +201,11 @@ def run_sanity_check(problem_name: str, problem_def: str, solution_func, dtype: 
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
 
-            if language == "cuda":
-                input_ptrs = []
-                for tensor, argtype in zip(input_tensors, solution_func.argtypes[:len(input_tensors)]):
-                    if isinstance(tensor, torch.Tensor):
-                        input_ptrs.append(ctypes.cast(tensor.data_ptr(), argtype))
-                    else:
-                        input_ptrs.append(argtype(tensor))
-                output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
-                extra_params = problem.get_extra_params(test_case)
-                extra_params_casted = utils.cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
-                solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
+            if param_func is None:
+                parameters = utils.make_parameters(language, solution_func, input_tensors, actual_output, problem, test_case)
             else:
-                extra_params = problem.get_extra_params(test_case)
-                solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+                parameters = param_func(language, solution_func, input_tensors, actual_output, problem, test_case)
+            solution_func(*parameters)
 
             torch.cuda.synchronize()
 
@@ -241,9 +221,7 @@ def run_sanity_check(problem_name: str, problem_def: str, solution_func, dtype: 
             is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
 
             # Clean up memory
-            del input_tensors, expected_output, actual_output
-            if language == "cuda":
-                del input_ptrs, output_ptr
+            del input_tensors, expected_output, actual_output, parameters
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -293,7 +271,7 @@ def run_sanity_check(problem_name: str, problem_def: str, solution_func, dtype: 
         }
 
 
-def run_benchmark(problem_name: str, problem_def: str, solution_func, dtype: str, language: str):
+def run_benchmark(problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func = None):
     """
     Run benchmark on compiled CUDA solution
     
@@ -343,7 +321,8 @@ def run_benchmark(problem_name: str, problem_def: str, solution_func, dtype: str
                     language=language,
                     min_iterations=5,
                     max_iterations=20,
-                    target_cv=0.01  # 1% target coefficient of variation
+                    target_cv=0.01,  # 1% target coefficient of variation
+                    param_func=param_func
                 )
                 
                 benchmark_results.append(benchmark_result)
