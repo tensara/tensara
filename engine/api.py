@@ -12,7 +12,7 @@ RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
 
-PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton"]
+PIP_PACKAGES = ["torch", "numpy", "fastapi", "triton"]
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
 APT_PACKAGES = ["build-essential", "gcc", "g++"]
 

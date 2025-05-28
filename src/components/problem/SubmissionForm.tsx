@@ -36,6 +36,8 @@ interface SubmissionFormProps {
   onResetClick: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  onRun?: () => void;  
+  isRunning?: boolean;
 }
 
 const SubmissionForm = ({
@@ -49,6 +51,8 @@ const SubmissionForm = ({
   onResetClick,
   onSubmit,
   isSubmitting,
+  onRun, 
+  isRunning,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
@@ -346,6 +350,33 @@ const SubmissionForm = ({
         >
           Submit
         </Button>
+        <Button
+          bg="rgba(59, 130, 246, 0.1)"
+          color="rgb(59, 130, 246)"
+          size="md"
+          onClick={onRun}
+          isLoading={isRunning}
+          loadingText="Run"
+          spinner={<></>}
+          disabled={isRunning}
+          borderRadius="lg"
+          height="40px"
+          fontSize="sm"
+          fontWeight="semibold"
+          px={{ base: 4, md: 6 }}
+          minW="80px"
+          _hover={{
+            bg: "rgba(59, 130, 246, 0.2)",
+            transform: "translateY(-1px)",
+          }}
+          _active={{
+            bg: "rgba(59, 130, 246, 0.25)",
+          }}
+          transition="all 0.2s"
+        >
+          Run
+        </Button>
+
       </HStack>
     </Flex>
   );
