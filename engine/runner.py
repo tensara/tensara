@@ -203,6 +203,70 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             "details": traceback.format_exc(),
         }
 
+
+@utils.subproc_generator(timeout=60)
+def run_sample_case(problem_name, problem_def, compiled, solution, dtype, language):
+    """
+    Run the sample test case of a problem and return result + output.
+    """
+    try:
+        import io
+        import contextlib
+
+        dtype = utils.DTYPE_MAP[dtype]
+        problem = utils.load_problem_module(problem_name, problem_def)
+
+        sample = problem.generate_sample(dtype)
+        input_tensors = sample["create_inputs"]()
+
+        expected_output = problem.reference_solution(*input_tensors).cpu()
+        actual_output = torch.zeros_like(expected_output, device="cuda")
+
+        if language in ("cuda", "mojo"):
+            lib = utils.read_bytes_as_lib(compiled)
+            sig = problem.get_function_signature()
+            lib.solution.argtypes = sig["argtypes"]
+            lib.solution.restype = sig["restype"]
+
+            input_ptrs = [ctypes.cast(t.data_ptr(), typ) for t, typ in zip(input_tensors, sig["argtypes"][:len(input_tensors)])]
+            output_ptr = ctypes.cast(actual_output.data_ptr(), sig["argtypes"][len(input_ptrs)])
+            extra_params = problem.get_extra_params(sample)
+            extra_params_casted = utils.cast_to_ctype(extra_params, sig["argtypes"][-len(extra_params):], language)
+
+            stdout_buf = io.StringIO()
+            stderr_buf = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+                lib.solution(*(input_ptrs + [output_ptr] + extra_params_casted))
+
+        else:
+            # Triton case
+            temp_path = utils.write_temp_triton(solution)
+            soln_func = utils.import_module_from_path(temp_path)
+            stdout_buf = io.StringIO()
+            stderr_buf = io.StringIO()
+            with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+                soln_func.solution(*(list(input_tensors) + [actual_output] + problem.get_extra_params(sample)))
+
+        torch.cuda.synchronize()
+
+        is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
+
+        yield {
+            "status": "PASSED" if is_correct else "FAILED",
+            "debug_info": debug_info,
+            "stdout": stdout_buf.getvalue(),
+            "stderr": stderr_buf.getvalue(),
+        }
+
+    except Exception as e:
+        yield {
+            "status": "ERROR",
+            "message": str(e),
+            "details": traceback.format_exc()
+        }
+
+
 def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
     """
     Run sanity check on compiled CUDA solution
