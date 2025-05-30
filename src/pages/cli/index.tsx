@@ -117,6 +117,7 @@ export default function CLI() {
   });
   const [newKey, setNewKey] = useState<ApiKey | null>(null);
   const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null);
+  const [hasCopiedKey, setHasCopiedKey] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -990,13 +991,15 @@ export default function CLI() {
                             </Text>
                             <IconButton
                               aria-label="Copy API key"
-                              icon={<FiCopy />}
+                              icon={hasCopiedKey ? <FiCheck /> : <FiCopy />}
                               size="sm"
                               position="absolute"
                               top={2}
                               right={2}
                               onClick={() => {
                                 void navigator.clipboard.writeText(newKey.key);
+                                setHasCopiedKey(true);
+                                setTimeout(() => setHasCopiedKey(false), 2000);
                                 toast({
                                   title: "API key copied to clipboard",
                                   status: "success",
@@ -1007,6 +1010,10 @@ export default function CLI() {
                                 });
                               }}
                               variant="ghost"
+                              color={
+                                hasCopiedKey ? "green.400" : "whiteAlpha.700"
+                              }
+                              _hover={{ color: "brand.500" }}
                             />
                           </Flex>
                           <Text fontSize="xs" color="gray.500">
@@ -1049,6 +1056,11 @@ export default function CLI() {
                             name="expiresIn"
                             value={newKeyData.expiresIn / (24 * 60 * 60 * 1000)}
                             onChange={handleInputChange}
+                            borderColor="gray.600"
+                            borderWidth="1px"
+                            _hover={{
+                              borderColor: "gray.500",
+                            }}
                           >
                             <option value={7}>7 days</option>
                             <option value={30}>30 days</option>
@@ -1068,6 +1080,10 @@ export default function CLI() {
                           onClose();
                           setNewKey(null);
                         }}
+                        backgroundColor="#0e8144"
+                        _hover={{
+                          backgroundColor: "#0a6434",
+                        }}
                       >
                         Done
                       </Button>
@@ -1076,6 +1092,10 @@ export default function CLI() {
                         colorScheme="brand"
                         onClick={handleCreateApiKey}
                         isLoading={createApiKeyMutation.isPending}
+                        backgroundColor="#0e8144"
+                        _hover={{
+                          backgroundColor: "#0a6434",
+                        }}
                       >
                         Create Key
                       </Button>
