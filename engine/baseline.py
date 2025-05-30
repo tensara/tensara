@@ -54,7 +54,7 @@ def tinygrad_param_func(language, solution_func, input_tensors, actual_output, p
             tinygrad_inputs.append(tensor)
         else:
             tinygrad_inputs.append(tensor)
-    
+
     tinygrad_output = Tensor.from_blob(
         actual_output.data_ptr(),
         actual_output.shape,
@@ -63,59 +63,59 @@ def tinygrad_param_func(language, solution_func, input_tensors, actual_output, p
     )
     
     extra_params = problem.get_extra_params(test_case)
-    
     return tinygrad_inputs + [tinygrad_output] + list(extra_params)
 
-def tinygrad_runner(solution_code: str, problem_name: str, problem_def: str, dtype: str):
+def baseline_runner(solution_code: str, problem_name: str, problem_def: str, dtype: str, baseline: str):
     problem = utils.load_problem_module(problem_name, problem_def)
 
     temp_dir = tempfile.mkdtemp()
-    temp_path = os.path.join(temp_dir, "tinygrad_baseline.py")
+    temp_path = os.path.join(temp_dir, "baseline_solution.py")
     
-    # This is needed because @jit has to read the source code
     with open(temp_path, 'w') as f:
         f.write(solution_code)
 
-    # # Run the temporary Python file using os.system
-    # os.system(f"python {temp_path}")
-    
-    # # Yield a dummy event to allow os.system to complete
-    # yield {"type": "info", "message": "Running solution..."}
-        
-    spec = importlib.util.spec_from_file_location("tinygrad_baseline", temp_path)
+    spec = importlib.util.spec_from_file_location("baseline_solution", temp_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    solution_func = module.solution
-    gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, "python", param_func=tinygrad_param_func)
+    param_func = None
+    if baseline == "tinygrad":
+        solution_func = module.solution
+        param_func = tinygrad_param_func
+    elif baseline == "torch_compile":
+        solution_func = torch.compile(module.solution)
+    elif baseline == "torch":
+        solution_func = module.solution
+        
+    gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, "python", param_func=param_func)
     for event in gen:
         yield event
+
 
 gpu_runners = {
     gpu: app.function(
         image=runtime_image,
-        name=f"tinygrad_runner_{gpu}",
+        name=f"runner_{gpu}",
         gpu=gpu,
         enable_memory_snapshot=True,
         serialized=True,
-    )(tinygrad_runner)
+    )(baseline_runner)
     for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
 }
 
 for gpu in gpu_runners:
-    globals()[f"tinygrad_runner_{gpu}"] = gpu_runners[gpu]
+    globals()[f"runner_{gpu}"] = gpu_runners[gpu]
 
 def gen_wrapper(gen):
     for event in gen:
         yield "data: " + json.dumps(event) + "\n\n"
 
-@web_app.post("/tinygrad")
-async def tinygrad(request: Request):
+async def baseline_handler(request: Request, baseline: str):
     req = await request.json()
     gpu = req["gpu"]
     if gpu not in gpu_runners:
         return 404
-
+    
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]
@@ -123,12 +123,24 @@ async def tinygrad(request: Request):
 
     def create_stream():
         runner = gpu_runners[gpu]
-        stream = runner.remote_gen(solution_code, problem_name, problem_def, dtype)
+        stream = runner.remote_gen(solution_code, problem_name, problem_def, dtype, baseline)
         for event in stream:
             yield event
     
     stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
+
+@web_app.post("/tinygrad")
+async def tinygrad(request: Request):
+    return await baseline_handler(request, "tinygrad")
+
+@web_app.post("/torch_compile")
+async def torch_compile(request: Request):
+    return await baseline_handler(request, "torch_compile")
+
+@web_app.post("/torch")
+async def torch(request: Request):
+    return await baseline_handler(request, "torch")
 
 @app.function()
 @modal.asgi_app()

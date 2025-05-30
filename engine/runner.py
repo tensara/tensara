@@ -124,8 +124,11 @@ def run_checker(problem_name: str, problem_def: str, solution_func, dtype: str, 
             }
                 
         if language == "python":
-            temp_dir = os.path.dirname(solution_func.__code__.co_filename)
-            shutil.rmtree(temp_dir)
+            try:
+                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                pass
 
         # Final status message
         yield {
@@ -246,8 +249,11 @@ def run_sanity_check(problem_name: str, problem_def: str, solution_func, dtype: 
                 return
                 
         if language == "python":
-            temp_dir = os.path.dirname(solution_func.__code__.co_filename)
-            shutil.rmtree(temp_dir)
+            try:
+                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                pass
 
     except utils.NVCCError as e:
         yield {
@@ -360,8 +366,11 @@ def run_benchmark(problem_name: str, problem_def: str, solution_func, dtype: str
             avg_runtime_ms = 0
         
         if language == "python":
-            temp_dir = os.path.dirname(solution_func.__code__.co_filename)
-            shutil.rmtree(temp_dir)
+            try:
+                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                pass
 
 
         # Return final summary with additional metrics
