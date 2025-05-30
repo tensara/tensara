@@ -133,7 +133,7 @@ export default async function handler(
               continue;
             }
 
-            if (data.status === "ERROR") {
+            if (data.status === "ERROR" || data.status === "COMPILE_ERROR") {
               sendSSE("ERROR", {
                 status: "ERROR",
                 message: data.message,

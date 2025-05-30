@@ -90,9 +90,10 @@ export function useSampleStream() {
                 setIsRunning(false);
                 break;
 
-              case "ERROR":
+                case "ERROR":
                 setStatus("ERROR");
                 append(`❌ Error: ${data.message}`);
+                if (data.details) append(`🔍 Details: ${data.details}`);
                 toast({
                   title: "Sample Error",
                   description: data.message,
