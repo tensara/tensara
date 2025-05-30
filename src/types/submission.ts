@@ -119,3 +119,31 @@ export type SubmissionResponse =
   | BenchmarkResultResponse
   | BenchmarkedResponse
   | AcceptedResponse;
+
+
+  // Sample Run Status Constants
+export const SampleStatus = {
+  IN_QUEUE: "IN_QUEUE",
+  COMPILING: "COMPILING",
+  RUNNING: "RUNNING",
+  PASSED: "PASSED",
+  FAILED: "FAILED",
+  ERROR: "ERROR",
+} as const;
+
+// Sample Run Errors
+export const SampleError = {
+  COMPILE_ERROR: "COMPILE_ERROR",
+  RUNTIME_ERROR: "RUNTIME_ERROR",
+  ERROR: "ERROR",
+} as const;
+
+export type SampleResult = {
+  name: string;
+  input: string;
+  actual_output: string;
+  stdout: string;
+  stderr: string;
+  debug_info?: Record<string, unknown>;
+  status: typeof SampleStatus[keyof typeof SampleStatus];
+};
