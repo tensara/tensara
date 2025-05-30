@@ -12,6 +12,10 @@ type SampleEvent = {
   status: SampleStatus;
   message?: string;
   details?: string;
+  input?: string;
+  output?: string;
+  stdout?: string;
+  stderr?: string;
 };
 
 export function useSampleStream() {
@@ -49,41 +53,43 @@ export function useSampleStream() {
 
         const decoder = new TextDecoder();
         let buffer = "";
+
         while (true) {
           const { done, value } = await reader.read();
-          if (done) {
-            console.log("✅ Stream complete");
-            setIsRunning(false);
-            break;
-          }
-        
+          if (done) break;
+
           const chunk = decoder.decode(value, { stream: true });
           buffer += chunk;
-        
+
           const events = buffer.split("\n\n");
           buffer = events.pop() ?? "";
-        
+
           for (const event of events) {
             const lines = event.split("\n");
             const typeLine = lines.find((l) => l.startsWith("event: "));
             const dataLine = lines.find((l) => l.startsWith("data: "));
             if (!typeLine || !dataLine) continue;
-        
+
             const type = typeLine.slice(7).trim();
-            const data = JSON.parse(dataLine.slice(6).trim());
-        
+            const data = JSON.parse(dataLine.slice(6).trim()) as SampleEvent;
+
             switch (type) {
               case "IN_QUEUE":
               case "COMPILING":
                 setStatus(type as SampleStatus);
                 append(`📦 ${type}`);
                 break;
+
               case "SAMPLE_RESULT":
                 setStatus("SAMPLE_RESULT");
-                console.log("Sample result:", data);
-                // append(`✅ Result: ${data.status}`);
+                append(`✅ Result: ${data.status}`);
+                if (data.input) append(`🧪 Input: ${data.input}`);
+                if (data.output) append(`📤 Output: ${data.output}`);
+                if (data.stdout) append(`📄 Stdout:\n${data.stdout}`);
+                if (data.stderr) append(`⚠️ Stderr:\n${data.stderr}`);
                 setIsRunning(false);
                 break;
+
               case "ERROR":
                 setStatus("ERROR");
                 append(`❌ Error: ${data.message}`);
@@ -96,14 +102,14 @@ export function useSampleStream() {
                 });
                 setIsRunning(false);
                 break;
+
               default:
                 append(`ℹ️ ${type}`);
                 break;
             }
           }
         }
-        
-       } catch (err) {
+      } catch (err) {
         console.error("Sample run error:", err);
         setStatus("ERROR");
         setIsRunning(false);

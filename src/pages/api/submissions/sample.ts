@@ -30,10 +30,11 @@ export default async function handler(
   const missingFields = Object.entries(requiredFields).filter(
     ([_, value]) => value === undefined
   );
-
   if (missingFields.length > 0) {
     res.status(400).json({
-      error: `Missing required fields: ${missingFields.map(([key]) => key).join(", ")}`,
+      error: `Missing required fields: ${missingFields
+        .map(([key]) => key)
+        .join(", ")}`,
     });
     return;
   }
@@ -41,7 +42,6 @@ export default async function handler(
   const problem = await db.problem.findUnique({
     where: { slug: problemSlug },
   });
-
   if (!problem) {
     res.status(404).json({ error: "Problem not found" });
     return;
@@ -124,20 +124,35 @@ export default async function handler(
 
         for (const message of messages) {
           if (!message?.startsWith("data: ")) continue;
+
           try {
             const data = JSON.parse(message.slice(6).trim());
-            if (data.status === "PASSED" || data.status === "FAILED") {
-              sendSSE("SAMPLE_RESULT", data);
-              res.end();
-              return;
-            } else if (data.status === "COMPILING") {
+
+            if (data.status === "COMPILING") {
               sendSSE("COMPILING", { status: "COMPILING" });
-            } else if (data.status === "ERROR") {
+              continue;
+            }
+
+            if (data.status === "ERROR") {
               sendSSE("ERROR", {
                 status: "ERROR",
                 message: data.message,
                 details: data.details,
               });
+              res.end();
+              return;
+            }
+
+            if (data.status === "PASSED" || data.status === "FAILED") {
+              const result = {
+                status: data.status,
+                input: data.input,
+                output: data.actual_output,
+                debug_info: data.debug_info,
+                stdout: data.stdout,
+                stderr: data.stderr,
+              };
+              sendSSE("SAMPLE_RESULT", result);
               res.end();
               return;
             }
