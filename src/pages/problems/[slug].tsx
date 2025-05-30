@@ -28,6 +28,7 @@ import { FaExclamationCircle } from "react-icons/fa";
 
 import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
+import { useSampleStream } from "~/hooks/useSampleStream";
 
 import { validateCode } from "~/utils/starter";
 
@@ -76,8 +77,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
-  const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
+  // const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
+  // const [isRunning, setIsRunning] = useState(false);
+
 
 
   // Get problem data
@@ -123,6 +125,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
     totalTests,
     getTypedResponse,
   } = useSubmissionStream(submissionsQuery.refetch);
+
+  const {
+    output: consoleOutput,
+    isRunning,
+    startSampleRun,
+  } = useSampleStream();
+  
 
   // Handle submission
   const handleSubmit = useCallback(() => {
@@ -170,15 +179,25 @@ export default function ProblemPage({ slug }: { slug: string }) {
     toast,
   ]);
 
-  const handleRun = () => {
-    setIsRunning(true);
-    setConsoleOutput((prev) => [...prev, `Run triggered at ${new Date().toLocaleTimeString()}`]);
+  // const handleRun = () => {
+  //   setIsRunning(true);
+  //   setConsoleOutput((prev) => [...prev, `Run triggered at ${new Date().toLocaleTimeString()}`]);
   
-    setTimeout(() => {
-      setConsoleOutput((prev) => [...prev, `Execution complete.`]);
-      setIsRunning(false);
-    }, 1000);
+  //   setTimeout(() => {
+  //     setConsoleOutput((prev) => [...prev, `Execution complete.`]);
+  //     setIsRunning(false);
+  //   }, 1000);
+  // };
+  const handleRun = () => {
+    startSampleRun({
+      code,
+      language: selectedLanguage,
+      gpuType: selectedGpuType,
+      problemSlug: slug,
+    });
   };
+  
+
 
 
   if (isLoading) {
