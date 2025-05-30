@@ -80,7 +80,11 @@ export default function ProblemPage({ slug }: { slug: string }) {
   // const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   // const [isRunning, setIsRunning] = useState(false);
 
-
+  const {
+    output: consoleOutput,
+    isRunning,
+    startSampleRun,
+  } = useSampleStream();
 
   // Get problem data
   const { data: problem, isLoading } = api.problems.getById.useQuery(
@@ -125,13 +129,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
     totalTests,
     getTypedResponse,
   } = useSubmissionStream(submissionsQuery.refetch);
-
-  const {
-    output: consoleOutput,
-    isRunning,
-    startSampleRun,
-  } = useSampleStream();
-  
 
   // Handle submission
   const handleSubmit = useCallback(() => {
@@ -178,28 +175,14 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setViewType,
     toast,
   ]);
-
-  // const handleRun = () => {
-  //   setIsRunning(true);
-  //   setConsoleOutput((prev) => [...prev, `Run triggered at ${new Date().toLocaleTimeString()}`]);
-  
-  //   setTimeout(() => {
-  //     setConsoleOutput((prev) => [...prev, `Execution complete.`]);
-  //     setIsRunning(false);
-  //   }, 1000);
-  // };
-  const handleRun = () => {
-    startSampleRun({
+  const handleRun = async () => {
+    await startSampleRun({
       code,
       language: selectedLanguage,
       gpuType: selectedGpuType,
       problemSlug: slug,
     });
   };
-  
-
-
-
   if (isLoading) {
     return (
       <Layout title="Loading...">
@@ -287,7 +270,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
       <ResizableConsole output={consoleOutput} />
     </VStack>
   );
-   
 
   // Mobile warning
   const mobileWarning = (

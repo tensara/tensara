@@ -13,7 +13,7 @@ import {
   Tooltip,
   Badge,
 } from "@chakra-ui/react";
-
+import { FiPlay } from "react-icons/fi";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
@@ -36,7 +36,7 @@ interface SubmissionFormProps {
   onResetClick: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
-  onRun?: () => void;  
+  onRun?: () => void;
   isRunning?: boolean;
 }
 
@@ -51,7 +51,7 @@ const SubmissionForm = ({
   onResetClick,
   onSubmit,
   isSubmitting,
-  onRun, 
+  onRun,
   isRunning,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -350,7 +350,7 @@ const SubmissionForm = ({
         >
           Submit
         </Button>
-        <Button
+        {/* <Button
           bg="rgba(59, 130, 246, 0.1)"
           color="rgb(59, 130, 246)"
           size="md"
@@ -375,8 +375,27 @@ const SubmissionForm = ({
           transition="all 0.2s"
         >
           Run
-        </Button>
-
+        </Button> */}
+        <Tooltip label="Run" hasArrow bg="gray.700">
+          <IconButton
+            icon={<FiPlay />}
+            aria-label="Run Code"
+            onClick={onRun}
+            isLoading={isRunning}
+            disabled={isRunning}
+            size="md"
+            borderRadius="full"
+            bg="gray.800"
+            color="white"
+            _hover={{
+              bg: "gray.700",
+              transform: "scale(1.05)",
+            }}
+            _active={{
+              bg: "gray.600",
+            }}
+          />
+        </Tooltip>
       </HStack>
     </Flex>
   );

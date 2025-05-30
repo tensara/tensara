@@ -1,6 +1,31 @@
 import { useRef, useState } from "react";
-import { Box, Text, VStack } from "@chakra-ui/react";
-import { motion, useDragControls } from "framer-motion";
+import { Box, Text, VStack, HStack } from "@chakra-ui/react";
+
+const getColorForLine = (
+  line: string
+): { label: string; color: string; bg: string } => {
+  if (line.startsWith("Error:"))
+    return { label: "ERROR", color: "red.500", bg: "red.900" };
+  if (line.startsWith("Result: PASSED"))
+    return { label: "RESULT", color: "green.400", bg: "green.900" };
+  if (line.startsWith("Result: FAILED"))
+    return { label: "RESULT", color: "red.500", bg: "red.900" };
+  if (line.startsWith("Input"))
+    return { label: "INPUT", color: "gray.300", bg: "gray.800" };
+  if (line.startsWith("Output"))
+    return { label: "OUTPUT", color: "gray.300", bg: "gray.800" };
+  if (line.startsWith("Stdout"))
+    return { label: "STDOUT", color: "gray.300", bg: "gray.800" };
+  if (line.startsWith("Stderr"))
+    return { label: "STDERR", color: "gray.300", bg: "gray.800" };
+  if (
+    line.startsWith("Status:") ||
+    line.startsWith("IN_QUEUE") ||
+    line.startsWith("COMPILING")
+  )
+    return { label: "STATUS", color: "gray.300", bg: "gray.800" };
+  return { label: "LOG", color: "gray.400", bg: "gray.900" };
+};
 
 type ConsoleProps = {
   output: string[];
@@ -31,8 +56,15 @@ const ResizableConsole = ({ output }: ConsoleProps) => {
   };
 
   return (
-    <Box w="100%" border="1px solid" borderColor="gray.700" borderRadius="md">
-      {/* Drag handle */}
+    <Box
+      w="100%"
+      border="1px solid"
+      borderColor="gray.700"
+      borderRadius="md"
+      fontFamily="mono"
+      fontSize="sm"
+      bg="gray.900"
+    >
       <Box
         cursor="ns-resize"
         h="6px"
@@ -40,13 +72,9 @@ const ResizableConsole = ({ output }: ConsoleProps) => {
         borderTopRadius="md"
         onMouseDown={handleMouseDown}
       />
-      {/* Console area */}
       <Box
-        bg="gray.900"
         color="white"
         p={3}
-        fontFamily="mono"
-        fontSize="sm"
         overflowY="auto"
         maxH="400px"
         minH="100px"
@@ -56,10 +84,30 @@ const ResizableConsole = ({ output }: ConsoleProps) => {
         {output.length === 0 ? (
           <Text color="gray.500">Console output will appear here...</Text>
         ) : (
-          <VStack align="start" spacing={1}>
-            {output.map((line, i) => (
-              <Text key={i}>{line}</Text>
-            ))}
+          <VStack align="start" spacing={2}>
+            {output.map((line, i) => {
+              const { label, color, bg } = getColorForLine(line);
+              return (
+                <HStack key={i} align="start" spacing={2} w="full">
+                  <Box
+                    px={2}
+                    py={0.5}
+                    minW="70px"
+                    fontWeight="bold"
+                    color={color}
+                    bg={bg}
+                    borderRadius="sm"
+                    fontSize="xs"
+                    textAlign="center"
+                  >
+                    {label}
+                  </Box>
+                  <Text whiteSpace="pre-wrap" color="gray.200">
+                    {line}
+                  </Text>
+                </HStack>
+              );
+            })}
           </VStack>
         )}
       </Box>

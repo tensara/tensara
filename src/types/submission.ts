@@ -119,9 +119,7 @@ export type SubmissionResponse =
   | BenchmarkResultResponse
   | BenchmarkedResponse
   | AcceptedResponse;
-
-
-  // Sample Run Status Constants
+// Sample Run Status Constants
 export const SampleStatus = {
   IN_QUEUE: "IN_QUEUE",
   COMPILING: "COMPILING",
@@ -145,5 +143,5 @@ export type SampleResult = {
   stdout: string;
   stderr: string;
   debug_info?: Record<string, unknown>;
-  status: typeof SampleStatus[keyof typeof SampleStatus];
+  status: (typeof SampleStatus)[keyof typeof SampleStatus];
 };

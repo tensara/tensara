@@ -3,6 +3,8 @@ import { env } from "~/env";
 import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
 
+import type { ServerResponse } from "http";
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -57,10 +59,16 @@ export default async function handler(
     const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     res.write(payload);
     try {
-      if ("flush" in res && typeof (res as any).flush === "function") {
-        (res as any).flush();
-      } else if (res.flushHeaders) {
-        res.flushHeaders();
+      // if ("flush" in res && typeof (res as any).flush === "function") {
+      //   (res as any).flush();
+      // } else if (res.flushHeaders) {
+      //   res.flushHeaders();
+      // }
+      const flushableRes = res as ServerResponse & { flush?: () => void };
+      if (typeof flushableRes.flush === "function") {
+        flushableRes.flush();
+      } else if (flushableRes.flushHeaders) {
+        flushableRes.flushHeaders();
       }
     } catch (err) {
       console.warn("Flush error:", err);
@@ -112,6 +120,17 @@ export default async function handler(
 
     let partialMessage = "";
     try {
+      type SampleResult = {
+        status: "COMPILING" | "ERROR" | "COMPILE_ERROR" | "PASSED" | "FAILED";
+        message?: string;
+        details?: string;
+        input?: unknown;
+        actual_output?: unknown;
+        debug_info?: unknown;
+        stdout?: string;
+        stderr?: string;
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -126,7 +145,7 @@ export default async function handler(
           if (!message?.startsWith("data: ")) continue;
 
           try {
-            const data = JSON.parse(message.slice(6).trim());
+            const data = JSON.parse(message.slice(6).trim()) as SampleResult;
 
             if (data.status === "COMPILING") {
               sendSSE("COMPILING", { status: "COMPILING" });

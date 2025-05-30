@@ -28,6 +28,10 @@ export function useSampleStream() {
     setOutput((prev) => [...prev, line]);
   }, []);
 
+  const formatBlock = (label: string, content: string) => {
+    return `${label} \n----------------\n${content}\n`;
+  };
+
   const startSampleRun = useCallback(
     async (submissionData: {
       code: string;
@@ -77,23 +81,23 @@ export function useSampleStream() {
               case "IN_QUEUE":
               case "COMPILING":
                 setStatus(type as SampleStatus);
-                append(`📦 ${type}`);
+                append(`Status: ${type}`);
                 break;
 
               case "SAMPLE_RESULT":
                 setStatus("SAMPLE_RESULT");
-                append(`✅ Result: ${data.status}`);
-                if (data.input) append(`🧪 Input: ${data.input}`);
-                if (data.output) append(`📤 Output: ${data.output}`);
-                if (data.stdout) append(`📄 Stdout:\n${data.stdout}`);
-                if (data.stderr) append(`⚠️ Stderr:\n${data.stderr}`);
+                append(`Result: ${data.status}`);
+                if (data.input) append(formatBlock("Input", data.input));
+                if (data.output) append(formatBlock("Output", data.output));
+                if (data.stdout) append(formatBlock("Stdout", data.stdout));
+                if (data.stderr) append(formatBlock("Stderr", data.stderr));
                 setIsRunning(false);
                 break;
 
-                case "ERROR":
+              case "ERROR":
                 setStatus("ERROR");
-                append(`❌ Error: ${data.message}`);
-                if (data.details) append(`🔍 Details: ${data.details}`);
+                append(`Error: ${data.message}`);
+                if (data.details) append(`Details: ${data.details}`);
                 toast({
                   title: "Sample Error",
                   description: data.message,
@@ -105,7 +109,7 @@ export function useSampleStream() {
                 break;
 
               default:
-                append(`ℹ️ ${type}`);
+                append(`Log: ${type}`);
                 break;
             }
           }
