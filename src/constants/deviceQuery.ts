@@ -39,8 +39,8 @@ export type DeviceQueryGpu = {
   textureAlignment: number; // bytes
 };
 
-export const CUDA_DRIVER_VERSION = 12.8;
-export const CUDA_RUNTIME_VERSION = 12.8;
+export const CUDA_DRIVER_VERSION = 12.9;
+export const CUDA_RUNTIME_VERSION = 12.9;
 export const PYTHON_VERSION = "3.11.5";
 export const NVCC_CMD = "nvcc -std=c++20 -O2 -Xcompiler -fPIC";
 export const MOJO_CMD = "mojo build --optimization-level=3";
