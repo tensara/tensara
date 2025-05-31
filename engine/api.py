@@ -12,7 +12,7 @@ RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
 
-PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton"]
+PIP_PACKAGES = ["torch", "numpy", "fastapi", "triton"]
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
 APT_PACKAGES = ["build-essential", "gcc", "g++"]
 
@@ -166,6 +166,57 @@ async def benchmark(gpu: str, request: Request):
     
     stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
+
+sample_runners = {
+    gpu.lower(): app.function(
+        image=runtime_image,
+        name=f"sample_runner_{gpu}",
+        gpu=gpu,
+        enable_memory_snapshot=True,
+        serialized=True,
+    )(runner.run_sample_case)  # ✅ THIS MUST BE run_sample_case
+    for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
+}
+
+@web_app.post("/sample-{gpu}")
+async def sample_runner(gpu: str, request: Request):
+    req = await request.json()
+    if gpu.lower() not in sample_runners:
+        return 404
+
+    solution_code = req["solution_code"]
+    problem_def = req["problem_def"]
+    dtype = req["dtype"]
+    language = req["language"]
+    problem_name = utils.convert_slug_to_module_name(req["problem"])
+
+    def create_stream():
+        yield {"status": "COMPILING"}
+
+        if language == "cuda":
+            try:
+                compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "sample")
+            except utils.NVCCError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": e.args[0],
+                }
+                return
+        else:
+            compiled = None
+
+        runner_func = sample_runners[gpu.lower()]
+        stream = runner_func.remote_gen(
+          problem_name, problem_def, compiled, solution_code, dtype, language
+        )
+        for event in stream:
+          yield event
+ 
+ 
+
+    return StreamingResponse(gen_wrapper(create_stream()), media_type="text/event-stream")
+
 
 @web_app.post("/benchmark_cli-{gpu}")
 async def benchmark_cli(gpu: str, request: Request):
