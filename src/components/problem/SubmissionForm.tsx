@@ -325,6 +325,32 @@ const SubmissionForm = ({
           </>
         )}
         <Button
+          bg="rgba(59, 130, 246, 0.1)"
+          color="rgb(59, 130, 246)"
+          size="md"
+          onClick={onRun}
+          isLoading={isRunning}
+          loadingText="Run"
+          spinner={<></>}
+          disabled={isRunning}
+          borderRadius="lg"
+          height="40px"
+          fontSize="sm"
+          fontWeight="semibold"
+          px={{ base: 2, md: 6 }}
+          minW="70px"
+          _hover={{
+            bg: "rgba(59, 130, 246, 0.2)",
+            transform: "translateY(-1px)",
+          }}
+          _active={{
+            bg: "rgba(59, 130, 246, 0.25)",
+          }}
+          transition="all 0.2s"
+        >
+          Run
+        </Button>
+        <Button
           bg="rgba(34, 197, 94, 0.1)"
           color="rgb(34, 197, 94)"
           size="md"
@@ -350,52 +376,6 @@ const SubmissionForm = ({
         >
           Submit
         </Button>
-        {/* <Button
-          bg="rgba(59, 130, 246, 0.1)"
-          color="rgb(59, 130, 246)"
-          size="md"
-          onClick={onRun}
-          isLoading={isRunning}
-          loadingText="Run"
-          spinner={<></>}
-          disabled={isRunning}
-          borderRadius="lg"
-          height="40px"
-          fontSize="sm"
-          fontWeight="semibold"
-          px={{ base: 4, md: 6 }}
-          minW="80px"
-          _hover={{
-            bg: "rgba(59, 130, 246, 0.2)",
-            transform: "translateY(-1px)",
-          }}
-          _active={{
-            bg: "rgba(59, 130, 246, 0.25)",
-          }}
-          transition="all 0.2s"
-        >
-          Run
-        </Button> */}
-        <Tooltip label="Run" hasArrow bg="gray.700">
-          <IconButton
-            icon={<FiPlay />}
-            aria-label="Run Code"
-            onClick={onRun}
-            isLoading={isRunning}
-            disabled={isRunning}
-            size="md"
-            borderRadius="full"
-            bg="gray.800"
-            color="white"
-            _hover={{
-              bg: "gray.700",
-              transform: "scale(1.05)",
-            }}
-            _active={{
-              bg: "gray.600",
-            }}
-          />
-        </Tooltip>
       </HStack>
     </Flex>
   );

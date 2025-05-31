@@ -264,7 +264,7 @@ def run_sample_case(problem_name, problem_def, compiled, solution, dtype, langua
         yield {
             "status": "PASSED" if is_correct else "FAILED",
             "input": [t.cpu().numpy().tolist() for t in input_tensors],
-            "actual_output": actual_output.cpu().numpy().tolist(),
+            "output": actual_output.cpu().numpy().tolist(),
             "debug_info": debug_info,
             "stdout": captured_stdout,
             "stderr": captured_stderr,

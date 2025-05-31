@@ -1,30 +1,114 @@
-import { useRef, useState } from "react";
 import { Box, Text, VStack, HStack } from "@chakra-ui/react";
+import { SampleStatus, type SampleStatusType } from "~/types/submission";
 
-const getColorForLine = (
-  line: string
-): { label: string; color: string; bg: string } => {
-  if (line.startsWith("Error:"))
-    return { label: "ERROR", color: "red.500", bg: "red.900" };
-  if (line.startsWith("Result: PASSED"))
-    return { label: "RESULT", color: "green.400", bg: "green.900" };
-  if (line.startsWith("Result: FAILED"))
-    return { label: "RESULT", color: "red.500", bg: "red.900" };
-  if (line.startsWith("Input"))
-    return { label: "INPUT", color: "gray.300", bg: "gray.800" };
-  if (line.startsWith("Output"))
-    return { label: "OUTPUT", color: "gray.300", bg: "gray.800" };
-  if (line.startsWith("Stdout"))
-    return { label: "STDOUT", color: "gray.300", bg: "gray.800" };
-  if (line.startsWith("Stderr"))
-    return { label: "STDERR", color: "gray.300", bg: "gray.800" };
+type ConsoleTheme = {
+  label: string;
+  color: string;
+  bg: string;
+};
+
+type ThemeKey =
+  | "ERROR"
+  | "PASSED"
+  | "FAILED"
+  | "INPUT"
+  | "OUTPUT"
+  | "STDOUT"
+  | "STDERR"
+  | "IN_QUEUE"
+  | "COMPILING"
+  | "RUNNING"
+  | "LOG";
+
+const CONSOLE_THEMES: Record<ThemeKey, ConsoleTheme> = {
+  ERROR: {
+    label: "Error",
+    color: "#FF5D5D",
+    bg: "#351B1B",
+  },
+  PASSED: {
+    label: "Passed",
+    color: "#4EC9B0",
+    bg: "#1B352B",
+  },
+  FAILED: {
+    label: "Failed",
+    color: "#FF5D5D",
+    bg: "#351B1B",
+  },
+  INPUT: {
+    label: "Input",
+    color: "#569CD6",
+    bg: "#1B1B35",
+  },
+  OUTPUT: {
+    label: "Output",
+    color: "#569CD6",
+    bg: "#1B1B35",
+  },
+  STDOUT: {
+    label: "Stdout",
+    color: "#569CD6",
+    bg: "#1B1B35",
+  },
+  STDERR: {
+    label: "Stderr",
+    color: "#FF5D5D",
+    bg: "#351B1B",
+  },
+  IN_QUEUE: {
+    label: "Status",
+    color: "#4FC1FF",
+    bg: "#1B2535",
+  },
+  COMPILING: {
+    label: "Status",
+    color: "#4FC1FF",
+    bg: "#1B2535",
+  },
+  RUNNING: {
+    label: "Status",
+    color: "#4FC1FF",
+    bg: "#1B2535",
+  },
+  LOG: {
+    label: "Log",
+    color: "#858585",
+    bg: "#1A1A1A",
+  },
+};
+
+const getConsoleTheme = (line: string): ConsoleTheme => {
+  const lowercaseLine = line.toLowerCase();
+
+  // Handle error messages
   if (
-    line.startsWith("Status:") ||
-    line.startsWith("IN_QUEUE") ||
-    line.startsWith("COMPILING")
-  )
-    return { label: "STATUS", color: "gray.300", bg: "gray.800" };
-  return { label: "LOG", color: "gray.400", bg: "gray.900" };
+    lowercaseLine.includes("error occurred") ||
+    lowercaseLine.includes("compilation error") ||
+    lowercaseLine.includes("runtime error")
+  ) {
+    return CONSOLE_THEMES.ERROR;
+  }
+
+  // Handle test results
+  if (lowercaseLine.includes("test passed")) return CONSOLE_THEMES.PASSED;
+  if (lowercaseLine.includes("test failed")) return CONSOLE_THEMES.FAILED;
+
+  // Handle status messages
+  if (lowercaseLine.includes("in queue")) return CONSOLE_THEMES.IN_QUEUE;
+  if (lowercaseLine.includes("compiling")) return CONSOLE_THEMES.COMPILING;
+  if (lowercaseLine.includes("running")) return CONSOLE_THEMES.RUNNING;
+
+  // Handle block headers
+  if (line.startsWith("Input")) return CONSOLE_THEMES.INPUT;
+  if (line.startsWith("Output")) {
+    return CONSOLE_THEMES.OUTPUT;
+  }
+  if (line.startsWith("Stdout")) return CONSOLE_THEMES.STDOUT;
+  if (line.startsWith("Stderr")) return CONSOLE_THEMES.STDERR;
+
+  // Default to LOG theme
+  return CONSOLE_THEMES.LOG;
 };
 
 type ConsoleProps = {
@@ -32,61 +116,25 @@ type ConsoleProps = {
 };
 
 const ResizableConsole = ({ output }: ConsoleProps) => {
-  const [height, setHeight] = useState(200);
-  const isDragging = useRef(false);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDragging.current = true;
-    const startY = e.clientY;
-    const startHeight = height;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const deltaY = moveEvent.clientY - startY;
-      setHeight(Math.max(100, startHeight - deltaY));
-    };
-
-    const onMouseUp = () => {
-      isDragging.current = false;
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-  };
-
   return (
     <Box
       w="100%"
-      border="1px solid"
-      borderColor="gray.700"
-      borderRadius="md"
-      fontFamily="mono"
+      h="100%"
+      fontFamily="JetBrains Mono, monospace"
       fontSize="sm"
-      bg="gray.900"
+      bg="#111111"
+      overflow="hidden"
+      borderRadius="xl"
     >
-      <Box
-        cursor="ns-resize"
-        h="6px"
-        bg="gray.600"
-        borderTopRadius="md"
-        onMouseDown={handleMouseDown}
-      />
-      <Box
-        color="white"
-        p={3}
-        overflowY="auto"
-        maxH="400px"
-        minH="100px"
-        h={`${height}px`}
-        borderBottomRadius="md"
-      >
+      <Box color="#D4D4D4" p={3} h="100%" overflowY="auto">
         {output.length === 0 ? (
-          <Text color="gray.500">Console output will appear here...</Text>
+          <Text color="#858585" fontStyle="italic">
+            Console output will appear here...
+          </Text>
         ) : (
           <VStack align="start" spacing={2}>
             {output.map((line, i) => {
-              const { label, color, bg } = getColorForLine(line);
+              const theme = getConsoleTheme(line);
               return (
                 <HStack key={i} align="start" spacing={2} w="full">
                   <Box
@@ -94,15 +142,15 @@ const ResizableConsole = ({ output }: ConsoleProps) => {
                     py={0.5}
                     minW="70px"
                     fontWeight="bold"
-                    color={color}
-                    bg={bg}
+                    color={theme.color}
+                    bg={theme.bg}
                     borderRadius="sm"
                     fontSize="xs"
                     textAlign="center"
                   >
-                    {label}
+                    {theme.label}
                   </Box>
-                  <Text whiteSpace="pre-wrap" color="gray.200">
+                  <Text whiteSpace="pre-wrap" color="#D4D4D4">
                     {line}
                   </Text>
                 </HStack>

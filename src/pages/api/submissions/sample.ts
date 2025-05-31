@@ -4,6 +4,11 @@ import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
 
 import type { ServerResponse } from "http";
+import {
+  SampleStatus,
+  type SampleStatusType,
+  type SampleEvent,
+} from "~/types/submission";
 
 export default async function handler(
   req: NextApiRequest,
@@ -59,11 +64,6 @@ export default async function handler(
     const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     res.write(payload);
     try {
-      // if ("flush" in res && typeof (res as any).flush === "function") {
-      //   (res as any).flush();
-      // } else if (res.flushHeaders) {
-      //   res.flushHeaders();
-      // }
       const flushableRes = res as ServerResponse & { flush?: () => void };
       if (typeof flushableRes.flush === "function") {
         flushableRes.flush();
@@ -80,7 +80,7 @@ export default async function handler(
   }, 30000);
 
   try {
-    sendSSE("IN_QUEUE", { status: "IN_QUEUE" });
+    sendSSE(SampleStatus.IN_QUEUE, { status: SampleStatus.IN_QUEUE });
 
     const sampleResponse = await fetch(
       `${env.MODAL_ENDPOINT}/sample-${gpuType}`,
@@ -102,8 +102,8 @@ export default async function handler(
 
     if (!sampleResponse.ok) {
       const errorText = await sampleResponse.text();
-      sendSSE("ERROR", {
-        error: `Sample API returned ${sampleResponse.status}`,
+      sendSSE(SampleStatus.ERROR, {
+        status: SampleStatus.ERROR,
         message: `Sample API returned ${sampleResponse.status}`,
         details: errorText,
       });
@@ -113,24 +113,16 @@ export default async function handler(
 
     const reader = sampleResponse.body?.getReader();
     if (!reader) {
-      sendSSE("ERROR", { error: "No response body from sample runner" });
+      sendSSE(SampleStatus.ERROR, {
+        status: SampleStatus.ERROR,
+        message: "No response body from sample runner",
+      });
       res.end();
       return;
     }
 
     let partialMessage = "";
     try {
-      type SampleResult = {
-        status: "COMPILING" | "ERROR" | "COMPILE_ERROR" | "PASSED" | "FAILED";
-        message?: string;
-        details?: string;
-        input?: unknown;
-        actual_output?: unknown;
-        debug_info?: unknown;
-        stdout?: string;
-        stderr?: string;
-      };
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -145,16 +137,22 @@ export default async function handler(
           if (!message?.startsWith("data: ")) continue;
 
           try {
-            const data = JSON.parse(message.slice(6).trim()) as SampleResult;
+            const data = JSON.parse(message.slice(6).trim()) as SampleEvent;
 
-            if (data.status === "COMPILING") {
-              sendSSE("COMPILING", { status: "COMPILING" });
+            if (data.status === SampleStatus.COMPILING) {
+              sendSSE(SampleStatus.COMPILING, {
+                status: SampleStatus.COMPILING,
+              });
               continue;
             }
 
-            if (data.status === "ERROR" || data.status === "COMPILE_ERROR") {
-              sendSSE("ERROR", {
-                status: "ERROR",
+            if (
+              data.status === SampleStatus.ERROR ||
+              data.status === SampleStatus.COMPILE_ERROR ||
+              data.status === SampleStatus.RUNTIME_ERROR
+            ) {
+              sendSSE(data.status, {
+                status: data.status,
                 message: data.message,
                 details: data.details,
               });
@@ -162,11 +160,14 @@ export default async function handler(
               return;
             }
 
-            if (data.status === "PASSED" || data.status === "FAILED") {
+            if (
+              data.status === SampleStatus.PASSED ||
+              data.status === SampleStatus.FAILED
+            ) {
               const result = {
                 status: data.status,
                 input: data.input,
-                output: data.actual_output,
+                output: data.output,
                 debug_info: data.debug_info,
                 stdout: data.stdout,
                 stderr: data.stderr,
@@ -185,8 +186,8 @@ export default async function handler(
     }
   } catch (err) {
     console.error("Sample runner error:", err);
-    sendSSE("ERROR", {
-      error: err instanceof Error ? err.message : "Unknown error",
+    sendSSE(SampleStatus.ERROR, {
+      status: SampleStatus.ERROR,
       message: err instanceof Error ? err.message : "Unknown error",
       details: err instanceof Error ? err.stack : undefined,
     });

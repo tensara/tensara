@@ -119,15 +119,32 @@ export type SubmissionResponse =
   | BenchmarkResultResponse
   | BenchmarkedResponse
   | AcceptedResponse;
+
 // Sample Run Status Constants
 export const SampleStatus = {
+  IDLE: "IDLE",
   IN_QUEUE: "IN_QUEUE",
   COMPILING: "COMPILING",
   RUNNING: "RUNNING",
   PASSED: "PASSED",
   FAILED: "FAILED",
   ERROR: "ERROR",
+  COMPILE_ERROR: "COMPILE_ERROR",
+  RUNTIME_ERROR: "RUNTIME_ERROR",
 } as const;
+
+export type SampleStatusType = (typeof SampleStatus)[keyof typeof SampleStatus];
+
+export type SampleEvent = {
+  status: SampleStatusType;
+  message?: string;
+  details?: string;
+  input?: unknown;
+  output?: unknown;
+  debug_info?: unknown;
+  stdout?: string;
+  stderr?: string;
+};
 
 // Sample Run Errors
 export const SampleError = {
@@ -137,11 +154,14 @@ export const SampleError = {
 } as const;
 
 export type SampleResult = {
-  name: string;
-  input: string;
-  actual_output: string;
-  stdout: string;
-  stderr: string;
-  debug_info?: Record<string, unknown>;
-  status: (typeof SampleStatus)[keyof typeof SampleStatus];
+  status:
+    | (typeof SampleStatus)[keyof typeof SampleStatus]
+    | (typeof SampleError)[keyof typeof SampleError];
+  message?: string;
+  details?: string;
+  input?: unknown;
+  actual_output?: unknown;
+  debug_info?: unknown;
+  stdout?: string;
+  stderr?: string;
 };

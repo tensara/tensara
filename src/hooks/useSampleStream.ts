@@ -1,27 +1,27 @@
 import { useState, useCallback } from "react";
 import { useToast } from "@chakra-ui/react";
+import {
+  SampleStatus,
+  type SampleStatusType,
+  type SampleEvent,
+} from "~/types/submission";
 
-type SampleStatus =
-  | "IDLE"
-  | "IN_QUEUE"
-  | "COMPILING"
-  | "SAMPLE_RESULT"
-  | "ERROR";
-
-type SampleEvent = {
-  status: SampleStatus;
-  message?: string;
-  details?: string;
-  input?: string;
-  output?: string;
-  stdout?: string;
-  stderr?: string;
+const formatVector = (data: unknown): string => {
+  if (Array.isArray(data)) {
+    if (Array.isArray(data[0])) {
+      return data.map((row) => formatVector(row)).join("\n");
+    }
+    return (
+      "[" + data.map((x: number) => x.toFixed(6).padStart(10)).join(" ") + "]"
+    );
+  }
+  return String(data);
 };
 
 export function useSampleStream() {
   const toast = useToast();
   const [output, setOutput] = useState<string[]>([]);
-  const [status, setStatus] = useState<SampleStatus>("IDLE");
+  const [status, setStatus] = useState<SampleStatusType>(SampleStatus.IDLE);
   const [isRunning, setIsRunning] = useState(false);
 
   const append = useCallback((line: string) => {
@@ -30,6 +30,29 @@ export function useSampleStream() {
 
   const formatBlock = (label: string, content: string) => {
     return `${label} \n----------------\n${content}\n`;
+  };
+
+  const formatStatus = (status: SampleStatusType) => {
+    switch (status) {
+      case SampleStatus.IN_QUEUE:
+        return "In queue...";
+      case SampleStatus.COMPILING:
+        return "Compiling...";
+      case SampleStatus.RUNNING:
+        return "Running...";
+      case SampleStatus.PASSED:
+        return "Test Passed!";
+      case SampleStatus.FAILED:
+        return "Test Failed";
+      case SampleStatus.ERROR:
+        return "Error Occurred";
+      case SampleStatus.COMPILE_ERROR:
+        return "Compilation Error";
+      case SampleStatus.RUNTIME_ERROR:
+        return "Runtime Error";
+      default:
+        return status;
+    }
   };
 
   const startSampleRun = useCallback(
@@ -41,7 +64,7 @@ export function useSampleStream() {
     }) => {
       setIsRunning(true);
       setOutput([]);
-      setStatus("IN_QUEUE");
+      setStatus(SampleStatus.IN_QUEUE);
 
       try {
         const response = await fetch("/api/submissions/sample", {
@@ -76,35 +99,34 @@ export function useSampleStream() {
 
             const type = typeLine.slice(7).trim();
             const data = JSON.parse(dataLine.slice(6).trim()) as SampleEvent;
+            console.log(type, data);
 
             switch (type) {
-              case "IN_QUEUE":
-              case "COMPILING":
-                setStatus(type as SampleStatus);
-                append(`Status: ${type}`);
+              case SampleStatus.IN_QUEUE:
+              case SampleStatus.COMPILING:
+                setStatus(type as SampleStatusType);
+                append(formatStatus(type as SampleStatusType));
                 break;
 
               case "SAMPLE_RESULT":
-                setStatus("SAMPLE_RESULT");
-                append(`Result: ${data.status}`);
-                if (data.input) append(formatBlock("Input", data.input));
-                if (data.output) append(formatBlock("Output", data.output));
+                setStatus(data.status);
+                append(formatStatus(data.status));
+                if (data.input)
+                  append(formatBlock("Input", formatVector(data.input)));
+                if (data.output)
+                  append(formatBlock("Output", formatVector(data.output)));
                 if (data.stdout) append(formatBlock("Stdout", data.stdout));
                 if (data.stderr) append(formatBlock("Stderr", data.stderr));
                 setIsRunning(false);
                 break;
 
-              case "ERROR":
-                setStatus("ERROR");
-                append(`Error: ${data.message}`);
-                if (data.details) append(`Details: ${data.details}`);
-                toast({
-                  title: "Sample Error",
-                  description: data.message,
-                  status: "error",
-                  duration: 5000,
-                  isClosable: true,
-                });
+              case SampleStatus.ERROR:
+              case SampleStatus.COMPILE_ERROR:
+              case SampleStatus.RUNTIME_ERROR:
+                setStatus(type as SampleStatusType);
+                append(formatStatus(type as SampleStatusType));
+                if (data.message) append(`${data.message}`);
+                if (data.details) append(`${data.details}`);
                 setIsRunning(false);
                 break;
 
@@ -116,7 +138,7 @@ export function useSampleStream() {
         }
       } catch (err) {
         console.error("Sample run error:", err);
-        setStatus("ERROR");
+        setStatus(SampleStatus.ERROR);
         setIsRunning(false);
         toast({
           title: "Network Error",
