@@ -4,6 +4,15 @@ import { FaCheck, FaTimes, FaExclamationCircle, FaClock } from "react-icons/fa";
 export const DEFAULT_LANGUAGE = "cuda";
 export const DEFAULT_DATA_TYPE = "float32";
 
+export const PROBLEM_DIFFICULTY = {
+  EASY: "easy",
+  MEDIUM: "medium",
+  HARD: "hard",
+} as const;
+
+export type Difficulty =
+  (typeof PROBLEM_DIFFICULTY)[keyof typeof PROBLEM_DIFFICULTY];
+
 export const PROBLEM_DIFFICULTY_MULTIPLIERS = {
   EASY: 1,
   MEDIUM: 1.5,
