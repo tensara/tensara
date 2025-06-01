@@ -11,26 +11,44 @@ DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
-
 PIP_PACKAGES = ["torch", "numpy", "fastapi", "triton"]
+UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
-APT_PACKAGES = ["build-essential", "gcc", "g++"]
+APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
     .apt_install(APT_PACKAGES)
     .env({"CC": "gcc"})
-    .pip_install(PIP_PACKAGES)
+    .env({"PATH": "/root/.local/bin:$PATH"})
+    .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
+    .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
     .add_local_python_source(*LOCAL_SOURCE)
 )
 
-runtime_image = (
-    modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
-    .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
-    .env({"CC": "gcc"})
-    .pip_install(PIP_PACKAGES + ["modular"])
-    .add_local_python_source(*LOCAL_SOURCE)
-)
+def build_runtime_image(gpu: str):
+    if gpu == "B200":
+        return (
+            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
+            .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
+            .env({"CC": "gcc"})
+            .env({"PATH": "/root/.local/bin:$PATH"})
+            .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
+            .run_commands(UV_PREFIX + " ".join([p for p in PIP_PACKAGES if p != "torch"]))
+            .run_commands("uv pip install --system --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128")
+            .add_local_python_source(*LOCAL_SOURCE)
+        )
+    else:
+        return (
+            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
+            .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
+            .env({"CC": "gcc"})
+            .env({"PATH": "/root/.local/bin:$PATH"})
+            .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
+            .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
+            .run_commands("uv pip install --system modular --extra-index-url https://dl.modular.com/public/nightly/python/simple/ --index-strategy unsafe-best-match")
+            .add_local_python_source(*LOCAL_SOURCE)
+        )
 
 app = modal.App("tensara", image=devel_image)
 web_app = FastAPI()
@@ -66,10 +84,10 @@ def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_na
 
 gpu_runners = {
     gpu: app.function(
-        image=runtime_image,
+        image=build_runtime_image(gpu),
         name=f"runner_{gpu}",
         gpu=gpu,
-        enable_memory_snapshot=True,
+        enable_memory_snapshot=False if gpu == "B200" else True,
         serialized=True,
     )(binary_runner)
     for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
