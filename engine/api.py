@@ -14,12 +14,14 @@ CURR_DIR = Path(__file__).parent
 PIP_PACKAGES = ["torch", "numpy", "fastapi", "triton"]
 UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
-APT_PACKAGES = ["build-essential", "gcc", "g++"]
+APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
     .apt_install(APT_PACKAGES)
     .env({"CC": "gcc"})
+    .env({"PATH": "/root/.local/bin:$PATH"})
+    .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
     .add_local_python_source(*LOCAL_SOURCE)
 )
@@ -30,6 +32,8 @@ def build_runtime_image(gpu: str):
             modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
             .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
             .env({"CC": "gcc"})
+            .env({"PATH": "/root/.local/bin:$PATH"})
+            .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
             .run_commands(UV_PREFIX + " ".join([p for p in PIP_PACKAGES if p != "torch"]))
             .run_commands("uv pip install --system --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128")
             .add_local_python_source(*LOCAL_SOURCE)
@@ -39,6 +43,8 @@ def build_runtime_image(gpu: str):
             modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
             .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
             .env({"CC": "gcc"})
+            .env({"PATH": "/root/.local/bin:$PATH"})
+            .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
             .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
             .run_commands("uv pip install --system modular --extra-index-url https://dl.modular.com/public/nightly/python/simple/ --index-strategy unsafe-best-match")
             .add_local_python_source(*LOCAL_SOURCE)
