@@ -87,7 +87,7 @@ gpu_runners = {
         image=build_runtime_image(gpu),
         name=f"runner_{gpu}",
         gpu=gpu,
-        enable_memory_snapshot=True,
+        enable_memory_snapshot=False if gpu == "B200" else True,
         serialized=True,
     )(binary_runner)
     for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
