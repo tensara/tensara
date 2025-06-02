@@ -1,4 +1,5 @@
-import { Box, Text, VStack, HStack } from "@chakra-ui/react";
+import { Box, Text, VStack, HStack, Spinner } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import { SampleStatus, type SampleStatusType } from "~/types/submission";
 
 type ConsoleTheme = {
@@ -19,6 +20,12 @@ type ThemeKey =
   | "COMPILING"
   | "RUNNING"
   | "LOG";
+
+const pulseAnimation = keyframes`
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+`;
 
 const CONSOLE_THEMES: Record<ThemeKey, ConsoleTheme> = {
   ERROR: {
@@ -81,7 +88,6 @@ const CONSOLE_THEMES: Record<ThemeKey, ConsoleTheme> = {
 const getConsoleTheme = (line: string): ConsoleTheme => {
   const lowercaseLine = line.toLowerCase();
 
-  // Handle error messages
   if (
     lowercaseLine.includes("error occurred") ||
     lowercaseLine.includes("compilation error") ||
@@ -90,24 +96,18 @@ const getConsoleTheme = (line: string): ConsoleTheme => {
     return CONSOLE_THEMES.ERROR;
   }
 
-  // Handle test results
   if (lowercaseLine.includes("test passed")) return CONSOLE_THEMES.PASSED;
   if (lowercaseLine.includes("test failed")) return CONSOLE_THEMES.FAILED;
 
-  // Handle status messages
   if (lowercaseLine.includes("in queue")) return CONSOLE_THEMES.IN_QUEUE;
   if (lowercaseLine.includes("compiling")) return CONSOLE_THEMES.COMPILING;
   if (lowercaseLine.includes("running")) return CONSOLE_THEMES.RUNNING;
 
-  // Handle block headers
   if (line.startsWith("Input")) return CONSOLE_THEMES.INPUT;
-  if (line.startsWith("Output")) {
-    return CONSOLE_THEMES.OUTPUT;
-  }
+  if (line.startsWith("Output")) return CONSOLE_THEMES.OUTPUT;
   if (line.startsWith("Stdout")) return CONSOLE_THEMES.STDOUT;
   if (line.startsWith("Stderr")) return CONSOLE_THEMES.STDERR;
 
-  // Default to LOG theme
   return CONSOLE_THEMES.LOG;
 };
 
@@ -135,6 +135,27 @@ const ResizableConsole = ({ output }: ConsoleProps) => {
           <VStack align="start" spacing={2}>
             {output.map((line, i) => {
               const theme = getConsoleTheme(line);
+              const lowercaseLine = line.toLowerCase();
+              
+              const hasOutput = output.some(l => 
+                l.startsWith("Output") || 
+                l.toLowerCase().includes("test passed") || 
+                l.toLowerCase().includes("test failed") ||
+                l.toLowerCase().includes("error")
+              );
+              
+              const isAnimated = !hasOutput && (lowercaseLine.includes("compiling") || lowercaseLine.includes("running") || lowercaseLine.includes("in queue"));
+              const isLoading = !hasOutput && (lowercaseLine.includes("compiling") || lowercaseLine.includes("running"));
+
+              let displayText = line;
+              if (lowercaseLine.includes("in queue")) {
+                displayText = "Queued";
+              } else if (lowercaseLine.includes("compiling")) {
+                displayText = hasOutput ? "Compiled" : "Compiling";
+              } else if (lowercaseLine.includes("running")) {
+                displayText = hasOutput ? "Complete" : "Running";
+              }
+              
               return (
                 <HStack key={i} align="start" spacing={2} w="full">
                   <Box
@@ -147,12 +168,18 @@ const ResizableConsole = ({ output }: ConsoleProps) => {
                     borderRadius="sm"
                     fontSize="xs"
                     textAlign="center"
+                    animation={isAnimated ? `${pulseAnimation} 2s infinite ease-in-out` : undefined}
                   >
                     {theme.label}
                   </Box>
-                  <Text whiteSpace="pre-wrap" color="#D4D4D4">
-                    {line}
-                  </Text>
+                  <HStack spacing={2}>
+                    {isLoading && (
+                      <Spinner size="xs" color={theme.color} speed="0.8s" />
+                    )}
+                    <Text whiteSpace="pre-wrap" color="#D4D4D4">
+                      {displayText}
+                    </Text>
+                  </HStack>
                 </HStack>
               );
             })}

@@ -69,7 +69,9 @@ def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_na
             }
             return
     
-    if type == "checker":
+    if type == "sample":
+        gen = runner.run_sample_case(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
+    elif type == "checker":
         gen = runner.run_checker(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
     elif type == "benchmark":
         gen = runner.run_benchmark(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
@@ -185,21 +187,10 @@ async def benchmark(gpu: str, request: Request):
     stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
 
-sample_runners = {
-    gpu.lower(): app.function(
-        image=runtime_image,
-        name=f"sample_runner_{gpu}",
-        gpu=gpu,
-        enable_memory_snapshot=True,
-        serialized=True,
-    )(runner.run_sample_case)  # ✅ THIS MUST BE run_sample_case
-    for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
-}
-
 @web_app.post("/sample-{gpu}")
 async def sample_runner(gpu: str, request: Request):
     req = await request.json()
-    if gpu.lower() not in sample_runners:
+    if gpu not in gpu_runners:
         return 404
 
     solution_code = req["solution_code"]
@@ -213,7 +204,7 @@ async def sample_runner(gpu: str, request: Request):
 
         if language == "cuda":
             try:
-                compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "sample")
+                sample_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "sample")
             except utils.NVCCError as e:
                 yield {
                     "status": "COMPILE_ERROR",
@@ -222,16 +213,12 @@ async def sample_runner(gpu: str, request: Request):
                 }
                 return
         else:
-            compiled = None
+            sample_compiled = None
 
-        runner_func = sample_runners[gpu.lower()]
-        stream = runner_func.remote_gen(
-          problem_name, problem_def, compiled, solution_code, dtype, language
-        )
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("sample", sample_compiled, solution_code, problem_name, problem_def, dtype, language)
         for event in stream:
           yield event
- 
- 
 
     return StreamingResponse(gen_wrapper(create_stream()), media_type="text/event-stream")
 
