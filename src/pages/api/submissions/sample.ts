@@ -171,6 +171,7 @@ export default async function handler(
                 debug_info: data.debug_info,
                 stdout: data.stdout,
                 stderr: data.stderr,
+                expected_output: data.expected_output,
               };
               sendSSE("SAMPLE_RESULT", result);
               res.end();

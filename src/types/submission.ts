@@ -144,6 +144,7 @@ export type SampleEvent = {
   debug_info?: unknown;
   stdout?: string;
   stderr?: string;
+  expected_output?: unknown;
 };
 
 // Sample Run Errors
@@ -164,6 +165,7 @@ export type SampleResult = {
   debug_info?: unknown;
   stdout?: string;
   stderr?: string;
+  expected_output?: unknown;
 };
 
 // Added from Console.tsx
@@ -175,4 +177,5 @@ export type SampleOutput = {
   stderr?: string;
   message?: string;
   details?: string;
+  expected_output?: string;
 };

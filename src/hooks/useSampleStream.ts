@@ -86,6 +86,9 @@ export function useSampleStream() {
                   output: data.output ? formatVector(data.output) : undefined,
                   stdout: data.stdout,
                   stderr: data.stderr,
+                  expected_output: data.expected_output
+                    ? formatVector(data.expected_output)
+                    : undefined,
                 });
                 setIsRunning(false);
                 break;
