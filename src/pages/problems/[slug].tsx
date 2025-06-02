@@ -83,6 +83,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
   const {
     output: consoleOutput,
+    status,
     isRunning,
     startSampleRun,
   } = useSampleStream();
@@ -272,7 +273,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
               selectedLanguage={selectedLanguage}
             />
           }
-          bottomContent={<ResizableConsole output={consoleOutput} />}
+          bottomContent={<ResizableConsole output={consoleOutput} status={status} isRunning={isRunning} />}
           initialRatio={75}
           minTopHeight={40}
           minBottomHeight={20}

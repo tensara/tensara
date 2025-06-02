@@ -4,6 +4,7 @@ import {
   SampleStatus,
   type SampleStatusType,
   type SampleEvent,
+  type SampleOutput,
 } from "~/types/submission";
 
 const formatVector = (data: unknown): string => {
@@ -20,40 +21,9 @@ const formatVector = (data: unknown): string => {
 
 export function useSampleStream() {
   const toast = useToast();
-  const [output, setOutput] = useState<string[]>([]);
+  const [output, setOutput] = useState<SampleOutput | null>(null);
   const [status, setStatus] = useState<SampleStatusType>(SampleStatus.IDLE);
   const [isRunning, setIsRunning] = useState(false);
-
-  const append = useCallback((line: string) => {
-    setOutput((prev) => [...prev, line]);
-  }, []);
-
-  const formatBlock = (label: string, content: string) => {
-    return `${label} \n----------------\n${content}\n`;
-  };
-
-  const formatStatus = (status: SampleStatusType) => {
-    switch (status) {
-      case SampleStatus.IN_QUEUE:
-        return "In queue...";
-      case SampleStatus.COMPILING:
-        return "Compiling...";
-      case SampleStatus.RUNNING:
-        return "Running...";
-      case SampleStatus.PASSED:
-        return "Test Passed!";
-      case SampleStatus.FAILED:
-        return "Test Failed";
-      case SampleStatus.ERROR:
-        return "Error Occurred";
-      case SampleStatus.COMPILE_ERROR:
-        return "Compilation Error";
-      case SampleStatus.RUNTIME_ERROR:
-        return "Runtime Error";
-      default:
-        return status;
-    }
-  };
 
   const startSampleRun = useCallback(
     async (submissionData: {
@@ -63,7 +33,7 @@ export function useSampleStream() {
       problemSlug: string;
     }) => {
       setIsRunning(true);
-      setOutput([]);
+      setOutput(null);
       setStatus(SampleStatus.IN_QUEUE);
 
       try {
@@ -104,19 +74,19 @@ export function useSampleStream() {
             switch (type) {
               case SampleStatus.IN_QUEUE:
               case SampleStatus.COMPILING:
+              case SampleStatus.RUNNING:
                 setStatus(type as SampleStatusType);
-                append(formatStatus(type as SampleStatusType));
                 break;
 
               case "SAMPLE_RESULT":
                 setStatus(data.status);
-                append(formatStatus(data.status));
-                if (data.input)
-                  append(formatBlock("Input", formatVector(data.input)));
-                if (data.output)
-                  append(formatBlock("Output", formatVector(data.output)));
-                if (data.stdout) append(formatBlock("Stdout", data.stdout));
-                if (data.stderr) append(formatBlock("Stderr", data.stderr));
+                setOutput({
+                  status: data.status,
+                  input: data.input ? formatVector(data.input) : undefined,
+                  output: data.output ? formatVector(data.output) : undefined,
+                  stdout: data.stdout,
+                  stderr: data.stderr,
+                });
                 setIsRunning(false);
                 break;
 
@@ -124,14 +94,12 @@ export function useSampleStream() {
               case SampleStatus.COMPILE_ERROR:
               case SampleStatus.RUNTIME_ERROR:
                 setStatus(type as SampleStatusType);
-                append(formatStatus(type as SampleStatusType));
-                if (data.message) append(`${data.message}`);
-                if (data.details) append(`${data.details}`);
+                setOutput({
+                  status: type as SampleStatusType,
+                  message: data.message,
+                  details: data.details,
+                });
                 setIsRunning(false);
-                break;
-
-              default:
-                append(`Log: ${type}`);
                 break;
             }
           }
@@ -149,7 +117,7 @@ export function useSampleStream() {
         });
       }
     },
-    [append, toast]
+    [toast]
   );
 
   return {

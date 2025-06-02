@@ -165,3 +165,14 @@ export type SampleResult = {
   stdout?: string;
   stderr?: string;
 };
+
+// Added from Console.tsx
+export type SampleOutput = {
+  status: SampleStatusType;
+  input?: string;
+  output?: string;
+  stdout?: string;
+  stderr?: string;
+  message?: string;
+  details?: string;
+};
