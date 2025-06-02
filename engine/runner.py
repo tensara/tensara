@@ -214,7 +214,8 @@ def run_sample_case(problem_name, problem_def, compiled, solution, dtype, langua
         import contextlib
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
-        sample = problem.generate_sample(dtype)
+        sample_list = problem.generate_sample(dtype)
+        sample = sample_list[0]  # Get the first sample dictionary
         input_tensors = sample["create_inputs"]()
         expected_output = problem.reference_solution(*input_tensors).cpu()
         actual_output = torch.zeros_like(expected_output, device="cuda")
