@@ -196,15 +196,12 @@ type ConsoleProps = {
 };
 
 const ResizableConsole = ({ output, status, isRunning }: ConsoleProps) => {
-  console.log(output);
   return (
     <Box
       w="100%"
       h="100%"
       bg="#111111"
       borderRadius="xl"
-      border="1px solid"
-      borderColor="gray.800"
       overflow="hidden"
     >
       <Box
