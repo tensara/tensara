@@ -226,7 +226,16 @@ def run_sample_case(problem_name, problem_def, compiled, solution, dtype, langua
                 sig = problem.get_function_signature()
                 lib.solution.argtypes = sig["argtypes"]
                 lib.solution.restype = sig["restype"]
-                input_ptrs = [ctypes.cast(t.data_ptr(), typ) for t, typ in zip(input_tensors, sig["argtypes"][:len(input_tensors)])]
+                # input_ptrs = [ctypes.cast(t.data_ptr(), typ) for t, typ in zip(input_tensors, sig["argtypes"][:len(input_tensors)])]
+                input_ptrs = []
+                for t, typ in zip(input_tensors, sig["argtypes"][:len(input_tensors)]):
+                    if isinstance(t, torch.Tensor):
+                        input_ptrs.append(ctypes.cast(t.data_ptr(), typ))
+                    elif isinstance(t, (int, float)):
+                        input_ptrs.append(typ(t))  # pass by value
+                    else:
+                        raise TypeError(f"Unsupported input type: {type(t)}")
+
                 output_ptr = ctypes.cast(actual_output.data_ptr(), sig["argtypes"][len(input_ptrs)])
                 extra_params = problem.get_extra_params(sample)
                 extra_params_casted = utils.cast_to_ctype(extra_params, sig["argtypes"][-len(extra_params):], language)
@@ -263,7 +272,10 @@ def run_sample_case(problem_name, problem_def, compiled, solution, dtype, langua
         is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
         yield {
             "status": "PASSED" if is_correct else "FAILED",
-            "input": [t.cpu().numpy().tolist() for t in input_tensors],
+            "input": [
+                t.cpu().numpy().tolist() if isinstance(t, torch.Tensor) else t
+                for t in input_tensors
+            ],
             "output": actual_output.cpu().numpy().tolist(),
             "expected_output": expected_output.cpu().numpy().tolist(),
             "debug_info": debug_info,
