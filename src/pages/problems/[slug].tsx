@@ -22,11 +22,14 @@ import SubmissionForm from "~/components/problem/SubmissionForm";
 import SubmissionResults from "~/components/problem/SubmissionResults";
 import ResetCodeModal from "~/components/problem/ResetCodeModal";
 import SplitPanel from "~/components/problem/SplitPanel";
+import ResizableConsole from "~/components/problem/Console";
+import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
 
 import { FaExclamationCircle } from "react-icons/fa";
 
 import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
+import { useSampleStream } from "~/hooks/useSampleStream";
 
 import { validateCode } from "~/utils/starter";
 
@@ -75,6 +78,15 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
+  // const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
+  // const [isRunning, setIsRunning] = useState(false);
+
+  const {
+    output: consoleOutput,
+    status,
+    isRunning,
+    startSampleRun,
+  } = useSampleStream();
 
   // Get problem data
   const { data: problem, isLoading } = api.problems.getById.useQuery(
@@ -165,7 +177,14 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setViewType,
     toast,
   ]);
-
+  const handleRun = async () => {
+    await startSampleRun({
+      code,
+      language: selectedLanguage,
+      gpuType: selectedGpuType,
+      problemSlug: slug,
+    });
+  };
   if (isLoading) {
     return (
       <Layout title="Loading...">
@@ -230,7 +249,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
   // Right panel - Editor and controls
   const rightContent = (
-    <VStack w="100%" h="100%" spacing={4}>
+    <VStack w="100%" h="100%" spacing={2}>
       <SubmissionForm
         selectedGpuType={selectedGpuType}
         setSelectedGpuType={setSelectedGpuType}
@@ -242,12 +261,30 @@ export default function ProblemPage({ slug }: { slug: string }) {
         onResetClick={() => setIsResetModalOpen(true)}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+        onRun={handleRun}
+        isRunning={isRunning}
       />
-      <CodeEditor
-        code={code}
-        setCode={setCode}
-        selectedLanguage={selectedLanguage}
-      />
+      <Box flex={1} w="100%" minH={0}>
+        <VerticalSplitPanel
+          topContent={
+            <CodeEditor
+              code={code}
+              setCode={setCode}
+              selectedLanguage={selectedLanguage}
+            />
+          }
+          bottomContent={
+            <ResizableConsole
+              output={consoleOutput}
+              status={status}
+              isRunning={isRunning}
+            />
+          }
+          initialRatio={75}
+          minTopHeight={40}
+          minBottomHeight={20}
+        />
+      </Box>
     </VStack>
   );
 
@@ -288,8 +325,12 @@ export default function ProblemPage({ slug }: { slug: string }) {
         h="100%"
         p={{ base: 3, md: 4 }}
         overflow="auto"
+        display="flex"
+        flexDirection="column"
       >
-        <SplitPanel leftContent={leftContent} rightContent={rightContent} />
+        <Box flex="1" overflow="auto" mb={2}>
+          <SplitPanel leftContent={leftContent} rightContent={rightContent} />
+        </Box>
         {mobileWarning}
         <ResetCodeModal
           isOpen={isResetModalOpen}

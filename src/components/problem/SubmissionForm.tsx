@@ -13,7 +13,7 @@ import {
   Tooltip,
   Badge,
 } from "@chakra-ui/react";
-
+import { FiPlay } from "react-icons/fi";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
@@ -36,6 +36,8 @@ interface SubmissionFormProps {
   onResetClick: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  onRun?: () => void;
+  isRunning?: boolean;
 }
 
 const SubmissionForm = ({
@@ -49,6 +51,8 @@ const SubmissionForm = ({
   onResetClick,
   onSubmit,
   isSubmitting,
+  onRun,
+  isRunning,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
@@ -338,6 +342,32 @@ const SubmissionForm = ({
             </Button>
           </>
         )}
+        <Button
+          bg="rgba(59, 130, 246, 0.1)"
+          color="rgb(59, 130, 246)"
+          size="md"
+          onClick={onRun}
+          isLoading={isRunning}
+          loadingText="Run"
+          spinner={<></>}
+          disabled={isRunning}
+          borderRadius="lg"
+          height="40px"
+          fontSize="sm"
+          fontWeight="semibold"
+          px={{ base: 2, md: 6 }}
+          minW="70px"
+          _hover={{
+            bg: "rgba(59, 130, 246, 0.2)",
+            transform: "translateY(-1px)",
+          }}
+          _active={{
+            bg: "rgba(59, 130, 246, 0.25)",
+          }}
+          transition="all 0.2s"
+        >
+          Run
+        </Button>
         <Button
           bg="rgba(34, 197, 94, 0.1)"
           color="rgb(34, 197, 94)"
