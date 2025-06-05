@@ -20,7 +20,7 @@ model User {
   lastLogin                 DateTime?
   lastLimitReset            DateTime?
   currentLimit              Int?
-  sampleSubmissionCount     Int       @default(0)
+  sampleSubmissionCount     Int       @default(200)
   lastSampleSubmissionReset DateTime  @default(now())
   rating                    Int?
   rank                      Int?

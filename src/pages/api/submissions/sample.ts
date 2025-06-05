@@ -39,7 +39,7 @@ export default async function handler(
 
   const today = DateTime.now().startOf("day");
   let currentSampleLimit = user.currentLimit;
-  let lastSampleLimitReset = DateTime.fromJSDate(
+  const lastSampleLimitReset = DateTime.fromJSDate(
     user.lastSampleSubmissionReset
   ).startOf("day");
 
