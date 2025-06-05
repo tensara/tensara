@@ -114,6 +114,18 @@ export default function ProblemsPage() {
     }
   };
 
+  const handleProblemClick = (e: React.MouseEvent, problemSlug: string) => {
+    const url = `/problems/${problemSlug}`;
+    // Check for modifier keys (Cmd on Mac, Ctrl on Windows/Linux)
+    if (e.metaKey || e.ctrlKey) {
+      // Open in new tab
+      window.open(url, "_blank");
+    } else {
+      // Navigate in same tab
+      window.location.href = url;
+    }
+  };
+
   const filteredAndSortedProblems = problems
     ?.filter((problem) => {
       const matchesSearch = problem.title
@@ -390,9 +402,7 @@ export default function ProblemsPage() {
                     _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
                     transition="all 0.2s"
                     cursor="pointer"
-                    onClick={() =>
-                      (window.location.href = `/problems/${problem.slug}`)
-                    }
+                    onClick={(e) => handleProblemClick(e, problem.slug)}
                     borderBottom="1px solid"
                     borderColor="gray.800"
                   >
