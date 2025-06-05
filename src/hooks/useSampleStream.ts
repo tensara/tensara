@@ -10,15 +10,22 @@ import {
 const formatVector = (data: unknown): string => {
   if (Array.isArray(data)) {
     if (Array.isArray(data[0])) {
-      return data.map((row) => formatVector(row)).join("\n");
+      return "[" + data.map((row) => formatVector(row)).join("\n") + "]";
     }
     return "[" + data.map((x: number) => {
       const str = x.toString();
       const formatted = str.includes('.') ? str.replace(/\.?0+$/, '') : str;
-      return formatted.padStart(10);
+      return formatted;
     }).join(" ") + "]";
   }
   return String(data);
+};
+
+const formatParameters = (data: unknown): string => {
+  if (Array.isArray(data)) {
+    return data.map((x) => formatVector(x)).join("\n\n");
+  }
+  return formatVector(data);
 };
 
 export function useSampleStream() {
@@ -84,7 +91,7 @@ export function useSampleStream() {
                 setStatus(data.status);
                 setOutput({
                   status: data.status,
-                  input: data.input ? formatVector(data.input) : undefined,
+                  input: data.input ? formatParameters(data.input) : undefined,
                   output: data.output ? formatVector(data.output) : undefined,
                   stdout: data.stdout,
                   stderr: data.stderr,
