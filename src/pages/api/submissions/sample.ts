@@ -29,7 +29,7 @@ export default async function handler(
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { currentLimit: true, lastSampleSubmissionReset: true },
+    select: { sampleSubmissionCount: true, lastSampleSubmissionReset: true },
   });
 
   if (!user) {
@@ -38,24 +38,24 @@ export default async function handler(
   }
 
   const today = DateTime.now().startOf("day");
-  let currentSampleLimit = user.currentLimit;
-  let lastSampleLimitReset = DateTime.fromJSDate(
+  let sampleSubmissionCount = user.sampleSubmissionCount;
+  let lastSampleSubmissionReset = DateTime.fromJSDate(
     user.lastSampleSubmissionReset
   ).startOf("day");
 
-  if (lastSampleLimitReset < today) {
+  if (lastSampleSubmissionReset < today) {
     // It's a new day, reset the limit
     await db.user.update({
       where: { id: session.user.id },
       data: {
-        currentLimit: 200,
+        sampleSubmissionCount: 4,
         lastSampleSubmissionReset: today.toJSDate(),
       },
     });
-    currentSampleLimit = 200;
+    sampleSubmissionCount = 4;
   }
 
-  if (currentSampleLimit && currentSampleLimit <= 0) {
+  if (sampleSubmissionCount <= 0) {
     res.status(429).json({ error: "Too Many Requests: Sample limit exceeded" });
     return;
   }

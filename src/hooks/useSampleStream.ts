@@ -60,6 +60,20 @@ export function useSampleStream() {
           body: JSON.stringify(submissionData),
         });
 
+        if (response.status === 429) {
+          setStatus(SampleStatus.TOO_MANY_REQUESTS);
+          setIsRunning(false);
+          toast({
+            title: "Too Many Requests",
+            description:
+              "You are sending too many requests. Please try again later.",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return;
+        }
+
         const reader = response.body?.getReader();
         if (!reader) throw new Error("No response body");
 

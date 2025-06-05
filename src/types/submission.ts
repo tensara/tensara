@@ -131,6 +131,7 @@ export const SampleStatus = {
   ERROR: "ERROR",
   COMPILE_ERROR: "COMPILE_ERROR",
   RUNTIME_ERROR: "RUNTIME_ERROR",
+  TOO_MANY_REQUESTS: "TOO_MANY_REQUESTS",
 } as const;
 
 export type SampleStatusType = (typeof SampleStatus)[keyof typeof SampleStatus];
@@ -152,6 +153,7 @@ export const SampleError = {
   COMPILE_ERROR: "COMPILE_ERROR",
   RUNTIME_ERROR: "RUNTIME_ERROR",
   ERROR: "ERROR",
+  TOO_MANY_REQUESTS: "TOO_MANY_REQUESTS",
 } as const;
 
 export type SampleResult = {
