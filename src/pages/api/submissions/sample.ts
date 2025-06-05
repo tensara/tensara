@@ -1,5 +1,6 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { env } from "~/env";
+import { DateTime } from "luxon";
 import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
 
@@ -23,6 +24,39 @@ export default async function handler(
   const session = await combinedAuth(req, res);
   if (!session || "error" in session) {
     res.status(401).json({ error: session?.error ?? "Not authenticated" });
+    return;
+  }
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { currentLimit: true, lastSampleSubmissionReset: true },
+  });
+
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const today = DateTime.now().startOf("day");
+  let currentSampleLimit = user.currentLimit;
+  let lastSampleLimitReset = DateTime.fromJSDate(
+    user.lastSampleSubmissionReset
+  ).startOf("day");
+
+  if (lastSampleLimitReset < today) {
+    // It's a new day, reset the limit
+    await db.user.update({
+      where: { id: session.user.id },
+      data: {
+        currentLimit: 200,
+        lastSampleSubmissionReset: today.toJSDate(),
+      },
+    });
+    currentSampleLimit = 200;
+  }
+
+  if (currentSampleLimit && currentSampleLimit <= 0) {
+    res.status(429).json({ error: "Too Many Requests: Sample limit exceeded" });
     return;
   }
 
@@ -164,6 +198,15 @@ export default async function handler(
               data.status === SampleStatus.PASSED ||
               data.status === SampleStatus.FAILED
             ) {
+              // Increment sampleSubmissionCount
+              await db.user.update({
+                where: { id: session.user.id },
+                data: {
+                  sampleSubmissionCount: {
+                    decrement: 1,
+                  },
+                },
+              });
               const result = {
                 status: data.status,
                 input: data.input,
