@@ -78,7 +78,7 @@ const ViewContributionsPage: NextPage = () => {
           {contributions.length === 0 ? (
             <Box textAlign="center" py={10}>
               <Text fontSize="xl" mb={4}>
-                You haven't submitted any problems yet
+                You haven&apos;t submitted any problems yet
               </Text>
               <Button colorScheme="blue">Submit Your First Problem</Button>
             </Box>

@@ -107,8 +107,8 @@ const ContributeHomePage: NextPage = () => {
               <ListItem display="flex" alignItems="flex-start">
                 <ListIcon as={FaCheck} color="green.500" mt={1} />
                 <Box>
-                  Once approved, your problem will be added to Tensara's problem
-                  library
+                  Once approved, your problem will be added to Tensara&apos;s
+                  problem library
                 </Box>
               </ListItem>
               <ListItem display="flex" alignItems="flex-start">

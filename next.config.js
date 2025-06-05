@@ -18,7 +18,7 @@ const config = {
     locales: ["en"],
     defaultLocale: "en",
   },
-  transpilePackages: ["geist"],
+  transpilePackages: ["geist", "@octokit/app", "@octokit/core"],
   distDir: process.env.BUILD_DIR || ".next", // Set custom build directory
   
   // Explicitly configure webpack to handle path aliases

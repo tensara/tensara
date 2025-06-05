@@ -21,14 +21,17 @@ import {
 } from "@chakra-ui/react";
 import PageHeader from "~/components/contribute/PageHeader";
 import CodeEditor from "~/components/problem/CodeEditor";
-import { Difficulty } from "~/constants/problem";
+import type { Difficulty } from "~/constants/problem";
 
 const ModifyContributionPage: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
   const { data: session } = useSession();
-  const getContribution = api.contributions.get.useQuery({ id: id as string });
-  const updateContribution = api.contributions.update.useMutation();
+  const getContribution = api.contributions.getProblemDetails.useQuery(
+    { prUrl: id as string },
+    { enabled: !!id } // Only enable query if id (prUrl) is available
+  );
+  const updateContribution = api.contributions.updateProblemPR.useMutation();
   const toast = useToast();
 
   const [title, setTitle] = useState("");
@@ -44,12 +47,14 @@ const ModifyContributionPage: NextPage = () => {
   // Load contribution data when component mounts
   useEffect(() => {
     if (getContribution.data) {
-      const contribution = getContribution.data;
-      setTitle(contribution.title);
-      setDescription(contribution.description);
-      setDifficulty(contribution.difficulty as Difficulty);
-      setReferenceCode(contribution.referenceCode);
-      setTestCases(contribution.testCases);
+      const problemDetails = getContribution.data;
+      if (problemDetails) {
+        setTitle(problemDetails.title);
+        setDescription(problemDetails.description);
+        setDifficulty(problemDetails.difficulty.toLowerCase() as Difficulty); // Convert to lowercase for local state
+        setReferenceCode(problemDetails.referenceCode ?? ""); // Handle null
+        setTestCases(problemDetails.testCases ?? ""); // Handle null
+      }
     }
   }, [getContribution.data]);
 
@@ -69,14 +74,37 @@ const ModifyContributionPage: NextPage = () => {
       return;
     }
 
+    const currentProblemDetails = getContribution.data; // Make it accessible here
+    if (!currentProblemDetails) {
+      // Handle case where data is not loaded yet
+      toast({
+        title: "Error",
+        description: "Problem details not loaded yet. Please try again.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       await updateContribution.mutateAsync({
-        id: id as string,
-        title,
-        description,
-        difficulty,
-        referenceCode,
-        testCases,
+        prUrl: id as string,
+        problemDetails: {
+          title,
+          slug: currentProblemDetails?.slug ?? "", // Use existing slug or generate a placeholder
+          description,
+          difficulty: difficulty.toUpperCase() as
+            | "EASY"
+            | "MEDIUM"
+            | "HARD"
+            | "EXPERT", // Convert to uppercase for backend
+          tags: currentProblemDetails?.tags ?? [], // Added this line
+          referenceCode,
+          testCases,
+          parameters: currentProblemDetails?.parameters ?? [], // Preserve existing parameters
+        },
       });
 
       toast({
@@ -87,7 +115,7 @@ const ModifyContributionPage: NextPage = () => {
         isClosable: true,
       });
 
-      router.push("/contributions/view");
+      void router.push("/contributions/view");
     } catch (err) {
       toast({
         title: "Error",

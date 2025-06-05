@@ -22,12 +22,12 @@ import {
 import PageHeader from "~/components/contribute/PageHeader";
 import CodeEditor from "~/components/problem/CodeEditor";
 import MarkdownEditor from "~/components/contribute/MarkdownEditor";
-import { Difficulty } from "~/constants/problem";
+import type { Difficulty } from "~/constants/problem";
 
 const AddContributionPage: NextPage = () => {
   const { data: session } = useSession();
   const router = useRouter();
-  const createContribution = api.contributions.create.useMutation();
+  const createContribution = api.contributions.submitNewProblem.useMutation();
   const toast = useToast();
 
   const [title, setTitle] = useState("");
@@ -39,6 +39,11 @@ const AddContributionPage: NextPage = () => {
 
   const cardBg = useColorModeValue("white", "gray.800");
   const cardBorder = useColorModeValue("gray.200", "gray.700");
+
+  const borderColorDefault = useColorModeValue("gray.300", "gray.600");
+  const bgColorDefault = useColorModeValue("gray.100", "gray.700");
+  const textColorDefault = useColorModeValue("gray.800", "gray.200");
+  const hoverBorderColorDefault = useColorModeValue("gray.400", "gray.500");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,11 +63,25 @@ const AddContributionPage: NextPage = () => {
 
     try {
       const contribution = await createContribution.mutateAsync({
-        title,
-        description,
-        difficulty,
-        referenceCode,
-        testCases,
+        contributorGithubUsername: session.user.name ?? "unknown", // Assuming session.user.name is GitHub username
+        tensaraAppUserId: session.user.id,
+        problemDetails: {
+          title,
+          slug: title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-*|-*$/g, ""), // Simple slug generation
+          description,
+          difficulty: difficulty.toUpperCase() as
+            | "EASY"
+            | "MEDIUM"
+            | "HARD"
+            | "EXPERT",
+          tags: [], // Added this line
+          referenceCode,
+          testCases,
+          parameters: [], // Assuming no parameters for now, or add a form for them
+        },
       });
 
       toast({
@@ -74,9 +93,9 @@ const AddContributionPage: NextPage = () => {
       });
 
       if (contribution.prUrl) {
-        router.push(`/contributions/view?pr=${contribution.prUrl}`);
+        void router.push(`/contributions/view?pr=${contribution.prUrl}`);
       } else {
-        router.push("/contributions/view");
+        void router.push("/contributions/view");
       }
     } catch (err) {
       toast({
@@ -140,26 +159,16 @@ const AddContributionPage: NextPage = () => {
                         borderWidth="2px"
                         borderRadius="lg"
                         borderColor={
-                          isSelected
-                            ? `${level}.500`
-                            : useColorModeValue("gray.300", "gray.600")
+                          isSelected ? `${level}.500` : borderColorDefault
                         }
-                        bg={
-                          isSelected
-                            ? `${level}.500`
-                            : useColorModeValue("gray.100", "gray.700")
-                        }
-                        color={
-                          isSelected
-                            ? "white"
-                            : useColorModeValue("gray.800", "gray.200")
-                        }
+                        bg={isSelected ? `${level}.500` : bgColorDefault}
+                        color={isSelected ? "white" : textColorDefault}
                         cursor="pointer"
                         transition="all 0.2s"
                         _hover={{
                           borderColor: isSelected
                             ? `${level}.600`
-                            : useColorModeValue("gray.400", "gray.500"),
+                            : hoverBorderColorDefault,
                           transform: "translateY(-2px)",
                           boxShadow: "md",
                         }}
