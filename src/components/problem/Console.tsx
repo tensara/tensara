@@ -197,13 +197,7 @@ type ConsoleProps = {
 
 const ResizableConsole = ({ output, status, isRunning }: ConsoleProps) => {
   return (
-    <Box
-      w="100%"
-      h="100%"
-      bg="#111111"
-      borderRadius="xl"
-      overflow="hidden"
-    >
+    <Box w="100%" h="100%" bg="#111111" borderRadius="xl" overflow="hidden">
       <Box
         px={4}
         py={3}

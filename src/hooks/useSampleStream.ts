@@ -12,11 +12,17 @@ const formatVector = (data: unknown): string => {
     if (Array.isArray(data[0])) {
       return "[" + data.map((row) => formatVector(row)).join("\n") + "]";
     }
-    return "[" + data.map((x: number) => {
-      const str = x.toString();
-      const formatted = str.includes('.') ? str.replace(/\.?0+$/, '') : str;
-      return formatted;
-    }).join(" ") + "]";
+    return (
+      "[" +
+      data
+        .map((x: number) => {
+          const str = x.toString();
+          const formatted = str.includes(".") ? str.replace(/\.?0+$/, "") : str;
+          return formatted;
+        })
+        .join(" ") +
+      "]"
+    );
   }
   return String(data);
 };
