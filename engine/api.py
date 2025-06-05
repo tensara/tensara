@@ -69,7 +69,9 @@ def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_na
             }
             return
     
-    if type == "checker":
+    if type == "sample":
+        gen = runner.run_sample_case(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
+    elif type == "checker":
         gen = runner.run_checker(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
     elif type == "benchmark":
         gen = runner.run_benchmark(problem_name, problem_def, compiled_lib, solution_code, dtype, language)
@@ -184,6 +186,42 @@ async def benchmark(gpu: str, request: Request):
     
     stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
+
+@web_app.post("/sample-{gpu}")
+async def sample_runner(gpu: str, request: Request):
+    req = await request.json()
+    if gpu not in gpu_runners:
+        return 404
+
+    solution_code = req["solution_code"]
+    problem_def = req["problem_def"]
+    dtype = req["dtype"]
+    language = req["language"]
+    problem_name = utils.convert_slug_to_module_name(req["problem"])
+
+    def create_stream():
+        yield {"status": "COMPILING"}
+
+        if language == "cuda":
+            try:
+                sample_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "sample")
+            except utils.NVCCError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": e.args[0],
+                }
+                return
+        else:
+            sample_compiled = None
+
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("sample", sample_compiled, solution_code, problem_name, problem_def, dtype, language)
+        for event in stream:
+          yield event
+
+    return StreamingResponse(gen_wrapper(create_stream()), media_type="text/event-stream")
+
 
 @web_app.post("/benchmark_cli-{gpu}")
 async def benchmark_cli(gpu: str, request: Request):

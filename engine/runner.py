@@ -203,6 +203,94 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             "details": traceback.format_exc(),
         }
 
+
+@utils.subproc_generator(timeout=60)
+def run_sample_case(problem_name, problem_def, compiled, solution, dtype, language):
+    """
+    Run the sample test case of a problem and return result + output.
+    """
+    try:
+        import io
+        import contextlib
+        dtype = utils.DTYPE_MAP[dtype]
+        problem = utils.load_problem_module(problem_name, problem_def)
+        sample = problem.generate_sample(dtype)
+        input_tensors = sample["create_inputs"]()
+        expected_output = problem.reference_solution(*input_tensors).cpu()
+        actual_output = torch.zeros_like(expected_output, device="cuda")
+        
+        # For CUDA, use system-level capture
+        if language in ("cuda", "mojo"):
+            with utils.SystemOutputCapture() as capture:
+                lib = utils.read_bytes_as_lib(compiled)
+                sig = problem.get_function_signature()
+                lib.solution.argtypes = sig["argtypes"]
+                lib.solution.restype = sig["restype"]
+                # input_ptrs = [ctypes.cast(t.data_ptr(), typ) for t, typ in zip(input_tensors, sig["argtypes"][:len(input_tensors)])]
+                input_ptrs = []
+                for t, typ in zip(input_tensors, sig["argtypes"][:len(input_tensors)]):
+                    if isinstance(t, torch.Tensor):
+                        input_ptrs.append(ctypes.cast(t.data_ptr(), typ))
+                    elif isinstance(t, (int, float)):
+                        input_ptrs.append(typ(t))  # pass by value
+                    else:
+                        raise TypeError(f"Unsupported input type: {type(t)}")
+
+                output_ptr = ctypes.cast(actual_output.data_ptr(), sig["argtypes"][len(input_ptrs)])
+                extra_params = problem.get_extra_params(sample)
+                extra_params_casted = utils.cast_to_ctype(extra_params, sig["argtypes"][-len(extra_params):], language)
+                lib.solution(*(input_ptrs + [output_ptr] + extra_params_casted))
+            
+            captured_stdout = capture.stdout_content
+            captured_stderr = capture.stderr_content
+        else:
+            # Triton case - original approach
+            stdout_buf = io.StringIO()
+            stderr_buf = io.StringIO()
+            with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+                if not solution:
+                    raise ValueError("Source code required for Triton submissions")
+            
+                temp_dir = tempfile.mkdtemp()
+                temp_path = os.path.join(temp_dir, "triton_solution.py")
+                
+                # This is needed because @jit has to read the source code
+                with open(temp_path, 'w') as f:
+                    f.write(solution)
+                    
+                spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                solution_func = module.solution
+                # temp_path = utils.write_temp_triton(solution)
+                # soln_func = utils.import_module_from_path(temp_path)
+                solution_func(*(list(input_tensors) + [actual_output] + problem.get_extra_params(sample)))
+            captured_stdout = stdout_buf.getvalue()
+            captured_stderr = stderr_buf.getvalue()
+            
+        torch.cuda.synchronize()
+        is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
+        yield {
+            "status": "PASSED" if is_correct else "FAILED",
+            "input": [
+                t.cpu().numpy().tolist() if isinstance(t, torch.Tensor) else t
+                for t in input_tensors
+            ],
+            "output": actual_output.cpu().numpy().tolist(),
+            "expected_output": expected_output.cpu().numpy().tolist(),
+            "debug_info": debug_info,
+            "stdout": captured_stdout,
+            "stderr": captured_stderr,
+        }
+
+    except Exception as e:
+        yield {
+            "status": "ERROR",
+            "message": str(e),
+            "details": traceback.format_exc()
+        }
+
+
 def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
     """
     Run sanity check on compiled CUDA solution
