@@ -39,7 +39,7 @@ export default async function handler(
 
   const today = DateTime.now().startOf("day");
   let sampleSubmissionCount = user.sampleSubmissionCount;
-  let lastSampleSubmissionReset = DateTime.fromJSDate(
+  const lastSampleSubmissionReset = DateTime.fromJSDate(
     user.lastSampleSubmissionReset
   ).startOf("day");
 
