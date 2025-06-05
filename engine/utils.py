@@ -15,6 +15,7 @@ from types import ModuleType
 import multiprocessing as mp
 import queue
 import math
+import contextlib
 
 
 DTYPE_MAP = {
@@ -431,3 +432,62 @@ def subproc_generator(timeout=None):
 
         return wrapper
     return _subproc_generator
+
+
+class SystemOutputCapture:
+    """Class to capture system-level stdout/stderr including CUDA printf"""
+    def __init__(self):
+        self.stdout_content = ""
+        self.stderr_content = ""
+        
+    def __enter__(self):
+        # Create temp files
+        self.tmp_out = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        self.tmp_err = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        self.tmp_out_path = self.tmp_out.name
+        self.tmp_err_path = self.tmp_err.name
+        
+        # Backup original stdout/stderr
+        self.old_stdout = os.dup(1)
+        self.old_stderr = os.dup(2)
+        
+        # Redirect to temp files
+        os.dup2(self.tmp_out.fileno(), 1)
+        os.dup2(self.tmp_err.fileno(), 2)
+        
+        # Close the temp file handles since we've redirected
+        self.tmp_out.close()
+        self.tmp_err.close()
+        
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Force CUDA to flush
+        try:
+            import torch
+            torch.cuda.synchronize()
+        except:
+            pass
+        
+        # Restore stdout/stderr
+        os.dup2(self.old_stdout, 1)
+        os.dup2(self.old_stderr, 2)
+        os.close(self.old_stdout)
+        os.close(self.old_stderr)
+        
+        # Read captured output
+        try:
+            with open(self.tmp_out_path, 'r') as f:
+                self.stdout_content = f.read()
+            with open(self.tmp_err_path, 'r') as f:
+                self.stderr_content = f.read()
+        except:
+            self.stdout_content = ""
+            self.stderr_content = ""
+        
+        # Clean up
+        try:
+            os.unlink(self.tmp_out_path)
+            os.unlink(self.tmp_err_path)
+        except:
+            pass
