@@ -87,7 +87,7 @@ export default function ProblemsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
-  const [sortField, setSortField] = useState<SortField>("title");
+  const [sortField, setSortField] = useState<SortField>("difficulty");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const difficultyOptions = [
@@ -144,12 +144,16 @@ export default function ProblemsPage() {
       switch (sortField) {
         case "title":
           return multiplier * a.title.localeCompare(b.title);
-        case "difficulty":
-          return (
+        case "difficulty": {
+          const diffComparison =
             multiplier *
             (getDifficultyValue(a.difficulty) -
-              getDifficultyValue(b.difficulty))
-          );
+              getDifficultyValue(b.difficulty));
+          if (diffComparison === 0) {
+            return b.submissionCount - a.submissionCount;
+          }
+          return diffComparison;
+        }
         case "submissionCount":
           return multiplier * (a.submissionCount - b.submissionCount);
         default:
