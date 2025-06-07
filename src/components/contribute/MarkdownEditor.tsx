@@ -60,10 +60,14 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange }) => {
         isClient ? (
           <Box
             bg={bgColor}
-            borderRadius="0.375rem"
+            borderRadius="lg"
             borderWidth="1px"
             borderColor={borderColor}
             color={textColor}
+            boxShadow="sm"
+            p={1} // Add some padding around the editor
+            _hover={{ borderColor: "blue.400" }} // Add hover effect
+            transition="all 0.2s"
           >
             <ReactQuill
               value={value}
@@ -78,6 +82,9 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange }) => {
                   ["clean"],
                 ],
               }}
+              // Custom styling for the toolbar to match the theme
+              // This targets the .ql-toolbar class
+              className="ql-toolbar-custom"
             />
           </Box>
         ) : (

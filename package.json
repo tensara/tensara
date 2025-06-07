@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",
+    "@chakra-ui/icons": "^2.2.4",
     "@chakra-ui/react": "^2.10.1",
     "@emotion/react": "^11.14.0",
     "@monaco-editor/react": "^4.7.0",
@@ -60,6 +61,7 @@
     "react-icons": "^5.4.0",
     "react-markdown": "^9.0.3",
     "react-quill": "^2.0.0",
+    "react-select": "^5.10.1",
     "react-split": "^2.0.14",
     "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",

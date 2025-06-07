@@ -2,19 +2,15 @@ import { App } from "@octokit/app";
 import type { Octokit } from "@octokit/rest"; // Use import type
 import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods"; // Add this import
 
-const GITHUB_APP_ID = process.env.GITHUB_APP_ID;
-const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY;
-const GITHUB_INSTALLATION_ID = process.env.GITHUB_INSTALLATION_ID;
+import { env } from "~/env";
 
-if (!GITHUB_APP_ID || !GITHUB_PRIVATE_KEY || !GITHUB_INSTALLATION_ID) {
-  throw new Error(
-    "GitHub App credentials are not set in environment variables."
-  );
-}
+const GITHUB_APP_ID = env.GITHUB_APP_ID;
+const GITHUB_APP_PRIVATE_KEY = env.GITHUB_APP_PRIVATE_KEY;
+const GITHUB_APP_INSTALLATION_ID = env.GITHUB_APP_INSTALLATION_ID;
 
 const app = new App({
   appId: GITHUB_APP_ID,
-  privateKey: GITHUB_PRIVATE_KEY,
+  privateKey: GITHUB_APP_PRIVATE_KEY,
 });
 
 let octokitInstance: Octokit | null = null;
@@ -24,7 +20,7 @@ export async function getOctokitInstance(): Promise<Octokit> {
     return octokitInstance;
   }
 
-  const installationId = parseInt(GITHUB_INSTALLATION_ID!);
+  const installationId = parseInt(GITHUB_APP_INSTALLATION_ID!);
   octokitInstance = (await app.getInstallationOctokit(
     installationId
   )) as Octokit; // Explicit cast
