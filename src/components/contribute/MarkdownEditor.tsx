@@ -20,10 +20,16 @@ import "react-quill/dist/quill.snow.css";
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
+  mode: "wysiwyg" | "markdown";
+  onModeChange: (mode: "wysiwyg" | "markdown") => void;
 }
 
-const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange }) => {
-  const [mode, setMode] = useState<"wysiwyg" | "markdown">("wysiwyg");
+const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
+  value,
+  onChange,
+  mode,
+  onModeChange,
+}) => {
   const [isClient, setIsClient] = useState(false);
 
   const bgColor = useColorModeValue("white", "gray.800");
@@ -36,26 +42,6 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange }) => {
 
   return (
     <Box>
-      <Flex mb={2}>
-        <Button
-          size="sm"
-          onClick={() => setMode("wysiwyg")}
-          variant={mode === "wysiwyg" ? "solid" : "outline"}
-          colorScheme="blue"
-        >
-          Visual Editor
-        </Button>
-        <Button
-          size="sm"
-          ml={2}
-          onClick={() => setMode("markdown")}
-          variant={mode === "markdown" ? "solid" : "outline"}
-          colorScheme="blue"
-        >
-          Markdown Mode
-        </Button>
-      </Flex>
-
       {mode === "wysiwyg" ? (
         isClient ? (
           <Box
@@ -65,8 +51,10 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange }) => {
             borderColor={borderColor}
             color={textColor}
             boxShadow="sm"
-            p={1} // Add some padding around the editor
-            _hover={{ borderColor: "blue.400" }} // Add hover effect
+            p={
+              0
+            } /* Remove padding here as it's handled by Quill's internal padding */
+            _hover={{ borderColor: "blue.400" }} /* Add hover effect */
             transition="all 0.2s"
           >
             <ReactQuill
@@ -82,8 +70,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange }) => {
                   ["clean"],
                 ],
               }}
-              // Custom styling for the toolbar to match the theme
-              // This targets the .ql-toolbar class
+              /* Custom styling for the toolbar to match the theme */
+              /* This targets the .ql-toolbar class */
               className="ql-toolbar-custom"
             />
           </Box>
@@ -100,6 +88,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange }) => {
           bg={bgColor}
           borderColor={borderColor}
           color={textColor}
+          p={4} /* Add padding to markdown view for consistency */
+          borderRadius="lg" /* Match border radius of WYSIWYG */
+          boxShadow="sm" /* Match shadow of WYSIWYG */
+          _hover={{ borderColor: "blue.400" }} /* Add hover effect */
+          transition="all 0.2s" /* Add transition for hover effect */
         />
       )}
     </Box>

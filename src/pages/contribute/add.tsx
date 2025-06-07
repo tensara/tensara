@@ -25,6 +25,12 @@ import {
   Th,
   Td,
   IconButton,
+  TabList,
+  Tab,
+  Tabs,
+  TabPanels,
+  TabPanel,
+  HStack,
 } from "@chakra-ui/react";
 import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
 import PageHeader from "~/components/contribute/PageHeader";
@@ -50,6 +56,9 @@ const AddContributionPage: NextPage = () => {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [editorMode, setEditorMode] = useState<"wysiwyg" | "markdown">(
+    "wysiwyg"
+  );
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [tags, setTags] = useState<string[]>([]);
   const [referenceSolutionCode, setReferenceSolutionCode] = useState("");
@@ -198,7 +207,7 @@ const AddContributionPage: NextPage = () => {
             <GridItem>
               <FormControl id="title" isRequired mb={8}>
                 <FormLabel fontWeight="semibold" fontSize="lg">
-                  Problem Title
+                  Title
                 </FormLabel>
                 <Input
                   type="text"
@@ -357,10 +366,83 @@ const AddContributionPage: NextPage = () => {
               </FormControl>
 
               <FormControl id="description" isRequired mb={8}>
-                <FormLabel fontWeight="semibold" fontSize="lg">
-                  Problem Description
-                </FormLabel>
-                <MarkdownEditor value={description} onChange={setDescription} />
+                {/* <Flex
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={4}
+                  direction={{ base: "column", sm: "row" }}
+                  gap={{ base: 4, sm: 0 }}
+                > */}
+                <Tabs
+                  index={editorMode === "wysiwyg" ? 0 : 1}
+                  onChange={(index) =>
+                    setEditorMode(index === 0 ? "wysiwyg" : "markdown")
+                  }
+                  variant="soft-rounded"
+                  colorScheme="blue"
+                >
+                  <Flex alignItems="center" justifyContent="space-between">
+                    <FormLabel fontWeight="semibold" fontSize="lg">
+                      Description
+                    </FormLabel>
+
+                    <TabList
+                      bg="whiteAlpha.50"
+                      p={1}
+                      borderRadius="lg"
+                      h="40px"
+                      gap={1}
+                    >
+                      <Tab
+                        _selected={{ color: "white", bg: "whiteAlpha.100" }}
+                        _hover={{
+                          bg: "whiteAlpha.100",
+                          transition: "all 0.3s ease-in-out",
+                        }}
+                        color="white"
+                        borderRadius="lg"
+                        px={4}
+                        h="32px"
+                        onClick={() => setEditorMode("wysiwyg")}
+                      >
+                        Visual
+                      </Tab>
+                      <Tab
+                        _selected={{ color: "white", bg: "whiteAlpha.100" }}
+                        _hover={{
+                          bg: "whiteAlpha.100",
+                          transition: "all 0.3s ease-in-out",
+                        }}
+                        color="white"
+                        borderRadius="lg"
+                        px={4}
+                        h="32px"
+                        onClick={() => setEditorMode("markdown")}
+                      >
+                        Markdown
+                      </Tab>
+                    </TabList>
+                  </Flex>
+                  <TabPanels mt={4}>
+                    <TabPanel p={0}>
+                      <MarkdownEditor
+                        value={description}
+                        onChange={setDescription}
+                        mode={editorMode}
+                        onModeChange={setEditorMode}
+                      />
+                    </TabPanel>
+                    <TabPanel p={0}>
+                      <MarkdownEditor
+                        value={description}
+                        onChange={setDescription}
+                        mode={editorMode}
+                        onModeChange={setEditorMode}
+                      />
+                    </TabPanel>
+                  </TabPanels>
+                </Tabs>
+                {/* </Flex> */}
               </FormControl>
             </GridItem>
 
