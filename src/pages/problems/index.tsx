@@ -87,7 +87,7 @@ export default function ProblemsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
-  const [sortField, setSortField] = useState<SortField>("title");
+  const [sortField, setSortField] = useState<SortField>("difficulty");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const difficultyOptions = [
@@ -114,6 +114,18 @@ export default function ProblemsPage() {
     }
   };
 
+  const handleProblemClick = (e: React.MouseEvent, problemSlug: string) => {
+    const url = `/problems/${problemSlug}`;
+    // Check for modifier keys (Cmd on Mac, Ctrl on Windows/Linux)
+    if (e.metaKey || e.ctrlKey) {
+      // Open in new tab
+      window.open(url, "_blank");
+    } else {
+      // Navigate in same tab
+      window.location.href = url;
+    }
+  };
+
   const filteredAndSortedProblems = problems
     ?.filter((problem) => {
       const matchesSearch = problem.title
@@ -132,12 +144,16 @@ export default function ProblemsPage() {
       switch (sortField) {
         case "title":
           return multiplier * a.title.localeCompare(b.title);
-        case "difficulty":
-          return (
+        case "difficulty": {
+          const diffComparison =
             multiplier *
             (getDifficultyValue(a.difficulty) -
-              getDifficultyValue(b.difficulty))
-          );
+              getDifficultyValue(b.difficulty));
+          if (diffComparison === 0) {
+            return b.submissionCount - a.submissionCount;
+          }
+          return diffComparison;
+        }
         case "submissionCount":
           return multiplier * (a.submissionCount - b.submissionCount);
         default:
@@ -390,9 +406,7 @@ export default function ProblemsPage() {
                     _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
                     transition="all 0.2s"
                     cursor="pointer"
-                    onClick={() =>
-                      (window.location.href = `/problems/${problem.slug}`)
-                    }
+                    onClick={(e) => handleProblemClick(e, problem.slug)}
                     borderBottom="1px solid"
                     borderColor="gray.800"
                   >

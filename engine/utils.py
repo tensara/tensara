@@ -15,6 +15,7 @@ from types import ModuleType
 import multiprocessing as mp
 import queue
 import math
+import contextlib
 
 
 DTYPE_MAP = {
@@ -26,6 +27,8 @@ DTYPE_MAP = {
 GPU_COMPUTE_CAPABILITIES = {
     "T4": "75",
     "H100": "90",
+    "H200": "90",
+    "B200": "100",
     "A100-80GB": "80",
     "A10G": "86",
     "L40S": "89",
@@ -470,3 +473,60 @@ def make_parameters(language: str, solution_func, input_tensors, actual_output, 
     else:
         extra_params = problem.get_extra_params(test_case)
         return list(input_tensors) + [actual_output] + list(extra_params)
+
+class SystemOutputCapture:
+    """Class to capture system-level stdout/stderr including CUDA printf"""
+    def __init__(self):
+        self.stdout_content = ""
+        self.stderr_content = ""
+        
+    def __enter__(self):
+        # Create temp files
+        self.tmp_out = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        self.tmp_err = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        self.tmp_out_path = self.tmp_out.name
+        self.tmp_err_path = self.tmp_err.name
+        
+        # Backup original stdout/stderr
+        self.old_stdout = os.dup(1)
+        self.old_stderr = os.dup(2)
+        
+        # Redirect to temp files
+        os.dup2(self.tmp_out.fileno(), 1)
+        os.dup2(self.tmp_err.fileno(), 2)
+        
+        # Close the temp file handles since we've redirected
+        self.tmp_out.close()
+        self.tmp_err.close()
+        
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Force CUDA to flush
+        try:
+            torch.cuda.synchronize()
+        except:
+            pass
+        
+        # Restore stdout/stderr
+        os.dup2(self.old_stdout, 1)
+        os.dup2(self.old_stderr, 2)
+        os.close(self.old_stdout)
+        os.close(self.old_stderr)
+        
+        # Read captured output
+        try:
+            with open(self.tmp_out_path, 'r') as f:
+                self.stdout_content = f.read()
+            with open(self.tmp_err_path, 'r') as f:
+                self.stderr_content = f.read()
+        except:
+            self.stdout_content = ""
+            self.stderr_content = ""
+        
+        # Clean up
+        try:
+            os.unlink(self.tmp_out_path)
+            os.unlink(self.tmp_err_path)
+        except:
+            pass

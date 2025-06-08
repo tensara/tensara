@@ -11,26 +11,44 @@ DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
-
-PIP_PACKAGES = ["torch", "numpy", "fastapi[standard]", "triton"]
+PIP_PACKAGES = ["torch", "numpy", "fastapi", "triton"]
+UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
-APT_PACKAGES = ["build-essential", "gcc", "g++"]
+APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
     .apt_install(APT_PACKAGES)
     .env({"CC": "gcc"})
-    .pip_install(PIP_PACKAGES)
+    .env({"PATH": "/root/.local/bin:$PATH"})
+    .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
+    .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
     .add_local_python_source(*LOCAL_SOURCE)
 )
 
-runtime_image = (
-    modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
-    .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
-    .env({"CC": "gcc"})
-    .pip_install(PIP_PACKAGES + ["modular"])
-    .add_local_python_source(*LOCAL_SOURCE)
-)
+def build_runtime_image(gpu: str):
+    if gpu == "B200":
+        return (
+            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
+            .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
+            .env({"CC": "gcc"})
+            .env({"PATH": "/root/.local/bin:$PATH"})
+            .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
+            .run_commands(UV_PREFIX + " ".join([p for p in PIP_PACKAGES if p != "torch"]))
+            .run_commands("uv pip install --system --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128")
+            .add_local_python_source(*LOCAL_SOURCE)
+        )
+    else:
+        return (
+            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
+            .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
+            .env({"CC": "gcc"})
+            .env({"PATH": "/root/.local/bin:$PATH"})
+            .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
+            .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
+            .run_commands("uv pip install --system modular --extra-index-url https://dl.modular.com/public/nightly/python/simple/ --index-strategy unsafe-best-match")
+            .add_local_python_source(*LOCAL_SOURCE)
+        )
 
 app = modal.App("tensara", image=devel_image)
 web_app = FastAPI()
@@ -50,10 +68,12 @@ def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_na
                 "details": e.args[0],
             }
             return
-    
     problem = utils.load_problem_module(problem_name, problem_def)
     solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
-    if type == "checker":
+
+    if type == "sample":
+        gen = runner.run_sample_case(problem_name, problem_def, solution_func, dtype, language)
+    elif type == "checker":
         gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
     elif type == "benchmark":
         gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, language)
@@ -68,10 +88,10 @@ def binary_runner(type: str, compiled_lib: bytes, solution_code: str, problem_na
 
 gpu_runners = {
     gpu: app.function(
-        image=runtime_image,
+        image=build_runtime_image(gpu),
         name=f"runner_{gpu}",
         gpu=gpu,
-        enable_memory_snapshot=True,
+        enable_memory_snapshot=False if gpu == "B200" else True,
         serialized=True,
     )(binary_runner)
     for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
@@ -168,6 +188,42 @@ async def benchmark(gpu: str, request: Request):
     
     stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
+
+@web_app.post("/sample-{gpu}")
+async def sample_runner(gpu: str, request: Request):
+    req = await request.json()
+    if gpu not in gpu_runners:
+        return 404
+
+    solution_code = req["solution_code"]
+    problem_def = req["problem_def"]
+    dtype = req["dtype"]
+    language = req["language"]
+    problem_name = utils.convert_slug_to_module_name(req["problem"])
+
+    def create_stream():
+        yield {"status": "COMPILING"}
+
+        if language == "cuda":
+            try:
+                sample_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "sample")
+            except utils.NVCCError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": e.args[0],
+                }
+                return
+        else:
+            sample_compiled = None
+
+        runner = gpu_runners[gpu]
+        stream = runner.remote_gen("sample", sample_compiled, solution_code, problem_name, problem_def, dtype, language)
+        for event in stream:
+          yield event
+
+    return StreamingResponse(gen_wrapper(create_stream()), media_type="text/event-stream")
+
 
 @web_app.post("/benchmark_cli-{gpu}")
 async def benchmark_cli(gpu: str, request: Request):
