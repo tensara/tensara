@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import TurndownService from "turndown";
+import showdown from "showdown";
 import {
   Box,
   Button,
@@ -31,6 +33,10 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onModeChange,
 }) => {
   const [isClient, setIsClient] = useState(false);
+  const [internalValue, setInternalValue] = useState(value);
+
+  const turndownService = new TurndownService();
+  const converter = new showdown.Converter();
 
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.600");
@@ -40,8 +46,34 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     setIsClient(true);
   }, []);
 
+  useEffect(() => {
+    setInternalValue(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (mode === "markdown") {
+      // Switching from Visual (HTML) to Markdown
+      const markdown = turndownService.turndown(internalValue);
+      onChange(markdown);
+    } else if (mode === "wysiwyg") {
+      // Switching from Markdown to Visual (HTML)
+      const html = converter.makeHtml(internalValue);
+      onChange(html);
+    }
+  }, [mode]);
+
+  const handleQuillChange = (content: string) => {
+    setInternalValue(content);
+    onChange(content);
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInternalValue(e.target.value);
+    onChange(e.target.value);
+  };
+
   return (
-    <Box>
+    <Box marginTop={4}>
       {mode === "wysiwyg" ? (
         isClient ? (
           <Box
@@ -58,8 +90,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             transition="all 0.2s"
           >
             <ReactQuill
-              value={value}
-              onChange={onChange}
+              value={internalValue}
+              onChange={handleQuillChange}
               theme="snow"
               modules={{
                 toolbar: [
@@ -80,10 +112,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         )
       ) : (
         <Textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={internalValue}
+          onChange={handleTextareaChange}
           rows={10}
           fontFamily="monospace"
+          fontSize="sm"
           size="lg"
           bg={bgColor}
           borderColor={borderColor}

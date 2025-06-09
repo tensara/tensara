@@ -1,6 +1,6 @@
 import { App } from "@octokit/app";
-import type { Octokit } from "@octokit/rest"; // Use import type
-import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods"; // Add this import
+import { Octokit } from "@octokit/rest";
+import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 
 import { env } from "~/env";
 
@@ -8,22 +8,34 @@ const GITHUB_APP_ID = env.GITHUB_APP_ID;
 const GITHUB_APP_PRIVATE_KEY = env.GITHUB_APP_PRIVATE_KEY;
 const GITHUB_APP_INSTALLATION_ID = env.GITHUB_APP_INSTALLATION_ID;
 
+let octokitInstance: Octokit | null = null;
+
 const app = new App({
   appId: GITHUB_APP_ID,
   privateKey: GITHUB_APP_PRIVATE_KEY,
+  Octokit: Octokit, // Use the Octokit class from "@octokit/rest"
 });
-
-let octokitInstance: Octokit | null = null;
 
 export async function getOctokitInstance(): Promise<Octokit> {
   if (octokitInstance) {
     return octokitInstance;
   }
 
-  const installationId = parseInt(GITHUB_APP_INSTALLATION_ID!);
-  octokitInstance = (await app.getInstallationOctokit(
-    installationId
-  )) as Octokit; // Explicit cast
+  if (!GITHUB_APP_INSTALLATION_ID) {
+    throw new Error(
+      "GITHUB_APP_INSTALLATION_ID is not defined in environment variables."
+    );
+  }
+  const installationIdString = GITHUB_APP_INSTALLATION_ID;
+  const installationId = parseInt(installationIdString);
+  if (isNaN(installationId)) {
+    throw new Error(
+      `Invalid GITHUB_APP_INSTALLATION_ID: "${installationIdString}" is not a valid integer.`
+    );
+  }
+
+  // getInstallationOctokit returns an Octokit instance directly
+  octokitInstance = await app.getInstallationOctokit(installationId);
 
   return octokitInstance;
 }
@@ -72,20 +84,32 @@ export async function createOrUpdateFile(
     }
     sha = file.sha;
   } catch (error: unknown) {
-    // Change to unknown
     if (
       typeof error === "object" &&
       error !== null &&
       "status" in error &&
-      (error as { status: number }).status !== 404
+      typeof (error as { status?: unknown }).status === "number"
     ) {
-      // Type guard for status
-      if (error instanceof Error) {
-        throw error;
+      const statusError = error as { status: number; message?: string };
+      if (statusError.status !== 404) {
+        // Re-throw if it's not a "file not found" error
+        const errorMessage =
+          statusError.message || "Failed to check file existence";
+        throw new Error(
+          `GitHub API error (status ${statusError.status}): ${errorMessage}`
+        );
       }
-      throw new Error("An unknown error occurred during GitHub API call.");
+      // If status is 404, it means the file doesn't exist.
+      // sha remains undefined, which is correct for creating a new file.
+    } else if (error instanceof Error) {
+      // Re-throw other standard errors (e.g., network issues before a status code is assigned)
+      throw error;
+    } else {
+      // For truly unknown errors
+      throw new Error(
+        "An unknown error occurred while checking for file existence."
+      );
     }
-    // File does not exist, so sha remains undefined for creation
   }
 
   await octokit.repos.createOrUpdateFileContents({
@@ -141,17 +165,28 @@ export async function getFileContent(
     }
     return null;
   } catch (error: unknown) {
-    // Change to unknown
     if (
       typeof error === "object" &&
       error !== null &&
       "status" in error &&
-      (error as { status: number }).status === 404
+      typeof (error as { status?: unknown }).status === "number"
     ) {
-      // Type guard for status
-      return null;
+      const statusError = error as { status: number; message?: string };
+      if (statusError.status === 404) {
+        return null; // File not found, return null as per function's contract
+      }
+      // For other HTTP errors, re-throw a more informative error
+      const errorMessage = statusError.message || "Failed to get file content";
+      throw new Error(
+        `GitHub API error (status ${statusError.status}): ${errorMessage}`
+      );
+    } else if (error instanceof Error) {
+      // Re-throw other standard errors
+      throw error;
+    } else {
+      // For truly unknown errors
+      throw new Error("An unknown error occurred while fetching file content.");
     }
-    throw error;
   }
 }
 
@@ -161,21 +196,16 @@ export async function listPullRequests(
   author?: string,
   state?: "open" | "closed" | "all"
 ): Promise<RestEndpointMethodTypes["pulls"]["list"]["response"]["data"]> {
-  // Stronger type
   const octokit = await getOctokitInstance();
-  const params: {
-    owner: string;
-    repo: string;
-    state?: "open" | "closed" | "all";
-    creator?: string;
-  } = {
+  const { data: pullRequests } = await octokit.pulls.list({
     owner,
     repo,
-    state: state ?? "all", // Use nullish coalescing
-  };
+    state: state ?? "all",
+  });
+
   if (author) {
-    params.creator = author;
+    return pullRequests.filter((pr) => pr.user?.login === author);
   }
-  const { data: pullRequests } = await octokit.pulls.list(params);
+
   return pullRequests;
 }

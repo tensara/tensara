@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { type NextPage } from "next";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { api } from "~/utils/api";
+import TurndownService from "turndown";
+import showdown from "showdown";
 import { Layout } from "~/components/layout";
+import { useContributionFormPersistence } from "~/hooks/useContributionFormPersistence";
 import {
   Flex,
   Box,
@@ -18,12 +21,6 @@ import {
   useColorModeValue,
   Grid,
   GridItem,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
   IconButton,
   TabList,
   Tab,
@@ -31,8 +28,22 @@ import {
   TabPanels,
   TabPanel,
   HStack,
+  Textarea,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+  AccordionIcon,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
 } from "@chakra-ui/react";
 import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
+import { MdRestartAlt } from "react-icons/md";
 import PageHeader from "~/components/contribute/PageHeader";
 import CodeEditor from "~/components/problem/CodeEditor";
 import MarkdownEditor from "~/components/contribute/MarkdownEditor";
@@ -40,35 +51,42 @@ import type { Difficulty } from "~/constants/problem";
 import { tags as existingTags } from "~/constants/problem";
 import CreatableSelect from "react-select/creatable";
 
-type FunctionParameter = {
-  name: string;
-  type: string;
-  pointer: boolean;
-  const: boolean;
-};
-
 const AddContributionPage: NextPage = () => {
   const { data: session } = useSession();
   const router = useRouter();
   const createContribution = api.contributions.submitNewProblem.useMutation();
   const toast = useToast();
 
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
+  const {
+    title,
+    setTitle,
+    slug,
+    setSlug,
+    description,
+    setDescription,
+    difficulty,
+    setDifficulty,
+    tags,
+    setTags,
+    referenceSolutionCode,
+    setReferenceSolutionCode,
+    testCases,
+    addTestCase,
+    updateTestCase,
+    removeTestCase,
+    handleReset,
+  } = useContributionFormPersistence();
+
+  const turndownService = new TurndownService();
+  const showdownConverter = new showdown.Converter();
+
   const [editorMode, setEditorMode] = useState<"wysiwyg" | "markdown">(
-    "wysiwyg"
+    "markdown"
   );
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
-  const [tags, setTags] = useState<string[]>([]);
-  const [referenceSolutionCode, setReferenceSolutionCode] = useState("");
-  const [testCases, setTestCases] = useState<
-    { input: string; output: string }[]
-  >([{ input: "", output: "" }]);
-  const [functionParameters, setFunctionParameters] = useState<
-    FunctionParameter[]
-  >([]);
+  const [accordionIndex, setAccordionIndex] = useState<number | number[]>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   const cardBg = useColorModeValue("white", "gray.800");
   const cardBorder = useColorModeValue("gray.200", "gray.700");
@@ -77,6 +95,10 @@ const AddContributionPage: NextPage = () => {
   const bgColorDefault = useColorModeValue("gray.100", "gray.700");
   const textColorDefault = useColorModeValue("gray.800", "gray.200");
   const hoverBorderColorDefault = useColorModeValue("gray.400", "gray.500");
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Generate slug from title
   useEffect(() => {
@@ -88,39 +110,6 @@ const AddContributionPage: NextPage = () => {
       setSlug(generatedSlug);
     }
   }, [title]);
-
-  // Add new parameter row
-  const addParameter = () => {
-    setFunctionParameters([
-      ...functionParameters,
-      { name: "", type: "", pointer: false, const: false },
-    ]);
-  };
-
-  // Update parameter field
-  const updateParameter = (
-    index: number,
-    field: keyof FunctionParameter,
-    value: string | boolean
-  ) => {
-    setFunctionParameters((prevParams) => {
-      const newParams = [...prevParams];
-      newParams[index] = {
-        ...newParams[index],
-        [field]: field === "name" || field === "type" ? String(value) : value,
-      } as FunctionParameter; // Explicitly cast the result
-      return newParams;
-    });
-  };
-
-  // Remove parameter row
-  const removeParameter = (index: number) => {
-    setFunctionParameters((prevParams) => {
-      const newParams = [...prevParams];
-      newParams.splice(index, 1);
-      return newParams;
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,7 +143,6 @@ const AddContributionPage: NextPage = () => {
           tags: tags,
           referenceCode: referenceSolutionCode,
           testCases: JSON.stringify(testCases), // Convert test cases array to JSON string
-          parameters: functionParameters,
         },
       });
 
@@ -188,13 +176,38 @@ const AddContributionPage: NextPage = () => {
   return (
     <Layout>
       <Box maxW="8xl" mx="auto" px={4} py={12}>
-        <PageHeader
-          title="Add New Problem"
-          description="Submit a new problem to Tensara for review"
-        />
+        <Flex justifyContent="space-between" alignItems="center" mb={4}>
+          <PageHeader
+            title="Add New Problem"
+            description="Submit a new problem to Tensara for review"
+          />
+          <Flex justify="flex-end" gap={4}>
+            <Button
+              type="button"
+              colorScheme="gray"
+              variant="ghost"
+              size="lg"
+              onClick={() => setIsResetModalOpen(true)}
+              leftIcon={<MdRestartAlt />}
+            >
+              Reset Form
+            </Button>
+            <Button
+              type="submit"
+              colorScheme="green"
+              size="lg"
+              isLoading={isSubmitting}
+              loadingText="Submitting..."
+              form="contribution-form"
+            >
+              Submit Problem
+            </Button>
+          </Flex>
+        </Flex>
 
         <Box
           as="form"
+          id="contribution-form"
           onSubmit={handleSubmit}
           bg={cardBg}
           borderWidth="1px"
@@ -375,9 +388,9 @@ const AddContributionPage: NextPage = () => {
                 > */}
                 <Tabs
                   index={editorMode === "wysiwyg" ? 0 : 1}
-                  onChange={(index) =>
-                    setEditorMode(index === 0 ? "wysiwyg" : "markdown")
-                  }
+                  onChange={(index) => {
+                    setEditorMode(index === 0 ? "wysiwyg" : "markdown");
+                  }}
                   variant="soft-rounded"
                   colorScheme="blue"
                 >
@@ -403,7 +416,6 @@ const AddContributionPage: NextPage = () => {
                         borderRadius="lg"
                         px={4}
                         h="32px"
-                        onClick={() => setEditorMode("wysiwyg")}
                       >
                         Visual
                       </Tab>
@@ -417,31 +429,18 @@ const AddContributionPage: NextPage = () => {
                         borderRadius="lg"
                         px={4}
                         h="32px"
-                        onClick={() => setEditorMode("markdown")}
                       >
                         Markdown
                       </Tab>
                     </TabList>
                   </Flex>
-                  <TabPanels mt={4}>
-                    <TabPanel p={0}>
-                      <MarkdownEditor
-                        value={description}
-                        onChange={setDescription}
-                        mode={editorMode}
-                        onModeChange={setEditorMode}
-                      />
-                    </TabPanel>
-                    <TabPanel p={0}>
-                      <MarkdownEditor
-                        value={description}
-                        onChange={setDescription}
-                        mode={editorMode}
-                        onModeChange={setEditorMode}
-                      />
-                    </TabPanel>
-                  </TabPanels>
                 </Tabs>
+                <MarkdownEditor
+                  value={description}
+                  onChange={setDescription}
+                  mode={editorMode}
+                  onModeChange={setEditorMode}
+                />
                 {/* </Flex> */}
               </FormControl>
             </GridItem>
@@ -449,19 +448,22 @@ const AddContributionPage: NextPage = () => {
             <GridItem>
               <FormControl id="referenceSolution" isRequired mb={8}>
                 <FormLabel fontWeight="semibold" fontSize="lg">
-                  Reference Solution (Cuda C++, Triton, Mojo)
+                  Reference Solution (PyTorch)
                 </FormLabel>
                 <Box
                   borderWidth="1px"
                   borderRadius="lg"
                   boxShadow="sm"
                   overflow="hidden"
+                  p={4}
+                  bg={cardBg}
+                  borderColor={cardBorder}
                 >
-                  <div style={{ height: "200px" }}>
+                  <div style={{ height: "400px" }}>
                     <CodeEditor
                       code={referenceSolutionCode}
                       setCode={setReferenceSolutionCode}
-                      selectedLanguage="cuda"
+                      selectedLanguage="python"
                     />
                   </div>
                 </Box>
@@ -471,196 +473,144 @@ const AddContributionPage: NextPage = () => {
                 <FormLabel fontWeight="semibold" fontSize="lg">
                   Test Cases
                 </FormLabel>
-                <Flex direction="column" gap={4}>
-                  {testCases.map((testCase, index) => (
-                    <Box
-                      key={index}
-                      p={4}
-                      borderWidth="1px"
-                      borderRadius="lg"
-                      borderColor={cardBorder}
-                      bg={cardBg}
-                      boxShadow="sm"
-                    >
-                      <Flex justify="space-between" align="center" mb={2}>
-                        <Text fontWeight="bold">Test Case {index + 1}</Text>
-                        <IconButton
-                          aria-label="Remove test case"
-                          icon={<DeleteIcon />}
-                          onClick={() =>
-                            setTestCases((prev) =>
-                              prev.filter((_, i) => i !== index)
-                            )
-                          }
-                          size="sm"
-                          variant="ghost"
-                        />
-                      </Flex>
-                      <FormControl mb={2}>
-                        <FormLabel fontSize="sm">Input</FormLabel>
-                        <Input
-                          value={testCase.input}
-                          onChange={(e) =>
-                            setTestCases((prev) =>
-                              prev.map((tc, i) =>
-                                i === index
-                                  ? { ...tc, input: e.target.value }
-                                  : tc
-                              )
-                            )
-                          }
-                          placeholder="Enter input"
-                          size="sm"
-                        />
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel fontSize="sm">Expected Output</FormLabel>
-                        <Input
-                          value={testCase.output}
-                          onChange={(e) =>
-                            setTestCases((prev) =>
-                              prev.map((tc, i) =>
-                                i === index
-                                  ? { ...tc, output: e.target.value }
-                                  : tc
-                              )
-                            )
-                          }
-                          placeholder="Enter expected output"
-                          size="sm"
-                        />
-                      </FormControl>
-                    </Box>
-                  ))}
-                  <Button
-                    leftIcon={<AddIcon />}
-                    onClick={() =>
-                      setTestCases((prev) => [
-                        ...prev,
-                        { input: "", output: "" },
-                      ])
-                    }
-                    mt={2}
+                {isClient && (
+                  <Accordion
+                    allowToggle
+                    index={accordionIndex}
+                    onChange={(newIndex) => setAccordionIndex(newIndex)}
                   >
-                    Add Test Case
-                  </Button>
-                </Flex>
+                    {testCases.map((testCase, index) => (
+                      <AccordionItem
+                        key={index}
+                        mt={index > 0 ? 4 : 0}
+                        borderWidth="1px"
+                        borderRadius="lg"
+                        borderColor={cardBorder}
+                        bg={cardBg}
+                        boxShadow="sm"
+                      >
+                        <h2>
+                          <AccordionButton _expanded={{ bg: cardBg }}>
+                            <Box as="span" flex="1" textAlign="left">
+                              <Text fontWeight="bold">
+                                Test Case {index + 1}
+                              </Text>
+                            </Box>
+                            <IconButton
+                              aria-label="Remove test case"
+                              icon={<DeleteIcon />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeTestCase(index);
+                                setAccordionIndex(
+                                  testCases.length - 1 > 0
+                                    ? testCases.length - 2
+                                    : 0
+                                );
+                              }}
+                              size="sm"
+                              variant="ghost"
+                            />
+                            <AccordionIcon />
+                          </AccordionButton>
+                        </h2>
+                        <AccordionPanel pb={4}>
+                          <Flex direction="row" gap={4}>
+                            <FormControl flex={1}>
+                              <FormLabel fontSize="sm">Input</FormLabel>
+                              <Textarea
+                                value={testCase.input}
+                                onChange={(e) =>
+                                  updateTestCase(index, {
+                                    input: e.target.value,
+                                  })
+                                }
+                                placeholder="Input"
+                                size="sm"
+                                minHeight="120px"
+                                resize="vertical"
+                                borderRadius="lg"
+                                bg={useColorModeValue("gray.100", "gray.700")}
+                                focusBorderColor="blue.400"
+                              />
+                            </FormControl>
+                            <FormControl flex={1}>
+                              <FormLabel fontSize="sm">
+                                Expected Output
+                              </FormLabel>
+                              <Textarea
+                                value={testCase.output}
+                                onChange={(e) =>
+                                  updateTestCase(index, {
+                                    output: e.target.value,
+                                  })
+                                }
+                                placeholder="Expected Output"
+                                size="sm"
+                                minHeight="120px"
+                                resize="vertical"
+                                borderRadius="lg"
+                                bg={useColorModeValue("gray.100", "gray.700")}
+                                focusBorderColor="blue.400"
+                              />
+                            </FormControl>
+                          </Flex>
+                        </AccordionPanel>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                )}
+                <Button
+                  leftIcon={<AddIcon />}
+                  onClick={() => {
+                    addTestCase();
+                    setAccordionIndex(testCases.length);
+                  }}
+                  mt={4}
+                >
+                  Add Test Case
+                </Button>
               </FormControl>
             </GridItem>
           </Grid>
-
-          <Box mt={10}>
-            <Heading size="md" mb={4}>
-              Function Parameters
-            </Heading>
-            <Table variant="simple" mb={4}>
-              <Thead>
-                <Tr>
-                  <Th>Name</Th>
-                  <Th>Type</Th>
-                  <Th>Pointer</Th>
-                  <Th>Const</Th>
-                  <Th>Actions</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {functionParameters.map((param, index) => (
-                  <Tr key={index}>
-                    <Td>
-                      <Input
-                        value={param.name}
-                        onChange={(e) =>
-                          updateParameter(index, "name", e.target.value)
-                        }
-                        placeholder="e.g., input_matrix"
-                      />
-                    </Td>
-                    <Td>
-                      <Input
-                        value={param.type}
-                        onChange={(e) =>
-                          updateParameter(index, "type", e.target.value)
-                        }
-                        placeholder="e.g., float"
-                      />
-                    </Td>
-                    <Td>
-                      <Select
-                        value={param.pointer ? "true" : "false"}
-                        onChange={(e) =>
-                          updateParameter(
-                            index,
-                            "pointer",
-                            e.target.value === "true"
-                          )
-                        }
-                        size="sm"
-                        variant="filled"
-                        focusBorderColor="blue.400"
-                      >
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </Select>
-                    </Td>
-                    <Td>
-                      <Select
-                        value={param.const ? "true" : "false"}
-                        onChange={(e) =>
-                          updateParameter(
-                            index,
-                            "const",
-                            e.target.value === "true"
-                          )
-                        }
-                        size="sm"
-                        variant="filled"
-                        focusBorderColor="blue.400"
-                      >
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </Select>
-                    </Td>
-                    <Td>
-                      <IconButton
-                        aria-label="Delete parameter"
-                        icon={<DeleteIcon />}
-                        onClick={() => removeParameter(index)}
-                        size="sm"
-                        variant="ghost"
-                        colorScheme="red"
-                      />
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-            <Button
-              leftIcon={<AddIcon />}
-              onClick={addParameter}
-              colorScheme="blue"
-              size="md"
-            >
-              Add Parameter
-            </Button>
-          </Box>
-
-          <Flex justify="flex-end" mt={8}>
-            <Button
-              type="submit"
-              colorScheme="blue"
-              size="lg"
-              isLoading={isSubmitting}
-              loadingText="Submitting..."
-              _hover={{
-                transform: "translateY(-2px)",
-                boxShadow: "lg",
-              }}
-            >
-              Submit Problem
-            </Button>
-          </Flex>
         </Box>
       </Box>
+
+      <Modal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent bg={cardBg}>
+          <ModalHeader>Confirm Reset</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text>
+              Are you sure you want to reset the form? All unsaved progress will
+              be lost.
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setIsResetModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={() => {
+                handleReset();
+                setIsResetModalOpen(false);
+              }}
+            >
+              Confirm Reset
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Layout>
   );
 };

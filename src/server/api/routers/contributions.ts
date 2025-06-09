@@ -11,13 +11,6 @@ import {
   getOctokitInstance, // Add this
 } from "../../github";
 
-const ProblemParameterSchema = z.object({
-  name: z.string(),
-  type: z.string(),
-  default: z.unknown().optional(), // Changed from any to unknown
-  enum: z.array(z.string()).optional(),
-});
-
 const ProblemMetadataSchema = z.object({
   title: z.string(),
   difficulty: z.union([
@@ -27,7 +20,6 @@ const ProblemMetadataSchema = z.object({
     z.literal("EXPERT"),
   ]),
   tags: z.array(z.string()),
-  parameters: z.array(ProblemParameterSchema).optional(),
   tensaraAppUserId: z.string().optional(),
 });
 
@@ -49,16 +41,6 @@ export const contributionsRouter = createTRPCRouter({
           tags: z.array(z.string()),
           referenceCode: z.string(),
           testCases: z.string(),
-          parameters: z
-            .array(
-              z.object({
-                name: z.string(),
-                type: z.string(),
-                default: z.any().optional(),
-                enum: z.array(z.string()).optional(),
-              })
-            )
-            .optional(),
         }),
       })
     )
@@ -117,7 +99,6 @@ export const contributionsRouter = createTRPCRouter({
             title: input.problemDetails.title,
             difficulty: input.problemDetails.difficulty,
             tags: input.problemDetails.tags,
-            parameters: input.problemDetails.parameters,
             tensaraAppUserId: input.tensaraAppUserId,
           },
           null,
@@ -168,16 +149,6 @@ export const contributionsRouter = createTRPCRouter({
           tags: z.array(z.string()),
           referenceCode: z.string(),
           testCases: z.string(),
-          parameters: z
-            .array(
-              z.object({
-                name: z.string(),
-                type: z.string(),
-                default: z.any().optional(),
-                enum: z.array(z.string()).optional(),
-              })
-            )
-            .optional(),
         }),
       })
     )
@@ -246,7 +217,6 @@ export const contributionsRouter = createTRPCRouter({
             title: input.problemDetails.title,
             difficulty: input.problemDetails.difficulty,
             tags: input.problemDetails.tags,
-            parameters: input.problemDetails.parameters,
             // tensaraAppUserId is not updated here, it's part of initial submission
           },
           null,
@@ -442,7 +412,6 @@ export const contributionsRouter = createTRPCRouter({
           tags: metadata.tags,
           referenceCode: problemContent.referenceCu,
           testCases: problemContent.testsHpp,
-          parameters: metadata.parameters,
           tensaraAppUserId: metadata.tensaraAppUserId,
         };
       } catch (error) {

@@ -278,3 +278,79 @@ button:hover .highlight {
 .ql-editor li {
   margin: 0.5rem 0 !important;
 }
+
+/* React Resizable styles */
+.react-resizable {
+  position: relative;
+  background-clip: padding-box;
+}
+.react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: #63b3ed; /* blue.400 */
+  background: rgba(0, 0, 0, 0);
+  background-repeat: no-repeat;
+  background-origin: content-box;
+  box-sizing: border-box;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJzZXJ2ZXItc3F1YXJlIiBjbGFzcyJzdmctaW5saW5lLS1mYSBmYS1zZXJ2ZXItc3F1YXJlIGZhLXctMTQiIHJvbGU9ImltZyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAwL3N2ZyIgdmlld0JveD0iMCAwIDQ0OCA1MTIiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTQxNiAzNTJoLTMyYy0xNy42NyAwLTMyIDE0LjMzLTMyIDMydjMyYzAgMTcuNjctMTQuMzMgMzItMzIgMzJoLTMyYy0xNy42NyAwLTMyIDE0LjMzLTMyIDMydjMyYzAgMTcuNjctMTQuMzMgMzItMzIgMzJoLTMyYy0xNy42NyAwLTMyIDE0LjMzLTMyIDMydi0zMmMwLTE3LjY3IDE0LjMzLTMyIDMyLTMyaDMyYzE3LjY3IDAgMzItMTQuMzMgMzItMzJ2LTMyYzAtMTcuNjcgMTQuMzMtMzIgMzItMzJoMzJjMTcuNjcgMCAzMi0xNC4zMyAzMi0zMnYtMzJjMC0xNy42NyAxNC4zMy0zMiAzMi0zMmgzMmMxNy42NyAwIDMyLTE0LjMzIDMyLTMydi0zMmMwLTE3LjY3LTE0LjMzLTMyLTMyLTMyeiIvPjwvc3ZnPg==');
+  background-position: bottom right;
+  padding: 0 3px 3px 0;
+  background-repeat: no-repeat;
+  background-origin: content-box;
+  box-sizing: border-box;
+  cursor: se-resize;
+}
+
+.react-resizable-handle-sw {
+  bottom: 0;
+  left: 0;
+  cursor: sw-resize;
+  background-position: bottom left;
+}
+.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+  background-position: bottom right;
+}
+.react-resizable-handle-nw {
+  top: 0;
+  left: 0;
+  cursor: nw-resize;
+  background-position: top left;
+}
+.react-resizable-handle-ne {
+  top: 0;
+  right: 0;
+  cursor: ne-resize;
+  background-position: top right;
+}
+.react-resizable-handle-w,
+.react-resizable-handle-e {
+  top: 50%;
+  margin-top: -10px;
+  cursor: ew-resize;
+}
+.react-resizable-handle-w {
+  left: 0;
+  background-position: center left;
+}
+.react-resizable-handle-e {
+  right: 0;
+  background-position: center right;
+}
+.react-resizable-handle-n,
+.react-resizable-handle-s {
+  left: 50%;
+  margin-left: -10px;
+  cursor: ns-resize;
+}
+.react-resizable-handle-n {
+  top: 0;
+  background-position: top center;
+}
+.react-resizable-handle-s {
+  bottom: 0;
+  background-position: bottom center;
+}
