@@ -47,18 +47,51 @@ export async function createBranch(
   newBranch: string
 ): Promise<void> {
   const octokit = await getOctokitInstance();
-  const { data: baseBranchRef } = await octokit.git.getRef({
-    owner,
-    repo,
-    ref: `heads/${baseBranch}`,
-  });
+  let baseBranchRefData;
+  try {
+    const response = await octokit.git.getRef({
+      owner,
+      repo,
+      ref: `heads/${baseBranch}`,
+    });
+    baseBranchRefData = response.data;
+  } catch (error: any) {
+    if (error.status === 404) {
+      const errorMessage = `Failed to get reference for base branch '${baseBranch}' in repository '${owner}/${repo}'. The ref 'heads/${baseBranch}' was not found.
+Please verify:
+1. The repository '${owner}/${repo}' exists and the GitHub App has access.
+2. The branch '${baseBranch}' (e.g., 'main', 'master') exists in '${owner}/${repo}'.
+3. The GitHub App has 'Read' access to 'Contents' permission for this repository.
+Original error: ${error.message}`;
+      console.error(errorMessage, error);
+      // It's often better to throw a new error with a more specific message,
+      // or rethrow the original if it's already descriptive enough from Octokit.
+      // For this example, we'll throw a new, more detailed error.
+      throw new Error(errorMessage);
+    }
+    // Log and re-throw other unexpected errors
+    console.error(
+      `An unexpected error occurred while trying to get ref 'heads/${baseBranch}' from '${owner}/${repo}':`,
+      error
+    );
+    throw error;
+  }
 
-  await octokit.git.createRef({
-    owner,
-    repo,
-    ref: `refs/heads/${newBranch}`,
-    sha: baseBranchRef.object.sha,
-  });
+  try {
+    await octokit.git.createRef({
+      owner,
+      repo,
+      ref: `refs/heads/${newBranch}`,
+      sha: baseBranchRefData.object.sha,
+    });
+  } catch (error: any) {
+    // Log error during branch creation
+    console.error(
+      `Failed to create new branch '${newBranch}' in '${owner}/${repo}' from base SHA '${baseBranchRefData.object.sha}':`,
+      error
+    );
+    throw error;
+  }
 }
 
 export async function createOrUpdateFile(

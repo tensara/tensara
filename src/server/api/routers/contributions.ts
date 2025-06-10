@@ -24,7 +24,7 @@ const ProblemMetadataSchema = z.object({
 });
 
 const GITHUB_REPO_OWNER = "tensara";
-const GITHUB_REPO_NAME = "tensara-problems";
+const GITHUB_REPO_NAME = "problems";
 const GITHUB_BASE_BRANCH = "main";
 
 export const contributionsRouter = createTRPCRouter({
