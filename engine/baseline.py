@@ -84,12 +84,14 @@ def baseline_runner(solution_code: str, problem_name: str, problem_def: str, dty
         param_func = tinygrad_param_func
     elif baseline == "torch_compile":
         solution_func = torch.compile(module.solution)
-    elif baseline == "torch":
+    elif baseline == "torch_vanilla":
         solution_func = module.solution
         
     gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, "python", param_func=param_func)
+    last_event = None
     for event in gen:
-        yield event
+        last_event = event
+    yield last_event
 
 
 gpu_runners = {
@@ -138,9 +140,9 @@ async def tinygrad(request: Request):
 async def torch_compile(request: Request):
     return await baseline_handler(request, "torch_compile")
 
-@web_app.post("/torch")
-async def torch(request: Request):
-    return await baseline_handler(request, "torch")
+@web_app.post("/torch_vanilla")
+async def torch_vanilla(request: Request):
+    return await baseline_handler(request, "torch_vanilla")
 
 @app.function()
 @modal.asgi_app()
