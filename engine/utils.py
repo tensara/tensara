@@ -277,7 +277,7 @@ def prepare_gpu():
 
 
 def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tensors, actual_output, 
-                          language="cuda", min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0):
+                          language="cuda", min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0, param_func=None):
     """
     Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
     If kernel execution time exceeds threshold, run fixed number of iterations instead.
@@ -298,11 +298,11 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         benchmark_result: Dictionary with benchmark results
     """
     # Prepare pointers for CUDA
-    extra_params = problem.get_extra_params(test_case)
-    if language == "cuda" or language == "mojo":
-        input_ptrs = cast_to_ctype(input_tensors, solution_func.argtypes[:len(input_tensors)], language)
-        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_tensors)])
-        extra_params_casted = cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
+    if param_func is None:
+        parameters = make_parameters(language, solution_func, input_tensors, actual_output, problem, test_case)
+    else:
+        parameters = param_func(language, solution_func, input_tensors, actual_output, problem, test_case)
+
     # Calculate FLOPS for this test case
     flops = problem.get_flops(test_case)
     
@@ -314,10 +314,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
     end_event = torch.cuda.Event(enable_timing=True)
     
     start_event.record()
-    if language == "cuda" or language == "mojo":
-        solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
-    elif language == "python":
-        solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+    solution_func(*parameters)
     end_event.record()
     torch.cuda.synchronize()
     
@@ -345,10 +342,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         start_event.record()
         
         # Run the kernel
-        if language == "cuda" or language == "mojo":
-            solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
-        elif language == "python":
-            solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+        solution_func(*parameters)
         
         # End timing
         end_event.record()
@@ -433,6 +427,52 @@ def subproc_generator(timeout=None):
         return wrapper
     return _subproc_generator
 
+def make_solution_func(language: str, solution_code: str, compiled: bytes, problem: Problem):
+    if language == "cuda":
+        if not compiled:
+            raise ValueError("Compiled bytes required for CUDA submissions")
+            
+        cuda_lib = read_bytes_as_lib(compiled)
+        func_sig = problem.get_function_signature()
+        cuda_lib.solution.argtypes = func_sig["argtypes"]
+        cuda_lib.solution.restype = func_sig["restype"]
+        return cuda_lib.solution
+
+    elif language == "mojo":
+        mojo_lib = read_bytes_as_lib(compiled)
+        func_sig = problem.get_function_signature()
+        mojo_lib.solution.argtypes = func_sig["argtypes"]
+        mojo_lib.solution.restype = func_sig["restype"]
+        return mojo_lib.solution
+
+    elif language == "python":
+        if not solution_code:
+            raise ValueError("Source code required for Triton submissions")
+        
+        temp_dir = tempfile.mkdtemp()
+        temp_path = os.path.join(temp_dir, "triton_solution.py")
+        
+        # This is needed because @jit has to read the source code
+        with open(temp_path, 'w') as f:
+            f.write(solution_code)
+            
+        spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.solution
+    else:
+        raise ValueError(f"Unsupported language: {language}")
+
+def make_parameters(language: str, solution_func, input_tensors, actual_output, problem, test_case):
+    if language == "cuda" or language == "mojo":
+        input_ptrs = cast_to_ctype(input_tensors, solution_func.argtypes[:len(input_tensors)], language)
+        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
+        extra_params = problem.get_extra_params(test_case)
+        extra_params_casted = cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
+        return input_ptrs + [output_ptr] + extra_params_casted
+    else:
+        extra_params = problem.get_extra_params(test_case)
+        return list(input_tensors) + [actual_output] + list(extra_params)
 
 class SystemOutputCapture:
     """Class to capture system-level stdout/stderr including CUDA printf"""
@@ -464,7 +504,6 @@ class SystemOutputCapture:
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Force CUDA to flush
         try:
-            import torch
             torch.cuda.synchronize()
         except:
             pass

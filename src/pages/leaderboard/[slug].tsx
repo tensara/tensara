@@ -23,8 +23,18 @@ import {
   Menu,
   Icon,
   textDecoration,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  SimpleGrid,
 } from "@chakra-ui/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
@@ -56,6 +66,26 @@ type ProblemLeaderboardEntry = {
   gpuType: string | null;
   language: string | null;
   isPublic: boolean;
+};
+
+type BaselineResult = {
+  name: string;
+  gflops: number;
+  test_id: number;
+  runtime_ms: number;
+};
+
+type BaselineData = {
+  results: BaselineResult[];
+  avg_gflops: number;
+  total_tests: number;
+  avg_runtime_ms: number;
+};
+
+type BaselineBenchmarks = {
+  tinygrad: BaselineData;
+  torch_compile: BaselineData;
+  torch_vanilla: BaselineData;
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -139,6 +169,33 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
         refetchOnWindowFocus: false,
       }
     );
+
+  // Get baseline benchmarks data
+  const { data: baselineBenchmarks } = api.problems.getBaselineBenchmarks.useQuery(
+    { slug },
+    {
+      enabled: !!slug,
+    }
+  );
+
+  // Merge baseline benchmarks with user submissions
+  const combinedEntries = useMemo(() => {
+    if (!baselineBenchmarks || !leaderboardEntries) return leaderboardEntries;
+
+    const baselineEntries = Object.entries(baselineBenchmarks as BaselineBenchmarks).map(([framework, data]) => ({
+      id: `baseline-${framework}`,
+      username: framework.replace('_', ' '),
+      gflops: data.avg_gflops,
+      runtime: data.avg_runtime_ms,
+      createdAt: new Date(0), // Put baselines at a fixed date
+      gpuType: selectedGpu === "all" ? "A100" : selectedGpu, // Assuming baselines are run on A100
+      language: "python",
+      isPublic: true,
+      isBaseline: true,
+    }));
+
+    return [...leaderboardEntries, ...baselineEntries].sort((a, b) => b.gflops - a.gflops);
+  }, [baselineBenchmarks, leaderboardEntries, selectedGpu]);
 
   if (isProblemLoading || isLeaderboardLoading) {
     return (
@@ -242,7 +299,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
             </Menu>
           </HStack>
 
-          {leaderboardEntries && leaderboardEntries.length > 0 ? (
+          {combinedEntries && combinedEntries.length > 0 ? (
             <Box overflowX="auto">
               <Table variant="simple">
                 <Thead borderBottom="1px solid" borderColor="whiteAlpha.100">
@@ -262,7 +319,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {leaderboardEntries.map((entry, index) => {
+                  {combinedEntries.map((entry, index) => {
                     const medalColor =
                       index <= 2
                         ? index === 0
@@ -274,12 +331,14 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
 
                     const isOwnSubmission =
                       currentUsername && entry.username === currentUsername;
+                    const isBaseline = 'isBaseline' in entry;
+
                     return (
                       <Tr
                         key={entry.id}
-                        onClick={() => router.push(`/submissions/${entry.id}`)}
-                        cursor="pointer"
-                        _hover={{ bg: "whiteAlpha.100" }}
+                        onClick={() => !isBaseline && router.push(`/submissions/${entry.id}`)}
+                        cursor={isBaseline ? "default" : "pointer"}
+                        _hover={{ bg: isBaseline ? undefined : "whiteAlpha.100" }}
                         borderBottom="1px solid"
                         borderColor="whiteAlpha.100"
                         my={medalColor ? 2 : 0}
@@ -309,6 +368,11 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             fontWeight={medalColor ? "bold" : "normal"}
                           >
                             {entry.username ?? "Anonymous"}
+                            {isBaseline && (
+                              <Text as="span" color="gray.400" ml={2} fontSize="sm">
+                                (baseline)
+                              </Text>
+                            )}
                           </Text>
                         </Td>
                         <Td isNumeric borderBottom="none">
@@ -346,17 +410,23 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           </Text>
                         </Td>
                         <Td borderBottom="none">
-                          <Tooltip
-                            label={new Date(entry.createdAt).toLocaleString()}
-                          >
-                            <Text>
-                              {formatDistanceToNow(new Date(entry.createdAt))}{" "}
-                              ago
-                            </Text>
-                          </Tooltip>
+                          {isBaseline ? (
+                            <Text color="gray.400">-</Text>
+                          ) : (
+                            <Tooltip
+                              label={new Date(entry.createdAt).toLocaleString()}
+                            >
+                              <Text>
+                                {formatDistanceToNow(new Date(entry.createdAt))}{" "}
+                                ago
+                              </Text>
+                            </Tooltip>
+                          )}
                         </Td>
                         <Td borderBottom="none">
-                          {entry.isPublic || isOwnSubmission ? (
+                          {isBaseline ? (
+                            <Text color="gray.400">-</Text>
+                          ) : entry.isPublic || isOwnSubmission ? (
                             <FaEye color="#4CAF50" />
                           ) : (
                             <FaLock color="#d4d4d8" />
