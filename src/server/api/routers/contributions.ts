@@ -258,26 +258,63 @@ author: "${authorName}"
       });
     }
 
-    // Placeholder for getting GitHub username from session/user DB
-    // For now, assuming ctx.session.user.name is the GitHub username
-    const currentUserGithubUsername = ctx.session.user.name ?? "unknown"; // TODO: Replace with actual GitHub username from user profile
+    const currentUserGithubUsername = ctx.session.user.username;
+
+    if (!currentUserGithubUsername) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message:
+          "GitHub username not found in session. Please re-authenticate.",
+      });
+    }
 
     try {
       const pullRequests = await listPullRequests(
         GITHUB_REPO_OWNER,
         GITHUB_REPO_NAME,
         currentUserGithubUsername,
-        "all"
+        "all" // Fetch all states: open, closed, merged
       );
 
-      return pullRequests.map((pr) => ({
-        prUrl: pr.html_url,
-        title: pr.title,
-        status: pr.state,
-        createdAt: new Date(pr.created_at),
-        updatedAt: new Date(pr.updated_at),
-        // You might want to parse the PR body or labels for more details like tensaraAppUserId
-      }));
+      const contributions = await Promise.all(
+        pullRequests.map(async (pr) => {
+          let problemTitle: string | null = null;
+          let problemSlug: string | null = null;
+          let problemDifficulty: string | null = null;
+
+          // Try to parse problem slug from PR title, e.g., "feat: New Problem: XYZ (xyz-slug)"
+          // or "Contribution: Problem Title (problem-slug)"
+          const titleSlugMatch = pr.title.match(/\(([^)]+)\)$/);
+          if (titleSlugMatch?.[1]) {
+            const potentialSlug = titleSlugMatch[1];
+            // Verify if this slug exists in the database
+            const problem = await ctx.db.problem.findUnique({
+              where: { slug: potentialSlug },
+              select: { title: true, slug: true, difficulty: true },
+            });
+            if (problem) {
+              problemTitle = problem.title;
+              problemSlug = problem.slug;
+              problemDifficulty = problem.difficulty;
+            }
+          }
+
+          return {
+            prUrl: pr.html_url,
+            prTitle: pr.title,
+            prStatus: pr.state, // 'open', 'closed' (merged PRs are 'closed' with merged_at set)
+            prCreatedAt: new Date(pr.created_at),
+            prUpdatedAt: new Date(pr.updated_at),
+            prMergedAt: pr.merged_at ? new Date(pr.merged_at) : null,
+            problemTitle,
+            problemSlug,
+            problemDifficulty,
+            // Add other PR details as needed: pr.number, pr.body, pr.labels etc.
+          };
+        })
+      );
+
+      return contributions;
     } catch (error) {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",

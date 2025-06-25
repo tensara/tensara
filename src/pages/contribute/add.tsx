@@ -155,9 +155,9 @@ const AddContributionPage: NextPage = () => {
       });
 
       if (contribution.prUrl) {
-        void router.push(`/contributions/view?pr=${contribution.prUrl}`);
+        void router.push(`/contribute/view?pr=${contribution.prUrl}`);
       } else {
-        void router.push("/contributions/view");
+        void router.push("/contribute/view");
       }
     } catch (err) {
       toast({

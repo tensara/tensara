@@ -203,9 +203,9 @@ export async function createPullRequest(
 
   // Construct the new PR body
   const tensaraProfileLink = `https://tensara.org/${githubUsername}`;
-  const prBody = `This PR introduces a new problem: "${title}".
+  const prBody = `This PR introduces a new problem: ${title}
 
-Contributed by: @${githubUsername} ([Tensara Profile Link](${tensaraProfileLink}))
+Contributed by: @${githubUsername} ([Tensara Profile](${tensaraProfileLink}))
 
 **Problem Description:**
 ${problemDescription}`;
@@ -215,7 +215,7 @@ ${problemDescription}`;
     repo,
     head,
     base,
-    title,
+    title: "Contribution: " + title,
     body: prBody, // Use the newly constructed body
   });
   return pullRequest.html_url;
