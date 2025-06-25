@@ -4,11 +4,12 @@ import { TRPCError } from "@trpc/server";
 import { Octokit } from "@octokit/rest";
 import {
   createBranch,
-  createOrUpdateFile,
+  createFilesAndCommit, // Added
+  createOrUpdateFile, // Re-added for updateProblemPR
   createPullRequest,
   getFileContent,
+  getOctokitInstance,
   listPullRequests,
-  getOctokitInstance, // Add this
 } from "../../github";
 
 const ProblemMetadataSchema = z.object({
@@ -52,6 +53,14 @@ export const contributionsRouter = createTRPCRouter({
         });
       }
 
+      // Fetch the contributor's user record to get the correct username
+      const user = await ctx.db.user.findUniqueOrThrow({
+        where: { id: ctx.session.user.id },
+        select: { username: true, name: true },
+      });
+      // Use database username if available, otherwise fallback to the input (which is required)
+      const githubUsername = user.username ?? input.contributorGithubUsername;
+
       const newBranchName = `new-problem-${input.problemDetails.slug}-${Date.now()}`;
       const problemDirPath = `problems/${input.problemDetails.slug}/`;
 
@@ -63,66 +72,64 @@ export const contributionsRouter = createTRPCRouter({
           newBranchName
         );
 
-        // Create problem.md
-        await createOrUpdateFile(
-          GITHUB_REPO_OWNER,
-          GITHUB_REPO_NAME,
-          newBranchName,
-          `${problemDirPath}problem.md`,
-          input.problemDetails.description,
-          `feat: Add problem.md for ${input.problemDetails.slug}`
-        );
+        // Construct problem.md content
+        // The 'authorName' will be used in the YAML frontmatter.
+        // It prioritizes the authenticated user's name (user.name from DB), falling back to the provided contributor GitHub username.
+        const authorName = user.name ?? input.contributorGithubUsername;
 
-        // Create reference.cu
-        await createOrUpdateFile(
-          GITHUB_REPO_OWNER,
-          GITHUB_REPO_NAME,
-          newBranchName,
-          `${problemDirPath}reference.cu`,
-          input.problemDetails.referenceCode,
-          `feat: Add reference.cu for ${input.problemDetails.slug}`
-        );
+        // YAML frontmatter for problem.md
+        // Note: The 'parameters' field mentioned in the requirements is not present in the current
+        // 'input.problemDetails' schema. It has been omitted from this frontmatter.
+        const yamlFrontmatter = `---
+title: "${input.problemDetails.title}"
+slug: "${input.problemDetails.slug}"
+difficulty: "${input.problemDetails.difficulty}"
+author: "${authorName}"
+---`;
 
-        // Create tests.hpp
-        await createOrUpdateFile(
-          GITHUB_REPO_OWNER,
-          GITHUB_REPO_NAME,
-          newBranchName,
-          `${problemDirPath}tests.hpp`,
-          input.problemDetails.testCases,
-          `feat: Add tests.hpp for ${input.problemDetails.slug}`
-        );
+        const problemMdContent = `${yamlFrontmatter}\n\n${input.problemDetails.description}`;
 
-        // Create metadata.json
-        const metadataContent = JSON.stringify(
+        // Construct def.py content
+        // Note: The 'definition' field mentioned in the requirements is not present in the current
+        // 'input.problemDetails' schema. Using 'input.problemDetails.referenceCode' as a substitute
+        // for the Python definition content, as it's the most likely candidate for code.
+        const defPyContent = input.problemDetails.referenceCode;
+
+        const filesToCommit = [
           {
-            title: input.problemDetails.title,
-            difficulty: input.problemDetails.difficulty,
-            tags: input.problemDetails.tags,
-            tensaraAppUserId: input.tensaraAppUserId,
+            path: `${problemDirPath}problem.md`,
+            content: problemMdContent,
           },
-          null,
-          2
-        );
-        await createOrUpdateFile(
+          {
+            path: `${problemDirPath}def.py`,
+            content: defPyContent,
+          },
+        ];
+
+        const commitMessage = `feat: Add problem '${input.problemDetails.slug}' (\`problem.md\` & \`def.py\`)`;
+
+        await createFilesAndCommit(
           GITHUB_REPO_OWNER,
           GITHUB_REPO_NAME,
           newBranchName,
-          `${problemDirPath}metadata.json`,
-          metadataContent,
-          `feat: Add metadata.json for ${input.problemDetails.slug}`
+          GITHUB_BASE_BRANCH,
+          filesToCommit,
+          commitMessage
         );
 
         const prTitle = `feat: New Problem: ${input.problemDetails.title} (${input.problemDetails.slug})`;
-        const prBody = `This PR introduces a new problem: "${input.problemDetails.title}".\n\nSubmitted by Tensara App User ID: ${input.tensaraAppUserId}\nContributor GitHub Username: ${input.contributorGithubUsername}`;
+        // The prBody is now constructed within createPullRequest, so we pass the necessary components.
+        // problemMdContent was constructed earlier in this function.
+        // githubUsername (from DB) is now used.
 
         const prUrl = await createPullRequest(
           GITHUB_REPO_OWNER,
           GITHUB_REPO_NAME,
           newBranchName,
           GITHUB_BASE_BRANCH,
-          prTitle,
-          prBody
+          input.problemDetails.title, // Pass problem title directly
+          problemMdContent, // Pass the full problem.md content
+          githubUsername // Pass the correct username from the database
         );
 
         return { prUrl };
