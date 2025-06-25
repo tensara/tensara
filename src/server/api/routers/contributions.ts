@@ -269,15 +269,71 @@ author: "${authorName}"
     }
 
     try {
-      const pullRequests = await listPullRequests(
+      console.log(
+        `[getMyContributions Debug] Session GitHub Username: '${currentUserGithubUsername}'`
+      );
+
+      // Fetch all pull requests from the repository
+      const allPullRequests = await listPullRequests(
         GITHUB_REPO_OWNER,
         GITHUB_REPO_NAME,
-        currentUserGithubUsername,
+        // No longer passing currentUserGithubUsername here, listPullRequests was changed
         "all" // Fetch all states: open, closed, merged
       );
 
+      console.log(
+        `[getMyContributions Debug] Total PRs fetched from ${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}: ${allPullRequests.length}`
+      );
+
+      const userContributionsPRs = allPullRequests.filter((pr) => {
+        if (!pr.body) {
+          console.log(
+            `[getMyContributions Debug] PR Title: '${pr.title}' has no body, skipping.`
+          );
+          return false;
+        }
+        // Regex to find "Contributed by: @username"
+        // It captures the username. Handles potential variations like trailing spaces or different markdown link styles.
+        const contributorMatch = pr.body.match(
+          /Contributed by: @([a-zA-Z0-9_-]+)/i
+        );
+        if (contributorMatch && contributorMatch[1]) {
+          const mentionedUsername = contributorMatch[1];
+          console.log(
+            `[getMyContributions Debug] PR Title: '${pr.title}', Found mentioned user in body: '${mentionedUsername}' (Comparing with: '${currentUserGithubUsername}')`
+          );
+          return (
+            mentionedUsername.toLowerCase() ===
+            currentUserGithubUsername.toLowerCase()
+          );
+        }
+        console.log(
+          `[getMyContributions Debug] PR Title: '${pr.title}', No 'Contributed by: @username' match in body.`
+        );
+        return false;
+      });
+
+      console.log(
+        `[getMyContributions Debug] PRs found for '${currentUserGithubUsername}' after body parsing: ${userContributionsPRs.length}`
+      );
+
+      if (userContributionsPRs.length === 0 && currentUserGithubUsername) {
+        console.log(
+          `[getMyContributions Debug] No PRs found for user '${currentUserGithubUsername}' after body parsing. Listing PRs by tensarabot (or any other) for review of body format:`
+        );
+        allPullRequests.slice(0, 20).forEach((p) => {
+          // Log first 20 to avoid excessive logging
+          console.log(
+            `[getMyContributions Debug] Sample PR: Title: '${p.title}', Author: ${p.user?.login}, Body: "${p.body?.substring(0, 150).replace(/\n/g, "\\n")}..."`
+          );
+        });
+      }
+
       const contributions = await Promise.all(
-        pullRequests.map(async (pr) => {
+        userContributionsPRs.map(async (pr) => {
+          console.log(
+            `[getMyContributions Debug] Processing PR for contribution: Title: '${pr.title}', URL: '${pr.html_url}', PR Author: '${pr.user?.login}'`
+          );
           let problemTitle: string | null = null;
           let problemSlug: string | null = null;
           let problemDifficulty: string | null = null;
@@ -285,18 +341,33 @@ author: "${authorName}"
           // Try to parse problem slug from PR title, e.g., "feat: New Problem: XYZ (xyz-slug)"
           // or "Contribution: Problem Title (problem-slug)"
           const titleSlugMatch = pr.title.match(/\(([^)]+)\)$/);
-          if (titleSlugMatch?.[1]) {
-            const potentialSlug = titleSlugMatch[1];
+          const potentialSlug = titleSlugMatch?.[1] ?? null;
+          console.log(
+            `[getMyContributions Debug] PR Title: '${pr.title}', Extracted potentialSlug: '${potentialSlug}'`
+          );
+
+          if (potentialSlug) {
             // Verify if this slug exists in the database
             const problem = await ctx.db.problem.findUnique({
               where: { slug: potentialSlug },
               select: { title: true, slug: true, difficulty: true },
             });
             if (problem) {
+              console.log(
+                `[getMyContributions Debug] Found problem in DB for slug '${potentialSlug}': Title: '${problem.title}'`
+              );
               problemTitle = problem.title;
               problemSlug = problem.slug;
               problemDifficulty = problem.difficulty;
+            } else {
+              console.log(
+                `[getMyContributions Debug] No problem found in DB for slug '${potentialSlug}' (PR Title: '${pr.title}')`
+              );
             }
+          } else {
+            console.log(
+              `[getMyContributions Debug] No slug extracted for PR Title: '${pr.title}'`
+            );
           }
 
           return {
@@ -313,9 +384,16 @@ author: "${authorName}"
           };
         })
       );
-
+      console.log(
+        `[getMyContributions Debug] Final contributions array for '${currentUserGithubUsername}':`,
+        JSON.stringify(contributions, null, 2)
+      );
       return contributions;
     } catch (error) {
+      console.error(
+        `[getMyContributions Debug] Error for user ${currentUserGithubUsername}:`,
+        error
+      );
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message:

@@ -351,19 +351,18 @@ export async function getFileContent(
 export async function listPullRequests(
   owner: string,
   repo: string,
-  author?: string,
   state?: "open" | "closed" | "all"
+  // author parameter removed, filtering by PR author (pr.user.login) is not what we need here.
+  // The new logic will filter based on PR body content in the calling function.
 ): Promise<RestEndpointMethodTypes["pulls"]["list"]["response"]["data"]> {
   const octokit = await getOctokitInstance();
   const { data: pullRequests } = await octokit.pulls.list({
     owner,
     repo,
     state: state ?? "all",
+    // Consider adding per_page: 100 if many PRs, to reduce pagination needs if this becomes an issue.
   });
 
-  if (author) {
-    return pullRequests.filter((pr) => pr.user?.login === author);
-  }
-
+  // No longer filtering by pr.user.login here.
   return pullRequests;
 }
