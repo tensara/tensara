@@ -1,7 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { Octokit } from "@octokit/rest";
+import type { Octokit } from "@octokit/rest";
 import {
   createBranch,
   createFilesAndCommit, // Added
@@ -294,10 +294,10 @@ author: "${authorName}"
         }
         // Regex to find "Contributed by: @username"
         // It captures the username. Handles potential variations like trailing spaces or different markdown link styles.
-        const contributorMatch = pr.body.match(
-          /Contributed by: @([a-zA-Z0-9_-]+)/i
+        const contributorMatch = /Contributed by: @([a-zA-Z0-9_-]+)/i.exec(
+          pr.body
         );
-        if (contributorMatch && contributorMatch[1]) {
+        if (contributorMatch?.[1]) {
           const mentionedUsername = contributorMatch[1];
           console.log(
             `[getMyContributions Debug] PR Title: '${pr.title}', Found mentioned user in body: '${mentionedUsername}' (Comparing with: '${currentUserGithubUsername}')`
@@ -340,7 +340,7 @@ author: "${authorName}"
 
           // Try to parse problem slug from PR title, e.g., "feat: New Problem: XYZ (xyz-slug)"
           // or "Contribution: Problem Title (problem-slug)"
-          const titleSlugMatch = pr.title.match(/\(([^)]+)\)$/);
+          const titleSlugMatch = /\(([^)]+)\)$/.exec(pr.title);
           const potentialSlug = titleSlugMatch?.[1] ?? null;
           console.log(
             `[getMyContributions Debug] PR Title: '${pr.title}', Extracted potentialSlug: '${potentialSlug}'`

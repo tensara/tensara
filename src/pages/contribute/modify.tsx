@@ -6,8 +6,6 @@ import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import {
   Box,
-  Heading,
-  Text,
   FormControl,
   FormLabel,
   Input,
@@ -56,7 +54,14 @@ const ModifyContributionPage: NextPage = () => {
         setTestCases(problemDetails.testCases ?? ""); // Handle null
       }
     }
-  }, [getContribution.data]);
+  }, [
+    getContribution.data,
+    setTitle,
+    setDescription,
+    setDifficulty,
+    setReferenceCode,
+    setTestCases,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +108,7 @@ const ModifyContributionPage: NextPage = () => {
           tags: currentProblemDetails?.tags ?? [], // Added this line
           referenceCode,
           testCases,
-          parameters: currentProblemDetails?.parameters ?? [], // Preserve existing parameters
+          // parameters: currentProblemDetails?.parameters ?? [], // Preserve existing parameters
         },
       });
 

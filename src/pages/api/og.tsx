@@ -1,5 +1,6 @@
 import { ImageResponse } from "@vercel/og";
 import { type NextRequest } from "next/server";
+import Image from "next/image";
 
 export const config = {
   runtime: "edge",
@@ -40,8 +41,10 @@ export default async function handler(req: NextRequest) {
         }}
       >
         {/* Logo */}
-        <img
-          src={`data:image/png;base64,${Buffer.from(logoData).toString("base64")}`}
+        <Image
+          src={`data:image/png;base64,${Buffer.from(logoData).toString(
+            "base64"
+          )}`}
           alt="Tensara Logo"
           width={200}
           height={200}

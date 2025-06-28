@@ -1,5 +1,5 @@
-import { App } from "@octokit/app";
-import { Octokit } from "@octokit/rest";
+import type { App } from "@octokit/app";
+import type { Octokit } from "@octokit/rest";
 import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 
 import { env } from "~/env";
@@ -9,12 +9,21 @@ const GITHUB_APP_PRIVATE_KEY = env.GITHUB_APP_PRIVATE_KEY;
 const GITHUB_APP_INSTALLATION_ID = env.GITHUB_APP_INSTALLATION_ID;
 
 let octokitInstance: Octokit | null = null;
+let appInstance: App | null = null;
 
-const app = new App({
-  appId: GITHUB_APP_ID,
-  privateKey: GITHUB_APP_PRIVATE_KEY,
-  Octokit: Octokit, // Use the Octokit class from "@octokit/rest"
-});
+async function getApp(): Promise<App> {
+  if (appInstance) {
+    return appInstance;
+  }
+  const { App } = await import("@octokit/app");
+  const { Octokit } = await import("@octokit/rest");
+  appInstance = new App({
+    appId: GITHUB_APP_ID,
+    privateKey: GITHUB_APP_PRIVATE_KEY,
+    Octokit: Octokit,
+  });
+  return appInstance;
+}
 
 export async function getOctokitInstance(): Promise<Octokit> {
   if (octokitInstance) {
@@ -34,8 +43,10 @@ export async function getOctokitInstance(): Promise<Octokit> {
     );
   }
 
-  // getInstallationOctokit returns an Octokit instance directly
-  octokitInstance = await app.getInstallationOctokit(installationId);
+  const app = await getApp();
+  octokitInstance = (await app.getInstallationOctokit(
+    installationId
+  )) as Octokit;
 
   return octokitInstance;
 }
@@ -55,21 +66,26 @@ export async function createBranch(
       ref: `heads/${baseBranch}`,
     });
     baseBranchRefData = response.data;
-  } catch (error: any) {
-    if (error.status === 404) {
+  } catch (error: unknown) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      (error as { status: unknown }).status === 404
+    ) {
+      const originalErrorMessage =
+        typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "Unknown error";
       const errorMessage = `Failed to get reference for base branch '${baseBranch}' in repository '${owner}/${repo}'. The ref 'heads/${baseBranch}' was not found.
 Please verify:
 1. The repository '${owner}/${repo}' exists and the GitHub App has access.
 2. The branch '${baseBranch}' (e.g., 'main', 'master') exists in '${owner}/${repo}'.
 3. The GitHub App has 'Read' access to 'Contents' permission for this repository.
-Original error: ${error.message}`;
+Original error: ${originalErrorMessage}`;
       console.error(errorMessage, error);
-      // It's often better to throw a new error with a more specific message,
-      // or rethrow the original if it's already descriptive enough from Octokit.
-      // For this example, we'll throw a new, more detailed error.
       throw new Error(errorMessage);
     }
-    // Log and re-throw other unexpected errors
     console.error(
       `An unexpected error occurred while trying to get ref 'heads/${baseBranch}' from '${owner}/${repo}':`,
       error
@@ -84,8 +100,7 @@ Original error: ${error.message}`;
       ref: `refs/heads/${newBranch}`,
       sha: baseBranchRefData.object.sha,
     });
-  } catch (error: any) {
-    // Log error during branch creation
+  } catch (error: unknown) {
     console.error(
       `Failed to create new branch '${newBranch}' in '${owner}/${repo}' from base SHA '${baseBranchRefData.object.sha}':`,
       error
@@ -115,7 +130,7 @@ export async function createOrUpdateFile(
     if (Array.isArray(file)) {
       throw new Error("Path is a directory, not a file.");
     }
-    sha = file.sha;
+    sha = (file as { sha: string }).sha;
   } catch (error: unknown) {
     if (
       typeof error === "object" &&
@@ -125,20 +140,15 @@ export async function createOrUpdateFile(
     ) {
       const statusError = error as { status: number; message?: string };
       if (statusError.status !== 404) {
-        // Re-throw if it's not a "file not found" error
         const errorMessage =
-          statusError.message || "Failed to check file existence";
+          statusError.message ?? "Failed to check file existence";
         throw new Error(
           `GitHub API error (status ${statusError.status}): ${errorMessage}`
         );
       }
-      // If status is 404, it means the file doesn't exist.
-      // sha remains undefined, which is correct for creating a new file.
     } else if (error instanceof Error) {
-      // Re-throw other standard errors (e.g., network issues before a status code is assigned)
       throw error;
     } else {
-      // For truly unknown errors
       throw new Error(
         "An unknown error occurred while checking for file existence."
       );
@@ -162,14 +172,13 @@ export async function createPullRequest(
   head: string,
   base: string,
   title: string,
-  problemMdContent: string, // Added: Content of problem.md
-  githubUsername: string // Added: Contributor's GitHub username
+  problemMdContent: string,
+  githubUsername: string
 ): Promise<string> {
   const octokit = await getOctokitInstance();
 
-  // Extract problem description from problem.md content
   let problemDescription = "";
-  const frontmatterEndMarker = "\n---"; // YAML frontmatter ends with --- on a new line
+  const frontmatterEndMarker = "\n---";
   const secondMarkerIndex = problemMdContent.indexOf(
     frontmatterEndMarker,
     problemMdContent.indexOf(frontmatterEndMarker) + frontmatterEndMarker.length
@@ -179,29 +188,11 @@ export async function createPullRequest(
       .substring(secondMarkerIndex + frontmatterEndMarker.length)
       .trim();
   } else {
-    // Fallback if frontmatter isn't found as expected, though problem.md should always have it
-    // Or, if the first '---' is the only one, take everything after it.
-    const firstMarkerIndex = problemMdContent.indexOf("---");
-    if (
-      firstMarkerIndex !== -1 &&
-      problemMdContent.substring(firstMarkerIndex + 3).indexOf("---") === -1
-    ) {
-      // This case handles if there's only one '---' block, implying the rest is description.
-      // However, the typical structure is two '---' blocks.
-      // A more robust parser might be needed for complex cases, but this handles simple frontmatter.
-      // For now, if only one '---' is found, or parsing is ambiguous, we might leave description empty or use full content.
-      // Given the example, the second '---' is key.
-      // If the second '---' is not found, it implies malformed frontmatter or no description after.
-      // For safety, let's log a warning or handle it gracefully.
-      console.warn(
-        "Could not accurately parse problem description from problem.md content. PR body might be incomplete."
-      );
-      // Defaulting to a placeholder or the full content if parsing fails might be an option.
-      // For now, we'll proceed with potentially empty description if parsing fails.
-    }
+    console.warn(
+      "Could not accurately parse problem description from problem.md content. PR body might be incomplete."
+    );
   }
 
-  // Construct the new PR body
   const tensaraProfileLink = `https://tensara.org/${githubUsername}`;
   const prBody = `This PR introduces a new problem: ${title}
 
@@ -216,7 +207,7 @@ ${problemDescription}`;
     head,
     base,
     title: "Contribution: " + title,
-    body: prBody, // Use the newly constructed body
+    body: prBody,
   });
   return pullRequest.html_url;
 }
@@ -229,15 +220,13 @@ interface FileForCommit {
 export async function createFilesAndCommit(
   owner: string,
   repo: string,
-  branch: string, // The new problem branch (e.g., new-problem-slug-timestamp)
-  baseBranch: string, // The branch to base the commit on (e.g., "main")
+  branch: string,
+  baseBranch: string,
   files: FileForCommit[],
   commitMessage: string
 ): Promise<string> {
-  // Returns the SHA of the new commit
   const octokit = await getOctokitInstance();
 
-  // 1. Get the SHA of the latest commit on the baseBranch
   const { data: baseBranchRef } = await octokit.git.getRef({
     owner,
     repo,
@@ -245,7 +234,6 @@ export async function createFilesAndCommit(
   });
   const latestBaseCommitSha = baseBranchRef.object.sha;
 
-  // 2. Get the tree SHA of this base commit
   const { data: baseCommit } = await octokit.git.getCommit({
     owner,
     repo,
@@ -253,8 +241,7 @@ export async function createFilesAndCommit(
   });
   const baseCommitTreeSha = baseCommit.tree.sha;
 
-  // 3. Create blobs for each file
-  const blobShas: { [path: string]: string } = {};
+  const blobShas: Record<string, string> = {};
   for (const file of files) {
     const { data: blob } = await octokit.git.createBlob({
       owner,
@@ -265,10 +252,9 @@ export async function createFilesAndCommit(
     blobShas[file.path] = blob.sha;
   }
 
-  // 4. Create a new tree
   const treeObjects = files.map((file) => ({
     path: file.path,
-    mode: "100644" as const, // '100644' for file (blob)
+    mode: "100644" as const,
     type: "blob" as const,
     sha: blobShas[file.path],
   }));
@@ -280,7 +266,6 @@ export async function createFilesAndCommit(
     tree: treeObjects,
   });
 
-  // 5. Create a single commit
   const { data: newCommit } = await octokit.git.createCommit({
     owner,
     repo,
@@ -290,7 +275,6 @@ export async function createFilesAndCommit(
   });
   const newCommitSha = newCommit.sha;
 
-  // 6. Update the head of the branch (the new problem branch)
   await octokit.git.updateRef({
     owner,
     repo,
@@ -331,18 +315,15 @@ export async function getFileContent(
     ) {
       const statusError = error as { status: number; message?: string };
       if (statusError.status === 404) {
-        return null; // File not found, return null as per function's contract
+        return null;
       }
-      // For other HTTP errors, re-throw a more informative error
-      const errorMessage = statusError.message || "Failed to get file content";
+      const errorMessage = statusError.message ?? "Failed to get file content";
       throw new Error(
         `GitHub API error (status ${statusError.status}): ${errorMessage}`
       );
     } else if (error instanceof Error) {
-      // Re-throw other standard errors
       throw error;
     } else {
-      // For truly unknown errors
       throw new Error("An unknown error occurred while fetching file content.");
     }
   }
@@ -352,17 +333,13 @@ export async function listPullRequests(
   owner: string,
   repo: string,
   state?: "open" | "closed" | "all"
-  // author parameter removed, filtering by PR author (pr.user.login) is not what we need here.
-  // The new logic will filter based on PR body content in the calling function.
 ): Promise<RestEndpointMethodTypes["pulls"]["list"]["response"]["data"]> {
   const octokit = await getOctokitInstance();
   const { data: pullRequests } = await octokit.pulls.list({
     owner,
     repo,
     state: state ?? "all",
-    // Consider adding per_page: 100 if many PRs, to reduce pagination needs if this becomes an issue.
   });
 
-  // No longer filtering by pr.user.login here.
   return pullRequests;
 }

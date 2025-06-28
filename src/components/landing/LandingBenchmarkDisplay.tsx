@@ -17,7 +17,7 @@ import {
   Spinner,
   Center,
 } from "@chakra-ui/react";
-import { motion, AnimatePresence } from "framer-motion"; // Keep imports for MotionBox/footer
+import { motion, AnimatePresence, Variants } from "framer-motion"; // Keep imports for MotionBox/footer
 import { FaCheck, FaChevronUp, FaChevronDown } from "react-icons/fa";
 
 // Define the structure for a single dummy benchmark result
@@ -109,16 +109,16 @@ const LandingBenchmarkDisplay: React.FC<LandingBenchmarkDisplayProps> = ({
     visible: { opacity: 1, transition: { duration: 0.3 } },
   };
 
-  const rowVariants = {
+  const rowVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.3,
+        duration: 0.5,
         type: "spring",
         stiffness: 100,
-        opacity: { duration: 0.5 },
+        opacity: { duration: 0.2 },
       },
     },
   };

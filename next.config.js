@@ -18,14 +18,9 @@ const config = {
     locales: ["en"],
     defaultLocale: "en",
   },
-  transpilePackages: ["geist", "@octokit/app", "@octokit/core"],
+  transpilePackages: ["geist", "@octokit/core"],
   distDir: process.env.BUILD_DIR || ".next", // Set custom build directory
   
-  // Explicitly configure webpack to handle path aliases
-  webpack: (config) => {
-    config.resolve.alias['~'] = path.join(process.cwd(), 'src');
-    return config;
-  },
 };
 
 export default config;

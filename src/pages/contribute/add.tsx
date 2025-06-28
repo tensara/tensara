@@ -3,19 +3,15 @@ import { type NextPage } from "next";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { api } from "~/utils/api";
-import TurndownService from "turndown";
-import showdown from "showdown";
 import { Layout } from "~/components/layout";
 import { useContributionFormPersistence } from "~/hooks/useContributionFormPersistence";
 import {
   Flex,
   Box,
-  Heading,
   Text,
   FormControl,
   FormLabel,
   Input,
-  Select,
   Button,
   useToast,
   useColorModeValue,
@@ -25,9 +21,6 @@ import {
   TabList,
   Tab,
   Tabs,
-  TabPanels,
-  TabPanel,
-  HStack,
   Textarea,
   Accordion,
   AccordionItem,
@@ -77,9 +70,6 @@ const AddContributionPage: NextPage = () => {
     handleReset,
   } = useContributionFormPersistence();
 
-  const turndownService = new TurndownService();
-  const showdownConverter = new showdown.Converter();
-
   const [editorMode, setEditorMode] = useState<"wysiwyg" | "markdown">(
     "markdown"
   );
@@ -109,7 +99,7 @@ const AddContributionPage: NextPage = () => {
         .replace(/^-*|-*$/g, "");
       setSlug(generatedSlug);
     }
-  }, [title]);
+  }, [title, setSlug]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -530,7 +520,7 @@ const AddContributionPage: NextPage = () => {
                                 minHeight="120px"
                                 resize="vertical"
                                 borderRadius="lg"
-                                bg={useColorModeValue("gray.100", "gray.700")}
+                                bg="gray.700"
                                 focusBorderColor="blue.400"
                               />
                             </FormControl>
@@ -550,7 +540,7 @@ const AddContributionPage: NextPage = () => {
                                 minHeight="120px"
                                 resize="vertical"
                                 borderRadius="lg"
-                                bg={useColorModeValue("gray.100", "gray.700")}
+                                bg="gray.700"
                                 focusBorderColor="blue.400"
                               />
                             </FormControl>

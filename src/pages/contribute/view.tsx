@@ -19,7 +19,6 @@ import {
   AlertTitle,
   AlertDescription,
   Link as ChakraLink,
-  VStack,
   Icon,
 } from "@chakra-ui/react";
 import PageHeader from "~/components/contribute/PageHeader";
@@ -128,7 +127,7 @@ const ViewContributionsPage: NextPage = () => {
           {!contributions || contributions.length === 0 ? (
             <Box textAlign="center" py={10}>
               <Text fontSize="xl" mb={4}>
-                You haven't made any contributions yet.
+                You haven&apos;t made any contributions yet.
               </Text>
               <NextLink href="/contribute/add" passHref>
                 <Button as="a" colorScheme="blue">
