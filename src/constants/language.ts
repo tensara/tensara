@@ -13,6 +13,6 @@ export const LANGUAGE_PROFILE_DISPLAY_NAMES: Record<string, string> = {
 
 export const IS_DISABLED_LANGUAGE: Record<string, boolean> = {
   cuda: false,
-  python: true,
-  mojo: true,
+  python: false,
+  mojo: false,
 } as const;
