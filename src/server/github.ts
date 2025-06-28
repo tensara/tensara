@@ -4,9 +4,9 @@ import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-meth
 
 import { env } from "~/env";
 
-const GITHUB_APP_ID = env.GITHUB_APP_ID;
-const GITHUB_APP_PRIVATE_KEY = env.GITHUB_APP_PRIVATE_KEY;
-const GITHUB_APP_INSTALLATION_ID = env.GITHUB_APP_INSTALLATION_ID;
+const BOT_GITHUB_APP_ID = env.BOT_GITHUB_APP_ID;
+const BOT_GITHUB_APP_PRIVATE_KEY = env.BOT_GITHUB_APP_PRIVATE_KEY;
+const BOT_GITHUB_APP_INSTALLATION_ID = env.BOT_GITHUB_APP_INSTALLATION_ID;
 
 let octokitInstance: Octokit | null = null;
 let appInstance: App | null = null;
@@ -18,8 +18,8 @@ async function getApp(): Promise<App> {
   const { App } = await import("@octokit/app");
   const { Octokit } = await import("@octokit/rest");
   appInstance = new App({
-    appId: GITHUB_APP_ID,
-    privateKey: GITHUB_APP_PRIVATE_KEY,
+    appId: BOT_GITHUB_APP_ID,
+    privateKey: BOT_GITHUB_APP_PRIVATE_KEY,
     Octokit: Octokit,
   });
   return appInstance;
@@ -30,16 +30,16 @@ export async function getOctokitInstance(): Promise<Octokit> {
     return octokitInstance;
   }
 
-  if (!GITHUB_APP_INSTALLATION_ID) {
+  if (!BOT_GITHUB_APP_INSTALLATION_ID) {
     throw new Error(
-      "GITHUB_APP_INSTALLATION_ID is not defined in environment variables."
+      "BOT_GITHUB_APP_INSTALLATION_ID is not defined in environment variables."
     );
   }
-  const installationIdString = GITHUB_APP_INSTALLATION_ID;
+  const installationIdString = BOT_GITHUB_APP_INSTALLATION_ID;
   const installationId = parseInt(installationIdString);
   if (isNaN(installationId)) {
     throw new Error(
-      `Invalid GITHUB_APP_INSTALLATION_ID: "${installationIdString}" is not a valid integer.`
+      `Invalid BOT_GITHUB_APP_INSTALLATION_ID: "${installationIdString}" is not a valid integer.`
     );
   }
 
