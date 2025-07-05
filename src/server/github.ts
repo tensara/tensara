@@ -170,43 +170,17 @@ export async function createPullRequest(
   head: string,
   base: string,
   title: string,
-  problemMdContent: string,
-  githubUsername: string
+  body: string
 ): Promise<string> {
   const octokit = await getOctokitInstance();
-
-  let problemDescription = "";
-  const frontmatterEndMarker = "\n---";
-  const secondMarkerIndex = problemMdContent.indexOf(
-    frontmatterEndMarker,
-    problemMdContent.indexOf(frontmatterEndMarker) + frontmatterEndMarker.length
-  );
-  if (secondMarkerIndex !== -1) {
-    problemDescription = problemMdContent
-      .substring(secondMarkerIndex + frontmatterEndMarker.length)
-      .trim()
-      .replace(/\s*\$\$(.*?)\$\$\s*/gs, "\n\n$$$1$$\n\n");
-  } else {
-    console.warn(
-      "Could not accurately parse problem description from problem.md content. PR body might be incomplete."
-    );
-  }
-
-  const tensaraProfileLink = `https://tensara.org/${githubUsername}`;
-  const prBody = `This PR introduces a new problem: ${title}
-
-Contributed by: @${githubUsername} ([Tensara Profile](${tensaraProfileLink}))
-
-**Problem Description:**
-${problemDescription}`;
 
   const { data: pullRequest } = await octokit.pulls.create({
     owner,
     repo,
     head,
     base,
-    title: `feat(new problem): ${title} (by @${githubUsername})`,
-    body: prBody,
+    title,
+    body,
   });
   return pullRequest.html_url;
 }

@@ -170,7 +170,7 @@ ${input.problemDetails.testCases
           },
         ];
 
-        const commitMessage = `feat: Add problem '${input.problemDetails.slug}' (\`problem.md\` & \`def.py\`)`;
+        const commitMessage = `feat(new problem): ${input.problemDetails.title} (by @${githubUsername})`;
 
         await createFilesAndCommit(
           GITHUB_REPO_OWNER,
@@ -181,19 +181,16 @@ ${input.problemDetails.testCases
           commitMessage
         );
 
-        const prTitle = `feat: New Problem: ${input.problemDetails.title} (${input.problemDetails.slug})`;
-        // The prBody is now constructed within createPullRequest, so we pass the necessary components.
-        // problemMdContent was constructed earlier in this function.
-        // githubUsername (from DB) is now used.
+        const prTitle = `Contribution: ${input.problemDetails.title}`;
+        const prBody = `Problem Description:\n\n${input.problemDetails.description}`;
 
         const prUrl = await createPullRequest(
           GITHUB_REPO_OWNER,
           GITHUB_REPO_NAME,
           newBranchName,
           GITHUB_BASE_BRANCH,
-          input.problemDetails.title, // Pass problem title directly
-          problemMdContent, // Pass the full problem.md content
-          githubUsername // Pass the correct username from the database
+          prTitle,
+          prBody
         );
 
         return { prUrl };
