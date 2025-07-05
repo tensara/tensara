@@ -57,6 +57,18 @@ import {
 import { FiArrowLeft } from "react-icons/fi";
 import { useSession } from "next-auth/react";
 
+const BASELINE_DISPLAY_NAMES: Record<string, string> = {
+  "torch_compile": "PyTorch",
+  "torch_vanilla": "PyTorch",
+  "tinygrad": "Tinygrad"
+};
+
+const BASELINE_USERNAMES: Record<string, string> = {
+  "torch_compile": "Torch Compile",
+  "torch_vanilla": "Vanilla Torch",
+  "tinygrad": "Tinygrad"
+};
+
 type ProblemLeaderboardEntry = {
   id: string;
   username: string | null;
@@ -75,17 +87,19 @@ type BaselineResult = {
   runtime_ms: number;
 };
 
-type BaselineData = {
+type BaselineGPUData = {
   results: BaselineResult[];
   avg_gflops: number;
   total_tests: number;
   avg_runtime_ms: number;
 };
 
+type BaselineFrameworkData = {
+  [key: string]: BaselineGPUData;  // key is GPU type (e.g. "T4", "H100")
+};
+
 type BaselineBenchmarks = {
-  tinygrad: BaselineData;
-  torch_compile: BaselineData;
-  torch_vanilla: BaselineData;
+  [key: string]: BaselineFrameworkData;  // key is framework name (e.g. "torch_compile")
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -134,6 +148,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const [selectedGpu, setSelectedGpu] = useState<string>(
     (router.query.gpu as string) || "all"
   );
+  const [showBaselines, setShowBaselines] = useState(false);
 
   // Add this to get the current user data
   const currentUsername = session?.user?.username;
@@ -182,20 +197,47 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const combinedEntries = useMemo(() => {
     if (!baselineBenchmarks || !leaderboardEntries) return leaderboardEntries;
 
-    const baselineEntries = Object.entries(baselineBenchmarks as BaselineBenchmarks).map(([framework, data]) => ({
-      id: `baseline-${framework}`,
-      username: framework.replace('_', ' '),
-      gflops: data.avg_gflops,
-      runtime: data.avg_runtime_ms,
-      createdAt: new Date(0), // Put baselines at a fixed date
-      gpuType: selectedGpu === "all" ? "A100" : selectedGpu, // Assuming baselines are run on A100
-      language: "python",
-      isPublic: true,
-      isBaseline: true,
-    }));
+    const baselineEntries = Object.entries(baselineBenchmarks as BaselineBenchmarks).flatMap(([framework, gpuData]) => {
+      if (selectedGpu === "all") {
+        const bestGpuEntry = Object.entries(gpuData).reduce((best, [gpu, data]) => {
+          if (!best || data.avg_gflops > best.data.avg_gflops) {
+            return { gpu, data };
+          }
+          return best;
+        }, null as { gpu: string; data: BaselineGPUData } | null);
 
-    return [...leaderboardEntries, ...baselineEntries].sort((a, b) => b.gflops - a.gflops);
-  }, [baselineBenchmarks, leaderboardEntries, selectedGpu]);
+        if (!bestGpuEntry) return [];
+
+        return [{
+          id: `baseline-${framework}-${bestGpuEntry.gpu}`,
+          username: `${BASELINE_USERNAMES[framework]}`,
+          gflops: bestGpuEntry.data.avg_gflops,
+          runtime: bestGpuEntry.data.avg_runtime_ms,
+          createdAt: new Date(0),
+          gpuType: bestGpuEntry.gpu,
+          language: "python",
+          isPublic: true,
+          isBaseline: true,
+        }];
+      } else {
+        // For specific GPU selection, keep existing behavior
+        return gpuData[selectedGpu] ? [{
+          id: `baseline-${framework}-${selectedGpu}`,
+          username: `${BASELINE_USERNAMES[framework]}`,
+          gflops: gpuData[selectedGpu].avg_gflops,
+          runtime: gpuData[selectedGpu].avg_runtime_ms,
+          createdAt: new Date(0),
+          gpuType: selectedGpu,
+          language: "python",
+          isPublic: true,
+          isBaseline: true,
+        }] : [];
+      }
+    });
+
+    const entries = showBaselines ? [...leaderboardEntries, ...baselineEntries] : leaderboardEntries;
+    return entries.sort((a, b) => b.gflops - a.gflops);
+  }, [baselineBenchmarks, leaderboardEntries, selectedGpu, showBaselines]);
 
   if (isProblemLoading || isLeaderboardLoading) {
     return (
@@ -266,37 +308,51 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                 "Leaderboard"
               )}
             </Heading>
-            <Menu>
-              <MenuButton
-                as={Button}
-                rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-                bg="whiteAlpha.50"
-                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+            <HStack spacing={4}>
+              <Button
+                size="sm"
+                bg={showBaselines ? "whiteAlpha.200" : "whiteAlpha.50"}
+                _hover={{ bg: "whiteAlpha.100" }}
                 _active={{ bg: "whiteAlpha.150" }}
-                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
                 color="white"
-                w="200px"
                 fontWeight="normal"
-                textAlign="left"
-                justifyContent="flex-start"
+                borderRadius="md"
+                onClick={() => setShowBaselines(!showBaselines)}
               >
-                {GPU_DISPLAY_NAMES[selectedGpu]}
-              </MenuButton>
-              <MenuList bg="gray.800" borderColor="gray.800" p={0}>
-                {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
-                  <MenuItem
-                    key={key}
-                    onClick={() => setSelectedGpu(key)}
-                    bg="gray.800"
-                    _hover={{ bg: "gray.700" }}
-                    color="white"
-                    borderRadius="md"
-                  >
-                    {value}
-                  </MenuItem>
-                ))}
-              </MenuList>
-            </Menu>
+                {showBaselines ? "Hide Baselines" : "Show Baselines"}
+              </Button>
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                  bg="whiteAlpha.50"
+                  _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                  _active={{ bg: "whiteAlpha.150" }}
+                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                  color="white"
+                  w="200px"
+                  fontWeight="normal"
+                  textAlign="left"
+                  justifyContent="flex-start"
+                >
+                  {GPU_DISPLAY_NAMES[selectedGpu]}
+                </MenuButton>
+                <MenuList bg="gray.800" borderColor="gray.800" p={0}>
+                  {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
+                    <MenuItem
+                      key={key}
+                      onClick={() => setSelectedGpu(key)}
+                      bg="gray.800"
+                      _hover={{ bg: "gray.700" }}
+                      color="white"
+                      borderRadius="md"
+                    >
+                      {value}
+                    </MenuItem>
+                  ))}
+                </MenuList>
+              </Menu>
+            </HStack>
           </HStack>
 
           {combinedEntries && combinedEntries.length > 0 ? (
@@ -404,10 +460,15 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           </Td>
                         )}
                         <Td borderBottom="none">
-                          <Text>
-                            {LANGUAGE_DISPLAY_NAMES[entry.language ?? ""] ??
-                              "Unknown"}
-                          </Text>
+                          {isBaseline ? (
+                            <Text>
+                              {BASELINE_DISPLAY_NAMES[entry.id.split('-')[1] || ""] || "Unknown"}
+                            </Text>
+                          ) : (
+                            <Text>
+                              {LANGUAGE_DISPLAY_NAMES[entry.language ?? ""] ?? "Unknown"}
+                            </Text>
+                          )}
                         </Td>
                         <Td borderBottom="none">
                           {isBaseline ? (

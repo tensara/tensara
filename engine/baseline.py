@@ -65,7 +65,7 @@ def tinygrad_param_func(language, solution_func, input_tensors, actual_output, p
     extra_params = problem.get_extra_params(test_case)
     return tinygrad_inputs + [tinygrad_output] + list(extra_params)
 
-def baseline_runner(solution_code: str, problem_name: str, problem_def: str, dtype: str, baseline: str):
+def baseline_runner(solution_code: str, problem_name: str, problem_def: str, dtype: str, baseline: str, check: bool = False):
     problem = utils.load_problem_module(problem_name, problem_def)
 
     temp_dir = tempfile.mkdtemp()
@@ -86,10 +86,14 @@ def baseline_runner(solution_code: str, problem_name: str, problem_def: str, dty
         solution_func = torch.compile(module.solution)
     elif baseline == "torch_vanilla":
         solution_func = module.solution
-        
-    gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, "python", param_func=param_func)
+    
+    if check:
+        gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, "python", param_func=param_func)
+    else:
+        gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, "python", param_func=param_func)
     last_event = None
     for event in gen:
+        print(event)
         last_event = event
     yield last_event
 
@@ -121,11 +125,12 @@ async def baseline_handler(request: Request, baseline: str):
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]
+    check = req.get("check", False)
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
         runner = gpu_runners[gpu]
-        stream = runner.remote_gen(solution_code, problem_name, problem_def, dtype, baseline)
+        stream = runner.remote_gen(solution_code, problem_name, problem_def, dtype, baseline, check)
         for event in stream:
             yield event
     
