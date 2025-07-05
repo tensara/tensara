@@ -100,6 +100,7 @@
     "eslint-config-next": "15.3.4",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.5",
+    "monaco-editor-webpack-plugin": "^7.1.0",
     "prettier": "^3.5.3",
     "prettier-plugin-organize-imports": "^4.1.0",
     "prisma": "^5.14.0",

@@ -11,6 +11,7 @@ import {
   Text,
   FormControl,
   FormLabel,
+  FormHelperText,
   Input,
   Button,
   useToast,
@@ -220,6 +221,9 @@ const AddContributionPage: NextPage = () => {
                   focusBorderColor="blue.400"
                   placeholder="eg. Square Matrix Multiplication"
                 />
+                <FormHelperText>
+                  A concise and descriptive title for the problem.
+                </FormHelperText>
               </FormControl>
 
               <FormControl id="slug" isRequired mb={8}>
@@ -234,6 +238,10 @@ const AddContributionPage: NextPage = () => {
                   focusBorderColor="blue.400"
                   placeholder="eg. square-matmul, shows up in the URL: tensara.org/problems/square-matmul"
                 />
+                <FormHelperText>
+                  A URL-friendly version of the title. This will be part of the
+                  problem's URL.
+                </FormHelperText>
               </FormControl>
 
               <FormControl id="tags" mb={8}>
@@ -323,6 +331,10 @@ const AddContributionPage: NextPage = () => {
                     }),
                   }}
                 />
+                <FormHelperText>
+                  Keywords that help categorize the problem. You can select
+                  existing tags or create new ones.
+                </FormHelperText>
               </FormControl>
 
               <FormControl id="difficulty" isRequired mb={8}>
@@ -431,6 +443,10 @@ const AddContributionPage: NextPage = () => {
                   mode={editorMode}
                   onModeChange={setEditorMode}
                 />
+                <FormHelperText>
+                  A detailed explanation of the problem, including the task,
+                  input/output format, and any constraints. Supports Markdown.
+                </FormHelperText>
                 {/* </Flex> */}
               </FormControl>
             </GridItem>
@@ -457,6 +473,10 @@ const AddContributionPage: NextPage = () => {
                     />
                   </div>
                 </Box>
+                <FormHelperText>
+                  A correct and efficient PyTorch implementation that solves the
+                  problem.
+                </FormHelperText>
               </FormControl>
 
               <FormControl id="testCases" isRequired mb={8}>
@@ -550,6 +570,10 @@ const AddContributionPage: NextPage = () => {
                     ))}
                   </Accordion>
                 )}
+                <FormHelperText>
+                  Provide a variety of test cases to validate solutions. Include
+                  edge cases and different input sizes.
+                </FormHelperText>
                 <Button
                   leftIcon={<AddIcon />}
                   onClick={() => {

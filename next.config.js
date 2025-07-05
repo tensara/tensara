@@ -4,6 +4,7 @@
  */
 import "./src/env.js";
 import path from 'path';
+import MonacoWebpackPlugin from 'monaco-editor-webpack-plugin';
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -19,6 +20,17 @@ const config = {
   i18n: {
     locales: ["en"],
     defaultLocale: "en",
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.plugins.push(
+        new MonacoWebpackPlugin({
+          languages: ["python", "typescript", "javascript", "json", "html", "css"],
+          filename: 'static/[name].worker.js',
+        })
+      );
+    }
+    return config;
   },
   transpilePackages: [
     "geist",

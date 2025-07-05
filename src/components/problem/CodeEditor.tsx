@@ -60,12 +60,6 @@ function setupMonaco(monaco: Monaco) {
       { token: "keyword.cuda", foreground: "C586C0" }, // CUDA specific keywords
       { token: "identifier.cuda", foreground: "DCDCAA" }, // CUDA specific identifiers
 
-      // Python specific tokens
-      { token: "keyword.python", foreground: "569cd6" },
-      { token: "function.python", foreground: "4FC1FF" },
-      { token: "class.python", foreground: "4EC9B0" },
-      { token: "decorator.python", foreground: "DCDCAA" },
-
       // Triton specific tokens
       { token: "keyword.triton", foreground: "C586C0" },
       { token: "function.triton", foreground: "4FC1FF" },
@@ -282,74 +276,6 @@ function setupMonaco(monaco: Monaco) {
       ],
     },
   });
-
-  monaco.languages.setMonarchTokensProvider("cpp", {
-    defaultToken: "",
-
-    // Common tokens
-    tokenizer: {
-      root: [
-        // CUDA specific keywords
-        [
-          /\b(threadIdx|blockIdx|blockDim|gridDim|warpSize|__global__|__device__|__host__|__shared__)\b/,
-          "keyword.cuda",
-        ],
-
-        // Preprocessor directives
-        [/#\s*include/, "keyword.directive"],
-        [/<.*>/, "string"],
-
-        // Comments
-        [/\/\/.*$/, "comment"],
-        [/\/\*/, "comment", "@comment"],
-
-        // Keywords
-        [
-          /\b(if|else|for|while|do|switch|case|default|break|continue|return|void|int|float|double|char|unsigned|const|static|extern|struct|union|enum|typedef|class|template|namespace|using|new|delete|true|false|nullptr)\b/,
-          "keyword",
-        ],
-
-        // Types
-        [/\b(int|float|double|char|bool|void|size_t)\b/, "type"],
-        [/\b(float[1-4]|int[1-4]|uint[1-4]|dim3)\b/, "type"],
-
-        // Functions
-        [/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/, "function"],
-
-        // External keyword
-        [/\bextern\b/, "keyword.extern"],
-
-        // Strings
-        [/"([^"\\]|\\.)*$/, "string.invalid"],
-        [/"/, "string", "@string"],
-
-        // Numbers
-        [/\b\d+\.\d+([eE][\-+]?\d+)?\b/, "number.float"],
-        [/\b0[xX][0-9a-fA-F]+\b/, "number.hex"],
-        [/\b\d+\b/, "number"],
-
-        // Operators
-        [/[{}()\[\]]/, "@brackets"],
-        [/[<>=%&|+\-*/~^]+/, "operator"],
-
-        // Identifiers
-        [/[a-zA-Z_]\w*/, "identifier"],
-      ],
-
-      comment: [
-        [/[^/*]+/, "comment"],
-        [/\/\*/, "comment", "@push"],
-        [/\*\//, "comment", "@pop"],
-        [/[/*]/, "comment"],
-      ],
-
-      string: [
-        [/[^\\"]+/, "string"],
-        [/\\./, "string.escape"],
-        [/"/, "string", "@pop"],
-      ],
-    },
-  });
 }
 
 const pulseAnimation = keyframes`
@@ -431,7 +357,7 @@ const CodeEditor = ({
             ? "cpp"
             : selectedLanguage === "mojo"
               ? "mojo"
-              : "python"
+              : selectedLanguage
         }
         beforeMount={setupMonaco}
         onMount={() => setIsEditorLoading(false)}
