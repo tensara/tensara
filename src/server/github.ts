@@ -184,7 +184,8 @@ export async function createPullRequest(
   if (secondMarkerIndex !== -1) {
     problemDescription = problemMdContent
       .substring(secondMarkerIndex + frontmatterEndMarker.length)
-      .trim();
+      .trim()
+      .replace(/\s*\$\$(.*?)\$\$\s*/gs, "\n\n$$$1$$\n\n");
   } else {
     console.warn(
       "Could not accurately parse problem description from problem.md content. PR body might be incomplete."
@@ -204,7 +205,7 @@ ${problemDescription}`;
     repo,
     head,
     base,
-    title: "Contribution: " + title,
+    title: `feat(new problem): ${title} (by @${githubUsername})`,
     body: prBody,
   });
   return pullRequest.html_url;

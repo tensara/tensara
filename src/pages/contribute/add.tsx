@@ -240,7 +240,7 @@ const AddContributionPage: NextPage = () => {
                 />
                 <FormHelperText>
                   A URL-friendly version of the title. This will be part of the
-                  problem's URL.
+                  problem&apos;s URL.
                 </FormHelperText>
               </FormControl>
 
