@@ -1,5 +1,5 @@
-import type { App } from "@octokit/app";
-import type { Octokit } from "@octokit/rest";
+import { App } from "@octokit/app";
+import { Octokit } from "@octokit/rest";
 import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 
 import { env } from "~/env";
@@ -15,8 +15,6 @@ async function getApp(): Promise<App> {
   if (appInstance) {
     return appInstance;
   }
-  const { App } = await import("@octokit/app");
-  const { Octokit } = await import("@octokit/rest");
   appInstance = new App({
     appId: BOT_GITHUB_APP_ID,
     privateKey: BOT_GITHUB_APP_PRIVATE_KEY,

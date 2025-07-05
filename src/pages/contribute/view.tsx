@@ -20,20 +20,27 @@ import {
   AlertDescription,
   Link as ChakraLink,
   Icon,
+  ButtonGroup,
+  Flex,
+  Heading,
 } from "@chakra-ui/react";
-import PageHeader from "~/components/contribute/PageHeader";
 import { api } from "~/utils/api";
 import NextLink from "next/link";
 import { FiExternalLink } from "react-icons/fi";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { formatContributionDate } from "~/utils/date";
+
+type FilterStatus = "all" | "open" | "closed";
 
 const ViewContributionsPage: NextPage = () => {
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
+  const [filter, setFilter] = useState<FilterStatus>("all");
 
   const cardBg = useColorModeValue("white", "gray.800");
   const cardBorder = useColorModeValue("gray.200", "gray.700");
+  const mutedColor = useColorModeValue("gray.600", "gray.400");
 
   const {
     data: contributions,
@@ -69,6 +76,18 @@ const ViewContributionsPage: NextPage = () => {
     if (prStatus === "closed") return "Closed";
     return "Unknown";
   };
+
+  const filteredContributions = useMemo(() => {
+    if (!contributions) return [];
+    if (filter === "all") return contributions;
+    return contributions.filter((contrib) => {
+      const status = getDisplayStatus(contrib.prStatus, contrib.prMergedAt);
+      if (filter === "open") return status === "Open";
+      if (filter === "closed")
+        return status === "Closed" || status === "Merged";
+      return false;
+    });
+  }, [contributions, filter]);
 
   if (sessionStatus === "loading" || isLoading) {
     return (
@@ -110,10 +129,36 @@ const ViewContributionsPage: NextPage = () => {
   return (
     <Layout>
       <Box maxW="6xl" mx="auto" px={4} py={8}>
-        <PageHeader
-          title="Your Contributions"
-          description="View your submitted problems and their status on GitHub."
-        />
+        <Flex justifyContent="space-between" alignItems="center" mb={6}>
+          <Box>
+            <Heading as="h1" size="lg" fontWeight="bold">
+              Your Contributions
+            </Heading>
+            <Text mt={1} color={mutedColor} fontSize="lg">
+              View your submitted problems and their status on GitHub.
+            </Text>
+          </Box>
+          <ButtonGroup isAttached variant="outline" size="sm">
+            <Button
+              onClick={() => setFilter("all")}
+              isActive={filter === "all"}
+            >
+              All
+            </Button>
+            <Button
+              onClick={() => setFilter("open")}
+              isActive={filter === "open"}
+            >
+              Open
+            </Button>
+            <Button
+              onClick={() => setFilter("closed")}
+              isActive={filter === "closed"}
+            >
+              Closed
+            </Button>
+          </ButtonGroup>
+        </Flex>
 
         <Box
           bg={cardBg}
@@ -136,72 +181,74 @@ const ViewContributionsPage: NextPage = () => {
               </NextLink>
             </Box>
           ) : (
-            <Table variant="simple" size="md">
-              <Thead>
-                <Tr>
-                  <Th>Contribution Title</Th>
-                  <Th>Problem Link</Th>
-                  <Th>Status</Th>
-                  <Th>Created</Th>
-                  <Th>Last Updated</Th>
-                  <Th>GitHub PR</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {contributions.map((contrib) => (
-                  <Tr key={contrib.prUrl}>
-                    <Td fontWeight="medium">{contrib.prTitle}</Td>
-                    <Td>
-                      {contrib.problemSlug && contrib.problemTitle ? (
-                        <NextLink
-                          href={`/problems/${contrib.problemSlug}`}
-                          passHref
-                        >
-                          <ChakraLink color="blue.500" isExternal={false}>
-                            {contrib.problemTitle}
+            <>
+              {filteredContributions.length > 0 ? (
+                <Table variant="simple" size="md">
+                  <Thead>
+                    <Tr>
+                      <Th>Contribution Title</Th>
+                      <Th>Status</Th>
+                      <Th>Created</Th>
+                      <Th>Last Updated</Th>
+                      <Th>GitHub PR</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {filteredContributions.map((contrib) => (
+                      <Tr key={contrib.prUrl}>
+                        <Td fontWeight="medium">
+                          {contrib.prTitle.replace("Contribution: ", "")}
+                        </Td>
+                        <Td>
+                          <Badge
+                            colorScheme={getStatusColorScheme(
+                              contrib.prStatus,
+                              contrib.prMergedAt
+                            )}
+                            px={2}
+                            py={1}
+                            borderRadius="full"
+                            textTransform="capitalize"
+                          >
+                            {getDisplayStatus(
+                              contrib.prStatus,
+                              contrib.prMergedAt
+                            )}
+                          </Badge>
+                        </Td>
+                        <Td>
+                          {formatContributionDate(
+                            new Date(contrib.prCreatedAt)
+                          )}
+                        </Td>
+                        <Td>
+                          {formatContributionDate(
+                            new Date(contrib.prUpdatedAt)
+                          )}
+                        </Td>
+                        <Td>
+                          <ChakraLink href={contrib.prUrl} isExternal>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              rightIcon={<Icon as={FiExternalLink} />}
+                            >
+                              View PR
+                            </Button>
                           </ChakraLink>
-                        </NextLink>
-                      ) : (
-                        <Text as="em" color="gray.500">
-                          N/A
-                        </Text>
-                      )}
-                    </Td>
-                    <Td>
-                      <Badge
-                        colorScheme={getStatusColorScheme(
-                          contrib.prStatus,
-                          contrib.prMergedAt
-                        )}
-                        px={2}
-                        py={1}
-                        borderRadius="full"
-                        textTransform="capitalize"
-                      >
-                        {getDisplayStatus(contrib.prStatus, contrib.prMergedAt)}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      {new Date(contrib.prCreatedAt).toLocaleDateString()}
-                    </Td>
-                    <Td>
-                      {new Date(contrib.prUpdatedAt).toLocaleDateString()}
-                    </Td>
-                    <Td>
-                      <ChakraLink href={contrib.prUrl} isExternal>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          rightIcon={<Icon as={FiExternalLink} />}
-                        >
-                          View PR
-                        </Button>
-                      </ChakraLink>
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
+                        </Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              ) : (
+                <Box textAlign="center" py={10}>
+                  <Text fontSize="xl">
+                    No contributions match the filter &quot;{filter}&quot;.
+                  </Text>
+                </Box>
+              )}
+            </>
           )}
         </Box>
       </Box>
