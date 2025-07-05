@@ -106,9 +106,11 @@ const ModifyContributionPage: NextPage = () => {
             | "HARD"
             | "EXPERT", // Convert to uppercase for backend
           tags: currentProblemDetails?.tags ?? [], // Added this line
-          referenceCode,
-          testCases,
-          // parameters: currentProblemDetails?.parameters ?? [], // Preserve existing parameters
+          referenceSolutionCode: referenceCode,
+          generateTestCasesCode:
+            currentProblemDetails?.generateTestCasesCode ?? "",
+          flopsFormula: currentProblemDetails?.flopsFormula ?? "",
+          parameters: currentProblemDetails?.parameters ?? [], // Preserve existing parameters
         },
       });
 

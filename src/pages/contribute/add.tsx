@@ -35,6 +35,7 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
+  Checkbox,
 } from "@chakra-ui/react";
 import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
 import { MdRestartAlt } from "react-icons/md";
@@ -68,6 +69,12 @@ const AddContributionPage: NextPage = () => {
     addTestCase,
     updateTestCase,
     removeTestCase,
+    parameters,
+    addParameter,
+    updateParameter,
+    removeParameter,
+    flops,
+    setFlops,
     handleReset,
   } = useContributionFormPersistence();
 
@@ -90,6 +97,16 @@ const AddContributionPage: NextPage = () => {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Add a default parameter if none exist on mount
+  useEffect(() => {
+    // Add a default parameter if the list is empty when the component mounts on the client
+    if (isClient && parameters.length === 0) {
+      addParameter();
+    }
+    // We only want this to run once when isClient becomes true.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClient]);
 
   // Generate slug from title
   useEffect(() => {
@@ -132,8 +149,10 @@ const AddContributionPage: NextPage = () => {
             | "HARD"
             | "EXPERT",
           tags: tags,
-          referenceCode: referenceSolutionCode,
-          testCases: JSON.stringify(testCases), // Convert test cases array to JSON string
+          referenceSolutionCode,
+          parameters: parameters.map(({ name, type }) => ({ name, type })),
+          flopsFormula: flops,
+          testCases,
         },
       });
 
@@ -236,11 +255,11 @@ const AddContributionPage: NextPage = () => {
                   onChange={(e) => setSlug(e.target.value)}
                   size="lg"
                   focusBorderColor="blue.400"
-                  placeholder="eg. square-matmul, shows up in the URL: tensara.org/problems/square-matmul"
+                  placeholder="eg. square-matmul"
                 />
                 <FormHelperText>
-                  A URL-friendly version of the title. This will be part of the
-                  problem&apos;s URL.
+                  A URL-friendly version of the title. eg. tensara.org/problems/
+                  <b>square-matmul</b>
                 </FormHelperText>
               </FormControl>
 
@@ -381,18 +400,11 @@ const AddContributionPage: NextPage = () => {
               </FormControl>
 
               <FormControl id="description" isRequired mb={8}>
-                {/* <Flex
-                  justifyContent="space-between"
-                  alignItems="center"
-                  mb={4}
-                  direction={{ base: "column", sm: "row" }}
-                  gap={{ base: 4, sm: 0 }}
-                > */}
                 <Tabs
                   index={editorMode === "wysiwyg" ? 0 : 1}
-                  onChange={(index) => {
-                    setEditorMode(index === 0 ? "wysiwyg" : "markdown");
-                  }}
+                  onChange={(index) =>
+                    setEditorMode(index === 0 ? "wysiwyg" : "markdown")
+                  }
                   variant="soft-rounded"
                   colorScheme="blue"
                 >
@@ -479,47 +491,139 @@ const AddContributionPage: NextPage = () => {
                 </FormHelperText>
               </FormControl>
 
+              {isClient && (
+                <FormControl id="parameters" mb={8}>
+                  <Flex justifyContent="space-between" alignItems="center">
+                    <FormLabel fontWeight="semibold" fontSize="lg" mb="0">
+                      Function Parameters
+                    </FormLabel>
+                    <Button
+                      leftIcon={<AddIcon />}
+                      size="sm"
+                      onClick={addParameter}
+                    >
+                      Add Parameter
+                    </Button>
+                  </Flex>
+                  <Accordion allowMultiple defaultIndex={[0]} mt={4}>
+                    {parameters.map((param, index) => (
+                      <AccordionItem key={index}>
+                        <h2>
+                          <AccordionButton>
+                            <Box as="span" flex="1" textAlign="left">
+                              Parameter {index + 1}
+                            </Box>
+                            <AccordionIcon />
+                          </AccordionButton>
+                        </h2>
+                        <AccordionPanel pb={4}>
+                          <Flex gap={4} alignItems="center">
+                            <Input
+                              placeholder="Name"
+                              value={param.name}
+                              onChange={(e) =>
+                                updateParameter(index, { name: e.target.value })
+                              }
+                            />
+                            <Input
+                              placeholder="Type"
+                              value={param.type}
+                              onChange={(e) =>
+                                updateParameter(index, { type: e.target.value })
+                              }
+                            />
+                            <Checkbox
+                              isChecked={param.pointer}
+                              onChange={(e) =>
+                                updateParameter(index, {
+                                  pointer: e.target.checked,
+                                })
+                              }
+                            >
+                              <Text
+                                fontSize="sm"
+                                color="gray.400"
+                                textTransform="uppercase"
+                              >
+                                Pointer
+                              </Text>
+                            </Checkbox>
+                            <Checkbox
+                              isChecked={param.const}
+                              onChange={(e) =>
+                                updateParameter(index, {
+                                  const: e.target.checked,
+                                })
+                              }
+                            >
+                              <Text
+                                fontSize="sm"
+                                color="gray.400"
+                                textTransform="uppercase"
+                              >
+                                Const
+                              </Text>
+                            </Checkbox>
+                            <IconButton
+                              aria-label="Remove parameter"
+                              icon={<DeleteIcon />}
+                              colorScheme="red"
+                              onClick={() => removeParameter(index)}
+                            />
+                          </Flex>
+                        </AccordionPanel>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </FormControl>
+              )}
+
               <FormControl id="testCases" isRequired mb={8}>
-                <FormLabel fontWeight="semibold" fontSize="lg">
-                  Test Cases
-                </FormLabel>
+                <Flex justifyContent="space-between" alignItems="center" mb={4}>
+                  <FormLabel fontWeight="semibold" fontSize="lg" mb="0">
+                    Test Cases
+                  </FormLabel>
+                  <Button
+                    leftIcon={<AddIcon />}
+                    size="sm"
+                    onClick={() => {
+                      addTestCase();
+                      setAccordionIndex(testCases.length);
+                    }}
+                  >
+                    Add Test Case
+                  </Button>
+                </Flex>
                 {isClient && (
                   <Accordion
+                    allowMultiple
                     allowToggle
                     index={accordionIndex}
-                    onChange={(newIndex) => setAccordionIndex(newIndex)}
+                    onChange={setAccordionIndex}
+                    defaultIndex={testCases.length > 0 ? [0] : []}
                   >
                     {testCases.map((testCase, index) => (
                       <AccordionItem
                         key={index}
-                        mt={index > 0 ? 4 : 0}
-                        borderWidth="1px"
-                        borderRadius="lg"
-                        borderColor={cardBorder}
                         bg={cardBg}
-                        boxShadow="sm"
+                        borderBottomWidth="1px"
+                        borderColor={cardBorder}
                       >
                         <h2>
                           <AccordionButton _expanded={{ bg: cardBg }}>
                             <Box as="span" flex="1" textAlign="left">
-                              <Text fontWeight="bold">
-                                Test Case {index + 1}
-                              </Text>
+                              Test Case {index + 1}
                             </Box>
                             <IconButton
                               aria-label="Remove test case"
                               icon={<DeleteIcon />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeTestCase(index);
-                                setAccordionIndex(
-                                  testCases.length - 1 > 0
-                                    ? testCases.length - 2
-                                    : 0
-                                );
-                              }}
                               size="sm"
                               variant="ghost"
+                              colorScheme="red"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent accordion from toggling
+                                removeTestCase(index);
+                              }}
                             />
                             <AccordionIcon />
                           </AccordionButton>
@@ -527,41 +631,29 @@ const AddContributionPage: NextPage = () => {
                         <AccordionPanel pb={4}>
                           <Flex direction="row" gap={4}>
                             <FormControl flex={1}>
-                              <FormLabel fontSize="sm">Input</FormLabel>
+                              <FormLabel>Input</FormLabel>
                               <Textarea
+                                placeholder="Enter test case input"
                                 value={testCase.input}
                                 onChange={(e) =>
                                   updateTestCase(index, {
                                     input: e.target.value,
                                   })
                                 }
-                                placeholder="Input"
-                                size="sm"
-                                minHeight="120px"
-                                resize="vertical"
-                                borderRadius="lg"
-                                bg="gray.700"
-                                focusBorderColor="blue.400"
+                                rows={3}
                               />
                             </FormControl>
                             <FormControl flex={1}>
-                              <FormLabel fontSize="sm">
-                                Expected Output
-                              </FormLabel>
+                              <FormLabel>Expected Output</FormLabel>
                               <Textarea
+                                placeholder="Enter expected output"
                                 value={testCase.output}
                                 onChange={(e) =>
                                   updateTestCase(index, {
                                     output: e.target.value,
                                   })
                                 }
-                                placeholder="Expected Output"
-                                size="sm"
-                                minHeight="120px"
-                                resize="vertical"
-                                borderRadius="lg"
-                                bg="gray.700"
-                                focusBorderColor="blue.400"
+                                rows={3}
                               />
                             </FormControl>
                           </Flex>
@@ -571,19 +663,23 @@ const AddContributionPage: NextPage = () => {
                   </Accordion>
                 )}
                 <FormHelperText>
-                  Provide a variety of test cases to validate solutions. Include
-                  edge cases and different input sizes.
+                  Provide test cases for the problem.
                 </FormHelperText>
-                <Button
-                  leftIcon={<AddIcon />}
-                  onClick={() => {
-                    addTestCase();
-                    setAccordionIndex(testCases.length);
-                  }}
-                  mt={4}
-                >
-                  Add Test Case
-                </Button>
+              </FormControl>
+
+              <FormControl id="flops" mb={8}>
+                <FormLabel fontWeight="semibold" fontSize="lg">
+                  FLOPs Formula
+                </FormLabel>
+                <Input
+                  type="text"
+                  value={flops}
+                  onChange={(e) => setFlops(e.target.value)}
+                  placeholder="e.g. 2 * N"
+                />
+                <FormHelperText>
+                  A mathematical formula for calculating the FLOPs.
+                </FormHelperText>
               </FormControl>
             </GridItem>
           </Grid>

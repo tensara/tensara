@@ -17,8 +17,14 @@ Your problem statement goes here. Be descriptive and clear.
 - Describe the expected output format here.
 
 ## Notes
-- Add any constraints, edge cases, or other notes here.
-`;
+- Add any constraints, edge cases, or other notes here.`;
+
+interface Parameter {
+  name: string;
+  type: string;
+  pointer: boolean;
+  const: boolean;
+}
 
 interface ContributionFormState {
   title: string;
@@ -28,6 +34,8 @@ interface ContributionFormState {
   tags: string[];
   referenceSolutionCode: string;
   testCases: { input: string; output: string }[];
+  parameters: Parameter[];
+  flops: string;
 }
 
 const defaultInitialState: ContributionFormState = {
@@ -38,6 +46,8 @@ const defaultInitialState: ContributionFormState = {
   tags: [],
   referenceSolutionCode: pythonStarterCode,
   testCases: [{ input: "", output: "" }],
+  parameters: [],
+  flops: "",
 };
 
 export const useContributionFormPersistence = () => {
@@ -50,7 +60,10 @@ export const useContributionFormPersistence = () => {
     try {
       const cachedData = localStorage.getItem(CACHE_KEY);
       if (cachedData) {
-        setFormState(JSON.parse(cachedData) as ContributionFormState);
+        const loadedState = JSON.parse(
+          cachedData
+        ) as Partial<ContributionFormState>;
+        setFormState({ ...defaultInitialState, ...loadedState });
       }
     } catch (error) {
       console.error("Failed to load from localStorage", error);
@@ -90,6 +103,8 @@ export const useContributionFormPersistence = () => {
     setFormState((prevState) => ({ ...prevState, tags }));
   const setReferenceSolutionCode = (referenceSolutionCode: string) =>
     setFormState((prevState) => ({ ...prevState, referenceSolutionCode }));
+  const setFlops = (flops: string) =>
+    setFormState((prevState) => ({ ...prevState, flops }));
 
   const addTestCase = useCallback(() => {
     setFormState((prevState) => ({
@@ -122,6 +137,37 @@ export const useContributionFormPersistence = () => {
     }));
   }, []);
 
+  const addParameter = useCallback(() => {
+    setFormState((prevState) => ({
+      ...prevState,
+      parameters: [
+        ...prevState.parameters,
+        { name: "", type: "", pointer: false, const: false },
+      ],
+    }));
+  }, []);
+
+  const updateParameter = useCallback(
+    (index: number, newParameter: Partial<Parameter>) => {
+      setFormState((prevState) => {
+        const newParameters = [...prevState.parameters];
+        const currentParameter = newParameters[index];
+        if (currentParameter) {
+          newParameters[index] = { ...currentParameter, ...newParameter };
+        }
+        return { ...prevState, parameters: newParameters };
+      });
+    },
+    []
+  );
+
+  const removeParameter = useCallback((index: number) => {
+    setFormState((prevState) => ({
+      ...prevState,
+      parameters: prevState.parameters.filter((_, i) => i !== index),
+    }));
+  }, []);
+
   return {
     ...formState,
     setTitle,
@@ -130,9 +176,13 @@ export const useContributionFormPersistence = () => {
     setDifficulty,
     setTags,
     setReferenceSolutionCode,
+    setFlops,
     addTestCase,
     updateTestCase,
     removeTestCase,
+    addParameter,
+    updateParameter,
+    removeParameter,
     handleReset,
   };
 };
