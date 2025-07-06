@@ -1,6 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import matter from "gray-matter";
 import type { Octokit } from "@octokit/rest";
 import {
   createBranch,
@@ -240,6 +241,11 @@ ${input.problemDetails.testCases
       }
 
       try {
+        const user = await ctx.db.user.findUniqueOrThrow({
+          where: { id: ctx.session.user.id },
+          select: { username: true, name: true },
+        });
+
         const urlParts = input.prUrl.split("/");
         if (urlParts.length < 7) {
           throw new TRPCError({
@@ -260,7 +266,7 @@ ${input.problemDetails.testCases
         const headBranch: string = pullRequest.head.ref;
         const problemDirPath = `problems/${input.problemDetails.slug}/`;
 
-        const authorName = user.name ?? input.contributorGithubUsername;
+        const authorName = user.name ?? user.username;
 
         const yamlFrontmatter = `---
 title: "${input.problemDetails.title}"
@@ -351,12 +357,13 @@ ${input.problemDetails.testCases
 
         return { success: true, message: "Problem PR updated successfully" };
       } catch (error) {
+        const message =
+          error instanceof Error
+            ? `Failed to update problem PR: ${error.message}`
+            : "Failed to update problem PR";
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? `Failed to update problem PR: ${error.message}`
-              : "Failed to update problem PR",
+          message,
         });
       }
     }),
@@ -501,16 +508,17 @@ ${input.problemDetails.testCases
       );
       return contributions;
     } catch (error) {
+      const message =
+        error instanceof Error
+          ? `Failed to fetch contributions: ${error.message}`
+          : "Failed to fetch contributions";
       console.error(
         `[getMyContributions Debug] Error for user ${currentUserGithubUsername}:`,
-        error
+        message
       );
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message:
-          error instanceof Error
-            ? `Failed to fetch contributions: ${error.message}`
-            : "Failed to fetch contributions",
+        message,
       });
     }
   }),
@@ -542,7 +550,7 @@ ${input.problemDetails.testCases
           problemMd: null,
           defPy: null,
         };
-        let problemSlug: string; // Ensure problemSlug is always a string
+        let problemSlug: string;
         let branchToFetch: string;
         let owner = GITHUB_REPO_OWNER;
         let repo = GITHUB_REPO_NAME;
@@ -610,34 +618,69 @@ ${input.problemDetails.testCases
           branchToFetch
         );
 
-        if (!problemContent.problemMd || !problemContent.metadataJson) {
+        if (!problemContent.problemMd || !problemContent.defPy) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Problem details not found.",
+            message: "Problem markdown file not found.",
           });
         }
 
-        const metadata = ProblemMetadataSchema.parse(
-          JSON.parse(problemContent.metadataJson)
+        const { data: metadata, content: description } = matter(
+          problemContent.problemMd
         );
+        const parsedMetadata = ProblemMetadataSchema.parse(metadata);
+
+        // Functions to extract code snippets from def.py
+        const getPythonFunctionBody = (
+          code: string,
+          funcName: string
+        ): string => {
+          const funcRegex = new RegExp(
+            `def ${funcName}\\(self, .*\\):\\n((?:\\s{8}.*\\n|\\n)*)`
+          );
+          const match = code.match(funcRegex);
+          return match?.[1]?.trim() ?? "";
+        };
+
+        const getFlopsFormula = (code: string): string => {
+          const flopsRegex = /return (.*)/;
+          const match = flopsRegex.exec(
+            getPythonFunctionBody(code, "get_flops")
+          );
+          return match?.[1]?.trim() ?? "";
+        };
+
+        const referenceSolutionCode = getPythonFunctionBody(
+          problemContent.defPy,
+          "reference_solution"
+        );
+        const generateTestCasesCode = getPythonFunctionBody(
+          problemContent.defPy,
+          "generate_test_cases"
+        );
+        const flopsFormula = getFlopsFormula(problemContent.defPy);
 
         return {
-          title: metadata.title,
+          title: parsedMetadata.title,
           slug: problemSlug,
-          description: problemContent.problemMd,
-          difficulty: metadata.difficulty,
-          tags: metadata.tags,
-          referenceCode: problemContent.referenceCu,
-          testCases: problemContent.testsHpp,
-          tensaraAppUserId: metadata.tensaraAppUserId,
+          description,
+          difficulty: parsedMetadata.difficulty,
+          tags: parsedMetadata.tags,
+          referenceSolutionCode,
+          generateTestCasesCode,
+          flopsFormula,
+          parameters: [], // Placeholder, as this is not stored in a recoverable format
+          tensaraAppUserId: parsedMetadata.tensaraAppUserId,
         };
       } catch (error) {
+        const message =
+          error instanceof Error
+            ? `Failed to fetch problem details: ${error.message}`
+            : "An unknown error occurred";
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? `Failed to fetch problem details: ${error.message}`
-              : "Failed to fetch problem details",
+          message,
+          cause: error,
         });
       }
     }),
