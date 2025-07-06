@@ -424,13 +424,17 @@ const SubmissionResults = ({
                   <Text color="red.200" fontSize="sm">
                     Maximum Difference:
                   </Text>
-                  <Text color="red.100">{debugInfo.max_difference ?? "NaN or inf"}</Text>
+                  <Text color="red.100">
+                    {debugInfo.max_difference ?? "NaN or inf"}
+                  </Text>
                 </Box>
                 <Box>
                   <Text color="red.200" fontSize="sm">
                     Mean Difference:
                   </Text>
-                  <Text color="red.100">{debugInfo.mean_difference ?? "NaN or inf"}</Text>
+                  <Text color="red.100">
+                    {debugInfo.mean_difference ?? "NaN or inf"}
+                  </Text>
                 </Box>
                 {debugInfo.sample_differences &&
                   Object.keys(debugInfo.sample_differences).length > 0 && (
@@ -449,11 +453,11 @@ const SubmissionResults = ({
                               <Th color="red.200" isNumeric>
                                 Actual
                               </Th>
-                              {debugInfo.mean_difference &&
+                              {debugInfo.mean_difference && (
                                 <Th color="red.200" isNumeric>
                                   Difference
                                 </Th>
-                              }
+                              )}
                             </Tr>
                           </Thead>
                           <Tbody>
