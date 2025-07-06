@@ -22,6 +22,7 @@ import {
   MenuItem,
   Menu,
   Icon,
+  Tag,
   textDecoration,
   Tabs,
   TabList,
@@ -58,15 +59,15 @@ import { FiArrowLeft } from "react-icons/fi";
 import { useSession } from "next-auth/react";
 
 const BASELINE_DISPLAY_NAMES: Record<string, string> = {
-  "torch_compile": "PyTorch",
-  "torch_vanilla": "PyTorch",
-  "tinygrad": "Tinygrad"
+  torch_compile: "PyTorch",
+  torch_vanilla: "PyTorch",
+  tinygrad: "Tinygrad",
 };
 
 const BASELINE_USERNAMES: Record<string, string> = {
-  "torch_compile": "Torch Compile",
-  "torch_vanilla": "Vanilla Torch",
-  "tinygrad": "Tinygrad"
+  torch_compile: "Torch Compile",
+  torch_vanilla: "Vanilla Torch",
+  tinygrad: "Tinygrad",
 };
 
 type ProblemLeaderboardEntry = {
@@ -94,13 +95,9 @@ type BaselineGPUData = {
   avg_runtime_ms: number;
 };
 
-type BaselineFrameworkData = {
-  [key: string]: BaselineGPUData;  // key is GPU type (e.g. "T4", "H100")
-};
+type BaselineFrameworkData = Record<string, BaselineGPUData>;
 
-type BaselineBenchmarks = {
-  [key: string]: BaselineFrameworkData;  // key is framework name (e.g. "torch_compile")
-};
+type BaselineBenchmarks = Record<string, BaselineFrameworkData>;
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const slug = context.params?.slug as string;
@@ -186,56 +183,70 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
     );
 
   // Get baseline benchmarks data
-  const { data: baselineBenchmarks } = api.problems.getBaselineBenchmarks.useQuery(
-    { slug },
-    {
-      enabled: !!slug,
-    }
-  );
+  const { data: baselineBenchmarks } =
+    api.problems.getBaselineBenchmarks.useQuery(
+      { slug },
+      {
+        enabled: !!slug,
+      }
+    );
 
   // Merge baseline benchmarks with user submissions
   const combinedEntries = useMemo(() => {
     if (!baselineBenchmarks || !leaderboardEntries) return leaderboardEntries;
 
-    const baselineEntries = Object.entries(baselineBenchmarks as BaselineBenchmarks).flatMap(([framework, gpuData]) => {
+    const baselineEntries = Object.entries(
+      baselineBenchmarks as BaselineBenchmarks
+    ).flatMap(([framework, gpuData]) => {
       if (selectedGpu === "all") {
-        const bestGpuEntry = Object.entries(gpuData).reduce((best, [gpu, data]) => {
-          if (!best || data.avg_gflops > best.data.avg_gflops) {
-            return { gpu, data };
-          }
-          return best;
-        }, null as { gpu: string; data: BaselineGPUData } | null);
+        const bestGpuEntry = Object.entries(gpuData).reduce(
+          (best, [gpu, data]) => {
+            if (!best || data.avg_gflops > best.data.avg_gflops) {
+              return { gpu, data };
+            }
+            return best;
+          },
+          null as { gpu: string; data: BaselineGPUData } | null
+        );
 
         if (!bestGpuEntry) return [];
 
-        return [{
-          id: `baseline-${framework}-${bestGpuEntry.gpu}`,
-          username: `${BASELINE_USERNAMES[framework]}`,
-          gflops: bestGpuEntry.data.avg_gflops,
-          runtime: bestGpuEntry.data.avg_runtime_ms,
-          createdAt: new Date(0),
-          gpuType: bestGpuEntry.gpu,
-          language: "python",
-          isPublic: true,
-          isBaseline: true,
-        }];
+        return [
+          {
+            id: `baseline-${framework}-${bestGpuEntry.gpu}`,
+            username: `${BASELINE_USERNAMES[framework]}`,
+            gflops: bestGpuEntry.data.avg_gflops,
+            runtime: bestGpuEntry.data.avg_runtime_ms,
+            createdAt: new Date(0),
+            gpuType: bestGpuEntry.gpu,
+            language: "python",
+            isPublic: true,
+            isBaseline: true,
+          },
+        ];
       } else {
         // For specific GPU selection, keep existing behavior
-        return gpuData[selectedGpu] ? [{
-          id: `baseline-${framework}-${selectedGpu}`,
-          username: `${BASELINE_USERNAMES[framework]}`,
-          gflops: gpuData[selectedGpu].avg_gflops,
-          runtime: gpuData[selectedGpu].avg_runtime_ms,
-          createdAt: new Date(0),
-          gpuType: selectedGpu,
-          language: "python",
-          isPublic: true,
-          isBaseline: true,
-        }] : [];
+        return gpuData[selectedGpu]
+          ? [
+              {
+                id: `baseline-${framework}-${selectedGpu}`,
+                username: `${BASELINE_USERNAMES[framework]}`,
+                gflops: gpuData[selectedGpu].avg_gflops,
+                runtime: gpuData[selectedGpu].avg_runtime_ms,
+                createdAt: new Date(0),
+                gpuType: selectedGpu,
+                language: "python",
+                isPublic: true,
+                isBaseline: true,
+              },
+            ]
+          : [];
       }
     });
 
-    const entries = showBaselines ? [...leaderboardEntries, ...baselineEntries] : leaderboardEntries;
+    const entries = showBaselines
+      ? [...leaderboardEntries, ...baselineEntries]
+      : leaderboardEntries;
     return entries.sort((a, b) => b.gflops - a.gflops);
   }, [baselineBenchmarks, leaderboardEntries, selectedGpu, showBaselines]);
 
@@ -387,14 +398,18 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
 
                     const isOwnSubmission =
                       currentUsername && entry.username === currentUsername;
-                    const isBaseline = 'isBaseline' in entry;
+                    const isBaseline = "isBaseline" in entry;
 
                     return (
                       <Tr
                         key={entry.id}
-                        onClick={() => !isBaseline && router.push(`/submissions/${entry.id}`)}
+                        onClick={() =>
+                          !isBaseline && router.push(`/submissions/${entry.id}`)
+                        }
                         cursor={isBaseline ? "default" : "pointer"}
-                        _hover={{ bg: isBaseline ? undefined : "whiteAlpha.100" }}
+                        _hover={{
+                          bg: isBaseline ? undefined : "whiteAlpha.100",
+                        }}
                         borderBottom="1px solid"
                         borderColor="whiteAlpha.100"
                         my={medalColor ? 2 : 0}
@@ -407,7 +422,9 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                                   ?.map((hex) => parseInt(hex, 16))
                                   .join(",") ?? "0, 0, 0"
                               }, 0.08)`
-                            : undefined
+                            : isBaseline
+                              ? "whiteAlpha.200"
+                              : undefined
                         }
                       >
                         <Td borderBottom="none">
@@ -425,9 +442,15 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           >
                             {entry.username ?? "Anonymous"}
                             {isBaseline && (
-                              <Text as="span" color="gray.400" ml={2} fontSize="sm">
-                                (baseline)
-                              </Text>
+                              <Tag
+                                size="sm"
+                                variant="solid"
+                                colorScheme="blue"
+                                bg="blue.900"
+                                ml={2}
+                              >
+                                Baseline
+                              </Tag>
                             )}
                           </Text>
                         </Td>
@@ -462,11 +485,14 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                         <Td borderBottom="none">
                           {isBaseline ? (
                             <Text>
-                              {BASELINE_DISPLAY_NAMES[entry.id.split('-')[1] || ""] || "Unknown"}
+                              {BASELINE_DISPLAY_NAMES[
+                                entry.id.split("-")[1] ?? ""
+                              ] ?? "Unknown"}
                             </Text>
                           ) : (
                             <Text>
-                              {LANGUAGE_DISPLAY_NAMES[entry.language ?? ""] ?? "Unknown"}
+                              {LANGUAGE_DISPLAY_NAMES[entry.language ?? ""] ??
+                                "Unknown"}
                             </Text>
                           )}
                         </Td>
