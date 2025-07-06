@@ -44,9 +44,15 @@ importers:
       '@trpc/server':
         specifier: ^11.0.0-rc.446
         version: 11.0.0-rc.791(typescript@5.7.3)
+      '@types/luxon':
+        specifier: ^3.6.2
+        version: 3.6.2
       '@vercel/og':
         specifier: ^0.6.8
         version: 0.6.8
+      argon2:
+        specifier: ^0.43.0
+        version: 0.43.0
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -65,6 +71,9 @@ importers:
       katex:
         specifier: ^0.16.21
         version: 0.16.21
+      luxon:
+        specifier: ^3.6.1
+        version: 3.6.1
       monaco-editor:
         specifier: ^0.52.2
         version: 0.52.2
@@ -748,6 +757,10 @@ packages:
   '@panva/hkdf@1.2.1':
     resolution: {integrity: sha512-6oclG6Y3PiDFcoyk8srjLfVKyMfVCKJ27JwNPViuXziFpmdz+MZnZN/aKY0JGXgYuO/VghU0jcOAZgWXZ1Dmrw==}
 
+  '@phc/format@1.0.0':
+    resolution: {integrity: sha512-m7X9U6BG2+J+R1lSOdCiITLLrxm+cWlNI3HUFA92oLO77ObGNzaKdh8pMLqdZcshtkKuV84olNNXDfMc4FezBQ==}
+    engines: {node: '>=10'}
+
   '@pkgr/core@0.2.0':
     resolution: {integrity: sha512-vsJDAkYR6qCPu+ioGScGiMYR7LvZYIXh/dlQeviqoTWNCVfKTLYD/LkNWH4Mxsv2a5vpIRc77FN5DnmK1eBggQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
@@ -941,6 +954,9 @@ packages:
   '@types/lodash@4.17.15':
     resolution: {integrity: sha512-w/P33JFeySuhN6JLkysYUK2gEmy9kHHFN7E8ro0tkfmlDOgxBDzWEZ/J8cWA+fHqFevpswDTFZnDx+R9lbL6xw==}
 
+  '@types/luxon@3.6.2':
+    resolution: {integrity: sha512-R/BdP7OxEMc44l2Ex5lSXHoIXTB2JLNa3y2QISIbr58U/YcsffyQrYW//hZSdrfxrjRZj3GcUoxMPGdO8gSYuw==}
+
   '@types/mdast@3.0.15':
     resolution: {integrity: sha512-LnwD+mUEfxWMa1QpDraczIn6k0Ee3SMicuYSSzS6ZYl2gKS09EClnJYGd8Du6rfc5r/GZEk5o1mRb8TaTj03sQ==}
 
@@ -1107,6 +1123,10 @@ packages:
 
   arg@5.0.2:
     resolution: {integrity: sha512-PYjyFOLKQ9y57JvQ6QLo8dAgNqswh8M1RMJYdQduT6xbWSgK36P/Z/v+p888pM69jMMfS8Xd8F6I1kQ/I9HUGg==}
+
+  argon2@0.43.0:
+    resolution: {integrity: sha512-u/HKLcbWShVDhkfwI4hWyiUf3qyX8QhTfaIv2cWE18uqhXCmR5hb6Ed7oqYi2KCQegeAnRhiFzbjzm7i5yl1GA==}
+    engines: {node: '>=16.17.0'}
 
   argparse@1.0.10:
     resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==}
@@ -2485,6 +2505,10 @@ packages:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
     engines: {node: '>=10'}
 
+  luxon@3.6.1:
+    resolution: {integrity: sha512-tJLxrKJhO2ukZ5z0gyjY1zPh3Rh88Ej9P7jNrZiHMUXHae1yvI2imgOZtL1TO8TW6biMMKfTtAOoEJANgtWBMQ==}
+    engines: {node: '>=12'}
+
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -2728,9 +2752,17 @@ packages:
       sass:
         optional: true
 
+  node-addon-api@8.3.1:
+    resolution: {integrity: sha512-lytcDEdxKjGJPTLEfW4mYMigRezMlyJY8W4wxJK8zE533Jlb8L8dRuObJFWg2P+AuOIxoCgKF+2Oq4d4Zd0OUA==}
+    engines: {node: ^18 || ^20 || >= 21}
+
   node-cache@5.1.2:
     resolution: {integrity: sha512-t1QzWwnk4sjLWaQAS8CHgOJ+RAfmHpxFWmc36IWTiWHQfs0w5JDMBS1b1ZxQteo0vVVuWJvIUKHDkkeK7vIGCg==}
     engines: {node: '>= 8.0.0'}
+
+  node-gyp-build@4.8.4:
+    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
+    hasBin: true
 
   npm-run-path@4.0.1:
     resolution: {integrity: sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw==}
@@ -4268,6 +4300,8 @@ snapshots:
 
   '@panva/hkdf@1.2.1': {}
 
+  '@phc/format@1.0.0': {}
+
   '@pkgr/core@0.2.0': {}
 
   '@popperjs/core@2.11.8': {}
@@ -4457,6 +4491,8 @@ snapshots:
 
   '@types/lodash@4.17.15': {}
 
+  '@types/luxon@3.6.2': {}
+
   '@types/mdast@3.0.15':
     dependencies:
       '@types/unist': 2.0.11
@@ -4642,6 +4678,12 @@ snapshots:
   arch@2.2.0: {}
 
   arg@5.0.2: {}
+
+  argon2@0.43.0:
+    dependencies:
+      '@phc/format': 1.0.0
+      node-addon-api: 8.3.1
+      node-gyp-build: 4.8.4
 
   argparse@1.0.10:
     dependencies:
@@ -6331,6 +6373,8 @@ snapshots:
     dependencies:
       yallist: 4.0.0
 
+  luxon@3.6.1: {}
+
   lz-string@1.5.0: {}
 
   map-stream@0.1.0: {}
@@ -6791,9 +6835,13 @@ snapshots:
       - '@babel/core'
       - babel-plugin-macros
 
+  node-addon-api@8.3.1: {}
+
   node-cache@5.1.2:
     dependencies:
       clone: 2.1.2
+
+  node-gyp-build@4.8.4: {}
 
   npm-run-path@4.0.1:
     dependencies:

@@ -10,8 +10,10 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Tooltip,
+  Badge,
 } from "@chakra-ui/react";
-
+import { FiPlay } from "react-icons/fi";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
@@ -21,6 +23,7 @@ import { IoRepeat } from "react-icons/io5";
 import { FaInfoCircle, FaChevronDown } from "react-icons/fa";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 interface SubmissionFormProps {
   selectedGpuType: string;
@@ -33,6 +36,8 @@ interface SubmissionFormProps {
   onResetClick: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  onRun?: () => void;
+  isRunning?: boolean;
 }
 
 const SubmissionForm = ({
@@ -46,6 +51,8 @@ const SubmissionForm = ({
   onResetClick,
   onSubmit,
   isSubmitting,
+  onRun,
+  isRunning,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
@@ -91,18 +98,38 @@ const SubmissionForm = ({
               borderRadius="lg"
               minW="140px"
             >
-              {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
-                <MenuItem
-                  key={key}
-                  onClick={() => setSelectedGpuType(key)}
-                  bg="brand.secondary"
-                  _hover={{ bg: "gray.700" }}
-                  color="white"
-                  borderRadius="lg"
-                >
-                  {value}
-                </MenuItem>
-              ))}
+              {Object.entries(GPU_DISPLAY_NAMES)
+                .filter(([key]) => key !== "all")
+                .map(([key, value]) => (
+                  <MenuItem
+                    key={key}
+                    onClick={() => {
+                      setSelectedGpuType(key);
+                    }}
+                    bg="brand.secondary"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="lg"
+                    isDisabled={
+                      (key === "T4" || key === "B200") &&
+                      selectedLanguage === "mojo"
+                    }
+                    fontSize="sm"
+                  >
+                    {value}
+                    {(key === "H200" || key === "B200") && (
+                      <Badge
+                        ml={2}
+                        colorScheme="cyan"
+                        fontSize="2xs"
+                        variant="subtle"
+                        rounded="sm"
+                      >
+                        NEW
+                      </Badge>
+                    )}
+                  </MenuItem>
+                ))}
             </MenuList>
           </Menu>
         </Box>
@@ -127,7 +154,7 @@ const SubmissionForm = ({
               justifyContent="flex-start"
               borderRadius="lg"
             >
-              {selectedLanguage === "cuda" ? "CUDA C++" : "Python (Triton)"}
+              {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
             </MenuButton>
             <MenuList
               bg="brand.secondary"
@@ -143,6 +170,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
                 CUDA C++
               </MenuItem>
@@ -153,9 +181,43 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
-                Python (Triton)
+                Triton
               </MenuItem>
+              <Tooltip
+                label="Mojo does not support NVIDIA T4 or B200 GPUs"
+                isDisabled={
+                  selectedGpuType !== "T4" && selectedGpuType !== "B200"
+                }
+                placement="right"
+                hasArrow
+                bg="gray.700"
+              >
+                <MenuItem
+                  key="mojo"
+                  onClick={() => setSelectedLanguage("mojo")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="lg"
+                  isDisabled={
+                    selectedGpuType === "T4" || selectedGpuType === "B200"
+                  }
+                  fontSize="sm"
+                >
+                  Mojo{" "}
+                  <Badge
+                    ml={1}
+                    colorScheme="cyan"
+                    fontSize="2xs"
+                    variant="subtle"
+                    rounded="sm"
+                  >
+                    BETA
+                  </Badge>
+                </MenuItem>
+              </Tooltip>
             </MenuList>
           </Menu>
         </Box>
@@ -205,6 +267,7 @@ const SubmissionForm = ({
                 _hover={{ bg: "gray.700" }}
                 color="white"
                 borderRadius="lg"
+                fontSize="sm"
               >
                 float32
               </MenuItem>
@@ -216,6 +279,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 float16
               </MenuItem>
@@ -227,6 +291,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 int32
               </MenuItem>
@@ -238,6 +303,7 @@ const SubmissionForm = ({
                 color="white"
                 isDisabled={true}
                 borderRadius="lg"
+                fontSize="sm"
               >
                 int16
               </MenuItem>
@@ -276,6 +342,32 @@ const SubmissionForm = ({
             </Button>
           </>
         )}
+        <Button
+          bg="rgba(59, 130, 246, 0.1)"
+          color="rgb(59, 130, 246)"
+          size="md"
+          onClick={onRun}
+          isLoading={isRunning}
+          loadingText="Run"
+          spinner={<></>}
+          disabled={isRunning}
+          borderRadius="lg"
+          height="40px"
+          fontSize="sm"
+          fontWeight="semibold"
+          px={{ base: 2, md: 6 }}
+          minW="70px"
+          _hover={{
+            bg: "rgba(59, 130, 246, 0.2)",
+            transform: "translateY(-1px)",
+          }}
+          _active={{
+            bg: "rgba(59, 130, 246, 0.25)",
+          }}
+          transition="all 0.2s"
+        >
+          Run
+        </Button>
         <Button
           bg="rgba(34, 197, 94, 0.1)"
           color="rgb(34, 197, 94)"

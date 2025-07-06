@@ -14,11 +14,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ">=22"
+          node-version: "23.8.0"
 
       - uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9.12.2
 
       - name: Debug file structure
         run: |

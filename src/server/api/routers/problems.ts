@@ -270,4 +270,14 @@ export const problemsRouter = createTRPCRouter({
 
       return updatedSubmission;
     }),
+
+  getBaselineBenchmarks: publicProcedure
+    .input(z.object({ slug: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const problem = await ctx.db.problem.findUniqueOrThrow({
+        where: { slug: input.slug },
+      });
+
+      return problem.baselineBenchmarks;
+    }),
 });

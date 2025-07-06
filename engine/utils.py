@@ -15,6 +15,7 @@ from types import ModuleType
 import multiprocessing as mp
 import queue
 import math
+import contextlib
 
 
 DTYPE_MAP = {
@@ -26,6 +27,8 @@ DTYPE_MAP = {
 GPU_COMPUTE_CAPABILITIES = {
     "T4": "75",
     "H100": "90",
+    "H200": "90",
+    "B200": "100",
     "A100-80GB": "80",
     "A10G": "86",
     "L40S": "89",
@@ -33,6 +36,9 @@ GPU_COMPUTE_CAPABILITIES = {
 }
 
 class NVCCError(Exception):
+    pass
+
+class MojoError(Exception):
     pass
 
 def get_nvidia_smi():
@@ -46,19 +52,29 @@ def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
     out = str(out)
     sm = GPU_COMPUTE_CAPABILITIES[gpu]
     
-    # Building the command similar to your Makefile
     cmd = ["nvcc", "-std=c++20", "-O2", "-Xcompiler", "-fPIC"]
     
-    # Add architecture flags
+    # architecture flags
     cmd.extend([f"-arch=compute_{sm}", f"-code=sm_{sm}"])
     
-    # Add shared library flag since, we are building a shared library
     if str(out).endswith('.so'):
         cmd.append("-shared")
-    
-    # Add output file and source files
+
     cmd.extend(["-o", out] + srcs)
-    
+    return cmd
+
+def mojo_command(srcs: list[Path | str], out: Path | str):
+    """Get mojo command for the given source files and output file"""
+    srcs = [str(src) for src in srcs]
+    out = str(out)
+
+    cmd = ["mojo", "build"]
+
+    if str(out).endswith('.so'):
+        cmd.append("--emit=shared-lib")
+
+    cmd.extend(["-o", out] + srcs)
+
     return cmd
 
 def sanitize_floats(obj):
@@ -101,7 +117,7 @@ def run_nvcc_and_return_bytes(gpu: str, solution_code: str, output_name: str) ->
     
     Args:
         gpu (str): GPU type to use
-        files (dict[str, str]): Code files (file name -> content)
+        solution_code (str): Code of the solution
         output_name (str): Output library name
         
     Returns:
@@ -138,8 +154,47 @@ def run_nvcc_and_return_bytes(gpu: str, solution_code: str, output_name: str) ->
     return bytes_of_file
 
 
-def read_bytes_as_cuda_lib(compiled_lib: bytes):
-    """Read bytes of the solution code and compile it into a CUDA library"""
+# since mojo doesn't have GPU specific flags, we don't need gpu type as parameter
+@hash_dict
+@lru_cache(maxsize=512)  # each binary is ~1MB, so 512MB cache
+def run_mojo_and_return_bytes(solution_code: str, output_name: str) -> bytes:
+    """Compile source files with mojo and return the path to the compiled shared library
+    
+    Args:
+        solution_code (str): Code of the solution
+        output_name (str): Output library name
+        
+    Returns:
+        Path: Path to the compiled shared library
+        
+    Raises:
+        MojoError: If compilation fails
+    """
+    # Create a temporary file for output that won't be deleted
+    output_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".lib{output_name}.so")
+    output_file.close()
+    out_path = Path(output_file.name)
+    out_path.unlink()  # Remove the file so mojo can create it
+    
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td)
+        
+        (path / "solution.mojo").write_text(solution_code)
+        src_path = path / "solution.mojo"
+        
+        cmd = mojo_command([src_path], out_path)
+        process = subprocess.run(cmd, capture_output=True, text=True)
+        
+        # Check for compilation errors
+        if process.returncode != 0:
+            raise MojoError(process.stderr)
+    
+    bytes_of_file = out_path.read_bytes()
+    out_path.unlink()
+    return bytes_of_file
+
+def read_bytes_as_lib(compiled_lib: bytes):
+    """Read bytes of the solution code and compile it into a CUDA or Mojo library"""
     if isinstance(compiled_lib, bytes):
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.so')
         temp_file_path = temp_file.name
@@ -147,19 +202,20 @@ def read_bytes_as_cuda_lib(compiled_lib: bytes):
             temp_file.write(compiled_lib)
             temp_file.close()
 
-            cuda_lib = ctypes.CDLL(temp_file_path)
+            lib = ctypes.CDLL(temp_file_path)
         finally:
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
     else:
-        cuda_lib = ctypes.CDLL(compiled_lib)
+        lib = ctypes.CDLL(compiled_lib)
     
-    return cuda_lib
+    return lib
+
 
 def cast_to_ctype(data, argtypes, language="cuda"):
     """Cast data to ctypes"""
     data_casted = []
-    if language == "cuda":
+    if language == "cuda" or language == "mojo":
         for tensor, argtype in zip(data, argtypes):
             if isinstance(tensor, torch.Tensor):
                 data_casted.append(ctypes.cast(tensor.data_ptr(), argtype))
@@ -221,7 +277,7 @@ def prepare_gpu():
 
 
 def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tensors, actual_output, 
-                          language="cuda", min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0):
+                          language="cuda", min_iterations=5, max_iterations=15, target_cv=0.02, long_kernel_threshold=1.0, param_func=None):
     """
     Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
     If kernel execution time exceeds threshold, run fixed number of iterations instead.
@@ -232,7 +288,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         test_case: The specific test case to benchmark
         input_tensors: Input tensors for the CUDA function
         actual_output: Output tensor for the CUDA function
-        language: Programming language of the solution ("cuda" or "python")
+        language: Programming language of the solution ("cuda", "mojo", or "python")
         min_iterations: Minimum number of iterations to run
         max_iterations: Maximum number of iterations to run
         target_cv: Target coefficient of variation to achieve
@@ -242,11 +298,11 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         benchmark_result: Dictionary with benchmark results
     """
     # Prepare pointers for CUDA
-    extra_params = problem.get_extra_params(test_case)
-    if language == "cuda":
-        input_ptrs = cast_to_ctype(input_tensors, solution_func.argtypes[:len(input_tensors)], language)
-        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_tensors)])
-        extra_params_casted = cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
+    if param_func is None:
+        parameters = make_parameters(language, solution_func, input_tensors, actual_output, problem, test_case)
+    else:
+        parameters = param_func(language, solution_func, input_tensors, actual_output, problem, test_case)
+
     # Calculate FLOPS for this test case
     flops = problem.get_flops(test_case)
     
@@ -258,10 +314,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
     end_event = torch.cuda.Event(enable_timing=True)
     
     start_event.record()
-    if language == "cuda":
-        solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
-    elif language == "python":
-        solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+    solution_func(*parameters)
     end_event.record()
     torch.cuda.synchronize()
     
@@ -289,10 +342,7 @@ def run_dynamic_benchmark(solution_func, problem, test_id, test_case, input_tens
         start_event.record()
         
         # Run the kernel
-        if language == "cuda":
-            solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
-        elif language == "python":
-            solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+        solution_func(*parameters)
         
         # End timing
         end_event.record()
@@ -376,3 +426,107 @@ def subproc_generator(timeout=None):
 
         return wrapper
     return _subproc_generator
+
+def make_solution_func(language: str, solution_code: str, compiled: bytes, problem: Problem):
+    if language == "cuda":
+        if not compiled:
+            raise ValueError("Compiled bytes required for CUDA submissions")
+            
+        cuda_lib = read_bytes_as_lib(compiled)
+        func_sig = problem.get_function_signature()
+        cuda_lib.solution.argtypes = func_sig["argtypes"]
+        cuda_lib.solution.restype = func_sig["restype"]
+        return cuda_lib.solution
+
+    elif language == "mojo":
+        mojo_lib = read_bytes_as_lib(compiled)
+        func_sig = problem.get_function_signature()
+        mojo_lib.solution.argtypes = func_sig["argtypes"]
+        mojo_lib.solution.restype = func_sig["restype"]
+        return mojo_lib.solution
+
+    elif language == "python":
+        if not solution_code:
+            raise ValueError("Source code required for Triton submissions")
+        
+        temp_dir = tempfile.mkdtemp()
+        temp_path = os.path.join(temp_dir, "triton_solution.py")
+        
+        # This is needed because @jit has to read the source code
+        with open(temp_path, 'w') as f:
+            f.write(solution_code)
+            
+        spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.solution
+    else:
+        raise ValueError(f"Unsupported language: {language}")
+
+def make_parameters(language: str, solution_func, input_tensors, actual_output, problem, test_case):
+    if language == "cuda" or language == "mojo":
+        input_ptrs = cast_to_ctype(input_tensors, solution_func.argtypes[:len(input_tensors)], language)
+        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
+        extra_params = problem.get_extra_params(test_case)
+        extra_params_casted = cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
+        return input_ptrs + [output_ptr] + extra_params_casted
+    else:
+        extra_params = problem.get_extra_params(test_case)
+        return list(input_tensors) + [actual_output] + list(extra_params)
+
+class SystemOutputCapture:
+    """Class to capture system-level stdout/stderr including CUDA printf"""
+    def __init__(self):
+        self.stdout_content = ""
+        self.stderr_content = ""
+        
+    def __enter__(self):
+        # Create temp files
+        self.tmp_out = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        self.tmp_err = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        self.tmp_out_path = self.tmp_out.name
+        self.tmp_err_path = self.tmp_err.name
+        
+        # Backup original stdout/stderr
+        self.old_stdout = os.dup(1)
+        self.old_stderr = os.dup(2)
+        
+        # Redirect to temp files
+        os.dup2(self.tmp_out.fileno(), 1)
+        os.dup2(self.tmp_err.fileno(), 2)
+        
+        # Close the temp file handles since we've redirected
+        self.tmp_out.close()
+        self.tmp_err.close()
+        
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Force CUDA to flush
+        try:
+            torch.cuda.synchronize()
+        except:
+            pass
+        
+        # Restore stdout/stderr
+        os.dup2(self.old_stdout, 1)
+        os.dup2(self.old_stderr, 2)
+        os.close(self.old_stdout)
+        os.close(self.old_stderr)
+        
+        # Read captured output
+        try:
+            with open(self.tmp_out_path, 'r') as f:
+                self.stdout_content = f.read()
+            with open(self.tmp_err_path, 'r') as f:
+                self.stderr_content = f.read()
+        except:
+            self.stdout_content = ""
+            self.stderr_content = ""
+        
+        # Clean up
+        try:
+            os.unlink(self.tmp_out_path)
+            os.unlink(self.tmp_err_path)
+        except:
+            pass

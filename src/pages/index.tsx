@@ -339,75 +339,109 @@ export default function HomePage() {
                 </MotionBox>
 
                 <MotionFlex
-                  gap={4}
+                  gap={3}
                   direction={{ base: "column", sm: "row" }}
                   width={{ base: "full", sm: "auto" }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 1 }}
+                  align="center"
                 >
-                  <Link href="/problems" style={{ textDecoration: "none" }}>
-                    <Button
-                      as={motion.button}
-                      size="lg"
+                  <Link
+                    href="/problems"
+                    cursor="pointer"
+                    style={{ textDecoration: "none" }}
+                  >
+                    <Flex
+                      align="center"
                       bg="#0e8144"
-                      color="white"
+                      px={5}
+                      py={3}
+                      gap={2}
+                      borderRadius="lg"
                       _hover={{
                         bg: "#0a6434",
                         transform: "translateY(-2px)",
-                        boxShadow: "0 5px 20px rgba(46, 204, 113, 0.4)",
                       }}
-                      height="60px"
-                      px={8}
-                      leftIcon={<Icon as={FiCode} />}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.98 }}
+                      transition="all 0.2s"
                     >
-                      Start Solving
-                    </Button>
+                      <Icon as={FiCode} boxSize={5} color="white" />
+                      <Text color="white" fontWeight="500">
+                        Start Solving
+                      </Text>
+                    </Flex>
                   </Link>
 
                   <Link
                     href="https://github.com/tensara/tensara"
                     style={{ textDecoration: "none" }}
+                    cursor="pointer"
                   >
-                    <Button
-                      as={motion.button}
-                      size="lg"
-                      variant="outline"
-                      borderColor="whiteAlpha.300"
-                      color="white"
+                    <Flex
+                      align="center"
+                      bg="whiteAlpha.100"
+                      px={5}
+                      py={3}
+                      gap={2}
+                      borderRadius="lg"
                       _hover={{
-                        borderColor: "whiteAlpha.500",
-                        bg: "whiteAlpha.50",
+                        bg: "whiteAlpha.200",
+                        transform: "translateY(-2px)",
                       }}
-                      height="60px"
-                      px={8}
-                      leftIcon={<Icon as={FaGithub} />}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.98 }}
+                      transition="all 0.2s"
                     >
-                      View on GitHub
-                    </Button>
+                      <Icon as={FaGithub} boxSize={5} color="white" />
+                      <Text color="white" fontWeight="500">
+                        GitHub
+                      </Text>
+                    </Flex>
+                  </Link>
+
+                  <Link
+                    href="https://discord.gg/YzBTfMxVQK"
+                    style={{ textDecoration: "none" }}
+                    cursor="pointer"
+                  >
+                    <Flex
+                      align="center"
+                      bg="whiteAlpha.100"
+                      px={5}
+                      py={3}
+                      gap={2}
+                      borderRadius="lg"
+                      _hover={{
+                        bg: "whiteAlpha.200",
+                        transform: "translateY(-2px)",
+                      }}
+                      transition="all 0.2s"
+                    >
+                      <Icon as={FaDiscord} boxSize={5} color="white" />
+                      <Text color="white" fontWeight="500">
+                        Discord
+                      </Text>
+                    </Flex>
                   </Link>
                 </MotionFlex>
 
                 <MotionFlex
                   align="center"
-                  gap={3}
+                  gap={2}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 1.2 }}
                 >
                   <Text color="whiteAlpha.600">
-                    Need help getting started? Join our community on{" "}
+                    Want to submit from your IDE? Check out our{" "}
                     <Link
-                      href="https://discord.gg/YzBTfMxVQK"
+                      href="https://github.com/tensara/tensara-cli"
                       isExternal
                       color="#2ecc71"
                       textDecoration="underline"
+                      _hover={{
+                        color: "#27ae60",
+                      }}
                     >
-                      Discord
+                      CLI tool
                     </Link>
                   </Text>
                 </MotionFlex>
@@ -555,6 +589,12 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
+                      title="Experimental Mojo Support"
+                      type="FEATURE"
+                      description="Added support for Mojo submissions."
+                      date="3 days ago"
+                    />
+                    <UpdateCard
                       title="Rating System"
                       type="FEATURE"
                       description="New rating system for user rankings."
@@ -564,12 +604,6 @@ export default function HomePage() {
                       title="Triton Kernel Support"
                       type="FEATURE"
                       description="Added support for Triton-based kernel submissions."
-                      date="3 weeks ago"
-                    />
-                    <UpdateCard
-                      title="Error Handling"
-                      type="IMPROVEMENT"
-                      description="Improved error handling and rate limiting."
                       date="3 weeks ago"
                     />
                   </Box>
@@ -595,21 +629,21 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
-                      title="CLI Submissions"
-                      type="IN PROGRESS"
-                      description="Working on allowing direct submissions via CLI."
-                      date="1 week ago"
+                      title="v1 Release"
+                      type="RELEASE"
+                      description="Fully integrated CLI tool for Tensara."
+                      date="1 hour ago"
                     />
                     <UpdateCard
-                      title="CLI v0.1 Release"
+                      title="Submissions"
+                      type="FEATURE"
+                      description="Allows direct submissions via CLI."
+                      date="5 hours ago"
+                    />
+                    <UpdateCard
+                      title="v0.1 Release"
                       type="RELEASE"
                       description="Initial release of the Tensara CLI."
-                      date="1 month ago"
-                    />
-                    <UpdateCard
-                      title="Local Benchmarking"
-                      type="IMPROVEMENT"
-                      description="Improved local benchmarking accuracy."
                       date="1 month ago"
                     />
                   </Box>
@@ -635,6 +669,12 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
+                      title="Graphics Problems"
+                      type="IN PROGRESS"
+                      description="Image processing problems in progress."
+                      date="1 day ago"
+                    />
+                    <UpdateCard
                       title="Convolution Problems"
                       type="FEATURE"
                       description="New set of convolution challenges available."
@@ -644,12 +684,6 @@ export default function HomePage() {
                       title="3D/4D Tensor Matmul Problems"
                       type="FEATURE"
                       description="Added new matrix multiplication problems."
-                      date="2 weeks ago"
-                    />
-                    <UpdateCard
-                      title="Problem Difficulty Tags"
-                      type="IMPROVEMENT"
-                      description="Added difficulty tags to problems."
                       date="2 weeks ago"
                     />
                   </Box>
@@ -797,6 +831,9 @@ export default function HomePage() {
                 </Link>
                 <Link href="/blog" _hover={{ color: "white" }}>
                   Blog
+                </Link>
+                <Link href="/cli" _hover={{ color: "white" }}>
+                  CLI Tool
                 </Link>
               </VStack>
 
