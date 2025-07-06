@@ -10,9 +10,10 @@ import tempfile
 import shutil
 import traceback
 import time
+import io
+import contextlib
 
-
-def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str) -> Iterator[str]:
+def run_checker(problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func = None) -> Iterator[str]:
     """
     Check a submitted solution against the reference implementation
     and stream results as they become available
@@ -20,8 +21,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
     Args:
         problem_name: Name of the problem
         problem_def: Problem instance
-        compiled: Compiled CUDA code for the submitted solution (only for CUDA)
-        solution: Source code of the solution (only for Triton)
+        solution_func: Callable function for the submitted solution
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
         
@@ -34,42 +34,6 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
         
-
-        if language == "cuda":
-            if not compiled:
-                raise ValueError("Compiled bytes required for CUDA submissions")
-                
-            cuda_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            cuda_lib.solution.argtypes = func_sig["argtypes"]
-            cuda_lib.solution.restype = func_sig["restype"]
-            solution_func = cuda_lib.solution
-
-        elif language == "mojo":
-            mojo_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            mojo_lib.solution.argtypes = func_sig["argtypes"]
-            mojo_lib.solution.restype = func_sig["restype"]
-            solution_func = mojo_lib.solution
-
-        elif language == "python":
-            if not solution:
-                raise ValueError("Source code required for Triton submissions")
-            
-            temp_dir = tempfile.mkdtemp()
-            temp_path = os.path.join(temp_dir, "triton_solution.py")
-            
-            # This is needed because @jit has to read the source code
-            with open(temp_path, 'w') as f:
-                f.write(solution)
-                
-            spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            solution_func = module.solution
-        else:
-            raise ValueError(f"Unsupported language: {language}")
-
         test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
         test_results = []
@@ -108,20 +72,11 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
 
-            if language == "cuda" or language == "mojo":
-                input_ptrs = []
-                for tensor, argtype in zip(input_tensors, solution_func.argtypes[:len(input_tensors)]):
-                    if isinstance(tensor, torch.Tensor):
-                        input_ptrs.append(ctypes.cast(tensor.data_ptr(), argtype))
-                    else:
-                        input_ptrs.append(argtype(tensor))
-                output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
-                extra_params = problem.get_extra_params(test_case)
-                extra_params_casted = utils.cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
-                solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
+            if param_func is None:
+                parameters = utils.make_parameters(language, solution_func, input_tensors, actual_output, problem, test_case)
             else:
-                extra_params = problem.get_extra_params(test_case)
-                solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+                parameters = param_func(language, solution_func, input_tensors, actual_output, problem, test_case)
+            solution_func(*parameters)
 
             torch.cuda.synchronize()
 
@@ -137,9 +92,7 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
 
             # Clean up memory
-            del input_tensors, expected_output, actual_output
-            if language == "cuda" or language == "mojo":
-                del input_ptrs, output_ptr
+            del input_tensors, expected_output, actual_output, parameters
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -172,7 +125,11 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             }
                 
         if language == "python":
-            shutil.rmtree(temp_dir)
+            try:
+                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                pass
 
         # Final status message
         yield {
@@ -203,68 +160,36 @@ def run_checker(problem_name: str, problem_def: str, compiled: bytes | None, sol
             "details": traceback.format_exc(),
         }
 
-
 @utils.subproc_generator(timeout=60)
-def run_sample_case(problem_name, problem_def, compiled, solution, dtype, language):
+def run_sample_case(problem_name, problem_def, solution_func, dtype, language, param_func = None):
     """
     Run the sample test case of a problem and return result + output.
     """
     try:
-        import io
-        import contextlib
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
+
         sample = problem.generate_sample(dtype)
         input_tensors = sample["create_inputs"]()
         expected_output = problem.reference_solution(*input_tensors).cpu()
         actual_output = torch.zeros_like(expected_output, device="cuda")
-        
-        # For CUDA, use system-level capture
+        if param_func is None:
+            parameters = utils.make_parameters(language, solution_func, input_tensors, actual_output, problem, sample)
+        else:
+            parameters = param_func(language, solution_func, input_tensors, actual_output, problem, sample)
+
         if language in ("cuda", "mojo"):
             with utils.SystemOutputCapture() as capture:
-                lib = utils.read_bytes_as_lib(compiled)
-                sig = problem.get_function_signature()
-                lib.solution.argtypes = sig["argtypes"]
-                lib.solution.restype = sig["restype"]
-                # input_ptrs = [ctypes.cast(t.data_ptr(), typ) for t, typ in zip(input_tensors, sig["argtypes"][:len(input_tensors)])]
-                input_ptrs = []
-                for t, typ in zip(input_tensors, sig["argtypes"][:len(input_tensors)]):
-                    if isinstance(t, torch.Tensor):
-                        input_ptrs.append(ctypes.cast(t.data_ptr(), typ))
-                    elif isinstance(t, (int, float)):
-                        input_ptrs.append(typ(t))  # pass by value
-                    else:
-                        raise TypeError(f"Unsupported input type: {type(t)}")
-
-                output_ptr = ctypes.cast(actual_output.data_ptr(), sig["argtypes"][len(input_ptrs)])
-                extra_params = problem.get_extra_params(sample)
-                extra_params_casted = utils.cast_to_ctype(extra_params, sig["argtypes"][-len(extra_params):], language)
-                lib.solution(*(input_ptrs + [output_ptr] + extra_params_casted))
+                solution_func(*parameters)
             
             captured_stdout = capture.stdout_content
             captured_stderr = capture.stderr_content
         else:
-            # Triton case - original approach
             stdout_buf = io.StringIO()
             stderr_buf = io.StringIO()
             with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
-                if not solution:
-                    raise ValueError("Source code required for Triton submissions")
-            
-                temp_dir = tempfile.mkdtemp()
-                temp_path = os.path.join(temp_dir, "triton_solution.py")
-                
-                # This is needed because @jit has to read the source code
-                with open(temp_path, 'w') as f:
-                    f.write(solution)
-                    
-                spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                solution_func = module.solution
-                # temp_path = utils.write_temp_triton(solution)
-                # soln_func = utils.import_module_from_path(temp_path)
-                solution_func(*(list(input_tensors) + [actual_output] + problem.get_extra_params(sample)))
+                solution_func(*parameters)
+
             captured_stdout = stdout_buf.getvalue()
             captured_stderr = stderr_buf.getvalue()
             
@@ -291,7 +216,7 @@ def run_sample_case(problem_name, problem_def, compiled, solution, dtype, langua
         }
 
 
-def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
+def run_sanity_check(problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func = None):
     """
     Run sanity check on compiled CUDA solution
     """
@@ -299,33 +224,6 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
 
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
-
-        if language == "cuda":
-            if not compiled:
-                raise ValueError("Compiled bytes required for CUDA submissions")
-                
-            cuda_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            cuda_lib.solution.argtypes = func_sig["argtypes"]
-            cuda_lib.solution.restype = func_sig["restype"]
-            solution_func = cuda_lib.solution
-        elif language == "python":
-            if not solution:
-                raise ValueError("Source code required for Triton submissions")
-            
-            temp_dir = tempfile.mkdtemp()
-            temp_path = os.path.join(temp_dir, "triton_solution.py")
-            
-            # This is needed because @jit has to read the source code
-            with open(temp_path, 'w') as f:
-                f.write(solution)
-                
-            spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            solution_func = module.solution
-        else:
-            raise ValueError(f"Unsupported language: {language}")
 
         test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
@@ -363,20 +261,11 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device='cuda')  # Ensure it's on GPU
 
-            if language == "cuda":
-                input_ptrs = []
-                for tensor, argtype in zip(input_tensors, solution_func.argtypes[:len(input_tensors)]):
-                    if isinstance(tensor, torch.Tensor):
-                        input_ptrs.append(ctypes.cast(tensor.data_ptr(), argtype))
-                    else:
-                        input_ptrs.append(argtype(tensor))
-                output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
-                extra_params = problem.get_extra_params(test_case)
-                extra_params_casted = utils.cast_to_ctype(extra_params, solution_func.argtypes[-len(extra_params):], language)
-                solution_func(*(input_ptrs + [output_ptr] + extra_params_casted))
+            if param_func is None:
+                parameters = utils.make_parameters(language, solution_func, input_tensors, actual_output, problem, test_case)
             else:
-                extra_params = problem.get_extra_params(test_case)
-                solution_func(*(list(input_tensors) + [actual_output] + list(extra_params)))
+                parameters = param_func(language, solution_func, input_tensors, actual_output, problem, test_case)
+            solution_func(*parameters)
 
             torch.cuda.synchronize()
 
@@ -392,9 +281,7 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
             is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
 
             # Clean up memory
-            del input_tensors, expected_output, actual_output
-            if language == "cuda":
-                del input_ptrs, output_ptr
+            del input_tensors, expected_output, actual_output, parameters
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -419,7 +306,11 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
                 return
                 
         if language == "python":
-            shutil.rmtree(temp_dir)
+            try:
+                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                pass
 
     except utils.NVCCError as e:
         yield {
@@ -443,15 +334,14 @@ def run_sanity_check(problem_name: str, problem_def: str, compiled: bytes | None
         }
 
 
-def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, solution: str | None, dtype: str, language: str):
+def run_benchmark(problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func = None):
     """
     Run benchmark on compiled CUDA solution
     
     Args:
         problem_name: Name of the problem
         problem_def: Problem instance  
-        compiled: Compiled CUDA code for the submitted solution
-        solution: Source code of the solution (only for Triton)
+        solution_func: Callable function for the submitted solution
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
     
@@ -461,41 +351,6 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
     try:
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
-
-        if language == "cuda":
-            if not compiled:
-                raise ValueError("Compiled bytes required for CUDA submissions")
-                
-            cuda_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            cuda_lib.solution.argtypes = func_sig["argtypes"]
-            cuda_lib.solution.restype = func_sig["restype"]
-            solution_func = cuda_lib.solution
-            
-        elif language == "mojo":
-            mojo_lib = utils.read_bytes_as_lib(compiled)
-            func_sig = problem.get_function_signature()
-            mojo_lib.solution.argtypes = func_sig["argtypes"]
-            mojo_lib.solution.restype = func_sig["restype"]
-            solution_func = mojo_lib.solution
-
-        elif language == "python":
-            if not solution:
-                raise ValueError("Source code required for Triton submissions")
-            
-            temp_dir = tempfile.mkdtemp()
-            temp_path = os.path.join(temp_dir, "triton_solution.py")
-            
-            # This is needed because @jit has to read the source code
-            with open(temp_path, 'w') as f:
-                f.write(solution)
-                
-            spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            solution_func = module.solution
-        else:
-            raise ValueError(f"Unsupported language: {language}")
 
         yield {"status": "BENCHMARKING"}
             
@@ -529,7 +384,8 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
                     language=language,
                     min_iterations=5,
                     max_iterations=20,
-                    target_cv=0.01  # 1% target coefficient of variation
+                    target_cv=0.01,  # 1% target coefficient of variation
+                    param_func=param_func
                 )
                 
                 benchmark_results.append(benchmark_result)
@@ -567,7 +423,11 @@ def run_benchmark(problem_name: str, problem_def: str, compiled: bytes | None, s
             avg_runtime_ms = 0
         
         if language == "python":
-            shutil.rmtree(temp_dir)
+            try:
+                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                pass
 
 
         # Return final summary with additional metrics
