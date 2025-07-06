@@ -235,7 +235,7 @@ export default async function handler(
 
           try {
             const response_json = message.slice(6).trim();
-            console.log("Response JSON:", response_json);
+
             const parsed = JSON.parse(response_json) as {
               status: string;
             };
