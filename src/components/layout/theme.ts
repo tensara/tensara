@@ -26,16 +26,25 @@ export const system = extendTheme({
   },
   colors: {
     brand: {
-      primary: "#10B981",
+      primary: "#0D8144",
       secondary: "#181f2a",
       dark: "#101723",
-      navbar: "#0e8144",
+      navbar: "#0D8144",
       card: "rgba(15, 23, 42, 0.6)",
     },
     gray: {
       700: "#334155",
       800: "#1E293B",
       900: "#0F172A",
+    },
+    easy: {
+      500: "#4CAF50", // Green
+    },
+    medium: {
+      500: "#FFC107", // Amber/Orange
+    },
+    hard: {
+      500: "#F44336", // Red
     },
   },
   components: {
@@ -49,8 +58,7 @@ export const system = extendTheme({
           bg: "brand.primary",
           color: "white",
           _hover: {
-            bg: "brand.primary",
-            opacity: 0.9,
+            bg: "#0D703B",
           },
         },
         ghost: {

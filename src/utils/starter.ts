@@ -32,23 +32,13 @@ extern "C" void solution(${paramStr}) {
 }`;
   }
   if (language === "python") {
-    const names = parameters
-      .map((parameter: Parameter) =>
-        parameter.pointer === "true" ? parameter.name : null
-      )
-      .filter(Boolean);
-    const paramStr = parameters
-      .map(
-        (parameter: Parameter) =>
-          `${parameter.name}${parameter.pointer === "true" ? "" : parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[dataType]}` : `: ${PYTHON_MISC_TYPES[parameter.type]}`}`
-      )
-      .join(", ");
-    return `import triton
-import triton.language as tl
+    return `import torch
 
-# Note: ${names.join(", ")} are all ${dataType} device tensors
-def solution(${paramStr}):
-  `;
+# Note: all tensors are float32 device tensors
+def solution():
+    # Your PyTorch solution here
+    pass
+`;
   }
   if (language === "mojo") {
     const names = parameters

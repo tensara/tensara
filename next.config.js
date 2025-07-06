@@ -4,6 +4,9 @@
  */
 import "./src/env.js";
 import path from 'path';
+import MonacoWebpackPlugin from 'monaco-editor-webpack-plugin';
+
+const isProd = process.env.NODE_ENV === "production";
 
 /** @type {import("next").NextConfig} */
 const config = {
@@ -18,14 +21,50 @@ const config = {
     locales: ["en"],
     defaultLocale: "en",
   },
-  transpilePackages: ["geist"],
-  distDir: process.env.BUILD_DIR || ".next", // Set custom build directory
-  
-  // Explicitly configure webpack to handle path aliases
-  webpack: (config) => {
-    config.resolve.alias['~'] = path.join(process.cwd(), 'src');
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.plugins.push(
+        new MonacoWebpackPlugin({
+          languages: ["python", "typescript", "javascript", "json", "html", "css"],
+          filename: 'static/[name].worker.js',
+        })
+      );
+    }
     return config;
   },
+  transpilePackages: [
+    "geist",
+    "@octokit/app",
+    "@octokit/auth-app",
+    "@octokit/auth-oauth-app",
+    "@octokit/auth-oauth-device",
+    "@octokit/auth-oauth-user",
+    "@octokit/auth-token",
+    "@octokit/auth-unauthenticated",
+    "@octokit/core",
+    "@octokit/endpoint",
+    "@octokit/graphql",
+    "@octokit/oauth-app",
+    "@octokit/oauth-authorization-url",
+    "@octokit/oauth-methods",
+    "@octokit/openapi-types",
+    "@octokit/plugin-paginate-rest",
+    "@octokit/plugin-request-log",
+    "@octokit/plugin-rest-endpoint-methods",
+    "@octokit/request",
+    "@octokit/request-error",
+    "@octokit/rest",
+    "@octokit/types",
+    "@octokit/webhooks",
+    "@octokit/webhooks-methods",
+    "@octokit/webhooks-types",
+  ],
+  distDir: process.env.BUILD_DIR || ".next", // Set custom build directory
+  ...(isProd && {
+    experimental: {
+      esmExternals: "loose",
+    },
+  }),
 };
 
 export default config;
