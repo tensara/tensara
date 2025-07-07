@@ -1,5 +1,4 @@
 import json
-import simplejson
 from threading import Thread
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
@@ -103,6 +102,8 @@ for gpu in gpu_runners:
     globals()[f"runner_{gpu}"] = gpu_runners[gpu]
 
 def gen_wrapper(gen):
+    import simplejson
+
     for event in gen:
         data = simplejson.dumps(event, ignore_nan=True)
         yield "data: " + data + "\n\n"
