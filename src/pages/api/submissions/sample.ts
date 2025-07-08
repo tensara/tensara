@@ -48,11 +48,11 @@ export default async function handler(
     await db.user.update({
       where: { id: session.user.id },
       data: {
-        sampleSubmissionCount: 4,
+        sampleSubmissionCount: 200,
         lastSampleSubmissionReset: today.toJSDate(),
       },
     });
-    sampleSubmissionCount = 4;
+    sampleSubmissionCount = 200;
   }
 
   if (sampleSubmissionCount <= 0) {
