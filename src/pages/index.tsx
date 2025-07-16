@@ -589,22 +589,22 @@ export default function HomePage() {
                   </Flex>
                   <Box>
                     <UpdateCard
+                      title="Compiler Baselines"
+                      type="FEATURE"
+                      description="Add compiler baselines to leaderboards."
+                      date="1 week ago"
+                    />
+                    <UpdateCard
                       title="Experimental Mojo Support"
                       type="FEATURE"
                       description="Added support for Mojo submissions."
-                      date="3 days ago"
+                      date="3 weeks ago"
                     />
                     <UpdateCard
                       title="Rating System"
                       type="FEATURE"
                       description="New rating system for user rankings."
-                      date="2 weeks ago"
-                    />
-                    <UpdateCard
-                      title="Triton Kernel Support"
-                      type="FEATURE"
-                      description="Added support for Triton-based kernel submissions."
-                      date="3 weeks ago"
+                      date="1 month ago"
                     />
                   </Box>
                 </Box>

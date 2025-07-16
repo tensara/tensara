@@ -82,6 +82,7 @@ export const tags = [
   "vector",
   "matmul",
   "scan",
+  "statistics",
   "reduction",
 ] as const;
 
@@ -97,6 +98,7 @@ export const tagNames = {
   vector: "Vector",
   matmul: "Matmul",
   scan: "Scan",
+  statistics: "Statistics",
   reduction: "Reduction",
 } as const;
 
@@ -112,5 +114,6 @@ export const tagAltNames = {
   vector: "Vector",
   matmul: "Matrix Multiplication",
   scan: "Scan",
+  statistics: "Statistics",
   reduction: "Reduction",
 } as const;
