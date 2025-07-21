@@ -14,6 +14,7 @@ model User {
   email                     String?   @unique
   emailVerified             DateTime?
   image                     String?
+  role                      UserRole  @default(USER)
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
   refreshToken              String?   @unique
@@ -25,12 +26,14 @@ model User {
   rating                    Int?
   rank                      Int?
 
-  accounts     Account[]
-  problems     Problem[]
-  submissions  Submission[]
-  RevokedToken RevokedToken[]
-  Session      Session[]
-  ApiKey       ApiKey[]
+  accounts        Account[]
+  problems        Problem[]
+  submissions     Submission[]
+  RevokedToken    RevokedToken[]
+  Session         Session[]
+  ApiKey          ApiKey[]
+  createdContests Contest[]      @relation("Creator")
+  contestEntries  ContestUser[]  @relation("Participant")
 
   @@index([email])
   @@index([createdAt])
@@ -91,13 +94,13 @@ model RevokedToken {
 model Problem {
   id String @id @default(cuid())
 
-  title       String
-  slug        String     @unique
-  description String?
-  difficulty  Difficulty
-  author      String
-  parameters  Json       @default("[]")
-  tags        String[]
+  title              String
+  slug               String     @unique
+  description        String?
+  difficulty         Difficulty
+  author             String
+  parameters         Json       @default("[]")
+  tags               String[]
   baselineBenchmarks Json?      @default("{}")
 
   definition String? @db.Text
@@ -108,6 +111,10 @@ model Problem {
   submissions Submission[]
   User        User?        @relation(fields: [userId], references: [id])
   userId      String?
+
+  contestProblems ContestProblem[]
+  visibility      ProblemVisibility @default(PUBLIC)
+  contest         Boolean           @default(false)
 
   @@index([author])
   @@index([difficulty])
@@ -148,11 +155,21 @@ model Submission {
   @@index([createdAt])
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 enum Difficulty {
   EASY
   MEDIUM
   HARD
   EXPERT
+}
+
+enum ProblemVisibility {
+  PUBLIC
+  PRIVATE
 }
 
 model ApiKey {
@@ -166,4 +183,47 @@ model ApiKey {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+enum ContestStatus {
+  UPCOMING
+  ACTIVE
+  FINISHED
+  ARCHIVED
+}
+
+model Contest {
+  id           String           @id @default(cuid())
+  title        String
+  description  String?
+  startTime    DateTime
+  endTime      DateTime
+  status       ContestStatus    @default(UPCOMING)
+  creatorId    String
+  creator      User             @relation("Creator", fields: [creatorId], references: [id])
+  problems     ContestProblem[]
+  participants ContestUser[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model ContestProblem {
+  id        String  @id @default(cuid())
+  contestId String
+  problemId String
+  contest   Contest @relation(fields: [contestId], references: [id])
+  problem   Problem @relation(fields: [problemId], references: [id])
+
+  @@unique([contestId, problemId])
+}
+
+model ContestUser {
+  id           String   @id @default(cuid())
+  contestId    String
+  userId       String
+  registeredAt DateTime @default(now())
+  contest      Contest  @relation(fields: [contestId], references: [id])
+  user         User     @relation("Participant", fields: [userId], references: [id])
+
+  @@unique([contestId, userId])
 }

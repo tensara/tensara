@@ -22,15 +22,17 @@
     "cypress": "cypress open",
     "cypress:headless": "cypress run",
     "test:e2e": "start-server-and-test dev 3000 cypress",
-    "test:e2e:headless": "start-server-and-test dev 3000 cypress:headless"
+    "test:e2e:headless": "start-server-and-test dev 3000 cypress:headless",
+    "sync": "cd ../contests && pnpm sync"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.7.2",
-    "@chakra-ui/react": "^2.10.1",
+    "@auth/prisma-adapter": "^2.10.0",
+    "@chakra-ui/react": "^2.10.5",
     "@emotion/react": "^11.14.0",
+    "@hookform/resolvers": "^5.1.1",
     "@monaco-editor/react": "^4.7.0",
     "@next/third-parties": "^15.1.6",
-    "@prisma/client": "^5.14.0",
+    "@prisma/client": "^5.22.0",
     "@t3-oss/env-nextjs": "^0.10.1",
     "@tanstack/react-query": "^5.50.0",
     "@trpc/client": "^11.0.0-rc.446",
@@ -49,11 +51,12 @@
     "luxon": "^3.6.1",
     "monaco-editor": "^0.52.2",
     "next": "^15.0.1",
-    "next-auth": "^4.24.5",
+    "next-auth": "^4.24.11",
     "next-themes": "^0.4.4",
     "node-cache": "^5.1.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.60.0",
     "react-icons": "^5.4.0",
     "react-markdown": "^9.0.3",
     "react-split": "^2.0.14",
@@ -67,7 +70,7 @@
     "shiki": "^3.0.0",
     "superjson": "^2.2.1",
     "tsx": "^4.19.2",
-    "zod": "^3.23.3"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@testing-library/cypress": "^10.0.3",

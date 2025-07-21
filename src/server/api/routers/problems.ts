@@ -1,8 +1,14 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+  adminProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { ProblemVisibility } from "@prisma/client";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { env } from "~/env";
+import { env } from "~/env.mjs";
 
 // // Simulated evaluation delay
 // const EVAL_DELAY_MS = 1500;
@@ -52,6 +58,7 @@ export const problemsRouter = createTRPCRouter({
           difficulty: true,
           author: true,
           tags: true,
+          visibility: true,
           _count: {
             select: {
               submissions: true,
@@ -279,5 +286,21 @@ export const problemsRouter = createTRPCRouter({
       });
 
       return problem.baselineBenchmarks;
+    }),
+
+  updateProblemVisibility: adminProcedure
+    .input(
+      z.object({
+        problemId: z.string(),
+        visibility: z.nativeEnum(ProblemVisibility),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.problem.update({
+        where: { id: input.problemId },
+        data: {
+          visibility: input.visibility,
+        },
+      });
     }),
 });

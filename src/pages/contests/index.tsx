@@ -1,16 +1,43 @@
-import { Box, Flex, Heading, Tabs, TabList, Tab } from "@chakra-ui/react";
-import { useState } from "react";
+import {
+  Box,
+  Flex,
+  Heading,
+  Spinner,
+  Text,
+  Alert,
+  AlertIcon,
+  VStack,
+  Link,
+  Badge,
+  Button,
+} from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
-import { motion } from "framer-motion";
+import { api } from "~/utils/api";
+import NextLink from "next/link";
+import { type Contest, ContestStatus } from "@prisma/client";
+import { useSession } from "next-auth/react";
 
-// Create motion components
-const MotionBox = motion(Box);
-const MotionHeading = motion(Heading);
+const getStatusBadgeColor = (status: ContestStatus) => {
+  switch (status) {
+    case "UPCOMING":
+      return "blue";
+    case "ACTIVE":
+      return "green";
+    case "FINISHED":
+      return "gray";
+  }
+};
 
 export default function ContestsPage() {
-  const [statusFilter, setStatusFilter] = useState<
-    "UPCOMING" | "ACTIVE" | "COMPLETED" | "ALL"
-  >("ALL");
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
+  const {
+    data: contests,
+    isLoading,
+    error,
+  } = isAdmin
+    ? api.contests.getAllAdmin.useQuery()
+    : api.contests.getAll.useQuery();
 
   return (
     <Layout
@@ -27,122 +54,60 @@ export default function ContestsPage() {
           gap={{ base: 4, sm: 0 }}
         >
           <Heading size="lg">Contests</Heading>
+          {session?.user.role === "ADMIN" && (
+            <Button as={NextLink} href="/contests/create" colorScheme="blue">
+              Create Contest
+            </Button>
+          )}
         </Flex>
 
-        <MotionBox
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          justifyContent="center"
-          h="400px"
-          bg="brand.secondary"
-          borderRadius="xl"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8 }}
-          position="relative"
-          overflow="hidden"
-          boxShadow="0 10px 30px rgba(0,0,0,0.25)"
-          _before={{
-            content: '""',
-            position: "absolute",
-            top: "0",
-            left: "0",
-            right: "0",
-            bottom: "0",
-            bg: "brand.secondary",
-            zIndex: 0,
-          }}
-        >
-          {/* Animated glowing orbs */}
-          <MotionBox
-            position="absolute"
-            width="150px"
-            height="150px"
-            borderRadius="full"
-            bg="brand.secondary"
-            filter="blur(40px)"
-            top="30%"
-            left="20%"
-            animate={{
-              x: [0, 30, 0],
-              y: [0, -20, 0],
-              scale: [1, 1.2, 1],
-              opacity: [0.4, 0.6, 0.4],
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 8,
-              ease: "easeInOut",
-            }}
-          />
+        {isLoading && (
+          <Flex justify="center" align="center" h="400px">
+            <Spinner size="xl" />
+          </Flex>
+        )}
 
-          <MotionBox
-            position="absolute"
-            width="200px"
-            height="200px"
-            borderRadius="full"
-            bg="brand.secondary"
-            filter="blur(60px)"
-            bottom="10%"
-            right="15%"
-            animate={{
-              x: [0, -40, 0],
-              y: [0, 30, 0],
-              scale: [1, 1.3, 1],
-              opacity: [0.3, 0.5, 0.3],
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 10,
-              ease: "easeInOut",
-              delay: 1,
-            }}
-          />
+        {error && (
+          <Alert status="error">
+            <AlertIcon />
+            There was an error fetching the contests.
+          </Alert>
+        )}
 
-          {/* Main content */}
-          <MotionHeading
-            size="2xl"
-            textAlign="center"
-            bg="brand.primary"
-            bgClip="text"
-            fontWeight="bold"
-            letterSpacing="wider"
-            zIndex={1}
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            COMING SOON
-          </MotionHeading>
-
-          <MotionBox
-            width="60px"
-            height="4px"
-            mt={6}
-            mb={8}
-            bgGradient="linear(to-r, brand.primary, brand.navbar)"
-            borderRadius="full"
-            initial={{ width: "0px", opacity: 0 }}
-            animate={{ width: "60px", opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
-            zIndex={1}
-          />
-
-          <MotionBox
-            textAlign="center"
-            maxW="500px"
-            color="whiteAlpha.800"
-            fontSize="lg"
-            zIndex={1}
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.7 }}
-          >
-            We&apos;re preparing exciting GPU programming contests for you.
-            Check back soon for competitive challenges and prizes!
-          </MotionBox>
-        </MotionBox>
+        {contests && (
+          <VStack spacing={4} align="stretch">
+            {contests.map((contest: Contest) => (
+              <Link
+                as={NextLink}
+                href={`/contests/${contest.id}`}
+                key={contest.id}
+                _hover={{ textDecoration: "none" }}
+              >
+                <Box
+                  p={5}
+                  shadow="md"
+                  borderWidth="1px"
+                  borderRadius="lg"
+                  _hover={{ shadow: "lg" }}
+                >
+                  <Flex justify="space-between" align="center">
+                    <Heading fontSize="xl">{contest.title}</Heading>
+                    <Badge
+                      colorScheme={getStatusBadgeColor(contest.status)}
+                      p={2}
+                      borderRadius="md"
+                    >
+                      {contest.status}
+                    </Badge>
+                  </Flex>
+                  <Text mt={4}>
+                    Starts: {new Date(contest.startTime).toLocaleString()}
+                  </Text>
+                </Box>
+              </Link>
+            ))}
+          </VStack>
+        )}
       </Box>
     </Layout>
   );

@@ -8,10 +8,17 @@ export const env = createEnv({
    */
   server: {
     DATABASE_URL: z.string().url(),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
     AUTH_GITHUB_ID: z.string(),
     AUTH_GITHUB_SECRET: z.string(),
-    AUTH_SECRET: z.string().optional(),
+    AUTH_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string()
+        : z.string().optional(),
     MODAL_ENDPOINT: z.string(),
+    ADMIN_GITHUB_USERNAMES: z.string().min(1),
   },
 
   /**
@@ -19,7 +26,7 @@ export const env = createEnv({
    * For them to be exposed to the client, prefix them with `NEXT_PUBLIC_`.
    */
   client: {
-    NEXT_PUBLIC_GA_ID: z.string().min(1),
+    NEXT_PUBLIC_GA_ID: z.string(),
     NEXT_PUBLIC_BASE_URL: z.string().url(),
   },
 
@@ -29,12 +36,15 @@ export const env = createEnv({
    */
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
+    NODE_ENV: process.env.NODE_ENV,
     AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
     AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
     AUTH_SECRET: process.env.AUTH_SECRET,
     NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID,
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
     MODAL_ENDPOINT: process.env.MODAL_ENDPOINT,
+    ADMIN_GITHUB_USERNAMES: process.env.ADMIN_GITHUB_USERNAMES,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  emptyStringAsUndefined: true,
 });

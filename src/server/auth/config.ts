@@ -1,10 +1,11 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import type { NextAuthOptions, DefaultSession } from "next-auth";
+import type { DefaultSession, NextAuthOptions } from "next-auth";
 import GithubProvider from "next-auth/providers/github";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers/oauth";
+import { type UserRole, type User } from "@prisma/client";
 
 import { db } from "~/server/db";
-import { env } from "~/env";
+import { env } from "~/env.mjs";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -13,15 +14,24 @@ import { env } from "~/env";
  * @see https://next-auth.js.org/getting-started/typescript#module-augmentation
  */
 declare module "next-auth" {
-  interface Session extends DefaultSession {
+  interface Session {
     user: {
       id: string;
-      username?: string;
+      role: UserRole;
+      username?: string | null;
+      isAdmin?: boolean;
     } & DefaultSession["user"];
   }
-
   interface User {
-    username?: string;
+    role: UserRole;
+    username?: string | null;
+    isAdmin?: boolean;
+  }
+}
+
+declare module "next-auth/adapters" {
+  interface AdapterUser extends User {
+    role: UserRole;
   }
 }
 
@@ -69,14 +79,17 @@ export const authConfig: NextAuthOptions = {
       }
       return true;
     },
-    session: ({ session, user }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-        username: user.username,
-      },
-    }),
+    session({ session, user }) {
+      if (session.user) {
+        session.user.id = user.id;
+        session.user.role = user.role;
+        session.user.username = user.username;
+        session.user.isAdmin = env.ADMIN_GITHUB_USERNAMES.includes(
+          user.username ?? ""
+        );
+      }
+      return session;
+    },
   },
   events: {
     async createUser({ user }) {
@@ -116,6 +129,7 @@ export const discordAuth = (
       image: profile.avatar
         ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
         : null,
+      role: "USER",
     };
   },
   ...config,
