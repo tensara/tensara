@@ -1,166 +1,106 @@
-// sandbox/index.tsx
+import { api } from "~/utils/api";
+import { useRouter } from "next/router";
 import { useState } from "react";
-import Split from "react-split";
-import { Box, Button, HStack, VStack, Text, IconButton } from "@chakra-ui/react";
-import { FiPlay, FiPlus, FiTrash } from "react-icons/fi";
-import { FaFileAlt } from "react-icons/fa";
-import dynamic from "next/dynamic";
-import SandboxConsole from "~/components/sandbox/console";
-import { FileExplorer } from "./FileExplorer";
-import { useRef } from "react";
+import {
+  VStack,
+  Heading,
+  Button,
+  Input,
+  HStack,
+  Text,
+  Box,
+  Grid,
+} from "@chakra-ui/react";
+import { Layout } from "~/components/layout";
+import { format } from "date-fns";
 
+export default function SandboxHome() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const utils = api.useUtils();
 
-const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+  const { data: workspaces, isLoading } = api.workspace.list.useQuery();
+  const createWorkspace = api.workspace.create.useMutation({
+    onSuccess: async (data) => {
+      await utils.workspace.list.invalidate();
+      await router.push(`/sandbox/${data.slug}`);
+    },
+  });
 
-const defaultFile = {
-  name: "main.cu",
-  content: `#include <stdio.h>\n
-__global__ void hello() {
-  printf("Hello, world!\\n");
-}
-int main() {
-  hello<<<1, 1>>>();
-  cudaDeviceSynchronize();
-  return 0;
-}`,
-};
-
-export default function Sandbox() {
-  const [files, setFiles] = useState([{ ...defaultFile }]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [output, setOutput] = useState(null);
-
-  const activeFile = files[activeIndex];
-
-  const runCode = async () => {
-    const res = await fetch("/api/sandbox/run", {
-      method: "POST",
-      body: JSON.stringify({ files, main: activeFile.name }),
-    });
-    const data = await res.json();
-    setOutput(data);
+  const handleCreate = () => {
+    if (!name.trim()) return;
+    createWorkspace.mutate({ name });
+    setName("");
   };
-
-  const updateFile = (content: string) => {
-    const updated = [...files];
-    updated[activeIndex].content = content;
-    setFiles(updated);
-  };
-
-  const uploadRef = useRef<HTMLInputElement>(null);
-
-const downloadFile = (index: number) => {
-  const file = files[index];
-  const blob = new Blob([file.content], { type: "text/plain" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = file.name;
-  link.click();
-};
-
 
   return (
-    <HStack h="100vh" spacing={0} align="start">
-      {/* Sidebar */}
-    <Box w="240px" h="100%" bg="#1e1e1e" px={4} py={3}>
-  <HStack justify="space-between" mb={3}>
-    <Text color="white" fontWeight="bold">Files</Text>
-    <IconButton
-      icon={<FiPlus />}
-      size="sm"
-      onClick={() => {
-        const name = `file${files.length}.cu`;
-        setFiles([...files, { name, content: "" }]);
-        setActiveIndex(files.length);
-      }}
-      aria-label="Add File"
-    />
-  </HStack>
+    <Layout title="SandboxHome">
+      <VStack px={8} py={12} align="start" spacing={6}>
+        <Heading size="lg" mb={2}>
+          My Workspaces
+        </Heading>
+        <Text color="gray.400" mb={6}>
+          Create and manage your GPU code projects.
+        </Text>
 
-  <Button
-    size="sm"
-    mb={2}
-    w="100%"
-    onClick={() => uploadRef.current?.click()}
-    colorScheme="teal"
-  >
-    Upload
-  </Button>
-
-  <input
-    type="file"
-    accept=".cu"
-    ref={uploadRef}
-    style={{ display: "none" }}
-    onChange={(e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target?.result as string;
-        setFiles([...files, { name: file.name, content }]);
-        setActiveIndex(files.length);
-      };
-      reader.readAsText(file);
-    }}
-  />
-
-  <FileExplorer
-    files={files}
-    active={activeIndex}
-    onOpen={setActiveIndex}
-    onRename={(i, name) => {
-      const updated = [...files];
-      updated[i].name = name;
-      setFiles(updated);
-    }}
-    onDelete={(i) => {
-      if (files.length === 1) return;
-      const updated = files.filter((_, idx) => idx !== i);
-      setFiles(updated);
-      setActiveIndex(0);
-    }}
-    onDownload={downloadFile}
-  />
-</Box>
-
-
-      {/* Editor + Console */}
-      <VStack h="100%" flex={1} spacing={0}>
-        <HStack justify="space-between" px={4} py={2} w="100%" bg="#1f1f1f">
-          <Text color="#4EC9B0" fontWeight="bold">Tensara Sandbox</Text>
-          <Button leftIcon={<FiPlay />} colorScheme="green" onClick={runCode}>
-            Run
+        <HStack mb={6}>
+          <Input
+            placeholder="Name your workspace..."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            size="md"
+            borderRadius="lg"
+            bg="#111"
+            color="white"
+            _placeholder={{ color: "gray.500" }}
+            px={4}
+            py={2}
+            w="300px"
+          />
+          <Button
+            onClick={handleCreate}
+            bg="rgba(34, 197, 94, 0.1)"
+            color="rgb(34, 197, 94)"
+            borderRadius="lg"
+            fontWeight="semibold"
+            fontSize="sm"
+            px={6}
+            h="40px"
+            _hover={{ bg: "rgba(34, 197, 94, 0.2)", transform: "translateY(-1px)" }}
+            _active={{ bg: "rgba(34, 197, 94, 0.25)" }}
+            transition="all 0.2s"
+          >
+            Create
           </Button>
         </HStack>
 
-        <Split
-          className="split"
-          direction="vertical"
-          sizes={[75, 25]}
-          minSize={100}
-          gutterSize={6}
-          style={{ height: "100%", width: "100%" }}
-        >
-          <Box w="100%" h="100%">
-            <MonacoEditor
-              theme="vs-dark"
-              language="cpp"
-              value={activeFile.content}
-              onChange={(val) => updateFile(val ?? "")}
-              options={{
-                fontSize: 14,
-                minimap: { enabled: false },
-                tabSize: 2,
-                automaticLayout: true,
-              }}
-            />
-          </Box>
-          <Box w="100%" h="100%">
-            <SandboxConsole output={output} status={output?.success ? "passed" : "failed"} isRunning={false} files={files} />
-          </Box>
-        </Split>
+        <VStack align="stretch" spacing={3} pt={4} w="full">
+          {isLoading ? (
+            <Text>Loading...</Text>
+          ) : (
+            <Grid templateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={4}>
+              {workspaces?.map((ws) => (
+                <Box
+                  key={ws.id}
+                  p={4}
+                  borderRadius="lg"
+                  bg="#111"
+                  border="1px solid #2a2a2a"
+                  _hover={{ borderColor: "#22c55e", cursor: "pointer" }}
+                  onClick={() => router.push(`/sandbox/${ws.slug}`)}
+                >
+                  <Text fontWeight="semibold" fontSize="md" color="white">
+                    {ws.name}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500" mt={2}>
+                    Last edited {format(ws.updatedAt, "Pp")}
+                  </Text>
+                </Box>
+              ))}
+            </Grid>
+          )}
+        </VStack>
       </VStack>
-    </HStack>
+    </Layout>
   );
 }

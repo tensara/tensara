@@ -31,6 +31,7 @@ model User {
   RevokedToken RevokedToken[]
   Session      Session[]
   ApiKey       ApiKey[]
+  workspaces   Workspace[]
 
   @@index([email])
   @@index([createdAt])
@@ -91,13 +92,13 @@ model RevokedToken {
 model Problem {
   id String @id @default(cuid())
 
-  title       String
-  slug        String     @unique
-  description String?
-  difficulty  Difficulty
-  author      String
-  parameters  Json       @default("[]")
-  tags        String[]
+  title              String
+  slug               String     @unique
+  description        String?
+  difficulty         Difficulty
+  author             String
+  parameters         Json       @default("[]")
+  tags               String[]
   baselineBenchmarks Json?      @default("{}")
 
   definition String? @db.Text
@@ -166,4 +167,17 @@ model ApiKey {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  files     Json
+  main      String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 }
