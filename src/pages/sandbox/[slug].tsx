@@ -1,7 +1,7 @@
 import { useRouter } from "next/router";
 import { api } from "~/utils/api";
 import { useEffect, useState } from "react";
-import SandBox from "./SandboxEditor";
+import SandBox from "../../components/sandbox/SandboxEditor";
 import WorkspaceAlert from "~/components/sandbox/WorkspaceAlert";
 import { useToast } from "@chakra-ui/react";
 import { Button, HStack, Text } from "@chakra-ui/react";

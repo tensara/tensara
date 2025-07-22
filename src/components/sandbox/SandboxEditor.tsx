@@ -85,7 +85,7 @@ const downloadFile = (index: number) => {
 
 
   return (
-    <HStack h="100vh" spacing={0} align="start">
+    <HStack h="83vh" spacing={0} align="start">
       {/* Sidebar */}
     <Box w="240px" h="100%" bg="#1e1e1e" px={4} py={3}>
   <HStack justify="space-between" mb={3}>
