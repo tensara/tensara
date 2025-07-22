@@ -11,7 +11,6 @@ import { useRef } from "react";
 import { Layout } from "~/components/layout";
 import { setupMonaco } from "~/components/sandbox/setupmonaco";
 
-
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
 const defaultFile = {
@@ -33,6 +32,7 @@ export default function Sandbox({
   main,
   setMain,
   onSave,
+  onManualSave,
   workspaceName,
 }: {
   files: any[];
@@ -40,6 +40,7 @@ export default function Sandbox({
   main: string;
   setMain: (m: string) => void;
   onSave: () => Promise<void>;
+  onManualSave: () => void;
   workspaceName: string;
 }) {
 
@@ -186,7 +187,7 @@ const downloadFile = (index: number) => {
           </Text>
           <HStack spacing={3}>
             <Button
-              onClick={onSave}
+              onClick={onManualSave}
               bg="rgba(34, 197, 94, 0.1)"
               color="rgb(34, 197, 94)"
               fontSize="sm"

@@ -2,8 +2,38 @@ import { useRouter } from "next/router";
 import { api } from "~/utils/api";
 import { useEffect, useState } from "react";
 import SandBox from "./SandboxEditor";
+import WorkspaceAlert from "~/components/sandbox/WorkspaceAlert";
+import { useToast } from "@chakra-ui/react";
 
 export default function SandboxSlug() {
+  const toast = useToast();
+
+const handleManualSave = () => {
+  update.mutate(
+    { id: data.id, files, main },
+    {
+      onSuccess: () => {
+        toast({
+          title: "Workspace saved.",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+          position: "top-right",
+        });
+      },
+      onError: () => {
+        toast({
+          title: "Failed to save workspace.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+          position: "top-right",
+        });
+      },
+    }
+  );
+};
+
   const router = useRouter();
   const slug = router.query.slug as string;
 
@@ -20,9 +50,39 @@ export default function SandboxSlug() {
     }
   }, [data]);
 
+
+  useEffect(() => {
+  if (!data) return;
+
+  const timeout = setTimeout(() => {
+    update.mutate({ id: data.id, files, main });
+  }, 2000); // 2s debounce
+
+  return () => clearTimeout(timeout);
+}, [files, main]);
+
+
   if (isLoading) return <div>Loading...</div>;
-  if (error?.data?.code === "UNAUTHORIZED") return <div>Unauthorized</div>;
-  if (!data) return <div>Not found</div>;
+
+  if (error?.data?.code === "UNAUTHORIZED") {
+    return (
+      <WorkspaceAlert
+        status="error"
+        title="Unauthorized"
+        description="You do not have permission to access this workspace."
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <WorkspaceAlert
+        status="error"
+        title="Workspace Not Found"
+        description="The requested workspace doesn't exist or has been deleted."
+      />
+    );
+  }
 
   return (
     <SandBox
@@ -30,10 +90,9 @@ export default function SandboxSlug() {
       setFiles={setFiles}
       main={main}
       setMain={setMain}
+      onSave={() => update.mutate({ id: data.id, files, main })}
+      onManualSave={handleManualSave}
       workspaceName={data.name}
-      onSave={async () => {
-        await update.mutateAsync({ id: data.id, files, main });
-      }}
     />
   );
 }
