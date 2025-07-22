@@ -8,8 +8,9 @@ import dynamic from "next/dynamic";
 import SandboxConsole from "~/components/sandbox/console";
 import { FileExplorer } from "./FileExplorer";
 import { useRef } from "react";
-import { Layout } from "~/components/layout";
 import { setupMonaco } from "~/components/sandbox/setupmonaco";
+import { Editable, EditableInput, EditablePreview } from "@chakra-ui/react";
+
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -34,6 +35,8 @@ export default function Sandbox({
   onSave,
   onManualSave,
   workspaceName,
+  onDelete,
+  onRename,
 }: {
   files: any[];
   setFiles: (f: any[]) => void;
@@ -42,6 +45,9 @@ export default function Sandbox({
   onSave: () => Promise<void>;
   onManualSave: () => void;
   workspaceName: string;
+    onDelete: () => void;
+  onRename: (newName: string) => void;
+
 }) {
 
   const [activeIndex, setActiveIndex] = useState(0);
@@ -49,7 +55,8 @@ export default function Sandbox({
 
  const activeFile = files[activeIndex] ?? files[0];
  
-
+   
+ 
   const runCode = async () => {
     const res = await fetch("/api/sandbox/run", {
       method: "POST",
@@ -78,7 +85,6 @@ const downloadFile = (index: number) => {
 
 
   return (
-    <Layout title="Sandbox">
     <HStack h="100vh" spacing={0} align="start">
       {/* Sidebar */}
     <Box w="240px" h="100%" bg="#1e1e1e" px={4} py={3}>
@@ -183,23 +189,38 @@ const downloadFile = (index: number) => {
       <VStack h="100%" flex={1} spacing={0}>
         <HStack justify="space-between" px={4} py={2} w="100%" bg="#1f1f1f">
           <Text color="white" fontWeight="bold">
-            {workspaceName}
+          <Editable
+  defaultValue={workspaceName}
+  fontWeight="bold"
+  color="white"
+  onSubmit={(nextValue) => {
+    if (nextValue.trim() && nextValue !== workspaceName) {
+      onRename(nextValue.trim());
+    }
+  }}
+>
+  <EditablePreview />
+  <EditableInput />
+</Editable>
+ 
           </Text>
           <HStack spacing={3}>
             <Button
               onClick={onManualSave}
-              bg="rgba(34, 197, 94, 0.1)"
-              color="rgb(34, 197, 94)"
+              bg="rgba(59, 130, 246, 0.1)"
+          color="rgb(59, 130, 246)" 
               fontSize="sm"
               fontWeight="semibold"
               px={{ base: 4, md: 6 }}
               h="40px"
               borderRadius="lg"
               _hover={{
-                bg: "rgba(34, 197, 94, 0.2)",
-                transform: "translateY(-1px)",
-              }}
-              _active={{ bg: "rgba(34, 197, 94, 0.25)" }}
+            bg: "rgba(59, 130, 246, 0.2)",
+            transform: "translateY(-1px)",
+          }}
+          _active={{
+            bg: "rgba(59, 130, 246, 0.25)",
+          }} 
               transition="all 0.2s"
             >
               Save
@@ -224,6 +245,23 @@ const downloadFile = (index: number) => {
             >
               Run
             </Button>
+            <IconButton
+                aria-label="Delete workspace"
+                icon={<FiTrash />}
+                onClick={onDelete}
+                bg="rgba(239, 68, 68, 0.1)" // red-500
+                color="rgb(239, 68, 68)"
+                borderRadius="lg"
+                h="40px"
+                fontSize="sm"
+                _hover={{
+                  bg: "rgba(239, 68, 68, 0.2)",
+                  transform: "translateY(-1px)",
+                }}
+                _active={{ bg: "rgba(239, 68, 68, 0.25)" }}
+                transition="all 0.2s"
+              />
+
           </HStack>
         </HStack>
 
@@ -274,6 +312,5 @@ const downloadFile = (index: number) => {
         </Split>
       </VStack>
     </HStack>
-    </Layout>
   );
 }

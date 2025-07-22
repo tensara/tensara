@@ -13,6 +13,17 @@ import {
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { format } from "date-fns";
+import {
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  IconButton,
+  useDisclosure,
+  useToast,
+} from "@chakra-ui/react";
+import { FiMoreVertical } from "react-icons/fi";
+
 
 export default function SandboxHome() {
   const router = useRouter();
@@ -32,6 +43,25 @@ export default function SandboxHome() {
     createWorkspace.mutate({ name });
     setName("");
   };
+
+  const toast = useToast();
+const [editingId, setEditingId] = useState<string | null>(null);
+const [newName, setNewName] = useState("");
+
+const deleteMutation = api.workspace.delete.useMutation({
+  onSuccess: async () => {
+    await utils.workspace.list.invalidate();
+    toast({ title: "Deleted workspace", status: "success", duration: 2000 });
+  },
+});
+
+const renameMutation = api.workspace.rename.useMutation({
+  onSuccess: async () => {
+    await utils.workspace.list.invalidate();
+    setEditingId(null);
+    toast({ title: "Renamed workspace", status: "success", duration: 2000 });
+  },
+});
 
   return (
     <Layout title="SandboxHome">
@@ -80,22 +110,86 @@ export default function SandboxHome() {
           ) : (
             <Grid templateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={4}>
               {workspaces?.map((ws) => (
-                <Box
-                  key={ws.id}
-                  p={4}
-                  borderRadius="lg"
-                  bg="#111"
-                  border="1px solid #2a2a2a"
-                  _hover={{ borderColor: "#22c55e", cursor: "pointer" }}
-                  onClick={() => router.push(`/sandbox/${ws.slug}`)}
-                >
-                  <Text fontWeight="semibold" fontSize="md" color="white">
-                    {ws.name}
-                  </Text>
-                  <Text fontSize="xs" color="gray.500" mt={2}>
-                    Last edited {format(ws.updatedAt, "Pp")}
-                  </Text>
-                </Box>
+<Box
+  key={ws.id}
+  p={4}
+  borderRadius="lg"
+  bg="#111"
+  border="1px solid #2a2a2a"
+  position="relative"
+  _hover={{ borderColor: "#22c55e", cursor: "pointer" }}
+>
+  <Menu>
+    <MenuButton
+      as={IconButton}
+      icon={<FiMoreVertical />}
+      size="sm"
+      variant="ghost"
+      position="absolute"
+      top="8px"
+      right="8px"
+      color="gray.400"
+      _hover={{ bg: "rgba(255,255,255,0.05)" }}
+      onClick={(e) => e.stopPropagation()}
+    />
+    <MenuList bg="#1e1e1e" borderColor="#2a2a2a">
+      <MenuItem
+        bg="#1e1e1e"
+        _hover={{ bg: "#2a2a2a" }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingId(ws.id);
+          setNewName(ws.name);
+        }}
+      >
+        Rename
+      </MenuItem>
+      <MenuItem
+        bg="#1e1e1e"
+        _hover={{ bg: "#2a2a2a" }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (confirm("Are you sure you want to delete this workspace?")) {
+            deleteMutation.mutate({ id: ws.id });
+          }
+        }}
+      >
+        Delete
+      </MenuItem>
+    </MenuList>
+  </Menu>
+
+  <Box onClick={() => router.push(`/sandbox/${ws.slug}`)}>
+    {editingId === ws.id ? (
+      <Input
+        value={newName}
+        onChange={(e) => setNewName(e.target.value)}
+        onBlur={() => {
+          renameMutation.mutate({ id: ws.id, name: newName });
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            renameMutation.mutate({ id: ws.id, name: newName });
+          }
+        }}
+        autoFocus
+        size="sm"
+        bg="#222"
+        color="white"
+        borderColor="#333"
+        _hover={{ borderColor: "#444" }}
+      />
+    ) : (
+      <Text fontWeight="semibold" fontSize="md" color="white">
+        {ws.name}
+      </Text>
+    )}
+    <Text fontSize="xs" color="gray.500" mt={2}>
+      Last edited {format(ws.updatedAt, "Pp")}
+    </Text>
+  </Box>
+</Box>
+
               ))}
             </Grid>
           )}

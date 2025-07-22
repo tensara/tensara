@@ -4,9 +4,38 @@ import { useEffect, useState } from "react";
 import SandBox from "./SandboxEditor";
 import WorkspaceAlert from "~/components/sandbox/WorkspaceAlert";
 import { useToast } from "@chakra-ui/react";
+import { Button, HStack, Text } from "@chakra-ui/react";
+import { FiArrowLeft } from "react-icons/fi";
+import { Layout } from "~/components/layout";
+
+
 
 export default function SandboxSlug() {
   const toast = useToast();
+
+  const deleteMutation = api.workspace.delete.useMutation({
+  onSuccess: () => {
+    router.push("/sandbox"); // Go back to list after deletion
+  },
+});
+
+const onDelete = () => {
+  if (confirm("Are you sure you want to delete this workspace?")) {
+    deleteMutation.mutate({ id: data.id });
+  }
+};
+
+ 
+  const rename = api.workspace.rename.useMutation();
+  const utils = api.useUtils();
+
+
+  const onRename = async (newName: string) => {
+    if (!data) return;
+    await rename.mutateAsync({ id: data.id, name: newName });
+    await utils.workspace.getBySlug.invalidate(); // refresh data
+  };
+
 
 const handleManualSave = () => {
   update.mutate(
@@ -85,6 +114,19 @@ const handleManualSave = () => {
   }
 
   return (
+    <Layout title="Sandbox Editor">
+    <HStack px={4} py={1} spacing={1}>
+  <Button
+    onClick={() => router.push("/sandbox")}
+    leftIcon={<FiArrowLeft />}
+    variant="ghost"
+    color="white"
+    _hover={{ bg: "rgba(255,255,255,0.05)" }}
+  >
+    Back to Workspaces
+  </Button>
+</HStack>
+
     <SandBox
       files={files}
       setFiles={setFiles}
@@ -93,6 +135,10 @@ const handleManualSave = () => {
       onSave={() => update.mutate({ id: data.id, files, main })}
       onManualSave={handleManualSave}
       workspaceName={data.name}
+      onDelete={onDelete}
+        onRename={onRename}
+
     />
+    </Layout>
   );
 }

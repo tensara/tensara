@@ -161,4 +161,18 @@ int main() {
 
       return { success: true };
     }),
+     rename: protectedProcedure
+    .input(z.object({ id: z.string(), name: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.workspace.update({
+        where: {
+          id: input.id,
+          userId: ctx.session.user.id,
+        },
+        data: {
+          name: input.name,
+          updatedAt: new Date(),
+        },
+      });
+    }),
 });
