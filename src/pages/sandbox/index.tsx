@@ -34,11 +34,15 @@ export default function SandboxHome() {
 
   const { data: workspaces, isLoading } = api.workspace.list.useQuery();
   const createWorkspace = api.workspace.create.useMutation({
-    onSuccess: async (data) => {
-      await utils.workspace.list.invalidate();
-      await router.push(`/sandbox/${data.slug}`);
-    },
-  });
+  onSuccess: async (data) => {
+    await utils.workspace.list.invalidate();
+
+    if (!session?.user?.username) return;
+    const username = session.user.username;
+
+    await router.push(`/sandbox/${username.toLowerCase()}/${data.slug}`);
+  },
+});
 
   const handleCreate = () => {
     if (!name.trim()) return;
