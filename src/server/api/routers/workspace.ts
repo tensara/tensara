@@ -90,22 +90,35 @@ int main() {
     }),
 
   getBySlug: protectedProcedure
-    .input(z.object({ slug: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const workspace = await ctx.db.workspace.findUnique({
-        where: { slug: input.slug },
+  .input(z.object({ username: z.string(), slug: z.string() }))
+  .query(async ({ ctx, input }) => {
+    const user = await ctx.db.user.findFirst({
+      where: { username: { equals: input.username, mode: "insensitive" } },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+    }
+
+    const workspace = await ctx.db.workspace.findFirst({
+      where: {
+        slug: input.slug,
+        userId: user.id,
+      },
+    });
+
+    if (!workspace) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Workspace not found for this user",
       });
+    }
 
-      if (!workspace) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found" });
-      }
-
-      if (workspace.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Not your workspace" });
-      }
-
-      return workspace;
-    }),
+    return workspace;
+  }),
+ 
+ 
 
   update: protectedProcedure
     .input(

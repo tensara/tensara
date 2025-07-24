@@ -23,9 +23,11 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import { FiMoreVertical } from "react-icons/fi";
+import { useSession } from "next-auth/react";
 
 
 export default function SandboxHome() {
+    const { data: session, status } = useSession();
   const router = useRouter();
   const [name, setName] = useState("");
   const utils = api.useUtils();
@@ -159,7 +161,12 @@ const renameMutation = api.workspace.rename.useMutation({
     </MenuList>
   </Menu>
 
-  <Box onClick={() => router.push(`/sandbox/${ws.slug}`)}>
+<Box
+  onClick={() => {
+    if (!session?.user?.username) return;
+    router.push(`/sandbox/${session.user.username.toLowerCase()}/${ws.slug}`);
+  }}
+>
     {editingId === ws.id ? (
       <Input
         value={newName}

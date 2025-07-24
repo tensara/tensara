@@ -1,7 +1,7 @@
 import { useRouter } from "next/router";
 import { api } from "~/utils/api";
 import { useEffect, useState } from "react";
-import SandBox from "../../components/sandbox/SandboxEditor";
+import SandBox from "../../../components/sandbox/SandboxEditor";
 import WorkspaceAlert from "~/components/sandbox/WorkspaceAlert";
 import { useToast } from "@chakra-ui/react";
 import { Button, HStack, Text } from "@chakra-ui/react";
@@ -64,9 +64,16 @@ const handleManualSave = () => {
 };
 
   const router = useRouter();
-  const slug = router.query.slug as string;
+  // const username = router.query.username as string;
 
-  const { data, isLoading, error } = api.workspace.getBySlug.useQuery({ slug });
+  // const slug = router.query.slug as string;
+  const { username, slug } = router.query;
+
+
+  // const { data, isLoading, error } = api.workspace.getBySlug.useQuery({ slug });
+  const { data , isLoading, error } = api.workspace.getBySlug.useQuery(
+  username && slug ? { username: username as string, slug: slug as string } : undefined
+);
   const update = api.workspace.update.useMutation();
 
   const [files, setFiles] = useState([]);
