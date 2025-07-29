@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import slugify from "slugify";
 
 export const workspaceRouter = createTRPCRouter({
-   list: protectedProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.workspace.findMany({
       where: { userId: ctx.session.user.id },
       orderBy: { createdAt: "desc" },
@@ -97,11 +97,17 @@ int main() {
       });
 
       if (!workspace) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Workspace not found",
+        });
       }
 
       if (workspace.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Not your workspace" });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not your workspace",
+        });
       }
 
       return workspace;
@@ -121,11 +127,17 @@ int main() {
       });
 
       if (!workspace) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Workspace not found",
+        });
       }
 
       if (workspace.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Not your workspace" });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not your workspace",
+        });
       }
 
       await ctx.db.workspace.update({
@@ -147,7 +159,10 @@ int main() {
       });
 
       if (!workspace) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Workspace not found",
+        });
       }
 
       if (workspace.userId !== ctx.session.user.id) {
@@ -161,7 +176,7 @@ int main() {
 
       return { success: true };
     }),
-     rename: protectedProcedure
+  rename: protectedProcedure
     .input(z.object({ id: z.string(), name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.workspace.update({

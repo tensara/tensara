@@ -1,4 +1,5 @@
 import ctypes
+import subprocess
 import torch
 import gc
 from typing import Iterator
@@ -10,6 +11,8 @@ import tempfile
 import shutil
 import traceback
 import time
+import queue
+import threading
 import io
 import contextlib
 
@@ -458,4 +461,172 @@ def run_benchmark(problem_name: str, problem_def: str, solution_func, dtype: str
             "status": "ERROR",
             "message": str(e),
             "details": traceback.format_exc()
+        }
+
+def run_sandbox(compiled_lib: bytes, solution_code: str):
+    """
+    Run sandbox on compiled CUDA solution with real-time output streaming
+    """
+    try:
+        if not compiled_lib:
+            yield {
+                "status": "COMPILE_ERROR",
+                "message": "Compilation Failed",
+                "details": "No compiled library provided",
+            }
+            return
+        
+        yield {
+            "status": "SANDBOX_RUNNING",
+        }
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.bin') as f:
+            f.write(compiled_lib)
+            f.flush()
+            compiled_lib_path = f.name
+        
+        try:
+            os.chmod(compiled_lib_path, 0o755)
+            
+            process = subprocess.Popen(
+                [compiled_lib_path],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1  
+            )
+            
+            # Function to read from a pipe and put lines in queue
+            def read_pipe(pipe, stream_name, output_queue):
+                try:
+                    for line in iter(pipe.readline, ''):
+                        if line:
+                            output_queue.put((stream_name, line.rstrip('\n')))
+                    pipe.close()
+                except Exception as e:
+                    output_queue.put(('error', f"Error reading {stream_name}: {str(e)}"))
+                finally:
+                    output_queue.put((stream_name, None))  # Signal end of stream
+            
+            output_queue = queue.Queue()
+            
+            stdout_thread = threading.Thread(
+                target=read_pipe, 
+                args=(process.stdout, 'stdout', output_queue)
+            )
+            stderr_thread = threading.Thread(
+                target=read_pipe, 
+                args=(process.stderr, 'stderr', output_queue)
+            )
+            
+            stdout_thread.start()
+            stderr_thread.start()
+            
+            start_time = time.time()
+            streams_finished = set()
+            all_stdout = []
+            all_stderr = []
+            timeout = 4 * 60
+            
+            while len(streams_finished) < 2:
+                if time.time() - start_time > timeout:
+                    process.kill()
+                    yield {
+                        "status": "SANDBOX_TIMEOUT",
+                        "message": "Binary execution timed out",
+                        "details": f"Execution exceeded {timeout} second timeout"
+                    }
+                    try:
+                        os.unlink(compiled_lib_path)
+                    except:
+                        pass
+                    return
+                
+                try:
+                    stream_name, line = output_queue.get(timeout=0.1)
+                    
+                    if line is None:
+                        streams_finished.add(stream_name)
+                        continue
+                    
+                    if stream_name == 'stdout':
+                        all_stdout.append(line)
+                    elif stream_name == 'stderr':
+                        all_stderr.append(line)
+                    
+                    yield {
+                        "status": "SANDBOX_OUTPUT",
+                        "stream": stream_name,
+                        "line": line,
+                        "timestamp": time.time()
+                    }
+                        
+                except queue.Empty:
+                    if process.poll() is not None:
+                        continue
+                    continue
+            
+            # Wait for threads to complete
+            stdout_thread.join(timeout=1)
+            stderr_thread.join(timeout=1)
+            
+            # Get return code
+            return_code = process.wait()
+            
+            # Clean up temporary file
+            try:
+                os.unlink(compiled_lib_path)
+            except:
+                pass
+            
+            # Yield final result
+            full_stdout = '\n'.join(all_stdout)
+            full_stderr = '\n'.join(all_stderr)
+            
+            if return_code == 0:
+                yield {
+                    "status": "SANDBOX_SUCCESS",
+                    "stdout": full_stdout,
+                    "stderr": full_stderr,
+                    "return_code": return_code
+                }
+            else:
+                yield {
+                    "status": "SANDBOX_ERROR",
+                    "message": f"Binary execution failed with return code {return_code}",
+                    "stdout": full_stdout,
+                    "stderr": full_stderr,
+                    "return_code": return_code
+                }
+                
+        except PermissionError:
+            try:
+                os.unlink(compiled_lib_path)
+            except:
+                pass
+                
+            yield {
+                "status": "SANDBOX_ERROR",
+                "message": "Permission denied executing binary",
+                "details": "Unable to execute the compiled binary due to permission restrictions"
+            }
+            
+        except Exception as e:
+            try:
+                os.unlink(compiled_lib_path)
+            except:
+                pass
+                
+            yield {
+                "status": "SANDBOX_ERROR",
+                "message": f"Unexpected error during execution: {str(e)}",
+                "details": traceback.format_exc()
+            }
+        
+    except Exception as e:  # Removed utils.NVCCError since it's not defined here
+        yield {
+            "status": "ERROR",
+            "message": str(e.__class__.__name__),
+            "details": traceback.format_exc(),
         }
