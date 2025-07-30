@@ -1,4 +1,3 @@
-import json
 from threading import Thread
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
@@ -73,7 +72,6 @@ def binary_runner(
 ):
     gen = None
 
-
     if language == "mojo" and compiled_lib is None:
         try:
             compiled_lib = utils.run_mojo_and_return_bytes(solution_code, type)
@@ -84,7 +82,7 @@ def binary_runner(
                 "details": e.args[0],
             }
             return
-    
+
     if type == "sandbox":
         gen = runner.run_sandbox(compiled_lib, solution_code)
     else:
@@ -230,14 +228,12 @@ async def sample_runner(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
         return 404
-    
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
-
 
     def create_stream():
         yield {"status": "COMPILING"}
@@ -288,15 +284,18 @@ async def sandbox(gpu: str, request: Request):
                 "details": e.args[0],
             }
             return
-        
+
         runner = gpu_runners[gpu]
         print("runner", runner)
-        stream = runner.remote_gen("sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", "cuda")
+        stream = runner.remote_gen(
+            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", "cuda"
+        )
         for event in stream:
             yield event
 
     stream = gen_wrapper(create_stream())
     return StreamingResponse(stream, media_type="text/event-stream")
+
 
 @web_app.post("/benchmark_cli-{gpu}")
 async def benchmark_cli(gpu: str, request: Request):
