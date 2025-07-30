@@ -188,7 +188,7 @@ export const usersRouter = createTRPCRouter({
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
       const user = await ctx.db.user.findFirst({
-        where: { username: input.username },
+        where: { username: { equals: input.username, mode: "insensitive" } },
         select: {
           id: true,
           name: true,
