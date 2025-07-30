@@ -36,5 +36,8 @@ jobs:
           NEXT_PUBLIC_GA_ID: "fake_ga_id"
           MODAL_ENDPOINT: "https://fake_modal_endpoint"
           NEXT_PUBLIC_BASE_URL: "https://tensara.org"
+          BOT_GITHUB_APP_ID: "9999999"
+          BOT_GITHUB_APP_PRIVATE_KEY: "some_private_key"
+          BOT_GITHUB_APP_INSTALLATION_ID: "99999999"
 
         run: pnpm install && pnpm run build
