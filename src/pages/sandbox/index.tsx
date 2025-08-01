@@ -136,19 +136,21 @@ export default function SandboxHome() {
   }
 
   return (
-    <Layout title="SandboxHome">
+    <Layout title="Sandbox">
       <VStack px={8} py={12} align="start" spacing={6} w="full">
         <HStack w="full" justify="space-between">
           <Heading size="lg">My Workspaces</Heading>
-          <IconButton
-            icon={<FiPlus />}
-            aria-label="Create new workspace"
-            onClick={openModal}
-            borderRadius="lg"
-            bg="rgba(34, 197, 94, 0.1)"
-            color="rgb(34, 197, 94)"
-            _hover={{ bg: "rgba(34, 197, 94, 0.2)" }}
-          />
+            <Button
+              onClick={openModal}
+              bg="rgba(34, 197, 94, 0.1)"
+              color="rgb(34, 197, 94)"
+              leftIcon={<FiPlus />}
+              borderRadius="lg"
+              _hover={{ bg: "rgba(34, 197, 94, 0.2)" }}
+            >
+              Create Workspace
+            </Button>
+
         </HStack>
 
         {isLoading ? (

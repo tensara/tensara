@@ -202,6 +202,11 @@ export default async function handler(
                 stderr: string;
                 return_code: number;
               };
+              await db.sandboxSubmission.update({
+                  where: { id: submission.id },
+                  data: { status: "COMPLETED" },
+                });
+
 
               sendSSE("SANDBOX_SUCCESS", response);
 
@@ -217,6 +222,12 @@ export default async function handler(
                 details?: string;
               };
 
+              await db.sandboxSubmission.update({
+                where: { id: submission.id },
+                data: { status: "FAILED" },
+              });
+
+
               sendSSE("SANDBOX_ERROR", response);
 
               res.end();
@@ -227,6 +238,10 @@ export default async function handler(
                 message: string;
                 details: string;
               };
+              await db.sandboxSubmission.update({
+                where: { id: submission.id },
+                data: { status: "TIMEOUT" },
+              });
 
               sendSSE("SANDBOX_TIMEOUT", response);
 
