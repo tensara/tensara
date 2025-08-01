@@ -14,6 +14,8 @@ import dynamic from "next/dynamic";
 import { FileExplorer } from "./FileExplorer";
 import { setupMonaco } from "~/components/sandbox/setupmonaco";
 import type { SandboxFile } from "~/types/misc";
+import { ChevronLeftIcon } from "@chakra-ui/icons";
+
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -309,22 +311,17 @@ export default function Sandbox({
         >
           <VStack spacing={0} p={4}>
             <HStack justify="space-between" w="100%" mb={4}>
-              <IconButton
-                icon={<FiArrowLeft />}
-                aria-label="Go back"
-                bg="gray.900"
-                color="white"
-                size="sm"
-                borderRadius="md"
-                _hover={{ bg: "gray.800" }}
-                onClick={() => {
-                  if (window.history.length > 1) {
-                    window.history.back();
-                  } else {
-                    window.location.href = "/sandbox/";
-                  }
-                }}
-              />
+
+
+
+            <IconButton
+              icon={<ChevronLeftIcon />}
+              aria-label="Back"
+              variant="ghost"
+              onClick={() => window.location.href = "/sandbox/"}
+            />
+
+
               <Text color="white" fontWeight="600" fontSize="sm">
                 {workspaceName}
               </Text>
@@ -345,6 +342,8 @@ export default function Sandbox({
                 _active={{ transform: "scale(0.95)" }}
               />
             </HStack>
+            <Box px={2} w="100%" flex={1} overflowY="auto">
+
             <Button
               w="100%"
               onClick={() => uploadRef.current?.click()}
@@ -359,6 +358,7 @@ export default function Sandbox({
             >
               Upload
             </Button>
+            </Box>
           </VStack>
           <input
             type="file"
