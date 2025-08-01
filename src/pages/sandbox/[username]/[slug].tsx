@@ -67,6 +67,8 @@ export default function SandboxSlug() {
   const { data , isLoading, error } = api.workspace.getBySlug.useQuery(
   username && slug ? { username: username as string, slug: slug as string } : undefined
 );
+
+
   const update = api.workspace.update.useMutation();
 
   const [files, setFiles] = useState([]);

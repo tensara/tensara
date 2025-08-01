@@ -9,7 +9,7 @@ import {
   Text,
   IconButton,
 } from "@chakra-ui/react";
-import { FiPlay, FiPlus, FiTrash, FiSquare } from "react-icons/fi";
+import { FiPlay, FiPlus, FiTrash, FiSquare, FiArrowLeft } from "react-icons/fi";
 import dynamic from "next/dynamic";
 import { FileExplorer } from "./FileExplorer";
 import { setupMonaco } from "~/components/sandbox/setupmonaco";
@@ -309,6 +309,22 @@ export default function Sandbox({
         >
           <VStack spacing={0} p={4}>
             <HStack justify="space-between" w="100%" mb={4}>
+              <IconButton
+                icon={<FiArrowLeft />}
+                aria-label="Go back"
+                bg="gray.900"
+                color="white"
+                size="sm"
+                borderRadius="md"
+                _hover={{ bg: "gray.800" }}
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    window.history.back();
+                  } else {
+                    window.location.href = "/sandbox/";
+                  }
+                }}
+              />
               <Text color="white" fontWeight="600" fontSize="sm">
                 {workspaceName}
               </Text>
