@@ -11,6 +11,12 @@ export const SubmissionStatus = {
   BENCHMARKED: "BENCHMARKED",
   ACCEPTED: "ACCEPTED",
   SANITY_CHECK_PASSED: "SANITY_CHECK_PASSED",
+  // Sandbox statuses
+  SANDBOX_RUNNING: "SANDBOX_RUNNING",
+  SANDBOX_OUTPUT: "SANDBOX_OUTPUT",
+  SANDBOX_SUCCESS: "SANDBOX_SUCCESS",
+  SANDBOX_ERROR: "SANDBOX_ERROR",
+  SANDBOX_TIMEOUT: "SANDBOX_TIMEOUT",
 } as const;
 
 // Submission Errors
@@ -110,6 +116,34 @@ export interface AcceptedResponse extends BaseResponse<"ACCEPTED"> {
   total_tests: number;
 }
 
+// Sandbox Response Types
+export interface SandboxOutputResponse extends BaseResponse<"SANDBOX_OUTPUT"> {
+  stream: "stdout" | "stderr";
+  line: string;
+  timestamp: number;
+}
+
+export interface SandboxSuccessResponse
+  extends BaseResponse<"SANDBOX_SUCCESS"> {
+  stdout: string;
+  stderr: string;
+  return_code: number;
+}
+
+export interface SandboxErrorResponse extends BaseResponse<"SANDBOX_ERROR"> {
+  message: string;
+  stdout?: string;
+  stderr?: string;
+  return_code?: number;
+  details?: string;
+}
+
+export interface SandboxTimeoutResponse
+  extends BaseResponse<"SANDBOX_TIMEOUT"> {
+  message: string;
+  details: string;
+}
+
 // Unified Union Type for API Response
 export type SubmissionResponse =
   | ErrorResponse
@@ -118,7 +152,11 @@ export type SubmissionResponse =
   | WrongAnswerResponse
   | BenchmarkResultResponse
   | BenchmarkedResponse
-  | AcceptedResponse;
+  | AcceptedResponse
+  | SandboxOutputResponse
+  | SandboxSuccessResponse
+  | SandboxErrorResponse
+  | SandboxTimeoutResponse;
 
 // Sample Run Status Constants
 export const SampleStatus = {
@@ -133,6 +171,20 @@ export const SampleStatus = {
   RUNTIME_ERROR: "RUNTIME_ERROR",
   TOO_MANY_REQUESTS: "TOO_MANY_REQUESTS",
 } as const;
+
+// Sandbox Status Constants
+export const SandboxStatus = {
+  IN_QUEUE: "IN_QUEUE",
+  COMPILING: "COMPILING",
+  SANDBOX_RUNNING: "SANDBOX_RUNNING",
+  SANDBOX_OUTPUT: "SANDBOX_OUTPUT",
+  SANDBOX_SUCCESS: "SANDBOX_SUCCESS",
+  SANDBOX_ERROR: "SANDBOX_ERROR",
+  SANDBOX_TIMEOUT: "SANDBOX_TIMEOUT",
+} as const;
+
+export type SandboxStatusType =
+  (typeof SandboxStatus)[keyof typeof SandboxStatus];
 
 export type SampleStatusType = (typeof SampleStatus)[keyof typeof SampleStatus];
 

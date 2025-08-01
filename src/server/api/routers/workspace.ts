@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import slugify from "slugify";
 
 export const workspaceRouter = createTRPCRouter({
-   list: protectedProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.workspace.findMany({
       where: { userId: ctx.session.user.id },
       orderBy: { createdAt: "desc" },
@@ -90,35 +90,28 @@ int main() {
     }),
 
   getBySlug: protectedProcedure
-  .input(z.object({ username: z.string(), slug: z.string() }))
-  .query(async ({ ctx, input }) => {
-    const user = await ctx.db.user.findFirst({
-      where: { username: { equals: input.username, mode: "insensitive" } },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
-    }
-
-    const workspace = await ctx.db.workspace.findFirst({
-      where: {
-        slug: input.slug,
-        userId: user.id,
-      },
-    });
-
-    if (!workspace) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Workspace not found for this user",
+    .input(z.object({ slug: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const workspace = await ctx.db.workspace.findUnique({
+        where: { slug: input.slug },
       });
-    }
 
-    return workspace;
-  }),
- 
- 
+      if (!workspace) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Workspace not found",
+        });
+      }
+
+      if (workspace.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not your workspace",
+        });
+      }
+
+      return workspace;
+    }),
 
   update: protectedProcedure
     .input(
@@ -134,11 +127,17 @@ int main() {
       });
 
       if (!workspace) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Workspace not found",
+        });
       }
 
       if (workspace.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Not your workspace" });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not your workspace",
+        });
       }
 
       await ctx.db.workspace.update({
@@ -160,7 +159,10 @@ int main() {
       });
 
       if (!workspace) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Workspace not found",
+        });
       }
 
       if (workspace.userId !== ctx.session.user.id) {
@@ -174,7 +176,7 @@ int main() {
 
       return { success: true };
     }),
-     rename: protectedProcedure
+  rename: protectedProcedure
     .input(z.object({ id: z.string(), name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.workspace.update({

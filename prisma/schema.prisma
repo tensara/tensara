@@ -25,13 +25,14 @@ model User {
   rating                    Int?
   rank                      Int?
 
-  accounts     Account[]
-  problems     Problem[]
-  submissions  Submission[]
-  RevokedToken RevokedToken[]
-  Session      Session[]
-  ApiKey       ApiKey[]
-  workspaces   Workspace[]
+  accounts          Account[]
+  problems          Problem[]
+  submissions       Submission[]
+  RevokedToken      RevokedToken[]
+  Session           Session[]
+  ApiKey            ApiKey[]
+  workspaces        Workspace[]
+  SandboxSubmission SandboxSubmission[]
 
   @@index([email])
   @@index([createdAt])
@@ -177,6 +178,22 @@ model Workspace {
   updatedAt DateTime @updatedAt
   files     Json
   main      String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model SandboxSubmission {
+  id            String   @id @default(cuid())
+  code          String   @db.Text
+  language      String
+  status        String?
+  stdout_output String?  @db.Text
+  error_message String?
+  error_details String?
+  logs          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
