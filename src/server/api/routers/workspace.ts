@@ -80,7 +80,9 @@ int main() {
           updatedAt: workspace.updatedAt,
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error creating workspace:", error);
+
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to create workspace",
@@ -176,18 +178,44 @@ int main() {
 
       return { success: true };
     }),
-  rename: protectedProcedure
-    .input(z.object({ id: z.string(), name: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
-      return ctx.db.workspace.update({
-        where: {
-          id: input.id,
-          userId: ctx.session.user.id,
-        },
-        data: {
-          name: input.name,
-          updatedAt: new Date(),
-        },
+ rename: protectedProcedure
+  .input(z.object({ id: z.string(), name: z.string().min(1) }))
+  .mutation(async ({ ctx, input }) => {
+    const newSlug = slugify(input.name, { lower: true, strict: true });
+
+    const existing = await ctx.db.workspace.findFirst({
+      where: {
+        slug: newSlug,
+        NOT: { id: input.id },
+      },
+    });
+
+    if (existing) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "A workspace with this name already exists.",
       });
-    }),
+    }
+
+    const updated = await ctx.db.workspace.update({
+      where: {
+        id: input.id,
+        userId: ctx.session.user.id,
+      },
+      data: {
+        name: input.name,
+        slug: newSlug,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        updatedAt: true,
+      },
+    });
+
+    return updated;
+  }),
+ 
 });
