@@ -13,7 +13,6 @@ import {
   Tooltip,
   Badge,
 } from "@chakra-ui/react";
-import { FiPlay } from "react-icons/fi";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";

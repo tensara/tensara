@@ -18,7 +18,6 @@ import {
   Collapse,
   IconButton,
   Icon,
-  Image,
 } from "@chakra-ui/react";
 
 import {
@@ -38,7 +37,6 @@ import {
 
 import {
   FaCheck,
-  FaTimes,
   FaExclamationCircle,
   FaClock,
   FaChevronUp,
@@ -49,13 +47,6 @@ import { FiArrowLeft } from "react-icons/fi";
 
 import { getStatusIcon } from "~/constants/problem";
 import { useSplitPanel } from "./SplitPanel";
-
-// Define interface for sample differences in debug info
-interface DebugSampleDifference {
-  expected: number;
-  actual: number;
-  diff: number;
-}
 
 // Define more specific types for the response data - these match the types in src/types/submission.ts
 type ResponseTypeMap = {

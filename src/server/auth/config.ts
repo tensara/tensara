@@ -27,13 +27,13 @@ declare module "next-auth" {
 
 // Unused type with leading underscore to indicate it's not directly used
 // but kept for documentation/reference purposes
-type _GitHubUser = {
-  id: number;
-  login: string;
-  avatar_url: string;
-  name: string | null;
-  email: string | null;
-};
+// type _GitHubUser = {
+//   id: number;
+//   login: string;
+//   avatar_url: string;
+//   name: string | null;
+//   email: string | null;
+// };
 
 /**
  * Options for NextAuth.js used to configure adapters, providers, callbacks, etc.

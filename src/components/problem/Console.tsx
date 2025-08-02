@@ -1,12 +1,4 @@
-import {
-  Box,
-  Text,
-  VStack,
-  HStack,
-  Spinner,
-  Badge,
-  Divider,
-} from "@chakra-ui/react";
+import { Box, Text, VStack, HStack, Spinner, Badge } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import {
   SampleStatus,

@@ -8,17 +8,14 @@ import {
   Table,
   Thead,
   Tbody,
-  Tr, // Use standard Tr
+  Tr,
   Th,
   Td,
   Icon,
-  // Collapse, // Still removed
-  IconButton,
   Spinner,
-  Center,
 } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion"; // Keep imports for MotionBox/footer
-import { FaCheck, FaChevronUp, FaChevronDown } from "react-icons/fa";
+import { FaCheck } from "react-icons/fa";
 
 // Define the structure for a single dummy benchmark result
 interface DummyBenchmarkResult {
