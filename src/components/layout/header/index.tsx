@@ -34,7 +34,6 @@ export function Header() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [hoveredPath, setHoveredPath] = useState(router.pathname);
 
   useEffect(() => {
     setMounted(true);

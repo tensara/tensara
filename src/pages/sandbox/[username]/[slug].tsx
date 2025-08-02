@@ -8,16 +8,20 @@ import { Layout } from "~/components/layout";
 
 export default function SandboxSlug() {
   const toast = useToast();
+  type File = {
+    name: string;
+    content: string;
+  };
 
   const deleteMutation = api.workspace.delete.useMutation({
     onSuccess: () => {
-      router.push("/sandbox");
+      void router.push("/sandbox");
     },
   });
 
   const onDelete = () => {
     if (confirm("Are you sure you want to delete this workspace?")) {
-      deleteMutation.mutate({ id: data.id });
+      deleteMutation.mutate({ id: data?.id ?? "" });
     }
   };
 
@@ -32,7 +36,7 @@ export default function SandboxSlug() {
 
   const handleManualSave = () => {
     update.mutate(
-      { id: data.id, files, main },
+      { id: data?.id ?? "", files, main },
       {
         onSuccess: () => {
           toast({
@@ -62,21 +66,23 @@ export default function SandboxSlug() {
   // const slug = router.query.slug as string;
   const { username, slug } = router.query;
 
-
   // const { data, isLoading, error } = api.workspace.getBySlug.useQuery({ slug });
-  const { data , isLoading, error } = api.workspace.getBySlug.useQuery(
-  username && slug ? { username: username as string, slug: slug as string } : undefined
-);
-
+  const { data, isLoading, error } = api.workspace.getBySlug.useQuery(
+    username && slug
+      ? { username: username as string, slug: slug as string }
+      : { username: "", slug: "" }
+  );
 
   const update = api.workspace.update.useMutation();
 
-  const [files, setFiles] = useState([]);
+  const [files, setFiles] = useState<File[]>([]);
   const [main, setMain] = useState("");
 
   useEffect(() => {
     if (data) {
-      setFiles(data.files ?? []);
+      // setFiles(data.files ?? []);
+      setFiles(data.files as File[]);
+
       setMain(data.main ?? "");
     }
   }, [data]);
@@ -120,7 +126,9 @@ export default function SandboxSlug() {
         setFiles={setFiles}
         main={main}
         setMain={setMain}
-        onSave={() => update.mutate({ id: data.id, files, main })}
+        onSave={async () => {
+          await update.mutateAsync({ id: data.id, files, main });
+        }}
         onManualSave={handleManualSave}
         workspaceName={data.name}
         onDelete={onDelete}

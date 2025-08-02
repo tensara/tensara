@@ -28,7 +28,7 @@ import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
 import { FiMoreVertical, FiPlus } from "react-icons/fi";
 import { useSession, signIn } from "next-auth/react";
 import { TRPCClientError } from "@trpc/client";
-
+import type { AppRouter } from "~/server/api/root";
 
 export default function SandboxHome() {
   const { data: session, status } = useSession();
@@ -56,7 +56,7 @@ export default function SandboxHome() {
       await router.push(`/sandbox/${username.toLowerCase()}/${data.slug}`);
     },
     onError: (error) => {
-      const code = (error as TRPCClientError<any>)?.data?.code;
+      const code = (error as TRPCClientError<AppRouter>)?.data?.code;
 
       if (code === "CONFLICT") {
         toast({
@@ -74,7 +74,6 @@ export default function SandboxHome() {
         });
       }
     },
-
   });
 
   const deleteMutation = api.workspace.delete.useMutation({
@@ -90,26 +89,26 @@ export default function SandboxHome() {
       setEditingId(null);
       toast({ title: "Renamed workspace", status: "success", duration: 2000 });
     },
-     onError: (error) => {
-    if (
-      error instanceof TRPCClientError &&
-      error.shape?.data?.code === "CONFLICT"
-    ) {
-      toast({
-        title: "Rename failed",
-        description: error.message,
-        status: "error",
-        duration: 4000,
-      });
-    } else {
-      toast({
-        title: "Something went wrong",
-        description: error.message,
-        status: "error",
-        duration: 4000,
-      });
-    }
-  },
+    onError: (error) => {
+      const typedError = error as TRPCClientError<AppRouter>;
+      const code = typedError.shape?.data?.code;
+
+      if (code === "CONFLICT") {
+        toast({
+          title: "Rename failed",
+          description: error.message,
+          status: "error",
+          duration: 4000,
+        });
+      } else {
+        toast({
+          title: "Something went wrong",
+          description: error.message,
+          status: "error",
+          duration: 4000,
+        });
+      }
+    },
   });
 
   const handleCreate = () => {
@@ -126,7 +125,11 @@ export default function SandboxHome() {
             <Heading size="md" color="white">
               Sign in to start messing around with GPU workspaces.
             </Heading>
-            <Button onClick={() => signIn()} colorScheme="green" borderRadius="lg">
+            <Button
+              onClick={() => signIn()}
+              colorScheme="green"
+              borderRadius="lg"
+            >
               Sign In
             </Button>
           </VStack>
@@ -140,17 +143,16 @@ export default function SandboxHome() {
       <VStack px={8} py={12} align="start" spacing={6} w="full">
         <HStack w="full" justify="space-between">
           <Heading size="lg">My Workspaces</Heading>
-            <Button
-              onClick={openModal}
-              bg="rgba(34, 197, 94, 0.1)"
-              color="rgb(34, 197, 94)"
-              leftIcon={<FiPlus />}
-              borderRadius="lg"
-              _hover={{ bg: "rgba(34, 197, 94, 0.2)" }}
-            >
-              Create Workspace
-            </Button>
-
+          <Button
+            onClick={openModal}
+            bg="rgba(34, 197, 94, 0.1)"
+            color="rgb(34, 197, 94)"
+            leftIcon={<FiPlus />}
+            borderRadius="lg"
+            _hover={{ bg: "rgba(34, 197, 94, 0.2)" }}
+          >
+            Create Workspace
+          </Button>
         </HStack>
 
         {isLoading ? (
@@ -161,7 +163,7 @@ export default function SandboxHome() {
               Get started with your first GPU workspace.
             </Text>
             <Text fontSize="md" color="gray.500" mt={1}>
-              Make GPUs go brrr 
+              Make GPUs go brrr
             </Text>
             <Button
               onClick={openModal}
@@ -173,14 +175,21 @@ export default function SandboxHome() {
               fontSize="sm"
               px={6}
               h="40px"
-              _hover={{ bg: "rgba(34, 197, 94, 0.2)", transform: "translateY(-1px)" }}
+              _hover={{
+                bg: "rgba(34, 197, 94, 0.2)",
+                transform: "translateY(-1px)",
+              }}
               _active={{ bg: "rgba(34, 197, 94, 0.25)" }}
             >
               + Create Workspace
             </Button>
           </Center>
         ) : (
-          <Grid templateColumns="repeat(auto-fill, minmax(320px, 1fr))" gap={5} w="full">
+          <Grid
+            templateColumns="repeat(auto-fill, minmax(320px, 1fr))"
+            gap={5}
+            w="full"
+          >
             {workspaces?.map((ws) => (
               <Box
                 key={ws.id}
@@ -221,7 +230,11 @@ export default function SandboxHome() {
                       _hover={{ bg: "#2a2a2a" }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm("Are you sure you want to delete this workspace?")) {
+                        if (
+                          confirm(
+                            "Are you sure you want to delete this workspace?"
+                          )
+                        ) {
                           deleteMutation.mutate({ id: ws.id });
                         }
                       }}
@@ -234,14 +247,18 @@ export default function SandboxHome() {
                 <Box
                   onClick={() => {
                     if (!session?.user?.username) return;
-                    router.push(`/sandbox/${session.user.username.toLowerCase()}/${ws.slug}`);
+                    void router.push(
+                      `/sandbox/${session.user.username.toLowerCase()}/${ws.slug}`
+                    );
                   }}
                 >
                   {editingId === ws.id ? (
                     <Input
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      onBlur={() => renameMutation.mutate({ id: ws.id, name: newName })}
+                      onBlur={() =>
+                        renameMutation.mutate({ id: ws.id, name: newName })
+                      }
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           renameMutation.mutate({ id: ws.id, name: newName });
@@ -296,7 +313,10 @@ export default function SandboxHome() {
                 fontSize="sm"
                 px={6}
                 h="40px"
-                _hover={{ bg: "rgba(34, 197, 94, 0.2)", transform: "translateY(-1px)" }}
+                _hover={{
+                  bg: "rgba(34, 197, 94, 0.2)",
+                  transform: "translateY(-1px)",
+                }}
                 _active={{ bg: "rgba(34, 197, 94, 0.25)" }}
               >
                 Create

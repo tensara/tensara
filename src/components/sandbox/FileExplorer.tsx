@@ -1,5 +1,4 @@
 import {
-  Box,
   VStack,
   HStack,
   Text,
@@ -8,19 +7,39 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  useDisclosure,
   Input,
 } from "@chakra-ui/react";
 import { FiFile, FiMoreVertical } from "react-icons/fi";
 import { useState } from "react";
 
-export function FileExplorer({ files, active, onOpen, onRename, onDelete, onDownload }: any) {
+type SandboxFile = {
+  name: string;
+  content: string;
+};
+
+type FileExplorerProps = {
+  files: SandboxFile[];
+  active: number;
+  onOpen: (index: number) => void;
+  onRename: (index: number, name: string) => void;
+  onDelete: (index: number) => void;
+  onDownload: (index: number) => void;
+};
+
+export function FileExplorer({
+  files,
+  active,
+  onOpen,
+  onRename,
+  onDelete,
+  onDownload,
+}: FileExplorerProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
 
   return (
     <VStack align="start" w="100%" spacing={1}>
-      {files.map((file: any, i: number) => (
+      {files.map((file: SandboxFile, i: number) => (
         <HStack
           key={file.name + i}
           w="100%"
@@ -64,13 +83,16 @@ export function FileExplorer({ files, active, onOpen, onRename, onDelete, onDown
               aria-label="Options"
               onClick={(e) => e.stopPropagation()}
             />
-            <MenuList fontSize="sm"
-            bg="#2a2a2a"
-  color="white"
-  border="none"
-  boxShadow="md"
->
-              <MenuItem bg="#2a2a2a" _hover={{bg: "#3a3a3a"}}
+            <MenuList
+              fontSize="sm"
+              bg="#2a2a2a"
+              color="white"
+              border="none"
+              boxShadow="md"
+            >
+              <MenuItem
+                bg="#2a2a2a"
+                _hover={{ bg: "#3a3a3a" }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditingIndex(i);
@@ -79,8 +101,20 @@ export function FileExplorer({ files, active, onOpen, onRename, onDelete, onDown
               >
                 Rename
               </MenuItem>
-              <MenuItem bg="#2a2a2a" _hover={{bg: "#3a3a3a"}} onClick={() => onDelete(i)}>Delete</MenuItem>
-              <MenuItem bg="#2a2a2a" _hover={{bg: "#3a3a3a"}} onClick={() => onDownload(i)}>Download</MenuItem>
+              <MenuItem
+                bg="#2a2a2a"
+                _hover={{ bg: "#3a3a3a" }}
+                onClick={() => onDelete(i)}
+              >
+                Delete
+              </MenuItem>
+              <MenuItem
+                bg="#2a2a2a"
+                _hover={{ bg: "#3a3a3a" }}
+                onClick={() => onDownload(i)}
+              >
+                Download
+              </MenuItem>
             </MenuList>
           </Menu>
         </HStack>

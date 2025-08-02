@@ -92,10 +92,23 @@ int main() {
     }),
 
   getBySlug: protectedProcedure
-    .input(z.object({ slug: z.string() }))
+    .input(
+      z.object({
+        username: z.string(),
+        slug: z.string(),
+      })
+    )
     .query(async ({ ctx, input }) => {
-      const workspace = await ctx.db.workspace.findUnique({
-        where: { slug: input.slug },
+      const workspace = await ctx.db.workspace.findFirst({
+        where: {
+          slug: input.slug,
+          user: {
+            username: {
+              equals: input.username,
+              mode: "insensitive", // 👈 this makes the match case-insensitive
+            },
+          },
+        },
       });
 
       if (!workspace) {
@@ -105,6 +118,7 @@ int main() {
         });
       }
 
+      // Check that the current user is the owner
       if (workspace.userId !== ctx.session.user.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -119,7 +133,7 @@ int main() {
     .input(
       z.object({
         id: z.string(),
-        files: z.any(), // ideally stricter, e.g. z.array(z.object({ name, content }))
+        files: z.array(z.object({ name: z.string(), content: z.string() })),
         main: z.string(),
       })
     )
@@ -178,44 +192,43 @@ int main() {
 
       return { success: true };
     }),
- rename: protectedProcedure
-  .input(z.object({ id: z.string(), name: z.string().min(1) }))
-  .mutation(async ({ ctx, input }) => {
-    const newSlug = slugify(input.name, { lower: true, strict: true });
+  rename: protectedProcedure
+    .input(z.object({ id: z.string(), name: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const newSlug = slugify(input.name, { lower: true, strict: true });
 
-    const existing = await ctx.db.workspace.findFirst({
-      where: {
-        slug: newSlug,
-        NOT: { id: input.id },
-      },
-    });
-
-    if (existing) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message: "A workspace with this name already exists.",
+      const existing = await ctx.db.workspace.findFirst({
+        where: {
+          slug: newSlug,
+          NOT: { id: input.id },
+        },
       });
-    }
 
-    const updated = await ctx.db.workspace.update({
-      where: {
-        id: input.id,
-        userId: ctx.session.user.id,
-      },
-      data: {
-        name: input.name,
-        slug: newSlug,
-        updatedAt: new Date(),
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        updatedAt: true,
-      },
-    });
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "A workspace with this name already exists.",
+        });
+      }
 
-    return updated;
-  }),
- 
+      const updated = await ctx.db.workspace.update({
+        where: {
+          id: input.id,
+          userId: ctx.session.user.id,
+        },
+        data: {
+          name: input.name,
+          slug: newSlug,
+          updatedAt: new Date(),
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          updatedAt: true,
+        },
+      });
+
+      return updated;
+    }),
 });

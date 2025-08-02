@@ -203,10 +203,9 @@ export default async function handler(
                 return_code: number;
               };
               await db.sandboxSubmission.update({
-                  where: { id: submission.id },
-                  data: { status: "COMPLETED" },
-                });
-
+                where: { id: submission.id },
+                data: { status: "COMPLETED" },
+              });
 
               sendSSE("SANDBOX_SUCCESS", response);
 
@@ -226,7 +225,6 @@ export default async function handler(
                 where: { id: submission.id },
                 data: { status: "FAILED" },
               });
-
 
               sendSSE("SANDBOX_ERROR", response);
 

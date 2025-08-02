@@ -5,7 +5,7 @@ import React, {
   createContext,
   useContext,
 } from "react";
-import { Box, Image } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 
 // Create context for split ratio
 export const SplitPanelContext = createContext<{
