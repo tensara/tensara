@@ -23,9 +23,11 @@ jobs:
         with:
           version: "latest"
 
-      - name: Install dependencies
+      - name: Install dependencies and ruff
         working-directory: ./engine
-        run: uv sync
+        run: |
+          uv sync
+          uv pip install ruff
 
       - name: Run ruff linter
         working-directory: ./engine
