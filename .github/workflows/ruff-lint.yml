@@ -1,0 +1,36 @@
+name: Ruff Lint
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'engine/**/*.py'
+
+jobs:
+  ruff-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        working-directory: ./engine
+        run: uv sync
+
+      - name: Run ruff linter
+        working-directory: ./engine
+        run: uv run ruff check .
+
+      - name: Run ruff formatter check
+        working-directory: ./engine
+        run: uv run ruff format --check . 
