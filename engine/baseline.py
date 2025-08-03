@@ -7,6 +7,7 @@ import runner
 import tempfile
 import os
 import importlib
+import simplejson
 from tinygrad.tensor import Tensor
 from tinygrad.dtype import _from_torch_dtype
 import torch
@@ -64,7 +65,6 @@ def tinygrad_param_func(language, solution_func, input_tensors, actual_output, p
     extra_params = problem.get_extra_params(test_case)
     return tinygrad_inputs + [tinygrad_output] + list(extra_params)
 
-
 def baseline_runner(
     solution_code: str,
     problem_name: str,
@@ -73,8 +73,6 @@ def baseline_runner(
     baseline: str,
     check: bool = False,
 ):
-    problem = utils.load_problem_module(problem_name, problem_def)
-
     temp_dir = tempfile.mkdtemp()
     temp_path = os.path.join(temp_dir, "baseline_solution.py")
 

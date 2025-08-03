@@ -87,7 +87,6 @@ def nvcc_command_executable(gpu: str, srcs: list[Path | str], out: Path | str):
 
     return cmd
 
-
 def mojo_command(srcs: list[Path | str], out: Path | str):
     """Get mojo command for the given source files and output file"""
     srcs = [str(src) for src in srcs]
@@ -558,7 +557,7 @@ class SystemOutputCapture:
         # Force CUDA to flush
         try:
             torch.cuda.synchronize()
-        except:
+        except Exception:
             pass
 
         # Restore stdout/stderr
@@ -573,7 +572,7 @@ class SystemOutputCapture:
                 self.stdout_content = f.read()
             with open(self.tmp_err_path, "r") as f:
                 self.stderr_content = f.read()
-        except:
+        except Exception:
             self.stdout_content = ""
             self.stderr_content = ""
 
@@ -581,7 +580,7 @@ class SystemOutputCapture:
         try:
             os.unlink(self.tmp_out_path)
             os.unlink(self.tmp_err_path)
-        except:
+        except OSError:
             pass
 
 

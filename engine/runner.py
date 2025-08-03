@@ -377,8 +377,6 @@ def run_benchmark(
 
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
-            test_name = test_case["name"]
-
             try:
                 # Create inputs and reference output
                 input_tensors = test_case["create_inputs"]()
@@ -465,7 +463,6 @@ def run_benchmark(
 
     except Exception as e:
         yield {"status": "ERROR", "message": str(e), "details": traceback.format_exc()}
-
 
 def run_sandbox(compiled_lib: bytes, solution_code: str):
     """
