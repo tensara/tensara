@@ -41,7 +41,9 @@ export const workspaceRouter = createTRPCRouter({
       try {
         const slug = slugify(input.name, { lower: true, strict: true });
 
-        const existing = await ctx.db.workspace.findUnique({ where: { slug } });
+        const existing = await ctx.db.workspace.findUnique({
+          where: { slug, userId: ctx.session.user.id },
+        });
         if (existing) {
           throw new TRPCError({
             code: "CONFLICT",
@@ -105,7 +107,7 @@ int main() {
           user: {
             username: {
               equals: input.username,
-              mode: "insensitive", // 👈 this makes the match case-insensitive
+              mode: "insensitive",
             },
           },
         },
@@ -200,6 +202,7 @@ int main() {
       const existing = await ctx.db.workspace.findFirst({
         where: {
           slug: newSlug,
+          userId: ctx.session.user.id,
           NOT: { id: input.id },
         },
       });
