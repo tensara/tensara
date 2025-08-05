@@ -256,18 +256,17 @@ int main() {
         });
       }
 
-      const snapshotSlug = `${workspace.slug}-${Math.random().toString(36).slice(2, 7)}`;
+      // const snapshotSlug = `${workspace.slug}-${Math.random().toString(36).slice(2, 7)}`;
 
       const snapshot = await ctx.db.snapshot.create({
         data: {
-          slug: snapshotSlug,
-          files: workspace.files,
+          files: workspace.files ?? [],
           main: workspace.main,
           workspaceId: workspace.id,
           userId: ctx.session.user.id,
         },
       });
 
-      return { slug: snapshot.slug };
+      return snapshot;
     }),
 });

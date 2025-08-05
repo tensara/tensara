@@ -16,10 +16,15 @@ export default async function handler(
     res.status(401).json({ error: session.error });
     return;
   }
-  
-  if (req.method !== "POST") return res.status(405).end();
 
-  const { files, main } = req.body;
+  if (req.method !== "POST") return res.status(405).end();
+  type SnapshotRequestBody = {
+    files: { name: string; content: string }[];
+    main: string;
+  };
+
+  const { files, main } = req.body as SnapshotRequestBody;
+
   const snapshot = await db.snapshot.create({
     data: {
       files,

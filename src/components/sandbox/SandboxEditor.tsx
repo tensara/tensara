@@ -332,10 +332,10 @@ export default function Sandbox({
                         main: files[activeIndex]?.name,
                       }),
                     });
-                    const { id } = await res.json();
+                    const { id } = (await res.json()) as { id: string };
                     const url = `${window.location.origin}/snapshot/${id}`;
                     await navigator.clipboard.writeText(url);
-                    alert("📋 Snapshot link copied to clipboard!");
+                    alert("Snapshot link copied to clipboard!");
                   } catch (e) {
                     console.error(e);
                     alert("Failed to create snapshot.");

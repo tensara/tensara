@@ -8,18 +8,30 @@ import WorkspaceAlert from "~/components/sandbox/WorkspaceAlert";
 export default function SnapshotPage() {
   const router = useRouter();
   const { id } = router.query;
+  const noop = () => {
+    // intentionally empty
+  };
+
+  const noopAsync = async () => {
+    // intentionally empty
+  };
 
   const { data, isLoading, error } = api.snapshot.getById.useQuery(
     typeof id === "string" ? { id } : { id: "" },
     { enabled: typeof id === "string" }
   );
 
-  const [files, setFiles] = useState([]);
+  type File = {
+    name: string;
+    content: string;
+  };
+
+  const [files, setFiles] = useState<File[]>([]);
   const [main, setMain] = useState("");
 
   useEffect(() => {
     if (data) {
-      setFiles(data.files);
+      setFiles(data.files ? (data.files as File[]) : []);
       setMain(data.main);
     }
   }, [data]);
@@ -40,14 +52,14 @@ export default function SnapshotPage() {
     <Layout title="Snapshot Viewer">
       <SandBox
         files={files}
-        setFiles={() => {}}
+        setFiles={noop}
         main={main}
-        setMain={() => {}}
-        onSave={async () => {}}
-        onManualSave={() => {}}
-        workspaceName={`Snapshot ${id}`}
-        onDelete={() => {}}
-        onRename={() => {}}
+        setMain={noop}
+        onSave={noopAsync}
+        onManualSave={noop}
+        workspaceName={`Snapshot ${typeof id === "string" ? id : ""}`}
+        onDelete={noop}
+        onRename={noop}
         readOnly={true}
       />
     </Layout>
