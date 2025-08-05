@@ -133,6 +133,7 @@ export default function SandboxSlug() {
         workspaceName={data.name}
         onDelete={onDelete}
         onRename={onRename}
+        readOnly={false}
       />
     </Layout>
   );

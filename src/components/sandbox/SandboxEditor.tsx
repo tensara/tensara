@@ -9,7 +9,7 @@ import {
   Text,
   IconButton,
 } from "@chakra-ui/react";
-import { FiPlay, FiPlus, FiTrash, FiSquare } from "react-icons/fi";
+import { FiPlay, FiPlus, FiTrash, FiSquare, FiShare2 } from "react-icons/fi";
 import dynamic from "next/dynamic";
 import { FileExplorer } from "./FileExplorer";
 import { setupMonaco } from "~/components/sandbox/setupmonaco";
@@ -48,6 +48,7 @@ export default function Sandbox({
   setFiles,
   onManualSave,
   workspaceName,
+  readOnly,
 }: {
   files: SandboxFile[];
   setFiles: (f: SandboxFile[]) => void;
@@ -58,6 +59,7 @@ export default function Sandbox({
   workspaceName: string;
   onDelete: () => void;
   onRename: (newName: string) => void;
+  readOnly?: boolean;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -316,6 +318,30 @@ export default function Sandbox({
                 variant="ghost"
                 onClick={() => (window.location.href = "/sandbox/")}
               />
+              <IconButton
+                icon={<FiShare2 />}
+                aria-label="Share"
+                variant="ghost"
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/snapshot/create", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        files,
+                        main: files[activeIndex]?.name,
+                      }),
+                    });
+                    const { id } = await res.json();
+                    const url = `${window.location.origin}/snapshot/${id}`;
+                    await navigator.clipboard.writeText(url);
+                    alert("📋 Snapshot link copied to clipboard!");
+                  } catch (e) {
+                    console.error(e);
+                    alert("Failed to create snapshot.");
+                  }
+                }}
+              />
 
               <Text color="white" fontWeight="600" fontSize="sm">
                 {workspaceName}
@@ -328,30 +354,34 @@ export default function Sandbox({
                 borderRadius="md"
                 _hover={{ bg: "green.600" }}
                 onClick={() => {
+                  if (readOnly) return;
                   const name = `file${files.length}.cu`;
                   setFiles([...files, { name, content: "" }]);
                   setActiveIndex(files.length);
                 }}
+                isDisabled={readOnly}
                 aria-label="Add File"
                 transition="all 0.2s"
                 _active={{ transform: "scale(0.95)" }}
               />
             </HStack>
             <Box px={2} w="100%" flex={1} overflowY="auto">
-              <Button
-                w="100%"
-                onClick={() => uploadRef.current?.click()}
-                bg="gray.700"
-                color="white"
-                size="sm"
-                borderRadius="md"
-                _hover={{ bg: "gray.600", transform: "translateY(-1px)" }}
-                _active={{ transform: "translateY(0)" }}
-                mb={4}
-                transition="all 0.2s"
-              >
-                Upload
-              </Button>
+              {!readOnly && (
+                <Button
+                  w="100%"
+                  onClick={() => uploadRef.current?.click()}
+                  bg="gray.700"
+                  color="white"
+                  size="sm"
+                  borderRadius="md"
+                  _hover={{ bg: "gray.600", transform: "translateY(-1px)" }}
+                  _active={{ transform: "translateY(0)" }}
+                  mb={4}
+                  transition="all 0.2s"
+                >
+                  Upload
+                </Button>
+              )}
             </Box>
           </VStack>
           <input
@@ -377,6 +407,7 @@ export default function Sandbox({
               active={activeIndex}
               onOpen={setActiveIndex}
               onRename={(i: number, name: string) => {
+                if (readOnly) return;
                 const updated = [...files];
                 if (updated[i]) {
                   updated[i].name = name;
@@ -384,6 +415,7 @@ export default function Sandbox({
                 }
               }}
               onDelete={(i: number) => {
+                if (readOnly) return;
                 if (files.length === 1) return;
                 const updated = files.filter((_, idx) => idx !== i);
                 setFiles(updated);
@@ -424,6 +456,7 @@ export default function Sandbox({
                     onChange={(val) => updateFile(val ?? "")}
                     beforeMount={setupMonaco}
                     options={{
+                      readOnly: readOnly,
                       fontSize: 14,
                       minimap: { enabled: false },
                       tabSize: 2,

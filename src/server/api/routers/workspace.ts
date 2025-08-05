@@ -234,4 +234,40 @@ int main() {
 
       return updated;
     }),
+
+  createSnapshot: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const workspace = await ctx.db.workspace.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!workspace) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Workspace not found",
+        });
+      }
+
+      if (workspace.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not your workspace",
+        });
+      }
+
+      const snapshotSlug = `${workspace.slug}-${Math.random().toString(36).slice(2, 7)}`;
+
+      const snapshot = await ctx.db.snapshot.create({
+        data: {
+          slug: snapshotSlug,
+          files: workspace.files,
+          main: workspace.main,
+          workspaceId: workspace.id,
+          userId: ctx.session.user.id,
+        },
+      });
+
+      return { slug: snapshot.slug };
+    }),
 });

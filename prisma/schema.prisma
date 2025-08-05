@@ -33,6 +33,7 @@ model User {
   ApiKey            ApiKey[]
   workspaces        Workspace[]
   SandboxSubmission SandboxSubmission[]
+  snapshots         Snapshot[]
 
   @@index([email])
   @@index([createdAt])
@@ -181,6 +182,8 @@ model Workspace {
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
+
+  snapshots Snapshot[]
 }
 
 model SandboxSubmission {
@@ -197,4 +200,17 @@ model SandboxSubmission {
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  files     Json
+  main      String
+
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+  workspaceId String?
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
 }
