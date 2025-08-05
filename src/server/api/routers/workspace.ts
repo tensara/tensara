@@ -255,9 +255,6 @@ int main() {
           message: "Not your workspace",
         });
       }
-
-      // const snapshotSlug = `${workspace.slug}-${Math.random().toString(36).slice(2, 7)}`;
-
       const snapshot = await ctx.db.snapshot.create({
         data: {
           files: workspace.files ?? [],

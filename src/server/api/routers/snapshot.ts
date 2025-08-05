@@ -32,6 +32,14 @@ export const snapshotRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const snapshot = await ctx.db.snapshot.findUnique({
         where: { id: input.id },
+        include: {
+          workspace: {
+            select: { name: true },
+          },
+          user: {
+            select: { name: true },
+          },
+        },
       });
 
       if (!snapshot) {

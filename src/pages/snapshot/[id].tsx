@@ -57,7 +57,7 @@ export default function SnapshotPage() {
         setMain={noop}
         onSave={noopAsync}
         onManualSave={noop}
-        workspaceName={`Snapshot ${typeof id === "string" ? id : ""}`}
+        workspaceName={`${data.user.name}'s Snapshot`}
         onDelete={noop}
         onRename={noop}
         readOnly={true}
