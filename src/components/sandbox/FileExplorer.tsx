@@ -24,6 +24,7 @@ type FileExplorerProps = {
   onRename: (index: number, name: string) => void;
   onDelete: (index: number) => void;
   onDownload: (index: number) => void;
+  readOnly: boolean;
 };
 
 export function FileExplorer({
@@ -33,6 +34,7 @@ export function FileExplorer({
   onRename,
   onDelete,
   onDownload,
+  readOnly,
 }: FileExplorerProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
@@ -90,24 +92,28 @@ export function FileExplorer({
               border="none"
               boxShadow="md"
             >
-              <MenuItem
-                bg="#2a2a2a"
-                _hover={{ bg: "#3a3a3a" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingIndex(i);
-                  setEditName(file.name);
-                }}
-              >
-                Rename
-              </MenuItem>
-              <MenuItem
-                bg="#2a2a2a"
-                _hover={{ bg: "#3a3a3a" }}
-                onClick={() => onDelete(i)}
-              >
-                Delete
-              </MenuItem>
+              {readOnly == false && (
+                <MenuItem
+                  bg="#2a2a2a"
+                  _hover={{ bg: "#3a3a3a" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingIndex(i);
+                    setEditName(file.name);
+                  }}
+                >
+                  Rename
+                </MenuItem>
+              )}
+              {readOnly == false && (
+                <MenuItem
+                  bg="#2a2a2a"
+                  _hover={{ bg: "#3a3a3a" }}
+                  onClick={() => onDelete(i)}
+                >
+                  Delete
+                </MenuItem>
+              )}
               <MenuItem
                 bg="#2a2a2a"
                 _hover={{ bg: "#3a3a3a" }}

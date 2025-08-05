@@ -1,10 +1,18 @@
 import { useRouter } from "next/router";
 import { api } from "~/utils/api";
+import { keyframes } from "@emotion/react";
 import { useEffect, useState } from "react";
 import SandBox from "../../../components/sandbox/SandboxEditor";
 import WorkspaceAlert from "~/components/sandbox/WorkspaceAlert";
 import { useToast } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
+import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
+
+const pulseAnimation = keyframes`
+  0% { opacity: 0.6; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.6; }
+`;
 
 export default function SandboxSlug() {
   const toast = useToast();
@@ -97,7 +105,50 @@ export default function SandboxSlug() {
     return () => clearTimeout(timeout);
   }, [files, main]);
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading)
+    return (
+      <Box
+        w="100%"
+        h="100%"
+        bg="brand.secondary"
+        borderRadius="xl"
+        overflow="hidden"
+        position="relative"
+      >
+        <Flex
+          position="absolute"
+          w="100%"
+          h="100%"
+          zIndex="1"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Box
+            position="absolute"
+            top="0"
+            left="0"
+            right="0"
+            bottom="0"
+            bgGradient="linear(to-b, brand.dark, #191919)"
+            animation={`${pulseAnimation} 2s infinite ease-in-out`}
+          />
+
+          <Spinner
+            size="xl"
+            thickness="3px"
+            speed="0.8s"
+            color="brand.navbar"
+            zIndex="2"
+            mb="3"
+          />
+
+          <Text color="gray.300" fontFamily="mono" fontSize="sm" zIndex="2">
+            Loading...
+          </Text>
+        </Flex>
+      </Box>
+    );
 
   if (error?.data?.code === "UNAUTHORIZED") {
     return (

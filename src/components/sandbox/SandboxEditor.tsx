@@ -14,7 +14,14 @@ import dynamic from "next/dynamic";
 import { FileExplorer } from "./FileExplorer";
 import { setupMonaco } from "~/components/sandbox/setupmonaco";
 import type { SandboxFile } from "~/types/misc";
-import { ChevronLeftIcon } from "@chakra-ui/icons";
+import {
+  ChevronLeftIcon,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+} from "@chakra-ui/icons";
+import { read } from "fs";
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -59,12 +66,12 @@ export default function Sandbox({
   workspaceName: string;
   onDelete: () => void;
   onRename: (newName: string) => void;
-  readOnly?: boolean;
+  readOnly: boolean;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([]);
-  const [terminalStatus, setTerminalStatus] = useState<string>("");
+  // const [terminalStatus, setTerminalStatus] = useState<string>("");
   // const [gpuType, setGpuType] = useState("T4");
   const activeFile = files[activeIndex] ?? files[0];
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -101,7 +108,7 @@ export default function Sandbox({
 
     setIsRunning(true);
     setTerminalLines([]);
-    setTerminalStatus("Starting...");
+    // setTerminalStatus("Starting...");
 
     // Create a new AbortController for this request
     abortControllerRef.current = new AbortController();
@@ -183,17 +190,17 @@ export default function Sandbox({
   const handleSSEMessage = (event: string, data: SSEMessage) => {
     switch (event) {
       case "IN_QUEUE":
-        setTerminalStatus("In Queue");
+        // setTerminalStatus("In Queue");
         addTerminalLine("info", "⏳ Submission queued...");
         break;
 
       case "COMPILING":
-        setTerminalStatus("Compiling");
+        // setTerminalStatus("Compiling");
         addTerminalLine("compiling", "🔨 Compiling CUDA code...");
         break;
 
       case "SANDBOX_RUNNING":
-        setTerminalStatus("Running");
+        // setTerminalStatus("Running");
         addTerminalLine("info", "▶️  Executing program...");
         break;
 
@@ -206,7 +213,7 @@ export default function Sandbox({
         break;
 
       case "SANDBOX_SUCCESS":
-        setTerminalStatus("Success");
+        // setTerminalStatus("Success");
         addTerminalLine(
           "success",
           `✅ Program completed successfully (exit code: ${data.return_code})`
@@ -214,7 +221,7 @@ export default function Sandbox({
         break;
 
       case "SANDBOX_ERROR":
-        setTerminalStatus("Error");
+        // setTerminalStatus("Error");
         addTerminalLine(
           "error",
           `❌ Error: ${data.message ?? "Unknown error"}`
@@ -225,7 +232,7 @@ export default function Sandbox({
         break;
 
       case "COMPILE_ERROR":
-        setTerminalStatus("Compile Error");
+        // setTerminalStatus("Compile Error");
         addTerminalLine(
           "error",
           `❌ Compile Error: ${data.message ?? "Unknown compile error"}`
@@ -236,7 +243,7 @@ export default function Sandbox({
         break;
 
       case "SANDBOX_TIMEOUT":
-        setTerminalStatus("Timeout");
+        // setTerminalStatus("Timeout");
         addTerminalLine(
           "error",
           `⏱️ Execution timeout: ${data.message ?? "Unknown timeout"}`
@@ -245,7 +252,7 @@ export default function Sandbox({
 
       default:
         if (event.includes("ERROR")) {
-          setTerminalStatus("Error");
+          // setTerminalStatus("Error");
           addTerminalLine(
             "error",
             `❌ ${data.error ?? data.message ?? "Unknown error"}`
@@ -310,121 +317,135 @@ export default function Sandbox({
           borderRight="1px solid"
           borderColor="brand.dark"
         >
-          <VStack spacing={0} p={4}>
-            <HStack justify="space-between" w="100%" mb={4}>
+          <VStack spacing={0} p={4} h="100%">
+            {/* Toolbar row */}
+            <HStack justify="space-between" w="100%" mb={2}>
               <IconButton
                 icon={<ChevronLeftIcon />}
                 aria-label="Back"
                 variant="ghost"
                 onClick={() => (window.location.href = "/sandbox/")}
               />
-              <IconButton
-                icon={<FiShare2 />}
-                aria-label="Share"
-                variant="ghost"
-                onClick={async () => {
-                  try {
-                    const res = await fetch("/api/snapshot/create", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        files,
-                        main: files[activeIndex]?.name,
-                      }),
-                    });
-                    const { id } = (await res.json()) as { id: string };
-                    const url = `${window.location.origin}/snapshot/${id}`;
-                    await navigator.clipboard.writeText(url);
-                    alert("Snapshot link copied to clipboard!");
-                  } catch (e) {
-                    console.error(e);
-                    alert("Failed to create snapshot.");
+              {!readOnly && (
+                <IconButton
+                  icon={<FiShare2 />}
+                  aria-label="Share"
+                  variant="ghost"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/snapshot/create", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          files,
+                          main: files[activeIndex]?.name,
+                        }),
+                      });
+                      const { id } = (await res.json()) as { id: string };
+                      const url = `${window.location.origin}/snapshot/${id}`;
+                      await navigator.clipboard.writeText(url);
+                      alert("Snapshot link copied to clipboard!");
+                    } catch (e) {
+                      console.error(e);
+                      alert("Failed to create snapshot.");
+                    }
+                  }}
+                />
+              )}
+              {!readOnly && (
+                <Menu>
+                  <MenuButton
+                    as={IconButton}
+                    icon={<FiPlus />}
+                    bg="green.500"
+                    color="white"
+                    size="sm"
+                    borderRadius="md"
+                    _hover={{ bg: "green.600" }}
+                    aria-label="Add File"
+                  />
+                  <MenuList bg="gray.800" border="none">
+                    <MenuItem
+                      bg="gray.800"
+                      _hover={{ bg: "gray.700" }}
+                      onClick={() => {
+                        const name = `file${files.length}.cu`;
+                        setFiles([...files, { name, content: "" }]);
+                        setActiveIndex(files.length);
+                      }}
+                    >
+                      New File
+                    </MenuItem>
+                    <MenuItem
+                      bg="gray.800"
+                      _hover={{ bg: "gray.700" }}
+                      onClick={() => uploadRef.current?.click()}
+                    >
+                      Upload File
+                    </MenuItem>
+                  </MenuList>
+                </Menu>
+              )}
+            </HStack>
+
+            {/* Workspace name */}
+            <Text
+              color="white"
+              fontWeight="600"
+              fontSize="sm"
+              w="100%"
+              textAlign="center"
+              mb={4}
+            >
+              {workspaceName}
+            </Text>
+
+            {/* Hidden file input */}
+            <input
+              type="file"
+              accept=".cu"
+              ref={uploadRef}
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  const content = event.target?.result as string;
+                  setFiles([...files, { name: file.name, content }]);
+                  setActiveIndex(files.length);
+                };
+                reader.readAsText(file);
+              }}
+            />
+
+            {/* File Explorer */}
+            <Box px={2} w="100%" flex={1} overflowY="auto">
+              <FileExplorer
+                files={files}
+                active={activeIndex}
+                onOpen={setActiveIndex}
+                onRename={(i: number, name: string) => {
+                  if (readOnly) return;
+                  const updated = [...files];
+                  if (updated[i]) {
+                    updated[i].name = name;
+                    setFiles(updated);
                   }
                 }}
-              />
-
-              <Text color="white" fontWeight="600" fontSize="sm">
-                {workspaceName}
-              </Text>
-              <IconButton
-                icon={<FiPlus />}
-                bg="green.500"
-                color="white"
-                size="sm"
-                borderRadius="md"
-                _hover={{ bg: "green.600" }}
-                onClick={() => {
-                  if (readOnly) return;
-                  const name = `file${files.length}.cu`;
-                  setFiles([...files, { name, content: "" }]);
-                  setActiveIndex(files.length);
+                onDelete={(i: number) => {
+                  if (readOnly || files.length === 1) return;
+                  const updated = files.filter((_, idx) => idx !== i);
+                  setFiles(updated);
+                  setActiveIndex((_) => (i === 0 ? 0 : i - 1));
                 }}
-                isDisabled={readOnly}
-                aria-label="Add File"
-                transition="all 0.2s"
-                _active={{ transform: "scale(0.95)" }}
+                onDownload={downloadFile}
+                readOnly={readOnly ?? false}
               />
-            </HStack>
-            <Box px={2} w="100%" flex={1} overflowY="auto">
-              {!readOnly && (
-                <Button
-                  w="100%"
-                  onClick={() => uploadRef.current?.click()}
-                  bg="gray.700"
-                  color="white"
-                  size="sm"
-                  borderRadius="md"
-                  _hover={{ bg: "gray.600", transform: "translateY(-1px)" }}
-                  _active={{ transform: "translateY(0)" }}
-                  mb={4}
-                  transition="all 0.2s"
-                >
-                  Upload
-                </Button>
-              )}
             </Box>
           </VStack>
-          <input
-            type="file"
-            accept=".cu"
-            ref={uploadRef}
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = (event) => {
-                const content = event.target?.result as string;
-                setFiles([...files, { name: file.name, content }]);
-                setActiveIndex(files.length);
-              };
-              reader.readAsText(file);
-            }}
-          />
-          <Box px={4} pb={4} flex={1} overflowY="auto">
-            <FileExplorer
-              files={files}
-              active={activeIndex}
-              onOpen={setActiveIndex}
-              onRename={(i: number, name: string) => {
-                if (readOnly) return;
-                const updated = [...files];
-                if (updated[i]) {
-                  updated[i].name = name;
-                  setFiles(updated);
-                }
-              }}
-              onDelete={(i: number) => {
-                if (readOnly) return;
-                if (files.length === 1) return;
-                const updated = files.filter((_, idx) => idx !== i);
-                setFiles(updated);
-                setActiveIndex((_) => (i === 0 ? 0 : i - 1));
-              }}
-              onDownload={downloadFile}
-            />
-          </Box>
         </Box>
+
         {/* Main Content */}
         <VStack h="100%" flex={1} spacing={0}>
           {/* Editor + Terminal */}
@@ -555,7 +576,7 @@ export default function Sandbox({
                       _active={{ transform: "scale(0.95)" }}
                       onClick={() => {
                         setTerminalLines([]);
-                        setTerminalStatus("");
+                        // setTerminalStatus("");
                       }}
                       transition="all 0.15s ease"
                     >
