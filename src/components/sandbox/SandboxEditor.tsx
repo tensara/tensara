@@ -21,6 +21,7 @@ import type { SandboxFile } from "~/types/misc";
 import CodeEditor from "~/components/problem/CodeEditor";
 import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
 import { Menu, MenuButton, MenuList, MenuItem, Icon } from "@chakra-ui/icons";
+import { read } from "fs";
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -582,22 +583,24 @@ export default function Sandbox({
               )}
             </HStack>
             <HStack spacing={2}>
-              <Button
-                onClick={onManualSave}
-                bg="rgba(59, 130, 246, 0.1)"
-                color="rgb(59, 130, 246)"
-                size="sm"
-                _hover={{
-                  bg: "rgba(59, 130, 246, 0.2)",
-                }}
-                _active={{
-                  bg: "rgba(59, 130, 246, 0.25)",
-                }}
-                transition="all 0.5s ease"
-                px={4}
-              >
-                Save
-              </Button>
+              {readOnly == false && (
+                <Button
+                  onClick={onManualSave}
+                  bg="rgba(59, 130, 246, 0.1)"
+                  color="rgb(59, 130, 246)"
+                  size="sm"
+                  _hover={{
+                    bg: "rgba(59, 130, 246, 0.2)",
+                  }}
+                  _active={{
+                    bg: "rgba(59, 130, 246, 0.25)",
+                  }}
+                  transition="all 0.5s ease"
+                  px={4}
+                >
+                  Save
+                </Button>
+              )}
               <Button
                 onClick={isRunning ? stopExecution : runCode}
                 bg={isRunning ? "red.500" : "rgba(34, 197, 94, 0.1)"}
