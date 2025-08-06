@@ -5,11 +5,7 @@ import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
 
 import type { ServerResponse } from "http";
-import {
-  SampleStatus,
-  type SampleStatusType,
-  type SampleEvent,
-} from "~/types/submission";
+import { SampleStatus, type SampleEvent } from "~/types/submission";
 
 export default async function handler(
   req: NextApiRequest,

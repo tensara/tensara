@@ -1,5 +1,4 @@
-import { Box, Flex, Heading, Tabs, TabList, Tab } from "@chakra-ui/react";
-import { useState } from "react";
+import { Box, Flex, Heading } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { motion } from "framer-motion";
 
@@ -8,10 +7,6 @@ const MotionBox = motion(Box);
 const MotionHeading = motion(Heading);
 
 export default function ContestsPage() {
-  const [statusFilter, setStatusFilter] = useState<
-    "UPCOMING" | "ACTIVE" | "COMPLETED" | "ALL"
-  >("ALL");
-
   return (
     <Layout
       title="Contests | Tensara"

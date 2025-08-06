@@ -5,20 +5,13 @@ import {
   Heading,
   Text,
   VStack,
-  HStack, // Added HStack
-  Image, // Added Image
+  Image,
   Icon,
   SimpleGrid,
   Link,
   Divider,
   Badge,
   Flex,
-  Card,
-  Grid,
-  Stat,
-  StatLabel,
-  StatHelpText,
-  StatNumber,
 } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion"; // Import AnimatePresence
 import React, { useState, useEffect, useCallback } from "react"; // Import useCallback
@@ -28,9 +21,7 @@ import {
   FiAward,
   FiUsers,
   FiTerminal,
-  FiZap,
   FiArrowRight,
-  FiExternalLink,
   FiGitPullRequest,
   FiCode,
   FiBookOpen,
@@ -43,10 +34,7 @@ import LandingBenchmarkDisplay from "~/components/landing/LandingBenchmarkDispla
 // Create motion components
 const MotionVStack = motion(VStack);
 const MotionBox = motion(Box);
-const MotionSimpleGrid = motion(SimpleGrid);
 const MotionFlex = motion(Flex);
-const MotionCard = motion(Card);
-const MotionGrid = motion(Grid);
 
 const FeatureCard = ({
   icon,

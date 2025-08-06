@@ -163,7 +163,7 @@ export const submissionsRouter = createTRPCRouter({
 
       // Return submission without code if user doesn't have access
       if (!hasCodeAccess) {
-        const { code, ...submissionWithoutCode } = submission;
+        const { code: _, ...submissionWithoutCode } = submission;
         return submissionWithoutCode;
       }
 
