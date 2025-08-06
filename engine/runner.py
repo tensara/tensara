@@ -538,7 +538,7 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
                     }
                     try:
                         os.unlink(compiled_lib_path)
-                    except:
+                    except OSError:
                         pass
                     return
 
@@ -576,7 +576,7 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
             # Clean up temporary file
             try:
                 os.unlink(compiled_lib_path)
-            except:
+            except OSError:
                 pass
 
             # Yield final result
@@ -602,7 +602,7 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
         except PermissionError:
             try:
                 os.unlink(compiled_lib_path)
-            except:
+            except OSError:
                 pass
 
             yield {
@@ -614,7 +614,7 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
         except Exception as e:
             try:
                 os.unlink(compiled_lib_path)
-            except:
+            except OSError:
                 pass
 
             yield {
