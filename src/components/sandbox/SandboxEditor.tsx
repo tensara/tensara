@@ -21,7 +21,6 @@ import type { SandboxFile } from "~/types/misc";
 import CodeEditor from "~/components/problem/CodeEditor";
 import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
 import { Menu, MenuButton, MenuList, MenuItem, Icon } from "@chakra-ui/icons";
-import { read } from "fs";
 
 // Type definitions for API responses
 interface ErrorResponse {
