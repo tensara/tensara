@@ -174,7 +174,7 @@ model ApiKey {
 model Workspace {
   id        String   @id @default(cuid())
   name      String
-  slug      String   @unique
+  slug      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   files     Json
@@ -184,6 +184,8 @@ model Workspace {
   user   User   @relation(fields: [userId], references: [id])
 
   snapshots Snapshot[]
+
+  @@unique([slug, userId])
 }
 
 model SandboxSubmission {

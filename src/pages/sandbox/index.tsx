@@ -357,6 +357,12 @@ export default function SandboxHome() {
                 placeholder="Enter workspace name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleCreate();
+                    closeModal();
+                  }
+                }}
                 bg="brand.dark"
                 color="white"
                 _hover={{ bg: "brand.dark" }}

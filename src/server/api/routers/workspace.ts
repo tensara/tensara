@@ -41,7 +41,7 @@ export const workspaceRouter = createTRPCRouter({
       try {
         const slug = slugify(input.name, { lower: true, strict: true });
 
-        const existing = await ctx.db.workspace.findUnique({
+        const existing = await ctx.db.workspace.findFirst({
           where: { slug, userId: ctx.session.user.id },
         });
         if (existing) {
