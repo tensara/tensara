@@ -23,17 +23,6 @@ import {
   Menu,
   Icon,
   Tag,
-  textDecoration,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  SimpleGrid,
 } from "@chakra-ui/react";
 import { useState, useEffect, useMemo } from "react";
 import { api } from "~/utils/api";
@@ -53,7 +42,6 @@ import {
   FaExternalLinkAlt,
   FaEye,
   FaLock,
-  FaChevronLeft,
 } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { useSession } from "next-auth/react";
@@ -141,7 +129,7 @@ const formatPerformance = (gflops: number | null | undefined): string => {
 
 const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const [selectedGpu, setSelectedGpu] = useState<string>(
     (router.query.gpu as string) || "all"
   );

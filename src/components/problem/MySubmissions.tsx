@@ -17,7 +17,7 @@ import {
 } from "@chakra-ui/react";
 import { FiArrowLeft, FiFilter } from "react-icons/fi";
 import { type Submission } from "@prisma/client";
-import { GPU_DISPLAY_NAMES, GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
+import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
 import {
   formatStatus,
   getStatusColor,

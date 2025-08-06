@@ -35,19 +35,12 @@ import {
   IconButton,
   Tooltip,
   useClipboard,
-  Divider,
-  Spacer,
-  Grid,
-  GridItem,
-  useColorModeValue,
   Icon,
   SimpleGrid,
   Menu,
   MenuButton,
   MenuList,
   MenuItem,
-  UnorderedList,
-  ListItem,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { Layout } from "~/components/layout";
@@ -61,15 +54,9 @@ import {
   FiInfo,
   FiCheck,
   FiDownload,
-  FiBook,
-  FiArrowRight,
   FiCode,
-  FiPlay,
-  FiCoffee,
   FiPackage,
   FiBox,
-  FiLock,
-  FiHelpCircle,
   FiSend,
   FiCheckCircle,
   FiZap,
@@ -86,7 +73,6 @@ import { type ApiKey } from "~/types/misc";
 const MotionBox = motion(Box);
 const MotionHeading = motion(Heading);
 const MotionText = motion(Text);
-const MotionFlex = motion(Flex);
 const MotionVStack = motion(VStack);
 const MotionButton = motion(Button);
 const MotionBadge = motion(Badge);
@@ -300,7 +286,6 @@ export default function CLI() {
 
   const TerminalBox = ({ command }: { command: string }) => {
     const { hasCopied, onCopy } = useClipboard(command);
-    const [isHovered, setIsHovered] = useState(false);
 
     return (
       <MotionBox
@@ -312,8 +297,6 @@ export default function CLI() {
         borderColor={"gray.700"}
         boxShadow={"0 4px 6px rgba(0,0,0,0.1)"}
         transition={{ duration: 0.2 }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {/* Terminal Header */}
         <Flex

@@ -9,7 +9,6 @@ import {
   Icon,
   Grid,
   Divider,
-  Tag,
   Skeleton,
   Badge,
 } from "@chakra-ui/react";
