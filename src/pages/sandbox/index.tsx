@@ -158,7 +158,10 @@ export default function SandboxHome() {
             color="rgb(34, 197, 94)"
             leftIcon={<FiPlus />}
             borderRadius="lg"
-            _hover={{ bg: "rgba(34, 197, 94, 0.2)" }}
+            _hover={{ 
+              bg: "rgba(34, 197, 94, 0.2)",
+              transition: "all 0.5s ease"
+            }}
           >
             Create Workspace
           </Button>
@@ -244,10 +247,10 @@ export default function SandboxHome() {
                 key={ws.id}
                 p={5}
                 borderRadius="lg"
-                bg="#111"
-                border="1px solid #2a2a2a"
+                bg="brand.secondary"
                 position="relative"
-                _hover={{ borderColor: "#22c55e", cursor: "pointer" }}
+                transition="all 0.3s ease"
+                _hover={{ bg: "#1e2533", cursor: "pointer" }}
               >
                 <Menu>
                   <MenuButton
@@ -260,12 +263,21 @@ export default function SandboxHome() {
                     right="8px"
                     color="gray.400"
                     _hover={{ bg: "rgba(255,255,255,0.05)" }}
+                    _active={{ bg: "rgba(255,255,255,0.1)" }}
+                    _focus={{ bg: "transparent", color: "gray.400" }}
                     onClick={(e) => e.stopPropagation()}
                   />
-                  <MenuList bg="#1e1e1e" borderColor="#2a2a2a">
+                  <MenuList 
+                    bg="brand.secondary" 
+                    borderColor="gray.800"
+                    p={0}
+                    borderRadius="md"
+                    minW="120px"
+                  >
                     <MenuItem
-                      bg="#1e1e1e"
-                      _hover={{ bg: "#2a2a2a" }}
+                      bg="brand.secondary"
+                      _hover={{ bg: "gray.700" }}
+                      borderRadius="md"
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditingId(ws.id);
@@ -275,8 +287,9 @@ export default function SandboxHome() {
                       Rename
                     </MenuItem>
                     <MenuItem
-                      bg="#1e1e1e"
-                      _hover={{ bg: "#2a2a2a" }}
+                      bg="brand.secondary"
+                      _hover={{ bg: "gray.700" }}
+                      borderRadius="md"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (
@@ -336,7 +349,7 @@ export default function SandboxHome() {
 
         <Modal isOpen={isModalOpen} onClose={closeModal} isCentered>
           <ModalOverlay />
-          <ModalContent bg="#1e1e1e" borderRadius="lg">
+          <ModalContent bg="brand.secondary" borderRadius="lg">
             <ModalHeader color="white">Create Workspace</ModalHeader>
             <ModalCloseButton color="white" />
             <ModalBody>
@@ -344,9 +357,10 @@ export default function SandboxHome() {
                 placeholder="Enter workspace name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                bg="#111"
+                bg="brand.dark"
                 color="white"
-                _placeholder={{ color: "gray.500" }}
+                _hover={{ bg: "brand.dark" }}
+                _focus={{ bg: "brand.dark" }}
               />
             </ModalBody>
             <ModalFooter>
@@ -360,11 +374,10 @@ export default function SandboxHome() {
                 borderRadius="lg"
                 fontWeight="semibold"
                 fontSize="sm"
-                px={6}
-                h="40px"
+                px={4}
                 _hover={{
                   bg: "rgba(34, 197, 94, 0.2)",
-                  transform: "translateY(-1px)",
+                  transition: "all 0.5s ease"
                 }}
                 _active={{ bg: "rgba(34, 197, 94, 0.25)" }}
               >

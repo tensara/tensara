@@ -47,9 +47,9 @@ export function FileExplorer({
           w="100%"
           px={2}
           py={1}
-          bg={i === active ? "#333" : "transparent"}
+          bg={i === active ? "whiteAlpha.100" : "transparent"}
           borderRadius="md"
-          _hover={{ bg: "#2a2a2a" }}
+          _hover={{ bg: "whiteAlpha.50", cursor: "pointer" }}
           onClick={() => onOpen(i)}
         >
           <FiFile />
@@ -84,18 +84,25 @@ export function FileExplorer({
               variant="ghost"
               aria-label="Options"
               onClick={(e) => e.stopPropagation()}
+              color="gray.400"
+              _hover={{ color: "white" }}
+              _active={{ color: "gray.400", boxShadow: "none" }}
             />
             <MenuList
               fontSize="sm"
-              bg="#2a2a2a"
+              bg="brand.secondary"
               color="white"
               border="none"
               boxShadow="md"
+              p={0}
+              borderRadius="md"
+              minW="120px"
             >
               {readOnly == false && (
                 <MenuItem
-                  bg="#2a2a2a"
-                  _hover={{ bg: "#3a3a3a" }}
+                  bg="brand.secondary"
+                  borderRadius="md"
+                  _hover={{ bg: "whiteAlpha.100" }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setEditingIndex(i);
@@ -107,16 +114,18 @@ export function FileExplorer({
               )}
               {readOnly == false && (
                 <MenuItem
-                  bg="#2a2a2a"
-                  _hover={{ bg: "#3a3a3a" }}
+                  bg="brand.secondary"
+                  borderRadius="md"
+                  _hover={{ bg: "whiteAlpha.100" }}
                   onClick={() => onDelete(i)}
                 >
                   Delete
                 </MenuItem>
               )}
               <MenuItem
-                bg="#2a2a2a"
-                _hover={{ bg: "#3a3a3a" }}
+                bg="brand.secondary"
+                borderRadius="md"
+                _hover={{ bg: "whiteAlpha.100" }}
                 onClick={() => onDownload(i)}
               >
                 Download

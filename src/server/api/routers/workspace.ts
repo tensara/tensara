@@ -61,12 +61,13 @@ export const workspaceRouter = createTRPCRouter({
                 name: "main.cu",
                 content: `#include <stdio.h>\n
 __global__ void hello() {
-  printf("Hello, world!\\n");
+    printf("Hello, world!\\n");
 }
+
 int main() {
-  hello<<<1, 1>>>();
-  cudaDeviceSynchronize();
-  return 0;
+    hello<<<1, 1>>>();
+    cudaDeviceSynchronize();
+    return 0;
 }`,
               },
             ],
