@@ -70,6 +70,7 @@ export const getStaticProps: GetStaticProps<BlogIndexProps> = async () => {
   try {
     filenames = fs.readdirSync(contentDirectory);
   } catch (error) {
+    console.log(error);
     filenames = [];
   }
 

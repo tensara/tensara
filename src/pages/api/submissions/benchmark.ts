@@ -36,15 +36,12 @@ export default async function handler(
     return;
   }
 
-  const { problemSlug, code, language, gpuType, passedTests, totalTests } =
-    req.body as {
-      problemSlug: string;
-      code: string;
-      language: string;
-      gpuType: string;
-      passedTests: number;
-      totalTests: number;
-    };
+  const { problemSlug, code, language, gpuType } = req.body as {
+    problemSlug: string;
+    code: string;
+    language: string;
+    gpuType: string;
+  };
 
   const requiredFields = { problemSlug, code, language, gpuType };
   const missingFields = Object.entries(requiredFields).filter(
