@@ -86,8 +86,16 @@ def binary_runner(
     if type == "sandbox":
         gen = runner.run_sandbox(compiled_lib, solution_code)
     else:
-        problem = utils.load_problem_module(problem_name, problem_def)
-        solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
+        try:
+            problem = utils.load_problem_module(problem_name, problem_def)
+            solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
+        except Exception as e:
+            yield {
+                "status": "COMPILE_ERROR",
+                "message": "Compilation Failed",
+                "details": str(e),
+            }
+            return
 
         if type == "sample":
             gen = runner.run_sample_case(problem_name, problem_def, solution_func, dtype, language)
@@ -157,8 +165,15 @@ async def checker(gpu: str, request: Request):
             except utils.NVCCError as e:
                 yield {
                     "status": "COMPILE_ERROR",
-                    "message": "Compilation Failed",
+                    "message": "NVCC Compilation Failed",
                     "details": e.args[0],
+                }
+                return
+            except Exception as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Unexpected Compilation Error",
+                    "details": str(e),
                 }
                 return
 
@@ -199,8 +214,15 @@ async def benchmark(gpu: str, request: Request):
             except utils.NVCCError as e:
                 yield {
                     "status": "COMPILE_ERROR",
-                    "message": "Compilation Failed",
+                    "message": "NVCC Compilation Failed",
                     "details": e.args[0],
+                }
+                return
+            except Exception as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Unexpected Compilation Error",
+                    "details": str(e),
                 }
                 return
         else:
@@ -244,8 +266,15 @@ async def sample_runner(gpu: str, request: Request):
             except utils.NVCCError as e:
                 yield {
                     "status": "COMPILE_ERROR",
-                    "message": "Compilation Failed",
+                    "message": "NVCC Compilation Failed",
                     "details": e.args[0],
+                }
+                return
+            except Exception as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Unexpected Compilation Error",
+                    "details": str(e),
                 }
                 return
         else:
@@ -321,8 +350,15 @@ async def benchmark_cli(gpu: str, request: Request):
             except utils.NVCCError as e:
                 yield {
                     "status": "COMPILE_ERROR",
-                    "message": "Compilation Failed",
+                    "message": "NVCC Compilation Failed",
                     "details": e.args[0],
+                }
+                return
+            except Exception as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Unexpected Compilation Error",
+                    "details": str(e),
                 }
                 return
         else:

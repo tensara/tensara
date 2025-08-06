@@ -1,119 +1,30 @@
-# Tensara 
 
-A platform for GPU programming challenges. Write efficient GPU kernels and compare your solutions with other developers!
+<div align="center">
+  <picture>
+     <img width="70%" alt="Tensara" src="https://github.com/user-attachments/assets/acd95491-2104-48d4-af84-bf2b23c95e72" />
+  </picture>
+</div>
 
-## Getting Started
+[![Twitter](https://img.shields.io/badge/twitter-follow-black?logo=x)](https://x.com/tensarahq) [![GitHub stars](https://img.shields.io/github/stars/tensara/tensara?style=flat&logo=github&color=blue&logoColor=ffffff)](https://github.com/tensara/tensara/stargazers) [![GitHub forks](https://img.shields.io/github/forks/tensara/tensara?style=flat&logo=github&color=green&logoColor=ffffff)](https://github.com/tensara/tensara/network/members)
 
-### Prerequisites
+[Tensara](https://tensara.org/) is a platform for GPU programming challenges in CUDA, Triton, Mojo, etc. Users can write efficient GPU kernels to solve our problems and see how their solutions compare with others on the platform.
 
-- Node.js 18+ and npm/yarn/pnpm
-- PostgreSQL (for local development) or a Supabase account
-- Git
 
-### Environment Setup
+https://github.com/user-attachments/assets/96457139-2a27-493c-8352-df5ceb298369
 
-1. Clone the repository:
-```bash
-git clone https://github.com/tensara/tensara
-cd tensara
-```
 
-2. Install dependencies:
-```bash
-npm install
-# or
-yarn
-# or
-pnpm install
-```
 
-3. Set up your environment variables by copying the example file:
-```bash
-cp .env.example .env
-```
 
-### Database Setup
+## Features 
+- **Problems**: Solve 60+ challenges in CUDA, Triton, and Mojo across multiple difficulty levels. 
+- **Benchmarking**: Run your solutions on actual GPUs (T4, H100, A100, etc.) with precise performance measurement.
+- **Leaderboards**: Compare your performance against other developers on per-GPU rankings.
+- **Baseline Comparisons**: See how your optimized kernels stack up against PyTorch, Triton, and other framework implementations
+- **CLI Tool**: Submit and test solutions directly from your terminal with the Tensara CLI
 
-You have a few options for setting up the database:
+## Contributions
 
-#### Option 1: Local PostgreSQL
-
-1. Install PostgreSQL on your machine if you haven't already:
-   - macOS (using Homebrew): `brew install postgresql`
-   - Linux: `sudo apt-get install postgresql`
-   - Windows: Download from [PostgreSQL website](https://www.postgresql.org/download/windows/)
-
-2. Start PostgreSQL service:
-   - macOS: `brew services start postgresql`
-   - Linux: `sudo service postgresql start`
-   - Windows: It should start automatically as a service
-
-3. Create a new database:
-```bash
-createdb tensara_db
-```
-
-4. Update your `.env` file with local PostgreSQL connection string:
-```
-DATABASE_URL="postgresql://your_username@localhost:5432/tensara_db"
-```
-
-#### Option 2: Supabase (Hosted PostgreSQL)
-
-1. Create a new project on [Supabase](https://supabase.com)
-
-2. Once your project is created, go to Settings > Database to find your connection string
-
-3. Update your `.env` file with the Supabase connection string:
-```
-DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres"
-```
-
-### Final Setup Steps
-
-1. Push the database schema:
-```bash
-npx prisma db push
-```
-
-2. Generate Prisma Client:
-```bash
-npx prisma generate
-```
-3. Push the problems to the database. Follow the steps in the [problems](https://github.com/tensara/problems/) repository. 
-4. Start the development server:
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-```
-
-Your app should now be running at [http://localhost:3000](http://localhost:3000)!
-
-## Environment Variables
-
-Create a `.env` file in the root directory with the following variables:
-
-```env
-# Database connection string
-DATABASE_URL="your_connection_string_here"
-
-# NextAuth configuration
-NEXTAUTH_SECRET="your_nextauth_secret"
-AUTH_GITHUB_ID=""
-AUTH_GITHUB_SECRET=""
-NEXTAUTH_URL="http://localhost:3000"
-
-# Google Analytics ID (can be ignored until production)
-NEXT_PUBLIC_GA_ID=""
-
-MODAL_CHECKER_SLUG=""
-MODAL_BENCHMARK_SLUG=""
-
-MODAL_ENDPOINT=""
-```
+![demo](https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWNqYWt2eGM3ZjR4Mzk0emN6dnFlcW82emM0bTh1c3R2YmZmeWk2ayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/YV46Vyr4Tx8j8pHW3R/giphy.gif)
 
 ## Sponsors
 
@@ -125,5 +36,6 @@ fine-tune large language models, run protein folding simulations, and much more.
 
 We use Modal to securely run accurate benchmarks on various GPUs.
 
-Interested in sponsoring? Contact us at [sponsor@tensara.org](mailto:sponsor@tensara.org)
+## Contact
 
+Interested in sponsoring? Contact us at [sponsor@tensara.org](mailto:sponsor@tensara.org) or hit us up [on Twitter](https://x.com/tensarahq)! 
