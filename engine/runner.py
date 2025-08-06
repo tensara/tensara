@@ -464,6 +464,7 @@ def run_benchmark(
     except Exception as e:
         yield {"status": "ERROR", "message": str(e), "details": traceback.format_exc()}
 
+
 def run_sandbox(compiled_lib: bytes, solution_code: str):
     """
     Run sandbox on compiled CUDA solution with real-time output streaming

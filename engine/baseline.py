@@ -65,6 +65,7 @@ def tinygrad_param_func(language, solution_func, input_tensors, actual_output, p
     extra_params = problem.get_extra_params(test_case)
     return tinygrad_inputs + [tinygrad_output] + list(extra_params)
 
+
 def baseline_runner(
     solution_code: str,
     problem_name: str,

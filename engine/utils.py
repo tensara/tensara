@@ -87,6 +87,7 @@ def nvcc_command_executable(gpu: str, srcs: list[Path | str], out: Path | str):
 
     return cmd
 
+
 def mojo_command(srcs: list[Path | str], out: Path | str):
     """Get mojo command for the given source files and output file"""
     srcs = [str(src) for src in srcs]
