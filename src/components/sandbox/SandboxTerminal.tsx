@@ -8,7 +8,6 @@ import {
   IconButton,
 } from "@chakra-ui/react";
 import { FiTerminal, FiX, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
-import { type SandboxOutput } from "~/types/misc";
 
 interface TerminalLine {
   id: string;
@@ -35,80 +34,6 @@ export default function SandboxTerminal({
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [lines]);
-
-  const addLine = (type: TerminalLine["type"], content: string) => {
-    const newLine: TerminalLine = {
-      id: `${Date.now()}-${Math.random()}`,
-      type,
-      content,
-      timestamp: Date.now(),
-    };
-    setLines((prev) => [...prev, newLine]);
-  };
-
-  const handleSSEMessage = (event: string, data: SandboxOutput) => {
-    switch (event) {
-      case "IN_QUEUE":
-        setStatus("In Queue");
-        addLine("info", "⏳ Submission queued...");
-        break;
-
-      case "COMPILING":
-        setStatus("Compiling");
-        addLine("compiling", "🔨 Compiling CUDA code...");
-        break;
-
-      case "SANDBOX_RUNNING":
-        setStatus("Running");
-        addLine("info", "▶️  Executing program...");
-        break;
-
-      case "SANDBOX_OUTPUT":
-        if (data.stdout) {
-          addLine("stdout", data.stdout);
-        } else if (data.stderr) {
-          addLine("stderr", data.stderr);
-        }
-        break;
-
-      case "SANDBOX_SUCCESS":
-        setStatus("Success");
-        addLine(
-          "success",
-          `✅ Program completed successfully (exit code: ${data.return_code})`
-        );
-        if (data.stdout) {
-          data.stdout.split("\n").forEach((line: string) => {
-            if (line.trim()) addLine("stdout", line);
-          });
-        }
-        if (data.stderr) {
-          data.stderr.split("\n").forEach((line: string) => {
-            if (line.trim()) addLine("stderr", line);
-          });
-        }
-        break;
-
-      case "SANDBOX_ERROR":
-        setStatus("Error");
-        addLine("error", `❌ Error: ${data.stderr ?? "Unknown error"}`);
-        break;
-
-      case "SANDBOX_TIMEOUT":
-        setStatus("Timeout");
-        addLine(
-          "error",
-          `⏱️ Execution timeout: ${data.stderr ?? "Unknown error"}`
-        );
-        break;
-
-      default:
-        if (event.includes("ERROR")) {
-          setStatus("Error");
-          addLine("error", `❌ ${data.stderr ?? "Unknown error"}`);
-        }
-    }
-  };
 
   const clearTerminal = () => {
     setLines([]);

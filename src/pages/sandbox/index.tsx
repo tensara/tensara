@@ -29,7 +29,7 @@ import { format } from "date-fns";
 import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
 import { FiMoreVertical, FiPlus } from "react-icons/fi";
 import { useSession, signIn } from "next-auth/react";
-import { TRPCClientError } from "@trpc/client";
+import { type TRPCClientError } from "@trpc/client";
 import type { AppRouter } from "~/server/api/root";
 import { keyframes } from "@emotion/react";
 
@@ -158,9 +158,9 @@ export default function SandboxHome() {
             color="rgb(34, 197, 94)"
             leftIcon={<FiPlus />}
             borderRadius="lg"
-            _hover={{ 
+            _hover={{
               bg: "rgba(34, 197, 94, 0.2)",
-              transition: "all 0.5s ease"
+              transition: "all 0.5s ease",
             }}
           >
             Create Workspace
@@ -267,8 +267,8 @@ export default function SandboxHome() {
                     _focus={{ bg: "transparent", color: "gray.400" }}
                     onClick={(e) => e.stopPropagation()}
                   />
-                  <MenuList 
-                    bg="brand.secondary" 
+                  <MenuList
+                    bg="brand.secondary"
                     borderColor="gray.800"
                     p={0}
                     borderRadius="md"
@@ -377,7 +377,7 @@ export default function SandboxHome() {
                 px={4}
                 _hover={{
                   bg: "rgba(34, 197, 94, 0.2)",
-                  transition: "all 0.5s ease"
+                  transition: "all 0.5s ease",
                 }}
                 _active={{ bg: "rgba(34, 197, 94, 0.25)" }}
               >

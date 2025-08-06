@@ -8,18 +8,19 @@ import {
   Text,
   IconButton,
 } from "@chakra-ui/react";
-import { FiPlus, FiShare2, FiArrowLeft, FiChevronRight, FiChevronLeft, FiFile } from "react-icons/fi";
+import {
+  FiPlus,
+  FiShare2,
+  FiArrowLeft,
+  FiChevronRight,
+  FiChevronLeft,
+  FiFile,
+} from "react-icons/fi";
 import { FileExplorer } from "./FileExplorer";
 import type { SandboxFile } from "~/types/misc";
 import CodeEditor from "~/components/problem/CodeEditor";
 import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
-import {
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Icon,
-} from "@chakra-ui/icons";
+import { Menu, MenuButton, MenuList, MenuItem, Icon } from "@chakra-ui/icons";
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -36,8 +37,6 @@ interface SSEMessage {
   details?: string;
   error?: string;
 }
-
-
 
 interface TerminalLine {
   id: string;
@@ -317,21 +316,43 @@ export default function Sandbox({
         >
           <VStack spacing={0} p={4} h="100%">
             {/* Toggle button */}
-            <HStack justify={isFileExplorerCollapsed ? "center" : "space-between"} w="100%" mb={2}>
+            <HStack
+              justify={isFileExplorerCollapsed ? "center" : "space-between"}
+              w="100%"
+              mb={2}
+            >
               <IconButton
-                icon={isFileExplorerCollapsed ? <Icon as={FiChevronRight} /> : <Icon as={FiChevronLeft} />}
-                aria-label={isFileExplorerCollapsed ? "Expand File Explorer" : "Collapse File Explorer"}
+                icon={
+                  isFileExplorerCollapsed ? (
+                    <Icon as={FiChevronRight} />
+                  ) : (
+                    <Icon as={FiChevronLeft} />
+                  )
+                }
+                aria-label={
+                  isFileExplorerCollapsed
+                    ? "Expand File Explorer"
+                    : "Collapse File Explorer"
+                }
                 variant="ghost"
-                onClick={() => setIsFileExplorerCollapsed(!isFileExplorerCollapsed)}
+                onClick={() =>
+                  setIsFileExplorerCollapsed(!isFileExplorerCollapsed)
+                }
                 size="sm"
                 color="gray.400"
-                _hover={{ color: "white", bg: "whiteAlpha.100", transition: "all 0.7s ease" }}
+                _hover={{
+                  color: "white",
+                  bg: "whiteAlpha.100",
+                  transition: "all 0.7s ease",
+                }}
                 _focus={{ color: "gray.400", boxShadow: "none" }}
               />
-              
+
               {!isFileExplorerCollapsed && (
                 <>
-                  <Text color="gray.400" fontSize="sm" fontWeight="medium">Files</Text>
+                  <Text color="gray.400" fontSize="sm" fontWeight="medium">
+                    Files
+                  </Text>
                   {!readOnly && (
                     <Menu>
                       <MenuButton
@@ -344,10 +365,10 @@ export default function Sandbox({
                         _active={{ color: "gray.400", boxShadow: "none" }}
                         aria-label="Add File"
                       />
-                      <MenuList 
-                        bg="brand.secondary" 
-                        border="none" 
-                        p={0} 
+                      <MenuList
+                        bg="brand.secondary"
+                        border="none"
+                        p={0}
                         borderRadius="md"
                         minW="120px"
                       >
@@ -379,8 +400,6 @@ export default function Sandbox({
                 </>
               )}
             </HStack>
-
-
 
             {/* Hidden file input */}
             <input
@@ -427,10 +446,17 @@ export default function Sandbox({
                 />
               </Box>
             )}
-            
+
             {/* Collapsed state - show three icons */}
             {isFileExplorerCollapsed && (
-              <VStack spacing={4} w="100%" align="center" flex={1} justify="start" pt={4}>
+              <VStack
+                spacing={4}
+                w="100%"
+                align="center"
+                flex={1}
+                justify="start"
+                pt={4}
+              >
                 <IconButton
                   icon={<Icon as={FiFile} />}
                   aria-label="Files"
@@ -452,10 +478,10 @@ export default function Sandbox({
                       _hover={{ color: "white", bg: "whiteAlpha.100" }}
                       _active={{ color: "gray.400", boxShadow: "none" }}
                     />
-                    <MenuList 
-                      bg="brand.secondary" 
-                      border="none" 
-                      p={0} 
+                    <MenuList
+                      bg="brand.secondary"
+                      border="none"
+                      p={0}
                       borderRadius="md"
                       minW="120px"
                     >
@@ -512,11 +538,7 @@ export default function Sandbox({
             align="center"
           >
             <HStack spacing={4}>
-              <Text
-                color="white"
-                fontWeight="600"
-                fontSize="2xl"
-              >
+              <Text color="white" fontWeight="600" fontSize="2xl">
                 {workspaceName}
               </Text>
               {!readOnly && (
@@ -571,23 +593,23 @@ export default function Sandbox({
                 _active={{
                   bg: "rgba(59, 130, 246, 0.25)",
                 }}
-                transition="all 0.5s ease" 
-                px={4}                       
+                transition="all 0.5s ease"
+                px={4}
               >
                 Save
               </Button>
-              <Button                      
+              <Button
                 onClick={isRunning ? stopExecution : runCode}
                 bg={isRunning ? "red.500" : "rgba(34, 197, 94, 0.1)"}
                 color={isRunning ? "white" : "rgb(34, 197, 94)"}
                 size="sm"
                 _hover={{
                   bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.2)",
-                  transition: "all 0.5s ease"
+                  transition: "all 0.5s ease",
                 }}
-                _active={{ 
+                _active={{
                   bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.25)",
-                  transition: "all 0.5s ease"
+                  transition: "all 0.5s ease",
                 }}
                 px={4}
                 isLoading={isRunning}
@@ -614,7 +636,7 @@ export default function Sandbox({
               </Button>
             </HStack>
           </HStack>
-          
+
           <Box flex={1} w="100%">
             <VerticalSplitPanel
               topContent={
@@ -649,95 +671,95 @@ export default function Sandbox({
                   )}
                 </Box>
               }
-            bottomContent={
-              <Box
-                w="100%"
-                h="100%"
-                bg="#111111"
-                borderTop="1px solid"
-                borderColor="brand.dark"
-                borderRadius="lg"
-              >
-                <VStack h="100%" w="100%" spacing={0}>
-                  {/* Terminal Header */}
-                  <HStack
-                    w="100%"
-                    px={4}
-                    py={2}
-                    bg="#111111"
-                    borderBottom="1px solid"
-                    borderColor="brand.dark"
-                    justify="space-between"
-                    borderTopRadius="lg"
-                  >
-                    <Text color="white" fontSize="sm" fontWeight="500">
-                      Terminal
-                    </Text>
-                    <Button
-                      onClick={() => {
-                        setTerminalLines([]);
-                      }}
-                      bg="rgba(160, 174, 192, 0.1)"
-                      color="rgb(160, 174, 192)"
-                      size="sm"
-                      _hover={{
-                        bg: "rgba(160, 174, 192, 0.2)",
-                        transition: "all 0.5s ease"
-                      }}
-                      _active={{
-                        bg: "rgba(160, 174, 192, 0.25)",
-                        transition: "all 0.5s ease"
-                      }}
-                      transition="all 0.5s ease"
+              bottomContent={
+                <Box
+                  w="100%"
+                  h="100%"
+                  bg="#111111"
+                  borderTop="1px solid"
+                  borderColor="brand.dark"
+                  borderRadius="lg"
+                >
+                  <VStack h="100%" w="100%" spacing={0}>
+                    {/* Terminal Header */}
+                    <HStack
+                      w="100%"
                       px={4}
+                      py={2}
+                      bg="#111111"
+                      borderBottom="1px solid"
+                      borderColor="brand.dark"
+                      justify="space-between"
+                      borderTopRadius="lg"
                     >
-                      Clear
-                    </Button>
-                  </HStack>
-                  {/* Terminal Content */}
-                  <Box
-                    ref={terminalRef}
-                    flex={1}
-                    w="100%"
-                    overflowY="auto"
-                    px={4}
-                    py={3}
-                    fontFamily="JetBrains Mono, monospace"
-                    fontSize="13px"
-                  >
-                    {terminalLines.length === 0 ? (
-                      <Text color="gray.500" fontStyle="italic">
-                        user~
+                      <Text color="white" fontSize="sm" fontWeight="500">
+                        Terminal
                       </Text>
-                    ) : (
-                      <VStack align="start" spacing={0.5} w="100%">
-                        {terminalLines.map((line) => (
-                          <Box
-                            key={line.id}
-                            w="100%"
-                            fontFamily="JetBrains Mono, monospace"
-                            whiteSpace="pre-wrap"
-                            wordBreak="break-word"
-                            animation="slideIn 0.15s ease-out"
-                          >
-                            <Text
-                              color={getTerminalLineColor(line.type)}
-                              fontSize="13px"
+                      <Button
+                        onClick={() => {
+                          setTerminalLines([]);
+                        }}
+                        bg="rgba(160, 174, 192, 0.1)"
+                        color="rgb(160, 174, 192)"
+                        size="sm"
+                        _hover={{
+                          bg: "rgba(160, 174, 192, 0.2)",
+                          transition: "all 0.5s ease",
+                        }}
+                        _active={{
+                          bg: "rgba(160, 174, 192, 0.25)",
+                          transition: "all 0.5s ease",
+                        }}
+                        transition="all 0.5s ease"
+                        px={4}
+                      >
+                        Clear
+                      </Button>
+                    </HStack>
+                    {/* Terminal Content */}
+                    <Box
+                      ref={terminalRef}
+                      flex={1}
+                      w="100%"
+                      overflowY="auto"
+                      px={4}
+                      py={3}
+                      fontFamily="JetBrains Mono, monospace"
+                      fontSize="13px"
+                    >
+                      {terminalLines.length === 0 ? (
+                        <Text color="gray.500" fontStyle="italic">
+                          user~
+                        </Text>
+                      ) : (
+                        <VStack align="start" spacing={0.5} w="100%">
+                          {terminalLines.map((line) => (
+                            <Box
+                              key={line.id}
+                              w="100%"
+                              fontFamily="JetBrains Mono, monospace"
+                              whiteSpace="pre-wrap"
+                              wordBreak="break-word"
+                              animation="slideIn 0.15s ease-out"
                             >
-                              {line.content}
-                            </Text>
-                          </Box>
-                        ))}
-                      </VStack>
-                    )}
-                  </Box>
-                </VStack>
-              </Box>
-            }
-            initialRatio={65}
-            minTopHeight={40}
-            minBottomHeight={20}
-          />
+                              <Text
+                                color={getTerminalLineColor(line.type)}
+                                fontSize="13px"
+                              >
+                                {line.content}
+                              </Text>
+                            </Box>
+                          ))}
+                        </VStack>
+                      )}
+                    </Box>
+                  </VStack>
+                </Box>
+              }
+              initialRatio={65}
+              minTopHeight={40}
+              minBottomHeight={20}
+            />
           </Box>
         </VStack>
       </HStack>

@@ -1,7 +1,7 @@
 // pages/api/snapshot/create.ts
 import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
-import { NextApiRequest, NextApiResponse } from "next";
+import { type NextApiRequest, type NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
