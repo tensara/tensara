@@ -152,19 +152,25 @@ export default function SandboxHome() {
       <VStack px={8} py={12} align="start" spacing={6} w="full">
         <HStack w="full" justify="space-between">
           <Heading size="lg">My Workspaces</Heading>
-          <Button
-            onClick={openModal}
-            bg="rgba(34, 197, 94, 0.1)"
-            color="rgb(34, 197, 94)"
-            leftIcon={<FiPlus />}
-            borderRadius="lg"
-            _hover={{
-              bg: "rgba(34, 197, 94, 0.2)",
-              transition: "all 0.5s ease",
-            }}
-          >
-            Create Workspace
-          </Button>
+          {workspaces?.length && workspaces.length > 0 && (
+            <Button
+              onClick={openModal}
+              bg="rgba(34, 197, 94, 0.1)"
+              color="rgb(34, 197, 94)"
+              leftIcon={<FiPlus />}
+              borderRadius="lg"
+              fontWeight="semibold"
+              fontSize="sm"
+              px={6}
+              h="40px"
+              _hover={{
+                bg: "rgba(34, 197, 94, 0.2)",
+                transition: "all 0.5s ease",
+              }}
+            >
+              Create Workspace
+            </Button>
+          )}
         </HStack>
 
         {isLoading ? (
@@ -223,17 +229,18 @@ export default function SandboxHome() {
               bg="rgba(34, 197, 94, 0.1)"
               color="rgb(34, 197, 94)"
               borderRadius="lg"
+              leftIcon={<FiPlus />}
               fontWeight="semibold"
               fontSize="sm"
               px={6}
               h="40px"
               _hover={{
                 bg: "rgba(34, 197, 94, 0.2)",
-                transform: "translateY(-1px)",
+                transition: "all 0.5s ease",
               }}
               _active={{ bg: "rgba(34, 197, 94, 0.25)" }}
             >
-              + Create Workspace
+              Create Workspace
             </Button>
           </Center>
         ) : (

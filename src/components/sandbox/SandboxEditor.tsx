@@ -25,6 +25,7 @@ import CodeEditor from "~/components/problem/CodeEditor";
 import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
 import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { useToast } from "@chakra-ui/react";
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -52,21 +53,24 @@ interface TerminalLine {
 export default function Sandbox({
   files,
   setFiles,
-  onManualSave,
   workspaceName,
   readOnly,
+  onBeforeRun,
+  onBeforeShare,
 }: {
   files: SandboxFile[];
   setFiles: (f: SandboxFile[]) => void;
   main: string;
   setMain: (m: string) => void;
   onSave: () => Promise<void>;
-  onManualSave: () => void;
   workspaceName: string;
   onDelete: () => void;
   onRename: (newName: string) => void;
   readOnly: boolean;
+  onBeforeRun?: () => Promise<void>;
+  onBeforeShare?: () => Promise<void>;
 }) {
+  const toast = useToast();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([]);
@@ -105,6 +109,11 @@ export default function Sandbox({
 
   const runCode = async () => {
     if (!activeFile || isRunning) return;
+
+    // Save to database before running
+    if (onBeforeRun) {
+      await onBeforeRun();
+    }
 
     setIsRunning(true);
     setTerminalLines([]);
@@ -471,7 +480,7 @@ export default function Sandbox({
                       if (readOnly || files.length === 1) return;
                       const updated = files.filter((_, idx) => idx !== i);
                       setFiles(updated);
-                      setActiveIndex((_) => (i === 0 ? 0 : i - 1));
+                      setActiveIndex(i === 0 ? 0 : i - 1);
                     }}
                     onDownload={downloadFile}
                     readOnly={readOnly ?? false}
@@ -579,6 +588,10 @@ export default function Sandbox({
                     variant="ghost"
                     onClick={async () => {
                       try {
+                        if (onBeforeShare) {
+                          await onBeforeShare();
+                        }
+
                         const res = await fetch("/api/snapshot/create", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
@@ -590,10 +603,20 @@ export default function Sandbox({
                         const { id } = (await res.json()) as { id: string };
                         const url = `${window.location.origin}/snapshot/${id}`;
                         await navigator.clipboard.writeText(url);
-                        alert("Snapshot link copied to clipboard!");
+                        toast({
+                          title: "Snapshot link copied to clipboard!",
+                          status: "success",
+                          duration: 3000,
+                          isClosable: true,
+                        });
                       } catch (e) {
                         console.error(e);
-                        alert("Failed to create snapshot.");
+                        toast({
+                          title: "Failed to create snapshot.",
+                          status: "error",
+                          duration: 3000,
+                          isClosable: true,
+                        });
                       }
                     }}
                     leftIcon={<Icon as={FiShare2} />}
@@ -627,24 +650,6 @@ export default function Sandbox({
                 >
                   {GPU_DISPLAY_NAMES.T4}
                 </Text>
-                {readOnly == false && (
-                  <Button
-                    onClick={onManualSave}
-                    bg="rgba(59, 130, 246, 0.1)"
-                    color="rgb(59, 130, 246)"
-                    size="sm"
-                    _hover={{
-                      bg: "rgba(59, 130, 246, 0.2)",
-                    }}
-                    _active={{
-                      bg: "rgba(59, 130, 246, 0.25)",
-                    }}
-                    transition="all 0.5s ease"
-                    px={4}
-                  >
-                    Save
-                  </Button>
-                )}
                 <Button
                   onClick={isRunning ? stopExecution : runCode}
                   bg={isRunning ? "red.500" : "rgba(34, 197, 94, 0.1)"}

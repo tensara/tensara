@@ -107,7 +107,6 @@ export default function SnapshotPage() {
         main={main}
         setMain={noop}
         onSave={noopAsync}
-        onManualSave={noop}
         workspaceName={`${data.user.name}'s Snapshot`}
         onDelete={noop}
         onRename={noop}

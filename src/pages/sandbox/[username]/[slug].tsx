@@ -42,39 +42,9 @@ export default function SandboxSlug() {
     await utils.workspace.getBySlug.invalidate(); // refresh data
   };
 
-  const handleManualSave = () => {
-    update.mutate(
-      { id: data?.id ?? "", files, main },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Workspace saved.",
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-            position: "top-right",
-          });
-        },
-        onError: () => {
-          toast({
-            title: "Failed to save workspace.",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-            position: "top-right",
-          });
-        },
-      }
-    );
-  };
-
   const router = useRouter();
-  // const username = router.query.username as string;
-
-  // const slug = router.query.slug as string;
   const { username, slug } = router.query;
 
-  // const { data, isLoading, error } = api.workspace.getBySlug.useQuery({ slug });
   const { data, isLoading, error } = api.workspace.getBySlug.useQuery(
     username && slug
       ? { username: username as string, slug: slug as string }
@@ -85,25 +55,78 @@ export default function SandboxSlug() {
 
   const [files, setFiles] = useState<File[]>([]);
   const [main, setMain] = useState("");
+  const [hasUserEdited, setHasUserEdited] = useState(false);
+
+  const getStorageKey = () => `workspace_${data?.id}_files`;
+  const getMainStorageKey = () => `workspace_${data?.id}_main`;
 
   useEffect(() => {
-    if (data) {
-      // setFiles(data.files ?? []);
-      setFiles(data.files as File[]);
+    if (data && !hasUserEdited) {
+      const storedFiles = localStorage.getItem(getStorageKey());
+      const storedMain = localStorage.getItem(getMainStorageKey());
 
-      setMain(data.main ?? "");
+      if (storedFiles && storedMain) {
+        setFiles(JSON.parse(storedFiles) as File[]);
+        setMain(storedMain);
+      } else {
+        setFiles(data.files as File[]);
+        setMain(data.main ?? "");
+      }
     }
-  }, [data]);
+  }, [data, hasUserEdited]);
 
   useEffect(() => {
+    if (data && files.length > 0) {
+      localStorage.setItem(getStorageKey(), JSON.stringify(files));
+    }
+  }, [files, data]);
+
+  useEffect(() => {
+    if (data && main) {
+      localStorage.setItem(getMainStorageKey(), main);
+    }
+  }, [main, data]);
+
+  const saveToDatabase = async (): Promise<void> => {
     if (!data) return;
 
-    const timeout = setTimeout(() => {
-      update.mutate({ id: data.id, files, main });
-    }, 2000); // 2s debounce
+    try {
+      await update.mutateAsync({ id: data.id, files, main });
+      localStorage.removeItem(getStorageKey());
+      localStorage.removeItem(getMainStorageKey());
+      setHasUserEdited(false);
+    } catch (error) {
+      console.error("Failed to save to database:", error);
+      toast({
+        title: "Failed to save workspace.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "top-right",
+      });
+    }
+  };
 
-    return () => clearTimeout(timeout);
-  }, [files, main]);
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (hasUserEdited) {
+        void saveToDatabase();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUserEdited, saveToDatabase]);
+
+  const handleFilesChange = (newFiles: File[]) => {
+    setHasUserEdited(true);
+    setFiles(newFiles);
+  };
+
+  const handleMainChange = (newMain: string) => {
+    setHasUserEdited(true);
+    setMain(newMain);
+  };
 
   if (isLoading)
     return (
@@ -174,17 +197,16 @@ export default function SandboxSlug() {
     <Layout title="Sandbox Editor">
       <SandBox
         files={files}
-        setFiles={setFiles}
+        setFiles={handleFilesChange}
         main={main}
-        setMain={setMain}
-        onSave={async () => {
-          await update.mutateAsync({ id: data.id, files, main });
-        }}
-        onManualSave={handleManualSave}
+        setMain={handleMainChange}
+        onSave={saveToDatabase}
         workspaceName={data.name}
         onDelete={onDelete}
         onRename={onRename}
         readOnly={false}
+        onBeforeRun={saveToDatabase}
+        onBeforeShare={saveToDatabase}
       />
     </Layout>
   );
