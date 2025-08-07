@@ -7,6 +7,8 @@ import {
   VStack,
   Text,
   IconButton,
+  Icon,
+  Heading,
 } from "@chakra-ui/react";
 import {
   FiPlus,
@@ -16,11 +18,13 @@ import {
   FiChevronLeft,
   FiFile,
 } from "react-icons/fi";
+import { FaExclamationCircle } from "react-icons/fa";
 import { FileExplorer } from "./FileExplorer";
 import type { SandboxFile } from "~/types/misc";
 import CodeEditor from "~/components/problem/CodeEditor";
 import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
-import { Menu, MenuButton, MenuList, MenuItem, Icon } from "@chakra-ui/icons";
+import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
+import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -295,75 +299,216 @@ export default function Sandbox({
         return "gray.400";
     }
   };
+
   return (
-    <Box
-      h="100%"
-      border="1px solid"
-      borderColor="brand.dark"
-      borderRadius="lg"
-      overflow="hidden"
-      bg="brand.dark"
-    >
-      <HStack h="100%" spacing={0} align="stretch">
-        {/* Sidebar */}
-        <Box
-          w={isFileExplorerCollapsed ? "50px" : "240px"}
-          h="100%"
-          bg="brand.dark"
-          borderRight="1px solid"
-          borderColor="brand.dark"
-          transition="width 0.3s ease"
-        >
-          <VStack spacing={0} p={4} h="100%">
-            {/* Toggle button */}
-            <HStack
-              justify={isFileExplorerCollapsed ? "center" : "space-between"}
-              w="100%"
-              mb={2}
-            >
-              <IconButton
-                icon={
-                  isFileExplorerCollapsed ? (
-                    <Icon as={FiChevronRight} />
-                  ) : (
-                    <Icon as={FiChevronLeft} />
-                  )
-                }
-                aria-label={
-                  isFileExplorerCollapsed
-                    ? "Expand File Explorer"
-                    : "Collapse File Explorer"
-                }
-                variant="ghost"
-                onClick={() =>
-                  setIsFileExplorerCollapsed(!isFileExplorerCollapsed)
-                }
-                size="sm"
-                color="gray.400"
-                _hover={{
-                  color: "white",
-                  bg: "whiteAlpha.100",
-                  transition: "all 0.7s ease",
+    <VStack w="100%" h="100%" spacing={0}>
+      {/* Mobile warning - only show on mobile */}
+      <Box
+        display={{ base: "flex", md: "none" }}
+        w="100%"
+        h="100%"
+        alignItems="center"
+        justifyContent="center"
+        p={6}
+      >
+        <Box w="100%" maxW="400px" p={6} bg="whiteAlpha.50" borderRadius="xl">
+          <VStack spacing={4} align="center">
+            <Icon as={FaExclamationCircle} boxSize={10} color="yellow.400" />
+            <Heading size="md" textAlign="center">
+              Desktop Required for Sandbox
+            </Heading>
+            <Text textAlign="center" color="whiteAlpha.800">
+              For the best coding experience, please switch to a desktop device
+              to write and execute your code.
+            </Text>
+          </VStack>
+        </Box>
+      </Box>
+
+      {/* Main editor - only show on desktop */}
+      <Box
+        display={{ base: "none", md: "block" }}
+        h="100%"
+        w="100%"
+        border="1px solid"
+        borderColor="brand.dark"
+        borderRadius="lg"
+        overflow="hidden"
+        bg="brand.dark"
+      >
+        <HStack h="100%" spacing={0} align="stretch">
+          {/* Sidebar */}
+          <Box
+            w={isFileExplorerCollapsed ? "50px" : "240px"}
+            h="100%"
+            bg="brand.dark"
+            borderRight="1px solid"
+            borderColor="brand.dark"
+            transition="width 0.3s ease"
+          >
+            <VStack spacing={0} p={4} h="100%">
+              {/* Toggle button */}
+              <HStack
+                justify={isFileExplorerCollapsed ? "center" : "space-between"}
+                w="100%"
+                mb={2}
+              >
+                <IconButton
+                  icon={
+                    isFileExplorerCollapsed ? (
+                      <Icon as={FiChevronRight} />
+                    ) : (
+                      <Icon as={FiChevronLeft} />
+                    )
+                  }
+                  aria-label={
+                    isFileExplorerCollapsed
+                      ? "Expand File Explorer"
+                      : "Collapse File Explorer"
+                  }
+                  variant="ghost"
+                  onClick={() =>
+                    setIsFileExplorerCollapsed(!isFileExplorerCollapsed)
+                  }
+                  size="sm"
+                  color="gray.400"
+                  _hover={{
+                    color: "white",
+                    bg: "whiteAlpha.100",
+                    transition: "all 0.7s ease",
+                  }}
+                  _focus={{ color: "gray.400", boxShadow: "none" }}
+                />
+
+                {!isFileExplorerCollapsed && (
+                  <>
+                    <Text color="gray.400" fontSize="sm" fontWeight="medium">
+                      Files
+                    </Text>
+                    {!readOnly && (
+                      <Menu>
+                        <MenuButton
+                          as={IconButton}
+                          icon={<FiPlus />}
+                          size="xs"
+                          variant="ghost"
+                          color="gray.400"
+                          _hover={{ color: "white" }}
+                          _active={{ color: "gray.400", boxShadow: "none" }}
+                          aria-label="Add File"
+                        />
+                        <MenuList
+                          bg="brand.secondary"
+                          border="none"
+                          p={0}
+                          borderRadius="md"
+                          minW="120px"
+                        >
+                          <MenuItem
+                            bg="brand.secondary"
+                            fontSize="sm"
+                            _hover={{ bg: "whiteAlpha.100" }}
+                            borderRadius="md"
+                            onClick={() => {
+                              const name = `file${files.length}.cu`;
+                              setFiles([...files, { name, content: "" }]);
+                              setActiveIndex(files.length);
+                            }}
+                          >
+                            New File
+                          </MenuItem>
+                          <MenuItem
+                            bg="brand.secondary"
+                            fontSize="sm"
+                            _hover={{ bg: "whiteAlpha.100" }}
+                            borderRadius="md"
+                            onClick={() => uploadRef.current?.click()}
+                          >
+                            Upload File
+                          </MenuItem>
+                        </MenuList>
+                      </Menu>
+                    )}
+                  </>
+                )}
+              </HStack>
+
+              {/* Hidden file input */}
+              <input
+                type="file"
+                accept=".cu"
+                ref={uploadRef}
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const content = event.target?.result as string;
+                    setFiles([...files, { name: file.name, content }]);
+                    setActiveIndex(files.length);
+                  };
+                  reader.readAsText(file);
                 }}
-                _focus={{ color: "gray.400", boxShadow: "none" }}
               />
 
+              {/* File Explorer */}
               {!isFileExplorerCollapsed && (
-                <>
-                  <Text color="gray.400" fontSize="sm" fontWeight="medium">
-                    Files
-                  </Text>
+                <Box w="100%" flex={1} overflowY="auto">
+                  <FileExplorer
+                    files={files}
+                    active={activeIndex}
+                    onOpen={setActiveIndex}
+                    onRename={(i: number, name: string) => {
+                      if (readOnly) return;
+                      const updated = [...files];
+                      if (updated[i]) {
+                        updated[i].name = name;
+                        setFiles(updated);
+                      }
+                    }}
+                    onDelete={(i: number) => {
+                      if (readOnly || files.length === 1) return;
+                      const updated = files.filter((_, idx) => idx !== i);
+                      setFiles(updated);
+                      setActiveIndex((_) => (i === 0 ? 0 : i - 1));
+                    }}
+                    onDownload={downloadFile}
+                    readOnly={readOnly ?? false}
+                  />
+                </Box>
+              )}
+
+              {/* Collapsed state - show three icons */}
+              {isFileExplorerCollapsed && (
+                <VStack
+                  spacing={4}
+                  w="100%"
+                  align="center"
+                  flex={1}
+                  justify="start"
+                  pt={4}
+                >
+                  <IconButton
+                    icon={<Icon as={FiFile} />}
+                    aria-label="Files"
+                    variant="ghost"
+                    onClick={() => setIsFileExplorerCollapsed(false)}
+                    size="sm"
+                    color="gray.400"
+                    _hover={{ color: "white", bg: "whiteAlpha.100" }}
+                  />
                   {!readOnly && (
                     <Menu>
                       <MenuButton
                         as={IconButton}
                         icon={<FiPlus />}
-                        size="xs"
-                        variant="ghost"
-                        color="gray.400"
-                        _hover={{ color: "white" }}
-                        _active={{ color: "gray.400", boxShadow: "none" }}
                         aria-label="Add File"
+                        variant="ghost"
+                        size="sm"
+                        color="gray.400"
+                        _hover={{ color: "white", bg: "whiteAlpha.100" }}
+                        _active={{ color: "gray.400", boxShadow: "none" }}
                       />
                       <MenuList
                         bg="brand.secondary"
@@ -375,8 +520,8 @@ export default function Sandbox({
                         <MenuItem
                           bg="brand.secondary"
                           fontSize="sm"
-                          _hover={{ bg: "whiteAlpha.100" }}
                           borderRadius="md"
+                          _hover={{ bg: "whiteAlpha.100" }}
                           onClick={() => {
                             const name = `file${files.length}.cu`;
                             setFiles([...files, { name, content: "" }]);
@@ -388,8 +533,8 @@ export default function Sandbox({
                         <MenuItem
                           bg="brand.secondary"
                           fontSize="sm"
-                          _hover={{ bg: "whiteAlpha.100" }}
                           borderRadius="md"
+                          _hover={{ bg: "whiteAlpha.100" }}
                           onClick={() => uploadRef.current?.click()}
                         >
                           Upload File
@@ -397,374 +542,275 @@ export default function Sandbox({
                       </MenuList>
                     </Menu>
                   )}
-                </>
+                  <IconButton
+                    icon={<Icon as={FiArrowLeft} />}
+                    aria-label="Back to Workspaces"
+                    variant="ghost"
+                    onClick={() => (window.location.href = "/sandbox")}
+                    size="sm"
+                    color="gray.400"
+                    _hover={{ color: "white", bg: "whiteAlpha.100" }}
+                  />
+                </VStack>
               )}
-            </HStack>
-
-            {/* Hidden file input */}
-            <input
-              type="file"
-              accept=".cu"
-              ref={uploadRef}
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                  const content = event.target?.result as string;
-                  setFiles([...files, { name: file.name, content }]);
-                  setActiveIndex(files.length);
-                };
-                reader.readAsText(file);
-              }}
-            />
-
-            {/* File Explorer */}
-            {!isFileExplorerCollapsed && (
-              <Box w="100%" flex={1} overflowY="auto">
-                <FileExplorer
-                  files={files}
-                  active={activeIndex}
-                  onOpen={setActiveIndex}
-                  onRename={(i: number, name: string) => {
-                    if (readOnly) return;
-                    const updated = [...files];
-                    if (updated[i]) {
-                      updated[i].name = name;
-                      setFiles(updated);
-                    }
-                  }}
-                  onDelete={(i: number) => {
-                    if (readOnly || files.length === 1) return;
-                    const updated = files.filter((_, idx) => idx !== i);
-                    setFiles(updated);
-                    setActiveIndex((_) => (i === 0 ? 0 : i - 1));
-                  }}
-                  onDownload={downloadFile}
-                  readOnly={readOnly ?? false}
-                />
-              </Box>
-            )}
-
-            {/* Collapsed state - show three icons */}
-            {isFileExplorerCollapsed && (
-              <VStack
-                spacing={4}
-                w="100%"
-                align="center"
-                flex={1}
-                justify="start"
-                pt={4}
-              >
-                <IconButton
-                  icon={<Icon as={FiFile} />}
-                  aria-label="Files"
-                  variant="ghost"
-                  onClick={() => setIsFileExplorerCollapsed(false)}
-                  size="sm"
-                  color="gray.400"
-                  _hover={{ color: "white", bg: "whiteAlpha.100" }}
-                />
-                {!readOnly && (
-                  <Menu>
-                    <MenuButton
-                      as={IconButton}
-                      icon={<FiPlus />}
-                      aria-label="Add File"
-                      variant="ghost"
-                      size="sm"
-                      color="gray.400"
-                      _hover={{ color: "white", bg: "whiteAlpha.100" }}
-                      _active={{ color: "gray.400", boxShadow: "none" }}
-                    />
-                    <MenuList
-                      bg="brand.secondary"
-                      border="none"
-                      p={0}
-                      borderRadius="md"
-                      minW="120px"
-                    >
-                      <MenuItem
-                        bg="brand.secondary"
-                        fontSize="sm"
-                        borderRadius="md"
-                        _hover={{ bg: "whiteAlpha.100" }}
-                        onClick={() => {
-                          const name = `file${files.length}.cu`;
-                          setFiles([...files, { name, content: "" }]);
-                          setActiveIndex(files.length);
-                        }}
-                      >
-                        New File
-                      </MenuItem>
-                      <MenuItem
-                        bg="brand.secondary"
-                        fontSize="sm"
-                        borderRadius="md"
-                        _hover={{ bg: "whiteAlpha.100" }}
-                        onClick={() => uploadRef.current?.click()}
-                      >
-                        Upload File
-                      </MenuItem>
-                    </MenuList>
-                  </Menu>
-                )}
-                <IconButton
-                  icon={<Icon as={FiArrowLeft} />}
-                  aria-label="Back to Workspaces"
-                  variant="ghost"
-                  onClick={() => (window.location.href = "/sandbox")}
-                  size="sm"
-                  color="gray.400"
-                  _hover={{ color: "white", bg: "whiteAlpha.100" }}
-                />
-              </VStack>
-            )}
-          </VStack>
-        </Box>
-
-        {/* Main Content */}
-        <VStack h="100%" flex={1} spacing={0}>
-          {/* Workspace Title and Controls */}
-          <HStack
-            w="100%"
-            px={4}
-            py={3}
-            bg="brand.dark"
-            borderBottom="1px solid"
-            borderColor="brand.dark"
-            justify="space-between"
-            align="center"
-          >
-            <HStack spacing={4}>
-              <Text color="white" fontWeight="600" fontSize="2xl">
-                {workspaceName}
-              </Text>
-              {!readOnly && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch("/api/snapshot/create", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          files,
-                          main: files[activeIndex]?.name,
-                        }),
-                      });
-                      const { id } = (await res.json()) as { id: string };
-                      const url = `${window.location.origin}/snapshot/${id}`;
-                      await navigator.clipboard.writeText(url);
-                      alert("Snapshot link copied to clipboard!");
-                    } catch (e) {
-                      console.error(e);
-                      alert("Failed to create snapshot.");
-                    }
-                  }}
-                  leftIcon={<Icon as={FiShare2} />}
-                  borderRadius="lg"
-                  bg="rgba(234, 179, 8, 0.1)"
-                  color="rgb(234, 179, 8)"
-                  _hover={{
-                    bg: "rgba(234, 179, 8, 0.2)",
-                    color: "rgb(234, 179, 8)",
-                  }}
-                  _active={{
-                    bg: "rgba(234, 179, 8, 0.25)",
-                  }}
-                  transition="all 0.5s ease"
-                >
-                  Share
-                </Button>
-              )}
-            </HStack>
-            <HStack spacing={2}>
-              {readOnly == false && (
-                <Button
-                  onClick={onManualSave}
-                  bg="rgba(59, 130, 246, 0.1)"
-                  color="rgb(59, 130, 246)"
-                  size="sm"
-                  _hover={{
-                    bg: "rgba(59, 130, 246, 0.2)",
-                  }}
-                  _active={{
-                    bg: "rgba(59, 130, 246, 0.25)",
-                  }}
-                  transition="all 0.5s ease"
-                  px={4}
-                >
-                  Save
-                </Button>
-              )}
-              <Button
-                onClick={isRunning ? stopExecution : runCode}
-                bg={isRunning ? "red.500" : "rgba(34, 197, 94, 0.1)"}
-                color={isRunning ? "white" : "rgb(34, 197, 94)"}
-                size="sm"
-                _hover={{
-                  bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.2)",
-                  transition: "all 0.5s ease",
-                }}
-                _active={{
-                  bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.25)",
-                  transition: "all 0.5s ease",
-                }}
-                px={4}
-                isLoading={isRunning}
-                transition="all 0.5s ease"
-                position="relative"
-                _before={
-                  isRunning
-                    ? {
-                        content: '""',
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        borderRadius: "md",
-                        bg: "red.400",
-                        opacity: 0.3,
-                        animation: "pulse 2s infinite",
-                      }
-                    : {}
-                }
-              >
-                {isRunning ? "Stop" : "Run"}
-              </Button>
-            </HStack>
-          </HStack>
-
-          <Box flex={1} w="100%">
-            <VerticalSplitPanel
-              topContent={
-                <Box w="100%" h="100%" bg="gray.900" position="relative">
-                  {activeFile ? (
-                    <Box
-                      key={activeFile.name}
-                      position="absolute"
-                      top={0}
-                      left={0}
-                      right={0}
-                      bottom={0}
-                      opacity={1}
-                      animation="fadeIn 0.2s ease-out"
-                    >
-                      <CodeEditor
-                        code={activeFile.content}
-                        setCode={updateFile}
-                        selectedLanguage="cuda"
-                        isEditable={!readOnly}
-                      />
-                    </Box>
-                  ) : (
-                    <Box
-                      h="100%"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                    >
-                      <Text color="gray.400">No file selected</Text>
-                    </Box>
-                  )}
-                </Box>
-              }
-              bottomContent={
-                <Box
-                  w="100%"
-                  h="100%"
-                  bg="#111111"
-                  borderTop="1px solid"
-                  borderColor="brand.dark"
-                  borderRadius="lg"
-                >
-                  <VStack h="100%" w="100%" spacing={0}>
-                    {/* Terminal Header */}
-                    <HStack
-                      w="100%"
-                      px={4}
-                      py={2}
-                      bg="#111111"
-                      borderBottom="1px solid"
-                      borderColor="brand.dark"
-                      justify="space-between"
-                      borderTopRadius="lg"
-                    >
-                      <Text color="white" fontSize="sm" fontWeight="500">
-                        Terminal
-                      </Text>
-                      <Button
-                        onClick={() => {
-                          setTerminalLines([]);
-                        }}
-                        bg="rgba(160, 174, 192, 0.1)"
-                        color="rgb(160, 174, 192)"
-                        size="sm"
-                        _hover={{
-                          bg: "rgba(160, 174, 192, 0.2)",
-                          transition: "all 0.5s ease",
-                        }}
-                        _active={{
-                          bg: "rgba(160, 174, 192, 0.25)",
-                          transition: "all 0.5s ease",
-                        }}
-                        transition="all 0.5s ease"
-                        px={4}
-                      >
-                        Clear
-                      </Button>
-                    </HStack>
-                    {/* Terminal Content */}
-                    <Box
-                      ref={terminalRef}
-                      flex={1}
-                      w="100%"
-                      overflowY="auto"
-                      px={4}
-                      py={3}
-                      fontFamily="JetBrains Mono, monospace"
-                      fontSize="13px"
-                    >
-                      {terminalLines.length === 0 ? (
-                        <Text color="gray.500" fontStyle="italic">
-                          user~
-                        </Text>
-                      ) : (
-                        <VStack align="start" spacing={0.5} w="100%">
-                          {terminalLines.map((line) => (
-                            <Box
-                              key={line.id}
-                              w="100%"
-                              fontFamily="JetBrains Mono, monospace"
-                              whiteSpace="pre-wrap"
-                              wordBreak="break-word"
-                              animation="slideIn 0.15s ease-out"
-                            >
-                              <Text
-                                color={getTerminalLineColor(line.type)}
-                                fontSize="13px"
-                              >
-                                {line.content}
-                              </Text>
-                            </Box>
-                          ))}
-                        </VStack>
-                      )}
-                    </Box>
-                  </VStack>
-                </Box>
-              }
-              initialRatio={65}
-              minTopHeight={40}
-              minBottomHeight={20}
-            />
+            </VStack>
           </Box>
-        </VStack>
-      </HStack>
+
+          {/* Main Content */}
+          <VStack h="100%" flex={1} spacing={0}>
+            {/* Workspace Title and Controls */}
+            <HStack
+              w="100%"
+              px={4}
+              py={3}
+              bg="brand.dark"
+              borderBottom="1px solid"
+              borderColor="brand.dark"
+              justify="space-between"
+              align="center"
+            >
+              <HStack spacing={4}>
+                <Text color="white" fontWeight="600" fontSize="2xl">
+                  {workspaceName}
+                </Text>
+                {!readOnly && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/snapshot/create", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            files,
+                            main: files[activeIndex]?.name,
+                          }),
+                        });
+                        const { id } = (await res.json()) as { id: string };
+                        const url = `${window.location.origin}/snapshot/${id}`;
+                        await navigator.clipboard.writeText(url);
+                        alert("Snapshot link copied to clipboard!");
+                      } catch (e) {
+                        console.error(e);
+                        alert("Failed to create snapshot.");
+                      }
+                    }}
+                    leftIcon={<Icon as={FiShare2} />}
+                    borderRadius="lg"
+                    bg="rgba(234, 179, 8, 0.1)"
+                    color="rgb(234, 179, 8)"
+                    _hover={{
+                      bg: "rgba(234, 179, 8, 0.2)",
+                      color: "rgb(234, 179, 8)",
+                    }}
+                    _active={{
+                      bg: "rgba(234, 179, 8, 0.25)",
+                    }}
+                    transition="all 0.5s ease"
+                  >
+                    Share
+                  </Button>
+                )}
+              </HStack>
+              <HStack spacing={2}>
+                <Text
+                  color="gray.400"
+                  fontSize="sm"
+                  fontWeight="medium"
+                  px={4}
+                  h="32px"
+                  display="flex"
+                  alignItems="center"
+                  bg="whiteAlpha.50"
+                  borderRadius="md"
+                >
+                  {GPU_DISPLAY_NAMES.T4}
+                </Text>
+                {readOnly == false && (
+                  <Button
+                    onClick={onManualSave}
+                    bg="rgba(59, 130, 246, 0.1)"
+                    color="rgb(59, 130, 246)"
+                    size="sm"
+                    _hover={{
+                      bg: "rgba(59, 130, 246, 0.2)",
+                    }}
+                    _active={{
+                      bg: "rgba(59, 130, 246, 0.25)",
+                    }}
+                    transition="all 0.5s ease"
+                    px={4}
+                  >
+                    Save
+                  </Button>
+                )}
+                <Button
+                  onClick={isRunning ? stopExecution : runCode}
+                  bg={isRunning ? "red.500" : "rgba(34, 197, 94, 0.1)"}
+                  color={isRunning ? "white" : "rgb(34, 197, 94)"}
+                  size="sm"
+                  _hover={{
+                    bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.2)",
+                    transition: "all 0.5s ease",
+                  }}
+                  _active={{
+                    bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.25)",
+                    transition: "all 0.5s ease",
+                  }}
+                  px={4}
+                  isLoading={isRunning}
+                  transition="all 0.5s ease"
+                  position="relative"
+                  _before={
+                    isRunning
+                      ? {
+                          content: '""',
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          borderRadius: "md",
+                          bg: "red.400",
+                          opacity: 0.3,
+                          animation: "pulse 2s infinite",
+                        }
+                      : {}
+                  }
+                >
+                  {isRunning ? "Stop" : "Run"}
+                </Button>
+              </HStack>
+            </HStack>
+
+            <Box flex={1} w="100%">
+              <VerticalSplitPanel
+                topContent={
+                  <Box w="100%" h="100%" bg="gray.900" position="relative">
+                    {activeFile ? (
+                      <Box
+                        key={activeFile.name}
+                        position="absolute"
+                        top={0}
+                        left={0}
+                        right={0}
+                        bottom={0}
+                        opacity={1}
+                        animation="fadeIn 0.2s ease-out"
+                      >
+                        <CodeEditor
+                          code={activeFile.content}
+                          setCode={updateFile}
+                          selectedLanguage="cuda"
+                          isEditable={!readOnly}
+                        />
+                      </Box>
+                    ) : (
+                      <Box
+                        h="100%"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        <Text color="gray.400">No file selected</Text>
+                      </Box>
+                    )}
+                  </Box>
+                }
+                bottomContent={
+                  <Box
+                    w="100%"
+                    h="100%"
+                    bg="#111111"
+                    borderTop="1px solid"
+                    borderColor="brand.dark"
+                    borderRadius="lg"
+                  >
+                    <VStack h="100%" w="100%" spacing={0}>
+                      {/* Terminal Header */}
+                      <HStack
+                        w="100%"
+                        px={4}
+                        py={2}
+                        bg="#111111"
+                        borderBottom="1px solid"
+                        borderColor="brand.dark"
+                        justify="space-between"
+                        borderTopRadius="lg"
+                      >
+                        <Text color="white" fontSize="sm" fontWeight="500">
+                          Terminal
+                        </Text>
+                        <Button
+                          onClick={() => {
+                            setTerminalLines([]);
+                          }}
+                          bg="rgba(160, 174, 192, 0.1)"
+                          color="rgb(160, 174, 192)"
+                          size="sm"
+                          _hover={{
+                            bg: "rgba(160, 174, 192, 0.2)",
+                            transition: "all 0.5s ease",
+                          }}
+                          _active={{
+                            bg: "rgba(160, 174, 192, 0.25)",
+                            transition: "all 0.5s ease",
+                          }}
+                          transition="all 0.5s ease"
+                          px={4}
+                        >
+                          Clear
+                        </Button>
+                      </HStack>
+                      {/* Terminal Content */}
+                      <Box
+                        ref={terminalRef}
+                        flex={1}
+                        w="100%"
+                        overflowY="auto"
+                        px={4}
+                        py={3}
+                        fontFamily="JetBrains Mono, monospace"
+                        fontSize="13px"
+                      >
+                        {terminalLines.length === 0 ? (
+                          <Text color="gray.500" fontStyle="italic">
+                            user~
+                          </Text>
+                        ) : (
+                          <VStack align="start" spacing={0.5} w="100%">
+                            {terminalLines.map((line) => (
+                              <Box
+                                key={line.id}
+                                w="100%"
+                                fontFamily="JetBrains Mono, monospace"
+                                whiteSpace="pre-wrap"
+                                wordBreak="break-word"
+                                animation="slideIn 0.15s ease-out"
+                              >
+                                <Text
+                                  color={getTerminalLineColor(line.type)}
+                                  fontSize="13px"
+                                >
+                                  {line.content}
+                                </Text>
+                              </Box>
+                            ))}
+                          </VStack>
+                        )}
+                      </Box>
+                    </VStack>
+                  </Box>
+                }
+                initialRatio={65}
+                minTopHeight={40}
+                minBottomHeight={20}
+              />
+            </Box>
+          </VStack>
+        </HStack>
+      </Box>
       <style jsx global>{`
         @keyframes fadeIn {
           from {
@@ -798,6 +844,6 @@ export default function Sandbox({
           }
         }
       `}</style>
-    </Box>
+    </VStack>
   );
 }
