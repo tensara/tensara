@@ -82,27 +82,31 @@ def binary_runner(
                 "details": e.args[0],
             }
             return
-    try:
-        problem = utils.load_problem_module(problem_name, problem_def)
-        solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
-    except Exception as e:
-        yield {
-            "status": "COMPILE_ERROR",
-            "message": "Compilation Failed",
-            "details": str(e),
-        }
-        return
 
-    if type == "sample":
-        gen = runner.run_sample_case(problem_name, problem_def, solution_func, dtype, language)
-    elif type == "checker":
-        gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
-    elif type == "benchmark":
-        gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, language)
-    elif type == "sanity_check":
-        gen = runner.run_sanity_check(problem_name, problem_def, solution_func, dtype, language)
+    if type == "sandbox":
+        gen = runner.run_sandbox(compiled_lib, solution_code)
     else:
-        raise ValueError(f"Unknown binary type: {type}")
+        try:
+            problem = utils.load_problem_module(problem_name, problem_def)
+            solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
+        except Exception as e:
+            yield {
+                "status": "COMPILE_ERROR",
+                "message": "Compilation Failed",
+                "details": str(e),
+            }
+            return
+
+        if type == "sample":
+            gen = runner.run_sample_case(problem_name, problem_def, solution_func, dtype, language)
+        elif type == "checker":
+            gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
+        elif type == "benchmark":
+            gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, language)
+        elif type == "sanity_check":
+            gen = runner.run_sanity_check(problem_name, problem_def, solution_func, dtype, language)
+        else:
+            raise ValueError(f"Unknown binary type: {type}")
 
     for event in gen:
         yield event
@@ -284,6 +288,42 @@ async def sample_runner(gpu: str, request: Request):
             yield event
 
     return StreamingResponse(gen_wrapper(create_stream()), media_type="text/event-stream")
+
+
+@web_app.post("/sandbox-{gpu}")
+async def sandbox(gpu: str, request: Request):
+    req = await request.json()
+    if gpu not in gpu_runners:
+        print("gpu not in gpu_runners")
+        return 404
+
+    print("req", req)
+    solution_code = req["code"]
+    print("solution_code", solution_code)
+
+    def create_stream():
+        yield {"status": "COMPILING"}
+
+        try:
+            compiled_lib = utils.run_nvcc_and_return_executable(gpu, solution_code)
+        except utils.NVCCError as e:
+            yield {
+                "status": "COMPILE_ERROR",
+                "message": "Compilation Failed",
+                "details": e.args[0],
+            }
+            return
+
+        runner = gpu_runners[gpu]
+        print("runner", runner)
+        stream = runner.remote_gen(
+            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", "cuda"
+        )
+        for event in stream:
+            yield event
+
+    stream = gen_wrapper(create_stream())
+    return StreamingResponse(stream, media_type="text/event-stream")
 
 
 @web_app.post("/benchmark_cli-{gpu}")

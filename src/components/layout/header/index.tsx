@@ -52,6 +52,7 @@ export function Header() {
 
   const navItems = [
     { label: "Problems", href: "/problems" },
+    { label: "Sandbox", href: "/sandbox" },
     { label: "Leaderboards", href: "/leaderboard" },
     { label: "Blog", href: "/blog" },
     { label: "Contests", href: "/contests" },

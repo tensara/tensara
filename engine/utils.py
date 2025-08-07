@@ -67,6 +67,27 @@ def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
     return cmd
 
 
+def nvcc_command_executable(gpu: str, srcs: list[Path | str], out: Path | str):
+    """Get nvcc command for compiling an executable
+
+    Args:
+        gpu (str): GPU type to use
+        srcs (list): Source files to compile
+        out (Path | str): Output executable path
+
+    Returns:
+        list: Command arguments for nvcc
+    """
+
+    srcs = [str(src) for src in srcs]
+    out = str(out)
+    sm = GPU_COMPUTE_CAPABILITIES[gpu]
+
+    cmd = ["nvcc", "-std=c++20", "-O2", f"-arch=compute_{sm}", f"-code=sm_{sm}", "-o", out] + srcs
+
+    return cmd
+
+
 def mojo_command(srcs: list[Path | str], out: Path | str):
     """Get mojo command for the given source files and output file"""
     srcs = [str(src) for src in srcs]
@@ -562,3 +583,41 @@ class SystemOutputCapture:
             os.unlink(self.tmp_err_path)
         except OSError:
             pass
+
+
+@hash_dict
+@lru_cache(maxsize=512)
+def run_nvcc_and_return_executable(gpu: str, solution_code: str) -> bytes:
+    """Compile source files with nvcc and return the bytes of an executable binary
+
+    Args:
+        gpu (str): GPU type to use
+        solution_code (str): Code of the solution
+
+    Returns:
+        bytes: Bytes of the compiled executable
+
+    Raises:
+        NVCCError: If compilation fails
+    """
+    output_file = tempfile.NamedTemporaryFile(delete=False, suffix=".bin")
+    output_file.close()
+    out_path = Path(output_file.name)
+    out_path.unlink()
+
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td)
+
+        (path / "solution.cu").write_text(solution_code)
+        src_path = path / "solution.cu"
+
+        cmd = nvcc_command_executable(gpu, [src_path], out_path)
+
+        process = subprocess.run(cmd, capture_output=True, text=True)
+
+        if process.returncode != 0:
+            raise NVCCError(process.stderr)
+
+    bytes_of_file = out_path.read_bytes()
+    out_path.unlink()
+    return bytes_of_file

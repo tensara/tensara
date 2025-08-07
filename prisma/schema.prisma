@@ -25,12 +25,15 @@ model User {
   rating                    Int?
   rank                      Int?
 
-  accounts     Account[]
-  problems     Problem[]
-  submissions  Submission[]
-  RevokedToken RevokedToken[]
-  Session      Session[]
-  ApiKey       ApiKey[]
+  accounts          Account[]
+  problems          Problem[]
+  submissions       Submission[]
+  RevokedToken      RevokedToken[]
+  Session           Session[]
+  ApiKey            ApiKey[]
+  workspaces        Workspace[]
+  SandboxSubmission SandboxSubmission[]
+  snapshots         Snapshot[]
 
   @@index([email])
   @@index([createdAt])
@@ -91,13 +94,13 @@ model RevokedToken {
 model Problem {
   id String @id @default(cuid())
 
-  title       String
-  slug        String     @unique
-  description String?
-  difficulty  Difficulty
-  author      String
-  parameters  Json       @default("[]")
-  tags        String[]
+  title              String
+  slug               String     @unique
+  description        String?
+  difficulty         Difficulty
+  author             String
+  parameters         Json       @default("[]")
+  tags               String[]
   baselineBenchmarks Json?      @default("{}")
 
   definition String? @db.Text
@@ -166,4 +169,50 @@ model ApiKey {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  files     Json
+  main      String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  snapshots Snapshot[]
+
+  @@unique([slug, userId])
+}
+
+model SandboxSubmission {
+  id            String   @id @default(cuid())
+  code          String   @db.Text
+  language      String
+  status        String?
+  stdout_output String?  @db.Text
+  error_message String?
+  error_details String?
+  logs          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  files     Json
+  main      String
+
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+  workspaceId String?
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
 }

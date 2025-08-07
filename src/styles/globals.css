@@ -155,3 +155,12 @@ button:hover .highlight {
 .active .highlight {
   display: none;
 }
+
+.split {
+  height: 100%;
+}
+
+.split .gutter {
+  background-color: #2a2a2a;
+  cursor: row-resize;
+}

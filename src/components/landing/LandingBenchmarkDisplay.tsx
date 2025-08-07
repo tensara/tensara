@@ -8,11 +8,10 @@ import {
   Table,
   Thead,
   Tbody,
-  Tr, // Use standard Tr
+  Tr,
   Th,
   Td,
   Icon,
-  // Collapse, // Still removed
   Spinner,
 } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion"; // Keep imports for MotionBox/footer
