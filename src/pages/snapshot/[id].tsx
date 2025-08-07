@@ -26,7 +26,7 @@ export default function SnapshotPage() {
 
   const { data, isLoading, error } = api.snapshot.getById.useQuery(
     typeof id === "string" ? { id } : { id: "" },
-    { enabled: typeof id === "string" }
+    { enabled: router.isReady && typeof id === "string" }
   );
 
   type File = {
@@ -44,7 +44,7 @@ export default function SnapshotPage() {
     }
   }, [data]);
 
-  if (isLoading)
+  if (isLoading || !router.isReady)
     return (
       <Box
         w="100%"
@@ -89,7 +89,7 @@ export default function SnapshotPage() {
       </Box>
     );
 
-  if (!data || error) {
+  if ((!data && !isLoading) || error) {
     return (
       <WorkspaceAlert
         status="error"
@@ -101,17 +101,19 @@ export default function SnapshotPage() {
 
   return (
     <Layout title="Snapshot Viewer">
-      <SandBox
-        files={files}
-        setFiles={noop}
-        main={main}
-        setMain={noop}
-        onSave={noopAsync}
-        workspaceName={`${data.user.name}'s Snapshot`}
-        onDelete={noop}
-        onRename={noop}
-        readOnly={true}
-      />
+      {data && (
+        <SandBox
+          files={files}
+          setFiles={noop}
+          main={main}
+          setMain={noop}
+          onSave={noopAsync}
+          workspaceName={`${data.user.name}'s Snapshot`}
+          onDelete={noop}
+          onRename={noop}
+          readOnly={true}
+        />
+      )}
     </Layout>
   );
 }
