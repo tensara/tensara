@@ -268,91 +268,106 @@ const SubmissionResults = ({
               {/* Test Case Results Table */}
               <Collapse in={isTestCaseTableOpen} animateOpacity>
                 <Box>
-                  <Table variant="unstyled" size="sm">
-                    <Thead bg="whiteAlpha.100">
-                      <Tr>
-                        <Th color="whiteAlpha.700" py={3}>
-                          Test Case
-                        </Th>
-                        <Th color="whiteAlpha.700" py={3} isNumeric>
-                          Runtime
-                        </Th>
-                        <Th color="whiteAlpha.700" py={3} isNumeric>
-                          Performance
-                        </Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {benchmarkResults.map((result) => (
-                        <Tr
-                          key={result.result.test_id}
-                          _hover={{ bg: "whiteAlpha.100" }}
-                        >
-                          <Td py={3}>
-                            <HStack spacing={2}>
-                              <Icon
-                                as={FaCheck}
-                                color="green.300"
-                                boxSize={4}
-                              />
-                              <Text>{result.result.name}</Text>
-                            </HStack>
-                          </Td>
-                          <Td py={3} isNumeric>
-                            <Text>
-                              {result.result.runtime_ms.toFixed(2)} ms
-                            </Text>
-                          </Td>
-                          <Td py={3} isNumeric>
-                            <Text>
-                              {result.result.gflops.toFixed(2)} GFLOPS
-                            </Text>
-                          </Td>
-                        </Tr>
-                      ))}
-                      {totalTests !== null &&
-                        benchmarkResults &&
-                        metaStatus !== SubmissionStatus.BENCHMARKING &&
-                        totalTests > benchmarkResults.length &&
-                        Array.from(
-                          {
-                            length: totalTests - benchmarkResults.length,
-                          },
-                          (_, i) => {
-                            const testId =
-                              (benchmarkResults?.length ?? 0) + i + 1;
-                            return (
-                              <Tr
-                                key={`failed-${testId}`}
-                                _hover={{ bg: "whiteAlpha.100" }}
-                              >
-                                <Td py={3}>
-                                  <HStack spacing={2}>
-                                    <Icon
-                                      as={FaExclamationCircle}
-                                      color="red.300"
-                                      boxSize={4}
-                                    />
-                                    <Text>Test Case {testId}</Text>
-                                  </HStack>
-                                </Td>
+                  {(() => {
+                    const hasGflops = benchmarkResults.some(
+                      (r) => r.result.gflops !== undefined
+                    );
+
+                    return (
+                      <Table variant="unstyled" size="sm">
+                        <Thead bg="whiteAlpha.100">
+                          <Tr>
+                            <Th color="whiteAlpha.700" py={3}>
+                              Test Case
+                            </Th>
+                            <Th color="whiteAlpha.700" py={3} isNumeric>
+                              Runtime
+                            </Th>
+                            {hasGflops && (
+                              <Th color="whiteAlpha.700" py={3} isNumeric>
+                                Performance
+                              </Th>
+                            )}
+                          </Tr>
+                        </Thead>
+                        <Tbody>
+                          {benchmarkResults.map((result) => (
+                            <Tr
+                              key={result.result.test_id}
+                              _hover={{ bg: "whiteAlpha.100" }}
+                            >
+                              <Td py={3}>
+                                <HStack spacing={2}>
+                                  <Icon
+                                    as={FaCheck}
+                                    color="green.300"
+                                    boxSize={4}
+                                  />
+                                  <Text>{result.result.name}</Text>
+                                </HStack>
+                              </Td>
+                              <Td py={3} isNumeric>
+                                <Text>
+                                  {result.result.runtime_ms.toFixed(2)} ms
+                                </Text>
+                              </Td>
+                              {hasGflops && (
                                 <Td py={3} isNumeric>
-                                  -
+                                  {result.result.gflops !== undefined && (
+                                    <Text>
+                                      {result.result.gflops.toFixed(2)} GFLOPS
+                                    </Text>
+                                  )}
                                 </Td>
-                                <Td py={3} isNumeric>
-                                  -
-                                </Td>
-                                <Td py={3}>
-                                  <Badge colorScheme="red" fontSize="xs">
-                                    Failed
-                                  </Badge>
-                                </Td>
-                              </Tr>
-                            );
-                          }
-                        )}
-                    </Tbody>
-                  </Table>
+                              )}
+                            </Tr>
+                          ))}
+
+                          {totalTests !== null &&
+                            benchmarkResults &&
+                            metaStatus !== SubmissionStatus.BENCHMARKING &&
+                            totalTests > benchmarkResults.length &&
+                            Array.from(
+                              { length: totalTests - benchmarkResults.length },
+                              (_, i) => {
+                                const testId =
+                                  (benchmarkResults?.length ?? 0) + i + 1;
+                                return (
+                                  <Tr
+                                    key={`failed-${testId}`}
+                                    _hover={{ bg: "whiteAlpha.100" }}
+                                  >
+                                    <Td py={3}>
+                                      <HStack spacing={2}>
+                                        <Icon
+                                          as={FaExclamationCircle}
+                                          color="red.300"
+                                          boxSize={4}
+                                        />
+                                        <Text>Test Case {testId}</Text>
+                                      </HStack>
+                                    </Td>
+                                    <Td py={3} isNumeric>
+                                      -
+                                    </Td>
+                                    {hasGflops && (
+                                      <Td py={3} isNumeric>
+                                        -
+                                      </Td>
+                                    )}
+                                    <Td py={3}>
+                                      <Badge colorScheme="red" fontSize="xs">
+                                        Failed
+                                      </Badge>
+                                    </Td>
+                                  </Tr>
+                                );
+                              }
+                            )}
+                        </Tbody>
+                      </Table>
+                    );
+                  })()}
                 </Box>
               </Collapse>
             </VStack>
@@ -363,31 +378,28 @@ const SubmissionResults = ({
       {Boolean(metaStatus) && metaStatus === SubmissionStatus.ACCEPTED && (
         <Box bg="whiteAlpha.50" p={4} borderRadius="xl">
           <SimpleGrid columns={2} spacing={4}>
-            <Box>
-              <Text color="whiteAlpha.700" mb={1}>
-                Average Performance
-              </Text>
-              <Heading size="md">
-                {(() => {
-                  const acceptedResponse = getTypedResponse(
+            {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==
+              undefined && (
+              <Box>
+                <Text color="whiteAlpha.700" mb={1}>
+                  Average Performance
+                </Text>
+                <Heading size="md">
+                  {getTypedResponse(
                     SubmissionStatus.ACCEPTED
-                  );
-                  return acceptedResponse?.avg_gflops?.toFixed(2) ?? "N/A";
-                })()}{" "}
-                GFLOPS
-              </Heading>
-            </Box>
+                  )!.avg_gflops!.toFixed(2)}{" "}
+                  GFLOPS
+                </Heading>
+              </Box>
+            )}
             <Box>
               <Text color="whiteAlpha.700" mb={1}>
                 Average Runtime
               </Text>
               <Heading size="md">
-                {(() => {
-                  const acceptedResponse = getTypedResponse(
-                    SubmissionStatus.ACCEPTED
-                  );
-                  return acceptedResponse?.avg_runtime_ms?.toFixed(2) ?? "N/A";
-                })()}{" "}
+                {getTypedResponse(
+                  SubmissionStatus.ACCEPTED
+                )?.avg_runtime_ms?.toFixed(2) ?? "N/A"}{" "}
                 ms
               </Heading>
             </Box>

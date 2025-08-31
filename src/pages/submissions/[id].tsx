@@ -46,7 +46,7 @@ import { type ProgrammingLanguage } from "~/types/misc";
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
-  gflops: number;
+  gflops?: number;
   name: string;
 };
 
@@ -550,82 +550,68 @@ const SubmissionPage: NextPage<{
                 )}
 
               {/* Benchmark Results */}
-              {submission.benchmarkResults && (
+              {Array.isArray(submission.benchmarkResults) && (
                 <Box>
                   <Text color="whiteAlpha.700" fontSize="sm" mb={2}>
                     Benchmark Results
                   </Text>
                   <Box overflowX="auto">
-                    <table
-                      style={{ width: "100%", borderCollapse: "collapse" }}
-                    >
-                      <thead>
-                        <tr>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              padding: "8px",
-                              borderBottom: "1px solid rgba(255,255,255,0.16)",
-                            }}
-                          >
-                            Test Case
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              padding: "8px",
-                              borderBottom: "1px solid rgba(255,255,255,0.16)",
-                            }}
-                          >
-                            Runtime (ms)
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              padding: "8px",
-                              borderBottom: "1px solid rgba(255,255,255,0.16)",
-                            }}
-                          >
-                            GFLOPS
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(
-                          submission.benchmarkResults as BenchmarkTestResult[]
-                        ).map((result, index) => (
-                          <tr key={index}>
-                            <td
-                              style={{
-                                padding: "8px",
-                                borderBottom:
-                                  "1px solid rgba(255,255,255,0.16)",
-                              }}
-                            >
-                              {result.name}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px",
-                                borderBottom:
-                                  "1px solid rgba(255,255,255,0.16)",
-                              }}
-                            >
-                              {result.runtime_ms.toFixed(2)}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px",
-                                borderBottom:
-                                  "1px solid rgba(255,255,255,0.16)",
-                              }}
-                            >
-                              {result.gflops.toFixed(2)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    {(() => {
+                      const results: BenchmarkTestResult[] =
+                        (submission.benchmarkResults as unknown as BenchmarkTestResult[]) ??
+                        [];
+                      const hasGflops = results.some(
+                        (r: BenchmarkTestResult) => r.gflops !== undefined
+                      );
+
+                      const thStyle: React.CSSProperties = {
+                        textAlign: "center",
+                        padding: "8px",
+                        borderBottom: "1px solid rgba(255,255,255,0.16)",
+                      };
+                      const tdStyle: React.CSSProperties = {
+                        padding: "8px",
+                        borderBottom: "1px solid rgba(255,255,255,0.16)",
+                        textAlign: "center",
+                      };
+
+                      return (
+                        <table
+                          style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                            tableLayout: "fixed",
+                          }}
+                        >
+                          <thead>
+                            <tr>
+                              <th style={thStyle}>Test Case</th>
+                              <th style={thStyle}>Runtime (ms)</th>
+                              {hasGflops && <th style={thStyle}>GFLOPS</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {results.map(
+                              (result: BenchmarkTestResult, index: number) => (
+                                <tr key={index}>
+                                  <td style={tdStyle}>{result.name}</td>
+                                  <td style={tdStyle}>
+                                    {result.runtime_ms.toFixed(2)}
+                                  </td>
+                                  {hasGflops && (
+                                    <td style={tdStyle}>
+                                      {result.gflops !== undefined
+                                        ? result.gflops.toFixed(2)
+                                        : ""}
+                                    </td>
+                                  )}
+                                </tr>
+                              )
+                            )}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
                   </Box>
                 </Box>
               )}

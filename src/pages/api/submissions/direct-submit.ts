@@ -489,6 +489,24 @@ export default async function handler(
                   benchmark_results: benchmarkResults,
                   total_tests: benchmarkResults.length,
                 });
+              } else if (!response.avg_gflops && response.avg_runtime_ms) {
+                // For graph problems
+                const averageRuntime = response.avg_runtime_ms;
+
+                await db.submission.update({
+                  where: { id: submission.id },
+                  data: {
+                    status: SubmissionStatus.ACCEPTED,
+                    runtime: averageRuntime,
+                    benchmarkResults,
+                  },
+                });
+
+                sendSSE(SubmissionStatus.ACCEPTED, {
+                  avg_runtime_ms: averageRuntime,
+                  benchmark_results: benchmarkResults,
+                  total_tests: benchmarkResults.length,
+                });
               }
             } else if (isSubmissionError(response_status)) {
               const response = JSON.parse(response_json) as {

@@ -422,15 +422,21 @@ def run_benchmark(
         test_count = len(test_results)
 
         if test_count > 0:
-            # Average mean GFLOPS
-            avg_gflops = statistics.mean([r["gflops"] for r in test_results])
-
             # Average runtime in milliseconds
             avg_runtime_ms = statistics.mean([r["runtime_ms"] for r in test_results])
-        else:
-            avg_gflops = 0
-            avg_runtime_ms = 0
 
+            # Average GFLOPS only if present (compute problems)
+            has_gflops = any(("gflops" in r) and (r["gflops"] is not None) for r in test_results)
+            if has_gflops:
+                avg_gflops = statistics.mean(
+                    [r["gflops"] for r in test_results if ("gflops" in r) and (r["gflops"] is not None)]
+                )
+            else:
+                avg_gflops = None
+        else:
+            avg_runtime_ms = 0
+            avg_gflops = None
+ 
         if language == "python":
             try:
                 temp_dir = os.path.dirname(solution_func.__code__.co_filename)
@@ -439,13 +445,17 @@ def run_benchmark(
                 pass
 
         # Return final summary with additional metrics
-        yield {
+        summary = {
             "status": "BENCHMARKED",
             "test_results": test_results,
-            "avg_gflops": avg_gflops,
             "avg_runtime_ms": avg_runtime_ms,
             "total_tests": test_count,
         }
+        if avg_gflops is not None:
+            summary["avg_gflops"] = avg_gflops
+
+        yield summary
+
 
     except utils.NVCCError as e:
         yield {

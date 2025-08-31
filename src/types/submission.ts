@@ -64,7 +64,7 @@ export type DebugInfo = {
 export type BenchmarkResult = {
   name: string;
   test_id: number;
-  gflops: number;
+  gflops?: number;
   runtime_ms: number;
 };
 
@@ -104,14 +104,14 @@ export interface BenchmarkResultResponse
 
 export interface BenchmarkedResponse extends BaseResponse<"BENCHMARKED"> {
   test_results: BenchmarkResultResponse[];
-  avg_gflops: number;
+  avg_gflops?: number;
   avg_runtime_ms: number;
   total_tests: number;
 }
 
 export interface AcceptedResponse extends BaseResponse<"ACCEPTED"> {
   benchmark_results: BenchmarkResultResponse[];
-  avg_gflops: number;
+  avg_gflops?: number;
   avg_runtime_ms: number;
   total_tests: number;
 }

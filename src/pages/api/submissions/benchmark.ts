@@ -222,6 +222,19 @@ export default async function handler(
                 res.end();
                 return;
               }
+              if (!response.avg_gflops && response.avg_runtime_ms) {
+                // For Graph problems where gflops is not calculated
+                const averageRuntime = response.avg_runtime_ms;
+
+                sendSSE(SubmissionStatus.ACCEPTED, {
+                  avg_runtime_ms: averageRuntime,
+                  benchmark_results: benchmarkResults,
+                  total_tests: benchmarkResults.length,
+                });
+
+                res.end();
+                return;
+              }
             } else if (isSubmissionError(response_status)) {
               const response = JSON.parse(response_json) as {
                 status: SubmissionErrorType;

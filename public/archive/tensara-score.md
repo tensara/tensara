@@ -3,6 +3,8 @@ title: "The Tensara Score"
 date: "2025-03-17"
 ---
 
+## TODO: Add a metric for graph problems that isn't FLOPS
+
 The Tensara scoring system is designed to provide a comprehensive measure of user performance on our platform. Unlike simple metrics that only count submissions or track raw performance, our enhanced scoring system takes into account multiple factors to reward skill, innovation, efficiency, and consistency.
 
 ## Core Components

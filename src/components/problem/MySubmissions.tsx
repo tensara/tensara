@@ -287,6 +287,18 @@ const MySubmissions = ({
                     </Box>
                   </SimpleGrid>
                 )}
+                {submission.gflops == null && submission.runtime !== null && (
+                  <SimpleGrid columns={2} spacing={4} mt={2}>
+                    <Box>
+                      <Text color="whiteAlpha.600" fontSize="sm">
+                        Runtime
+                      </Text>
+                      <Text fontWeight="semibold">
+                        {submission.runtime.toFixed(2)}ms
+                      </Text>
+                    </Box>
+                  </SimpleGrid>
+                )}
               </Box>
             </Link>
           ))
