@@ -6,15 +6,6 @@ from pathlib import Path
 import utils
 import runner
 
-###
-# TODOS for the problem type branch: 
-# - have the type in the Problem class in problem.py
-# - pass the type around in api.py and runner.py
-# - edit problem.ts appropriately
-# - edit the frontend to show a tooltip or something for GFLOPS or remove gflops section entirely
-# - edit the benchmarking blog post and explain why we can't use FLOPS for graph problems
-# - edit README in the problems repo to explain the change
-
 DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
