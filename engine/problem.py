@@ -83,7 +83,7 @@ class Problem(ABC):
             Number of floating point operations
         """
         return None
-    
+
     def supports_flops(self) -> bool:
         return self.get_flops is not Problem.get_flops
 

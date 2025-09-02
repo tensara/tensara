@@ -429,14 +429,18 @@ def run_benchmark(
             has_gflops = any(("gflops" in r) and (r["gflops"] is not None) for r in test_results)
             if has_gflops:
                 avg_gflops = statistics.mean(
-                    [r["gflops"] for r in test_results if ("gflops" in r) and (r["gflops"] is not None)]
+                    [
+                        r["gflops"]
+                        for r in test_results
+                        if ("gflops" in r) and (r["gflops"] is not None)
+                    ]
                 )
             else:
                 avg_gflops = None
         else:
             avg_runtime_ms = 0
             avg_gflops = None
- 
+
         if language == "python":
             try:
                 temp_dir = os.path.dirname(solution_func.__code__.co_filename)
@@ -455,7 +459,6 @@ def run_benchmark(
             summary["avg_gflops"] = avg_gflops
 
         yield summary
-
 
     except utils.NVCCError as e:
         yield {

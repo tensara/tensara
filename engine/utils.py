@@ -381,7 +381,6 @@ def run_dynamic_benchmark(
     if has_flops and flops is not None and initial_runtime > 0:
         gflops_measurements.append((flops / initial_runtime) / 1e9)
 
-
     for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
@@ -420,7 +419,6 @@ def run_dynamic_benchmark(
                 cv = stdev_val / mean_val if mean_val > 0 else float("inf")
                 if cv < target_cv:
                     break
- 
 
     if len(runtimes) > 1:
         mean_runtime = statistics.mean(runtimes)
@@ -445,7 +443,6 @@ def run_dynamic_benchmark(
     if gflops_measurements:  # only if non-empty
         mean_gflops = statistics.mean(gflops_measurements)
         benchmark_result["gflops"] = mean_gflops
-
 
     return benchmark_result
 
