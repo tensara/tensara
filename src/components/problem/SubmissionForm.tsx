@@ -116,17 +116,6 @@ const SubmissionForm = ({
                     fontSize="sm"
                   >
                     {value}
-                    {(key === "H200" || key === "B200") && (
-                      <Badge
-                        ml={2}
-                        colorScheme="cyan"
-                        fontSize="2xs"
-                        variant="subtle"
-                        rounded="sm"
-                      >
-                        NEW
-                      </Badge>
-                    )}
                   </MenuItem>
                 ))}
             </MenuList>
@@ -205,18 +194,20 @@ const SubmissionForm = ({
                   }
                   fontSize="sm"
                 >
-                  Mojo{" "}
-                  <Badge
-                    ml={1}
-                    colorScheme="cyan"
-                    fontSize="2xs"
-                    variant="subtle"
-                    rounded="sm"
-                  >
-                    BETA
-                  </Badge>
+                  Mojo
                 </MenuItem>
               </Tooltip>
+              <MenuItem
+                key="cute"
+                onClick={() => setSelectedLanguage("cute")}
+                bg="brand.secondary"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+                borderRadius="lg"
+                fontSize="sm"
+              >
+                CuTe DSL
+              </MenuItem>
             </MenuList>
           </Menu>
         </Box>

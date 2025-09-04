@@ -28,6 +28,7 @@ def run_checker(
         solution_func: Callable function for the submitted solution
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
+        param_func: None for general submissions, non-None only for baseline submissions
 
     Returns:
         Iterator that yields JSON strings with test results
@@ -165,15 +166,16 @@ def run_checker(
         }
 
 
-@utils.subproc_generator(timeout=60)
-def run_sample_case(problem_name, problem_def, solution_func, dtype, language, param_func=None):
+@utils.subproc_generator(timeout=60)  
+def run_sample_case(problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_func=None):
     """
     Run the sample test case of a problem and return result + output.
     """
     try:
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
-
+        solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
+        
         sample = problem.generate_sample(dtype)
         input_tensors = sample["create_inputs"]()
         expected_output = problem.reference_solution(*input_tensors).cpu()
