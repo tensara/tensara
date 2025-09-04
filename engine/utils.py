@@ -254,6 +254,7 @@ def cast_to_ctype(data, argtypes, language="cuda"):
     else:
         return data
 
+
 def cast_to_cute(data):
     """Cast data to CuTe tensors"""
     from cutlass.cute.runtime import from_dlpack
@@ -360,6 +361,7 @@ def run_dynamic_benchmark(
 
     if language == "cute":
         import cutlass.cute as cute
+
         solution_func = cute.compile(solution_func, *parameters)
 
     # Calculate FLOPS for this test case
@@ -523,7 +525,7 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module.solution
-    
+
     else:
         raise ValueError(f"Unsupported language: {language}")
 
@@ -541,6 +543,7 @@ def make_parameters(language: str, solution_func, input_tensors, actual_output, 
         return input_ptrs + [output_ptr] + extra_params_casted
     elif language == "cute":
         from cutlass.cute.runtime import from_dlpack
+
         input_ptrs = cast_to_cute(input_tensors)
         output_ptr = from_dlpack(actual_output, assumed_align=16)
         extra_params = problem.get_extra_params(test_case)

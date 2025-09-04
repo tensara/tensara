@@ -49,9 +49,7 @@ def build_runtime_image(gpu: str):
             .env({"PATH": "/root/.local/bin:$PATH"})
             .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
             .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
-            .run_commands(
-                "uv pip install --system modular==25.4.0"
-            )
+            .run_commands("uv pip install --system modular==25.4.0")
             .add_local_python_source(*LOCAL_SOURCE)
         )
 
@@ -86,7 +84,9 @@ def binary_runner(
     if type == "sandbox":
         gen = runner.run_sandbox(compiled_lib, solution_code)
     elif type == "sample":
-        gen = runner.run_sample_case(problem_name, problem_def, solution_code, compiled_lib, dtype, language)
+        gen = runner.run_sample_case(
+            problem_name, problem_def, solution_code, compiled_lib, dtype, language
+        )
     else:
         try:
             problem = utils.load_problem_module(problem_name, problem_def)
