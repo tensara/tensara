@@ -11,13 +11,13 @@ RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
 
-PIP_PACKAGES = ["torch", "numpy", "fastapi", "triton", "simplejson"]
+PIP_PACKAGES = ["torch", "numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl"]
 UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
 APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
 
 devel_image = (
-    modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.11")
+    modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.12")
     .apt_install(APT_PACKAGES)
     .env({"CC": "gcc"})
     .env({"PATH": "/root/.local/bin:$PATH"})
@@ -30,7 +30,7 @@ devel_image = (
 def build_runtime_image(gpu: str):
     if gpu == "B200":
         return (
-            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
+            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.12")
             .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
             .env({"CC": "gcc"})
             .env({"PATH": "/root/.local/bin:$PATH"})
@@ -43,15 +43,13 @@ def build_runtime_image(gpu: str):
         )
     else:
         return (
-            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.11")
+            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.12")
             .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
             .env({"CC": "gcc"})
             .env({"PATH": "/root/.local/bin:$PATH"})
             .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
             .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
-            .run_commands(
-                "uv pip install --system modular --extra-index-url https://dl.modular.com/public/nightly/python/simple/ --index-strategy unsafe-best-match"
-            )
+            .run_commands("uv pip install --system modular==25.4.0")
             .add_local_python_source(*LOCAL_SOURCE)
         )
 
@@ -85,6 +83,10 @@ def binary_runner(
 
     if type == "sandbox":
         gen = runner.run_sandbox(compiled_lib, solution_code)
+    elif type == "sample":
+        gen = runner.run_sample_case(
+            problem_name, problem_def, solution_code, compiled_lib, dtype, language
+        )
     else:
         try:
             problem = utils.load_problem_module(problem_name, problem_def)
@@ -98,7 +100,8 @@ def binary_runner(
             return
 
         if type == "sample":
-            gen = runner.run_sample_case(problem_name, problem_def, solution_func, dtype, language)
+            # this should not be reached
+            raise ValueError("This code path should not be reached")
         elif type == "checker":
             gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
         elif type == "benchmark":

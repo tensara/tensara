@@ -46,3 +46,16 @@ export const MOJO_MISC_TYPES: Record<string, string> = {
   int: "Int32",
   size_t: "Int32",
 } as const;
+
+export const CUTE_TYPES: Record<DataType, string> = {
+  float32: "cute.Float32",
+  float16: "cute.Float16",
+  int32: "cute.Int32",
+  int16: "cute.Int16",
+} as const;
+
+export const CUTE_MISC_TYPES: Record<string, string> = {
+  float: "cute.Float32",
+  int: "cute.Int32",
+  size_t: "cute.Int32",
+} as const;

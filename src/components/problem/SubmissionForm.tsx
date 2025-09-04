@@ -109,24 +109,10 @@ const SubmissionForm = ({
                     _hover={{ bg: "gray.700" }}
                     color="white"
                     borderRadius="lg"
-                    isDisabled={
-                      (key === "T4" || key === "B200") &&
-                      selectedLanguage === "mojo"
-                    }
+                    isDisabled={key === "B200" && selectedLanguage === "mojo"}
                     fontSize="sm"
                   >
                     {value}
-                    {(key === "H200" || key === "B200") && (
-                      <Badge
-                        ml={2}
-                        colorScheme="cyan"
-                        fontSize="2xs"
-                        variant="subtle"
-                        rounded="sm"
-                      >
-                        NEW
-                      </Badge>
-                    )}
                   </MenuItem>
                 ))}
             </MenuList>
@@ -185,10 +171,8 @@ const SubmissionForm = ({
                 Triton
               </MenuItem>
               <Tooltip
-                label="Mojo does not support NVIDIA T4 or B200 GPUs"
-                isDisabled={
-                  selectedGpuType !== "T4" && selectedGpuType !== "B200"
-                }
+                label="Mojo does not support NVIDIA B200 GPUs yet"
+                isDisabled={selectedGpuType !== "B200"}
                 placement="right"
                 hasArrow
                 bg="gray.700"
@@ -200,23 +184,32 @@ const SubmissionForm = ({
                   _hover={{ bg: "gray.700" }}
                   color="white"
                   borderRadius="lg"
-                  isDisabled={
-                    selectedGpuType === "T4" || selectedGpuType === "B200"
-                  }
+                  isDisabled={selectedGpuType === "B200"}
                   fontSize="sm"
                 >
-                  Mojo{" "}
-                  <Badge
-                    ml={1}
-                    colorScheme="cyan"
-                    fontSize="2xs"
-                    variant="subtle"
-                    rounded="sm"
-                  >
-                    BETA
-                  </Badge>
+                  Mojo
                 </MenuItem>
               </Tooltip>
+              <MenuItem
+                key="cute"
+                onClick={() => setSelectedLanguage("cute")}
+                bg="brand.secondary"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+                borderRadius="lg"
+                fontSize="sm"
+              >
+                CuTe DSL
+                <Badge
+                  ml={2}
+                  colorScheme="cyan"
+                  fontSize="2xs"
+                  variant="subtle"
+                  rounded="sm"
+                >
+                  NEW
+                </Badge>
+              </MenuItem>
             </MenuList>
           </Menu>
         </Box>

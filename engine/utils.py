@@ -255,6 +255,19 @@ def cast_to_ctype(data, argtypes, language="cuda"):
         return data
 
 
+def cast_to_cute(data):
+    """Cast data to CuTe tensors"""
+    from cutlass.cute.runtime import from_dlpack
+
+    data_casted = []
+    for tensor in data:
+        if isinstance(tensor, torch.Tensor):
+            data_casted.append(from_dlpack(tensor, assumed_align=16))
+        else:
+            data_casted.append(tensor)
+    return data_casted
+
+
 def load_problem_module(problem_type: str, problem_def: str = None) -> Problem:
     """
     Load a Problem module either from a string definition or from pre-imported problems.
@@ -345,6 +358,11 @@ def run_dynamic_benchmark(
         parameters = param_func(
             language, solution_func, input_tensors, actual_output, problem, test_case
         )
+
+    if language == "cute":
+        import cutlass.cute as cute
+
+        solution_func = cute.compile(solution_func, *parameters)
 
     # Calculate FLOPS for this test case
     flops = problem.get_flops(test_case)
@@ -491,21 +509,23 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         mojo_lib.solution.restype = func_sig["restype"]
         return mojo_lib.solution
 
-    elif language == "python":
+    elif language == "python" or language == "cute":
+        filename = "triton_solution.py" if language == "python" else "cute_solution.py"
         if not solution_code:
             raise ValueError("Source code required for Triton submissions")
 
         temp_dir = tempfile.mkdtemp()
-        temp_path = os.path.join(temp_dir, "triton_solution.py")
+        temp_path = os.path.join(temp_dir, filename)
 
         # This is needed because @jit has to read the source code
         with open(temp_path, "w") as f:
             f.write(solution_code)
 
-        spec = importlib.util.spec_from_file_location("triton_solution", temp_path)
+        spec = importlib.util.spec_from_file_location(filename, temp_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module.solution
+
     else:
         raise ValueError(f"Unsupported language: {language}")
 
@@ -520,6 +540,14 @@ def make_parameters(language: str, solution_func, input_tensors, actual_output, 
         extra_params_casted = cast_to_ctype(
             extra_params, solution_func.argtypes[-len(extra_params) :], language
         )
+        return input_ptrs + [output_ptr] + extra_params_casted
+    elif language == "cute":
+        from cutlass.cute.runtime import from_dlpack
+
+        input_ptrs = cast_to_cute(input_tensors)
+        output_ptr = from_dlpack(actual_output, assumed_align=16)
+        extra_params = problem.get_extra_params(test_case)
+        extra_params_casted = cast_to_cute(extra_params)
         return input_ptrs + [output_ptr] + extra_params_casted
     else:
         extra_params = problem.get_extra_params(test_case)

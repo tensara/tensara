@@ -6,6 +6,8 @@ import {
   MOJO_TYPES,
   PYTHON_MISC_TYPES,
   MOJO_MISC_TYPES,
+  CUTE_TYPES,
+  CUTE_MISC_TYPES,
 } from "~/constants/datatypes";
 
 export const generateStarterCode = (
@@ -69,6 +71,27 @@ from memory import UnsafePointer
 # Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
 @export
 fn solution(${paramStr}) raises:
+  `;
+  }
+  if (language == "cute") {
+    const names = parameters
+      .map((parameter: Parameter) =>
+        parameter.pointer === "true" ? parameter.name : null
+      )
+      .filter(Boolean);
+    const paramStr = parameters
+      .map(
+        (parameter: Parameter) =>
+          `${parameter.name}${parameter.pointer === "true" ? `: cute.Tensor` : parameter.type === "[VAR]" ? `: ${CUTE_TYPES[dataType]}` : `: ${CUTE_MISC_TYPES[parameter.type]}`}`
+      )
+      .filter(Boolean)
+      .join(", ");
+    return `import cutlass
+import cutlass.cute as cute
+
+# Note: ${names.join(", ")} are all device tensors
+@cute.jit
+def solution(${paramStr}):
   `;
   }
   return "";
