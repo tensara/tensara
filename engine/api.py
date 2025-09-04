@@ -50,7 +50,7 @@ def build_runtime_image(gpu: str):
             .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
             .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
             .run_commands(
-                "uv pip install --system modular --extra-index-url https://dl.modular.com/public/nightly/python/simple/ --index-strategy unsafe-best-match"
+                "uv pip install --system modular==25.4.0"
             )
             .add_local_python_source(*LOCAL_SOURCE)
         )

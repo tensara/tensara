@@ -110,7 +110,7 @@ const SubmissionForm = ({
                     color="white"
                     borderRadius="lg"
                     isDisabled={
-                      (key === "T4" || key === "B200") &&
+                      (key === "B200") &&
                       selectedLanguage === "mojo"
                     }
                     fontSize="sm"
@@ -174,9 +174,9 @@ const SubmissionForm = ({
                 Triton
               </MenuItem>
               <Tooltip
-                label="Mojo does not support NVIDIA T4 or B200 GPUs"
+                label="Mojo does not support NVIDIA B200 GPUs yet"
                 isDisabled={
-                  selectedGpuType !== "T4" && selectedGpuType !== "B200"
+                  selectedGpuType !== "B200"
                 }
                 placement="right"
                 hasArrow
@@ -190,7 +190,7 @@ const SubmissionForm = ({
                   color="white"
                   borderRadius="lg"
                   isDisabled={
-                    selectedGpuType === "T4" || selectedGpuType === "B200"
+                    selectedGpuType === "B200"
                   }
                   fontSize="sm"
                 >
@@ -207,6 +207,15 @@ const SubmissionForm = ({
                 fontSize="sm"
               >
                 CuTe DSL
+                <Badge
+                  ml={2}
+                  colorScheme="cyan"
+                  fontSize="2xs"
+                  variant="subtle"
+                  rounded="sm"
+                >
+                  NEW
+                </Badge>
               </MenuItem>
             </MenuList>
           </Menu>
