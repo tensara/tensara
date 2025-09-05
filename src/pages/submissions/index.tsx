@@ -180,9 +180,14 @@ const SubmissionsPage: NextPage = () => {
         case "problem":
           return a.problem.title.localeCompare(b.problem.title) * order;
         case "performance":
-          const aPerf = a.gflops ?? 0;
-          const bPerf = b.gflops ?? 0;
-          return (aPerf - bPerf) * order;
+          if (a.gflops && !b.gflops) return -1 * order;
+          if (!a.gflops && b.gflops) return 1 * order;
+
+          if (a.gflops && b.gflops) {
+            return (b.gflops - a.gflops) * order;
+          }
+
+          return (a.runtime! - b.runtime!) * order;
         case "gpuType":
           return (a.gpuType ?? "").localeCompare(b.gpuType ?? "") * order;
         case "language":
@@ -524,13 +529,19 @@ const SubmissionsPage: NextPage = () => {
                       }}
                     >
                       {submission.status === "ACCEPTED" ? (
-                        <Tooltip
-                          label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}
-                        >
+                        submission.gflops ? (
+                          <Tooltip
+                            label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}
+                          >
+                            <Text fontWeight="medium">
+                              {submission.gflops?.toFixed(2)} GFLOPS
+                            </Text>
+                          </Tooltip>
+                        ) : (
                           <Text fontWeight="medium">
-                            {submission.gflops?.toFixed(2)} GFLOPS
+                            {submission.runtime?.toFixed(2)} ms
                           </Text>
-                        </Tooltip>
+                        )
                       ) : (
                         <Text color="whiteAlpha.700">-</Text>
                       )}

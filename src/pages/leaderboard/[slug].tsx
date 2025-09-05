@@ -61,7 +61,7 @@ const BASELINE_USERNAMES: Record<string, string> = {
 type ProblemLeaderboardEntry = {
   id: string;
   username: string | null;
-  gflops: number;
+  gflops: number | null;
   runtime: number | null;
   createdAt: Date;
   gpuType: string | null;
@@ -235,8 +235,23 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
     const entries = showBaselines
       ? [...leaderboardEntries, ...baselineEntries]
       : leaderboardEntries;
-    return entries.sort((a, b) => b.gflops - a.gflops);
+    return entries.sort((a, b) => {
+      if (a.gflops && !b.gflops) return -1;
+      if (!a.gflops && b.gflops) return 1;
+
+      if (a.gflops && b.gflops) {
+        return b.gflops - a.gflops;
+      }
+      return a.runtime! - b.runtime!;
+    });
   }, [baselineBenchmarks, leaderboardEntries, selectedGpu, showBaselines]);
+
+  const hasAnyGflops = useMemo(() => {
+    return (
+      combinedEntries?.some((entry) => entry.gflops && entry.gflops > 0) ??
+      false
+    );
+  }, [combinedEntries]);
 
   if (isProblemLoading || isLeaderboardLoading) {
     return (
@@ -361,9 +376,11 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                   <Tr>
                     <Th borderBottom="none">Rank</Th>
                     <Th borderBottom="none">User</Th>
-                    <Th borderBottom="none" isNumeric>
-                      GFLOPS
-                    </Th>
+                    {hasAnyGflops && (
+                      <Th borderBottom="none" isNumeric>
+                        GFLOPS
+                      </Th>
+                    )}
                     <Th borderBottom="none" isNumeric>
                       Runtime (ms)
                     </Th>
@@ -442,16 +459,18 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             )}
                           </Text>
                         </Td>
-                        <Td isNumeric borderBottom="none">
-                          <Text
-                            color={medalColor}
-                            fontWeight="bold"
-                            fontFamily="mono"
-                            fontSize="sm"
-                          >
-                            {formatPerformance(entry.gflops)}
-                          </Text>
-                        </Td>
+                        {hasAnyGflops && (
+                          <Td isNumeric borderBottom="none">
+                            <Text
+                              color={medalColor}
+                              fontWeight="bold"
+                              fontFamily="mono"
+                              fontSize="sm"
+                            >
+                              {formatPerformance(entry.gflops)}
+                            </Text>
+                          </Td>
+                        )}
                         <Td isNumeric borderBottom="none">
                           {entry.runtime?.toFixed(2) ?? "N/A"}
                         </Td>

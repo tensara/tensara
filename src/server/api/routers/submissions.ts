@@ -24,7 +24,7 @@ type ProblemLeaderboard = {
   id: string;
   topSubmissions: Array<{
     id: string;
-    gflops: number;
+    gflops: number | null;
     gpuType: string | null;
     language: string | null;
     username: string | null;
@@ -36,7 +36,7 @@ type ProblemLeaderboard = {
 type ProblemLeaderboardEntry = {
   id: string;
   username: string | null;
-  gflops: number;
+  gflops: number | null;
   runtime: number | null;
   createdAt: Date;
   gpuType: string | null;
@@ -271,7 +271,7 @@ async function computeLeaderboardData(
       submissions: {
         where: {
           status: "ACCEPTED",
-          gflops: { not: null },
+          OR: [{ gflops: { not: null } }, { runtime: { not: null } }],
           ...(gpuType !== "all" ? { gpuType } : {}),
         },
         select: {
@@ -287,9 +287,7 @@ async function computeLeaderboardData(
             },
           },
         },
-        orderBy: {
-          gflops: "desc",
-        },
+        orderBy: [{ gflops: "desc" }, { runtime: "asc" }],
         distinct: ["userId"],
         take: 5, // Get enough submissions to process top performers
       },
@@ -318,23 +316,37 @@ async function computeLeaderboardData(
 
       // Get best submission per user-GPU combination
       for (const submission of problem.submissions) {
-        if (!submission.gflops) continue;
+        if (!submission.gflops && !submission.runtime) continue;
         const key = `${submission.user.username ?? "Anonymous"}-${
           submission.gpuType
         }`;
         const current = userBestMap.get(key);
-        if (!current || submission.gflops > current.gflops!) {
+        if (
+          !current ||
+          (submission.gflops
+            ? submission.gflops > current.gflops!
+            : submission.runtime! < current.runtime!)
+        ) {
           userBestMap.set(key, submission);
         }
       }
 
       // Get top 3 overall
       const topSubmissions = Array.from(userBestMap.values())
-        .sort((a, b) => b.gflops! - a.gflops!)
+        .sort((a, b) => {
+          if (a.gflops && !b.gflops) return -1;
+          if (!a.gflops && b.gflops) return 1;
+
+          if (a.gflops && b.gflops) {
+            return b.gflops - a.gflops;
+          }
+
+          return a.runtime! - b.runtime!;
+        })
         .slice(0, 3)
         .map((sub) => ({
           id: sub.id,
-          gflops: sub.gflops!,
+          gflops: sub.gflops,
           gpuType: sub.gpuType,
           language: sub.language,
           username: sub.user.username,
@@ -395,7 +407,7 @@ async function computeProblemLeaderboardData(
     where: {
       problem: { slug },
       status: "ACCEPTED",
-      gflops: { not: null },
+      OR: [{ gflops: { not: null } }, { runtime: { not: null } }],
       ...(gpuType !== "all" ? { gpuType } : {}),
     },
     select: {
@@ -418,25 +430,37 @@ async function computeProblemLeaderboardData(
   const userGpuBestMap = new Map<string, (typeof submissions)[0]>();
 
   for (const submission of submissions) {
-    if (!submission.gflops) continue;
+    if (!submission.gflops && !submission.runtime) continue;
 
     const userGpuKey = `${submission.user.username ?? "Anonymous"}-${
       submission.gpuType
     }`;
     const currentBest = userGpuBestMap.get(userGpuKey);
 
-    if (!currentBest || submission.gflops > currentBest.gflops!) {
+    if (
+      !currentBest ||
+      (submission.gflops
+        ? submission.gflops > currentBest.gflops!
+        : submission.runtime! < currentBest.runtime!)
+    ) {
       userGpuBestMap.set(userGpuKey, submission);
     }
   }
 
-  // Return all best submissions sorted by GFLOPS
   return Array.from(userGpuBestMap.values())
-    .sort((a, b) => b.gflops! - a.gflops!)
+    .sort((a, b) => {
+      if (a.gflops && !b.gflops) return -1;
+      if (!a.gflops && b.gflops) return 1;
+
+      if (a.gflops && b.gflops) {
+        return b.gflops - a.gflops;
+      }
+      return a.runtime! - b.runtime!;
+    })
     .map((sub) => ({
       id: sub.id,
       username: sub.user.username,
-      gflops: sub.gflops!,
+      gflops: sub.gflops,
       runtime: sub.runtime,
       createdAt: sub.createdAt,
       gpuType: sub.gpuType,
