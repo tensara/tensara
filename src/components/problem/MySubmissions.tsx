@@ -57,9 +57,9 @@ const MySubmissions = ({
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
       } else {
-        const aGflops = a.gflops ?? -1;
-        const bGflops = b.gflops ?? -1;
-        return bGflops - aGflops;
+        const aPerf = a.gflops ?? -1 * (a.runtime ?? 0);
+        const bPerf = b.gflops ?? -1 * (b.runtime ?? 0);
+        return bPerf - aPerf;
       }
     });
   }, [submissions, statusFilter, sortBy]);
@@ -267,24 +267,29 @@ const MySubmissions = ({
                     })}
                   </Text>
                 </HStack>
-                {submission.gflops !== null && submission.runtime !== null && (
+                {(submission.gflops !== null ||
+                  submission.runtime !== null) && (
                   <SimpleGrid columns={2} spacing={4} mt={2}>
-                    <Box>
-                      <Text color="whiteAlpha.600" fontSize="sm">
-                        Performance
-                      </Text>
-                      <Text fontWeight="semibold">
-                        {submission.gflops.toFixed(2)} GFLOPS
-                      </Text>
-                    </Box>
-                    <Box>
-                      <Text color="whiteAlpha.600" fontSize="sm">
-                        Runtime
-                      </Text>
-                      <Text fontWeight="semibold">
-                        {submission.runtime.toFixed(2)}ms
-                      </Text>
-                    </Box>
+                    {submission.gflops !== null && (
+                      <Box>
+                        <Text color="whiteAlpha.600" fontSize="sm">
+                          Performance
+                        </Text>
+                        <Text fontWeight="semibold">
+                          {submission.gflops.toFixed(2)} GFLOPS
+                        </Text>
+                      </Box>
+                    )}
+                    {submission.runtime !== null && (
+                      <Box>
+                        <Text color="whiteAlpha.600" fontSize="sm">
+                          Runtime
+                        </Text>
+                        <Text fontWeight="semibold">
+                          {submission.runtime.toFixed(2)}ms
+                        </Text>
+                      </Box>
+                    )}
                   </SimpleGrid>
                 )}
               </Box>

@@ -11,7 +11,7 @@ import { env } from "~/env";
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
-  gflops: number;
+  gflops?: number;
 };
 
 const SubmissionStatus = {

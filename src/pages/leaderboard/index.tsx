@@ -757,7 +757,11 @@ const LeaderboardPage: NextPage = () => {
                                     </Th>
                                     <Th color="whiteAlpha.600">User</Th>
                                     <Th isNumeric color="whiteAlpha.600">
-                                      FLOPS
+                                      {topSubmissions.some(
+                                        (sub) => sub.gflops && sub.gflops > 0
+                                      )
+                                        ? "FLOPS"
+                                        : "Time"}
                                     </Th>
                                   </Tr>
                                 </Thead>
@@ -815,23 +819,37 @@ const LeaderboardPage: NextPage = () => {
                                         </Tooltip>
                                       </Td>
                                       <Td isNumeric borderRightRadius="lg">
-                                        <Tooltip
-                                          label={`Runtime: ${submission.runtime?.toFixed(
-                                            2
-                                          )} ms`}
-                                          hasArrow
-                                        >
-                                          <Text
-                                            color={getMedalColor(index)}
-                                            fontWeight="bold"
-                                            fontFamily="mono"
-                                            fontSize="sm"
+                                        {submission.gflops !== null && (
+                                          <Tooltip
+                                            label={`Runtime: ${submission.runtime?.toFixed(
+                                              2
+                                            )} ms`}
+                                            hasArrow
                                           >
-                                            {formatPerformance(
-                                              submission.gflops
-                                            )}
-                                          </Text>
-                                        </Tooltip>
+                                            <Text
+                                              color={getMedalColor(index)}
+                                              fontWeight="bold"
+                                              fontFamily="mono"
+                                              fontSize="sm"
+                                            >
+                                              {formatPerformance(
+                                                submission.gflops
+                                              )}
+                                            </Text>
+                                          </Tooltip>
+                                        )}
+                                        {submission.gflops === null &&
+                                          submission.runtime !== null && (
+                                            <Text
+                                              color={getMedalColor(index)}
+                                              fontWeight="bold"
+                                              fontFamily="mono"
+                                              fontSize="sm"
+                                            >
+                                              {submission.runtime?.toFixed(2)}{" "}
+                                              ms
+                                            </Text>
+                                          )}
                                       </Td>
                                     </Tr>
                                   ))}

@@ -365,7 +365,8 @@ def run_dynamic_benchmark(
         solution_func = cute.compile(solution_func, *parameters)
 
     # Calculate FLOPS for this test case
-    flops = problem.get_flops(test_case)
+    has_flops = problem.supports_flops()
+    flops = problem.get_flops(test_case) if has_flops else None
 
     # Warm up run
     prepare_gpu()
@@ -393,7 +394,10 @@ def run_dynamic_benchmark(
 
     # Collect runtime measurements
     runtimes = [initial_runtime]  # Include the initial runtime
-    gflops_measurements = [(flops / initial_runtime) / 1e9]  # Convert to GFLOPS
+
+    gflops_measurements = []
+    if has_flops and flops is not None and initial_runtime > 0:
+        gflops_measurements.append((flops / initial_runtime) / 1e9)
 
     for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
         start_event = torch.cuda.Event(enable_timing=True)
@@ -413,19 +417,24 @@ def run_dynamic_benchmark(
         runtimes.append(elapsed_time)
 
         # Calculate GFLOPS
-        gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
-        gflops_measurements.append(gflops)
+        if has_flops and flops is not None and elapsed_time > 0:
+            gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
+            gflops_measurements.append(gflops)
 
         # Check if we've done enough iterations and the variance is low enough
         # Only do this check for short kernels
         if not is_long_kernel and iteration + 1 >= min_iterations:
-            mean_gflops = statistics.mean(gflops_measurements)
-
-            # Can only calculate stdev with more than 1 sample
-            if len(gflops_measurements) > 1:
-                stdev_gflops = statistics.stdev(gflops_measurements)
-                cv = stdev_gflops / mean_gflops if mean_gflops > 0 else float("inf")
-
+            if has_flops and gflops_measurements:
+                mean_val = statistics.mean(gflops_measurements)
+                if len(gflops_measurements) > 1:
+                    stdev_val = statistics.stdev(gflops_measurements)
+                    cv = stdev_val / mean_val if mean_val > 0 else float("inf")
+                    if cv < target_cv:
+                        break
+            elif not has_flops and len(runtimes) > 1:
+                mean_val = statistics.mean(runtimes)
+                stdev_val = statistics.stdev(runtimes)
+                cv = stdev_val / mean_val if mean_val > 0 else float("inf")
                 if cv < target_cv:
                     break
 
@@ -434,14 +443,24 @@ def run_dynamic_benchmark(
     else:
         mean_runtime = runtimes[0]
 
-    mean_gflops = statistics.mean(gflops_measurements)
+    # mean_gflops = statistics.mean(gflops_measurements)
 
+    # benchmark_result = {
+    #     "name": test_case["name"],
+    #     "test_id": test_id,
+    #     "runtime_ms": mean_runtime * 1000,
+    # }
+    # if has_flops and gflops_measurements:
+    #     benchmark_result["gflops"] = statistics.mean(gflops_measurements)
     benchmark_result = {
         "name": test_case["name"],
         "test_id": test_id,
-        "gflops": mean_gflops,
         "runtime_ms": mean_runtime * 1000,
     }
+
+    if gflops_measurements:  # only if non-empty
+        mean_gflops = statistics.mean(gflops_measurements)
+        benchmark_result["gflops"] = mean_gflops
 
     return benchmark_result
 

@@ -34,6 +34,19 @@ class Problem(ABC):
         pass
 
     @abstractmethod
+    def generate_sample(self, dtype: torch.dtype = torch.float32) -> List[Dict[str, Any]]:
+        """
+        Generate a sample test case for this problem.
+
+        Args:
+            dtype: Data type for the tensors
+
+        Returns:
+            List of test case dictionaries
+        """
+        pass
+
+    @abstractmethod
     def verify_result(
         self, expected_output: torch.Tensor, actual_output: torch.Tensor, dtype: torch.dtype
     ) -> Tuple[bool, Dict[str, Any]]:
@@ -59,7 +72,6 @@ class Problem(ABC):
         """
         pass
 
-    @abstractmethod
     def get_flops(self, test_case: Dict[str, Any]) -> int:
         """
         Get the number of floating point operations for the problem.
@@ -70,7 +82,10 @@ class Problem(ABC):
         Returns:
             Number of floating point operations
         """
-        pass
+        return None
+
+    def supports_flops(self) -> bool:
+        return self.get_flops is not Problem.get_flops
 
     def get_extra_params(self, test_case: Dict[str, Any]) -> List[Any]:
         """
