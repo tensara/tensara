@@ -30,7 +30,7 @@ export const generateStarterCode = (
     return `#include <cuda_runtime.h>
 
 // Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
-extern "C" void solution(${paramStr}) {    
+extern "C" void solution(${paramStr}) {
 }`;
   }
   if (language === "python") {
