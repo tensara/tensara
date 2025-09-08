@@ -210,16 +210,16 @@ def run_sample_case(
         is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
         yield {
             "status": "PASSED" if is_correct else "FAILED",
-            "input": [
-                t.cpu().numpy().tolist() if isinstance(t, torch.Tensor) else t
+            "input": utils.to_lossless_jsonable([
+                t if not isinstance(t, torch.Tensor) else t 
                 for t in input_tensors
-            ],
-            "output": actual_output.cpu().numpy().tolist(),
-            "expected_output": expected_output.cpu().numpy().tolist(),
-            "debug_info": debug_info,
+            ]),
+            "output": utils.to_lossless_jsonable(actual_output),  
+            "expected_output": utils.to_lossless_jsonable(expected_output),
+            "debug_info": utils.to_lossless_jsonable(debug_info),
             "stdout": captured_stdout,
             "stderr": captured_stderr,
-        }
+        } 
 
     except Exception as e:
         yield {"status": "ERROR", "message": str(e), "details": traceback.format_exc()}

@@ -72,6 +72,7 @@ export const getStatusIcon = (status: string | null) => {
 
 export const tags = [
   "convolution",
+  "crypto",
   "pooling",
   "normalization",
   "activation-function",
@@ -95,6 +96,7 @@ export const tagNames = {
   graphics: "Graphics",
   graphs: "Graphs",
   fused: "Fused",
+  crypto: "Cryptography",
   "loss-function": "Loss",
   scalar: "Scalar",
   vector: "Vector",
@@ -106,6 +108,7 @@ export const tagNames = {
 
 export const tagAltNames = {
   convolution: "Convolution",
+  crypto: "Cryptography",
   pooling: "Pooling",
   normalization: "Normalization",
   "activation-function": "Activation Functions",
