@@ -699,7 +699,7 @@ def to_lossless_jsonable(x):
     # Floats - round to 6 decimal places
     if isinstance(x, float):
         return round(x, 6)
-    
+
     # Bools/None/str are fine as-is
     if isinstance(x, (bool, type(None), str)):
         return x
