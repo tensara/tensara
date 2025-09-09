@@ -71,6 +71,7 @@ export const getStatusIcon = (status: string | null) => {
 };
 
 export const tags = [
+  "attention",
   "convolution",
   "crypto",
   "pooling",
@@ -89,6 +90,7 @@ export const tags = [
 ] as const;
 
 export const tagNames = {
+  attention: "Attention",
   convolution: "Convolution",
   pooling: "Pooling",
   normalization: "Normalization",
@@ -107,6 +109,7 @@ export const tagNames = {
 } as const;
 
 export const tagAltNames = {
+  attention: "Attention",
   convolution: "Convolution",
   crypto: "Cryptography",
   pooling: "Pooling",
