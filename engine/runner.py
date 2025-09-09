@@ -74,7 +74,7 @@ def run_checker(
                 torch.backends.cudnn.allow_tf32 = old_cudnn_tf32_setting
 
             # Create actual_output with the same shape as expected_output
-            actual_output = torch.zeros_like(expected_output, device="cuda")  # Ensure it's on GPU
+            actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
             if param_func is None:
                 parameters = utils.make_parameters(
@@ -181,7 +181,7 @@ def run_sample_case(
         sample = problem.generate_sample(dtype)
         input_tensors = sample["create_inputs"]()
         expected_output = problem.reference_solution(*input_tensors).cpu()
-        actual_output = torch.zeros_like(expected_output, device="cuda")
+        actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
         if param_func is None:
             parameters = utils.make_parameters(
                 language, solution_func, input_tensors, actual_output, problem, sample
@@ -268,7 +268,7 @@ def run_sanity_check(
                 torch.backends.cudnn.allow_tf32 = old_cudnn_tf32_setting
 
             # Create actual_output with the same shape as expected_output
-            actual_output = torch.zeros_like(expected_output, device="cuda")  # Ensure it's on GPU
+            actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
             if param_func is None:
                 parameters = utils.make_parameters(
@@ -384,7 +384,7 @@ def run_benchmark(
                 # Create inputs and reference output
                 input_tensors = test_case["create_inputs"]()
                 expected_output = problem.reference_solution(*input_tensors).cpu()
-                actual_output = torch.zeros_like(expected_output, device="cuda")
+                actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
                 benchmark_result = utils.run_dynamic_benchmark(
                     solution_func,
