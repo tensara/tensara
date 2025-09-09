@@ -15,7 +15,10 @@ from types import ModuleType
 import multiprocessing as mp
 import queue
 import math
+from numbers import Integral
+import numpy as np
 
+JS_MAX_SAFE = 2**53 - 1
 
 DTYPE_MAP = {
     "float32": torch.float32,
@@ -668,3 +671,46 @@ def run_nvcc_and_return_executable(gpu: str, solution_code: str) -> bytes:
     bytes_of_file = out_path.read_bytes()
     out_path.unlink()
     return bytes_of_file
+
+
+def to_lossless_jsonable(x):
+    """
+    Recursively convert structures so that integers outside JS safe range
+    are emitted as strings. Safe ints/floats/bools remain as-is.
+    Tensors/ndarrays are converted to Python lists first.
+    """
+    # PyTorch tensors
+    if isinstance(x, torch.Tensor):
+        return to_lossless_jsonable(x.detach().cpu().tolist())
+
+    # NumPy arrays
+    if isinstance(x, np.ndarray):
+        return to_lossless_jsonable(x.tolist())
+
+    # NumPy integer scalars
+    if isinstance(x, (np.integer,)):
+        v = int(x)
+        return str(v) if abs(v) > JS_MAX_SAFE else v
+
+    # Plain Python integers
+    if isinstance(x, Integral) and not isinstance(x, bool):
+        return str(x) if abs(x) > JS_MAX_SAFE else int(x)
+
+    # Floats - round to 6 decimal places
+    if isinstance(x, float):
+        return round(x, 6)
+
+    # Bools/None/str are fine as-is
+    if isinstance(x, (bool, type(None), str)):
+        return x
+
+    # Lists/tuples
+    if isinstance(x, (list, tuple)):
+        return [to_lossless_jsonable(v) for v in x]
+
+    # Dicts
+    if isinstance(x, dict):
+        return {k: to_lossless_jsonable(v) for (k, v) in x.items()}
+
+    # Fallback (e.g., custom objects) — let json handle or str()
+    return x

@@ -71,7 +71,9 @@ export const getStatusIcon = (status: string | null) => {
 };
 
 export const tags = [
+  "attention",
   "convolution",
+  "crypto",
   "pooling",
   "normalization",
   "activation-function",
@@ -88,6 +90,7 @@ export const tags = [
 ] as const;
 
 export const tagNames = {
+  attention: "Attention",
   convolution: "Convolution",
   pooling: "Pooling",
   normalization: "Normalization",
@@ -95,6 +98,7 @@ export const tagNames = {
   graphics: "Graphics",
   graphs: "Graphs",
   fused: "Fused",
+  crypto: "Cryptography",
   "loss-function": "Loss",
   scalar: "Scalar",
   vector: "Vector",
@@ -105,7 +109,9 @@ export const tagNames = {
 } as const;
 
 export const tagAltNames = {
+  attention: "Attention",
   convolution: "Convolution",
+  crypto: "Cryptography",
   pooling: "Pooling",
   normalization: "Normalization",
   "activation-function": "Activation Functions",
