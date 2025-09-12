@@ -201,6 +201,9 @@ export default async function handler(
                   sampleSubmissionCount: {
                     decrement: 1,
                   },
+                  totalSampleSubmissions: {
+                    increment: 1,
+                  },
                 },
               });
               const result = {
