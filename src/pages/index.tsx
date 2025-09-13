@@ -421,7 +421,7 @@ export default function HomePage() {
                   <Text color="whiteAlpha.600">
                     Want to submit from your IDE? Check out our{" "}
                     <Link
-                      href="https://github.com/tensara/tensara-cli"
+                      href="https://tensara.org/cli"
                       isExternal
                       color="#2ecc71"
                       textDecoration="underline"
