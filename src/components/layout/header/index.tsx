@@ -184,7 +184,7 @@ export function Header() {
             >
               <MenuItem
                 as={Link}
-                href={`/${session.user?.username}`}
+                href={`/user/${session.user?.username}`}
                 bg="transparent"
                 _hover={{
                   bg: "rgba(75, 85, 99, 0.5)",

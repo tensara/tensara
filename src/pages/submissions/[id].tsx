@@ -281,7 +281,7 @@ const SubmissionPage: NextPage<{
                     <Text color="whiteAlpha.700">Submitted by</Text>
                     <ChakraLink
                       as={Link}
-                      href={`/${submission.user.username}`}
+                      href={`/user/${submission.user.username}`}
                       _hover={{ textDecoration: "none" }}
                     >
                       <Text
