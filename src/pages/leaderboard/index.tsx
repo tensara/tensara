@@ -396,7 +396,9 @@ const LeaderboardPage: NextPage = () => {
                             <Flex
                               key={user.id}
                               onClick={() =>
-                                router.push(`/${user.username ?? "anonymous"}`)
+                                router.push(
+                                  `/user/${user.username ?? "anonymous"}`
+                                )
                               }
                               cursor="pointer"
                               direction="row"
@@ -515,7 +517,7 @@ const LeaderboardPage: NextPage = () => {
                                 key={user.id}
                                 onClick={() =>
                                   router.push(
-                                    `/${user.username ?? "anonymous"}`
+                                    `/user/${user.username ?? "anonymous"}`
                                   )
                                 }
                                 cursor="pointer"
@@ -802,14 +804,14 @@ const LeaderboardPage: NextPage = () => {
                                         >
                                           <ChakraLink
                                             as={Link}
-                                            href={`/${
+                                            href={`/user/${
                                               submission.username ?? "anonymous"
                                             }`}
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               e.preventDefault();
                                               void router.push(
-                                                `/${submission.username ?? "anonymous"}`
+                                                `/user/${submission.username ?? "anonymous"}`
                                               );
                                             }}
                                             _hover={{ color: "blue.400" }}
