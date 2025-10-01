@@ -67,6 +67,7 @@ def binary_runner(
     problem_def: str,
     dtype: str,
     language: str,
+    gpu: str,
 ):
     gen = None
 
@@ -82,7 +83,7 @@ def binary_runner(
             return
 
     if type == "sandbox":
-        gen = runner.run_sandbox(compiled_lib, solution_code)
+        gen = runner.run_sandbox(compiled_lib, solution_code, language, gpu)
     elif type == "sample":
         gen = runner.run_sample_case(
             problem_name, problem_def, solution_code, compiled_lib, dtype, language
@@ -302,25 +303,39 @@ async def sandbox(gpu: str, request: Request):
 
     print("req", req)
     solution_code = req["code"]
+    language = req.get("language", "cuda")  # Default to cuda for backward compatibility
     print("solution_code", solution_code)
+    print("language", language)
 
     def create_stream():
         yield {"status": "COMPILING"}
 
-        try:
-            compiled_lib = utils.run_nvcc_and_return_executable(gpu, solution_code)
-        except utils.NVCCError as e:
+        compiled_lib = None
+        if language == "cuda":
+            try:
+                compiled_lib = utils.run_nvcc_and_return_executable(gpu, solution_code)
+            except utils.NVCCError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": e.args[0],
+                }
+                return
+        elif language == "cute":
+            # CuTE DSL doesn't need pre-compilation, just pass None
+            compiled_lib = None
+        else:
             yield {
                 "status": "COMPILE_ERROR",
-                "message": "Compilation Failed",
-                "details": e.args[0],
+                "message": "Unsupported Language",
+                "details": f"Language '{language}' is not supported in sandbox mode",
             }
             return
 
         runner = gpu_runners[gpu]
         print("runner", runner)
         stream = runner.remote_gen(
-            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", "cuda"
+            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", language, gpu
         )
         for event in stream:
             yield event

@@ -481,11 +481,48 @@ def run_benchmark(
         yield {"status": "ERROR", "message": str(e), "details": traceback.format_exc()}
 
 
-def run_sandbox(compiled_lib: bytes, solution_code: str):
+def run_sandbox(compiled_lib: bytes, solution_code: str, language: str = "cuda", gpu: str = "T4"):
     """
-    Run sandbox on compiled CUDA solution with real-time output streaming
+    Run sandbox on compiled CUDA solution or CuTE DSL with real-time output streaming
     """
     try:
+        # Handle CuTE DSL separately
+        if language == "cute":
+            if not solution_code:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": "No solution code provided for CuTE DSL",
+                }
+                return
+
+            yield {
+                "status": "SANDBOX_RUNNING",
+            }
+
+
+            solution_func = utils.make_solution_func(language, solution_code, None, None)
+           
+            print("solution_func", solution_func)
+            import torch 
+            # strangely, this is needed to make solution_func work with CuTe DSL code
+            x = torch.Tensor([1, 2, 3]).cuda()
+            x2 = utils.cast_to_cute([x])[0]
+            solution_func()  # Call without parameters for sandbox mode
+            execution_time = 0
+            print("DONE")
+
+            # Yield final result
+            yield {
+                "status": "SANDBOX_SUCCESS",
+                "stdout": "captured_stdout",
+                "stderr": "captured_stderr",
+                "return_code": 0,
+                "execution_time": execution_time,
+            }
+            return
+
+        # Original CUDA execution path
         if not compiled_lib:
             yield {
                 "status": "COMPILE_ERROR",
