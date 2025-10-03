@@ -119,7 +119,7 @@ gpu_runners = {
     gpu: app.function(
         image=build_runtime_image(gpu),
         name=f"runner_{gpu}",
-        gpu=gpu,
+        gpu=gpu + "!" if gpu == "H100" else gpu,
         enable_memory_snapshot=False if gpu == "B200" else True,
         serialized=True,
     )(binary_runner)
