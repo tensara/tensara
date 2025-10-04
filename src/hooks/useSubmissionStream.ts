@@ -114,6 +114,31 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
         switch (eventType) {
           case "IN_QUEUE":
+            setMetaStatus(SubmissionStatus.IN_QUEUE);
+
+            try {
+              const data = JSON.parse(eventData) as {
+                remainingSubmissions?: number;
+              };
+              const remaining = data.remainingSubmissions;
+
+              if (
+                remaining === 50 ||
+                remaining === 25 ||
+                (remaining !== undefined && remaining <= 10)
+              ) {
+                toast({
+                  title: "Submissions Remaining",
+                  description: `You have ${remaining} submission${remaining !== 1 ? "s" : ""} left today.`,
+                  status: remaining <= 10 ? "warning" : "info",
+                  duration: 50000,
+                  isClosable: true,
+                });
+              }
+            } catch (e) {
+              console.error("Error parsing IN_QUEUE event data:", e);
+            }
+            break;
           case "COMPILING":
           case "CHECKING":
           case "BENCHMARKING":

@@ -69,6 +69,8 @@ export default async function handler(
     return;
   }
 
+  const remainingSubmissions = rateLimit.remainingSubmissions;
+
   const problem = await db.problem.findUnique({
     where: { slug: problemSlug },
   });
@@ -153,6 +155,7 @@ export default async function handler(
 
     sendSSE(SubmissionStatus.IN_QUEUE, {
       id: submission.id,
+      remainingSubmissions,
     });
 
     console.log("Starting checker process");
