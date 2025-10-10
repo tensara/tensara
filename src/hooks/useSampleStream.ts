@@ -1,3 +1,15 @@
+/**
+ * useSampleStream.ts
+ *
+ * React hook that manages the lifecycle of a sample submission run.
+ * - Initiates a POST request to `/api/submissions/sample` to start execution.
+ * - Streams real-time Server-Sent Events (SSE) updates from the backend.
+ * - Updates local state (`status`, `output`, `isRunning`) based on received events.
+ * - Handles formatting of input/output vectors for display and error toasts.
+ *
+ * Used by the Tensara frontend to show live feedback while user code compiles/runs.
+ */
+
 import { useState, useCallback } from "react";
 import { useToast } from "@chakra-ui/react";
 import {
@@ -14,11 +26,10 @@ const formatVector = (data: unknown): string => {
     }
     return (
       "[" +
-      data
-        .map((x: number) => {
-          const str = x.toString();
-          const formatted = str.includes(".") ? str.replace(/\.?0+$/, "") : str;
-          return formatted;
+      (data as number[])
+        .map((x) => {
+          const str = String(x);
+          return str.includes(".") ? str.replace(/\.?0+$/, "") : str;
         })
         .join(" ") +
       "]"
@@ -27,12 +38,10 @@ const formatVector = (data: unknown): string => {
   return String(data);
 };
 
-const formatParameters = (data: unknown): string => {
-  if (Array.isArray(data)) {
-    return data.map((x) => formatVector(x)).join("\n\n");
-  }
-  return formatVector(data);
-};
+const formatParameters = (data: unknown): string =>
+  Array.isArray(data)
+    ? (data as unknown[]).map(formatVector).join("\n\n")
+    : formatVector(data);
 
 export function useSampleStream() {
   const toast = useToast();
@@ -54,9 +63,7 @@ export function useSampleStream() {
       try {
         const response = await fetch("/api/submissions/sample", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(submissionData),
         });
 
@@ -65,8 +72,7 @@ export function useSampleStream() {
           setIsRunning(false);
           toast({
             title: "Too Many Requests",
-            description:
-              "You are sending too many requests. Please try again later.",
+            description: "Daily sample limit exceeded.",
             status: "error",
             duration: 5000,
             isClosable: true,
@@ -84,30 +90,54 @@ export function useSampleStream() {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          buffer += chunk;
+          buffer += decoder.decode(value, { stream: true });
 
-          const events = buffer.split("\n\n");
-          buffer = events.pop() ?? "";
+          // Split SSE frames; tolerate \n\n or \r\n\r\n
+          const frames = buffer.split(/\r?\n\r?\n/);
+          buffer = frames.pop() ?? "";
 
-          for (const event of events) {
-            const lines = event.split("\n");
-            const typeLine = lines.find((l) => l.startsWith("event: "));
-            const dataLine = lines.find((l) => l.startsWith("data: "));
-            if (!typeLine || !dataLine) continue;
+          for (const frame of frames) {
+            // We only require a "data:" line. Ignore "event:" if absent.
+            const dataLine = frame
+              .split(/\r?\n/)
+              .find((l) => l.startsWith("data: "));
+            if (!dataLine) continue;
 
-            const type = typeLine.slice(7).trim();
-            const data = JSON.parse(dataLine.slice(6).trim()) as SampleEvent;
-            console.log(type, data);
+            let data: SampleEvent | null = null;
+            try {
+              data = JSON.parse(dataLine.slice(6).trim()) as SampleEvent;
+            } catch {
+              continue;
+            }
 
-            switch (type) {
+            // Heartbeats / comments may have no status
+            if (!data?.status) continue;
+
+            // Drive UI by status codes only
+            switch (data.status) {
               case SampleStatus.IN_QUEUE:
               case SampleStatus.COMPILING:
               case SampleStatus.RUNNING:
-                setStatus(type as SampleStatusType);
+                setStatus(data.status);
                 break;
 
-              case "SAMPLE_RESULT":
+              case SampleStatus.ERROR:
+              case SampleStatus.COMPILE_ERROR:
+              case SampleStatus.RUNTIME_ERROR:
+              case SampleStatus.TIME_LIMIT_EXCEEDED:
+                setStatus(data.status);
+                setOutput({
+                  status: data.status,
+                  message: data.message,
+                  details: data.details,
+                  stdout: data.stdout,
+                  stderr: data.stderr,
+                });
+                setIsRunning(false);
+                break;
+
+              case SampleStatus.PASSED:
+              case SampleStatus.FAILED:
                 setStatus(data.status);
                 setOutput({
                   status: data.status,
@@ -122,16 +152,8 @@ export function useSampleStream() {
                 setIsRunning(false);
                 break;
 
-              case SampleStatus.ERROR:
-              case SampleStatus.COMPILE_ERROR:
-              case SampleStatus.RUNTIME_ERROR:
-                setStatus(type as SampleStatusType);
-                setOutput({
-                  status: type as SampleStatusType,
-                  message: data.message,
-                  details: data.details,
-                });
-                setIsRunning(false);
+              default:
+                // Unknown code: ignore gracefully
                 break;
             }
           }
@@ -152,10 +174,5 @@ export function useSampleStream() {
     [toast]
   );
 
-  return {
-    output,
-    status,
-    isRunning,
-    startSampleRun,
-  };
+  return { output, status, isRunning, startSampleRun };
 }
