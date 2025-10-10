@@ -1,3 +1,20 @@
+/**
+ * /api/submissions/direct-submit.ts
+ *
+ * Full submission pipeline API (SSE).
+ * - Authenticates the user, validates payload, and enforces rate-limit quotas.
+ * - Creates a `Submission` row (IN_QUEUE) and begins streaming results back to
+ *   the client in real-time via SSE.
+ * - Uses `proxyUpstreamSSE()` to forward Modal’s "checker-<gpu>" and
+ *   "benchmark-<gpu>" responses while recording incremental test and benchmark
+ *   data in the database.
+ * - Emits structured SSE events (`TEST_RESULT`, `CHECKED`, `WRONG_ANSWER`,
+ *   `BENCHMARK_RESULT`, `BENCHMARKED`, `ACCEPTED`, and errors) to drive the
+ *   frontend progress UI.
+ * - Cleans up gracefully on disconnect or upstream error.
+ * This route powers Tensara’s full "Submit" flow.
+ */
+
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { db } from "~/server/db";
 import { env } from "~/env";

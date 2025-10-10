@@ -1,3 +1,19 @@
+/**
+ * useSubmissionStream.ts
+ *
+ * React hook for consuming `/api/submissions/direct-submit` SSE events.
+ * - Opens a streaming POST request and incrementally updates client state for
+ *   each event (`IN_QUEUE`, `CHECKING`, `TEST_RESULT`, `WRONG_ANSWER`,
+ *   `BENCHMARK_RESULT`, `BENCHMARKED`, `ACCEPTED`, or error).
+ * - Maintains high-level submission state (`metaStatus`, `metaResponse`,
+ *   `isSubmitting`, `isBenchmarking`, `testResults`, `benchmarkResults`).
+ * - Provides safe event parsing, retry/backoff, and toast-based notifications.
+ * - Exposes helpers: `startSubmission()`, `processSubmission()`,
+ *   `getTypedResponse()`, and `setIsTestCaseTableOpen()`.
+ *
+ * Primary frontend state manager for Tensara’s live submission results.
+ */
+
 import { useState, useCallback } from "react";
 import { useToast } from "@chakra-ui/react";
 import {

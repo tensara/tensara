@@ -1,3 +1,19 @@
+/**
+ * /server/sseProxy.ts
+ *
+ * Generic streaming proxy utility for Tensara API routes.
+ * - Opens a POST request to an upstream (e.g., Modal GPU endpoint) and pipes its
+ *   Server-Sent Event (SSE) stream directly to the client response.
+ * - Optionally exposes each SSE frame to an `onEvent` callback for DB updates
+ *   or early termination (e.g., on WRONG_ANSWER).
+ * - Handles backpressure safely using `ReadableStreamDefaultReader`.
+ * - Propagates upstream non-200 status codes and error text to the client.
+ * - Aborts cleanly if the client disconnects via an AbortController.
+ *
+ * Used by both `/api/submissions/direct-submit` and `/api/submissions/sample`
+ * for transparent, low-overhead streaming between Modal and the frontend.
+ */
+
 import type { NextApiResponse } from "next";
 import type { SubmissionResponse } from "~/types/submission";
 
