@@ -1,6 +1,9 @@
 import type { NextApiResponse } from "next";
+import type { SubmissionResponse } from "~/types/submission";
 
-export type OnEvent = (data: any) => Promise<"CONTINUE" | "STOP">;
+export type OnEvent = (
+  data: SubmissionResponse
+) => Promise<"CONTINUE" | "STOP">;
 
 export async function proxyUpstreamSSE(
   res: NextApiResponse,
@@ -46,9 +49,9 @@ export async function proxyUpstreamSSE(
           .split(/\r?\n/)
           .find((l) => l.startsWith("data: "));
         if (!dataLine) continue;
-        let json: any;
+        let json: SubmissionResponse | undefined;
         try {
-          json = JSON.parse(dataLine.slice(6).trim());
+          json = JSON.parse(dataLine.slice(6).trim()) as SubmissionResponse;
         } catch {
           continue;
         }

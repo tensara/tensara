@@ -20,8 +20,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  res.socket?.setNoDelay(true);
-  res.socket?.setKeepAlive(true);
+  res.socket?.setNoDelay?.(true);
+  res.socket?.setKeepAlive?.(true);
 
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
@@ -145,12 +145,12 @@ export default async function handler(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      if (value && value.byteLength) {
+      if (value?.byteLength) {
         // value: Uint8Array — write directly
         res.write(Buffer.from(value));
       }
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (abort.signal.aborted) {
       // client disconnected — just end silently
       try {
@@ -158,11 +158,18 @@ export default async function handler(
       } catch {}
       return;
     }
+
+    // Safely extract a message from unknown error
+    let message = "Upstream error";
+    if (e instanceof Error) {
+      message = e.message;
+    } else if (typeof e === "object" && e !== null && "message" in e) {
+      const m = (e as Record<string, unknown>).message;
+      if (typeof m === "string") message = m;
+    }
+
     res.write(
-      `event: ERROR\ndata: ${JSON.stringify({
-        status: "ERROR",
-        message: e?.message ?? "Upstream error",
-      })}\n\n`
+      `event: ERROR\ndata: ${JSON.stringify({ status: "ERROR", message })}\n\n`
     );
   } finally {
     try {

@@ -3,6 +3,7 @@ import { useToast } from "@chakra-ui/react";
 import {
   type SubmissionStatusType,
   type SubmissionErrorType,
+  type SubmissionResponse,
   type ErrorResponse,
   type WrongAnswerResponse,
   type CheckedResponse,
@@ -99,9 +100,9 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       const dataLine = lines.find((l) => l.startsWith("data: "));
       if (!dataLine) return;
 
-      let data: any;
+      let data: SubmissionResponse | undefined;
       try {
-        data = JSON.parse(dataLine.slice(6).trim());
+        data = JSON.parse(dataLine.slice(6).trim()) as SubmissionResponse;
       } catch {
         return;
       }
@@ -114,7 +115,9 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         case "IN_QUEUE":
           setMetaStatus(SubmissionStatus.IN_QUEUE);
           try {
-            const remaining = data.remainingSubmissions as number | undefined;
+            const remaining = (
+              data as Partial<{ remainingSubmissions: number }>
+            ).remainingSubmissions;
             if (
               remaining === 50 ||
               remaining === 25 ||
@@ -133,7 +136,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
         case "CHECKING":
         case "BENCHMARKING":
-          setMetaStatus(status as any);
+          setMetaStatus(status as SubmissionStatusType);
           break;
 
         case "TEST_RESULT":
@@ -190,7 +193,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
         case "ACCEPTED":
           setMetaStatus(SubmissionStatus.ACCEPTED);
-          setMetaResponse(data);
+          setMetaResponse(data as AcceptedResponse);
           refetchSubmissions();
           break;
 
@@ -199,11 +202,13 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         case "RUNTIME_ERROR":
         case "TIME_LIMIT_EXCEEDED":
         case "RATE_LIMIT_EXCEEDED":
-          setMetaStatus(status as any);
-          setMetaResponse(data);
+          setMetaStatus(status as SubmissionErrorType);
+          setMetaResponse(data as ErrorResponse);
           toast({
             title: "Submission Error",
-            description: data.message || "An error occurred during submission",
+            description:
+              (data as Partial<ErrorResponse>).message ??
+              "An error occurred during submission",
             status: "error",
             duration: 5000,
             isClosable: true,
@@ -216,7 +221,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           break;
       }
     },
-    [refetchSubmissions, toast]
+    [refetchSubmissions, toast, benchmarkResults]
   );
 
   const processEventStream = useCallback(

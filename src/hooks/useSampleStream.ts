@@ -110,7 +110,8 @@ export function useSampleStream() {
               continue;
             }
 
-            // Heartbeats / comments may have no status            if (!data?.status) continue;
+            // Heartbeats / comments may have no status
+            if (!data?.status) continue;
 
             // Drive UI by status codes only
             switch (data.status) {

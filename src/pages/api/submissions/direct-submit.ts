@@ -9,9 +9,9 @@ import {
   SubmissionStatus,
 } from "~/types/submission";
 import type {
-  BenchmarkedResponse,
   BenchmarkResultResponse,
   CheckedResponse,
+  SubmissionStatusType,
   SubmissionErrorType,
   TestResult,
   TestResultResponse,
@@ -166,7 +166,7 @@ export default async function handler(
     res,
     `${env.MODAL_ENDPOINT}/checker-${submission.gpuType ?? "t4"}`,
     payload,
-    async (evt) => {
+    async (evt: import("~/types/submission").SubmissionResponse) => {
       const s = evt?.status as string | undefined;
       if (!s) return "CONTINUE";
 
@@ -222,12 +222,14 @@ export default async function handler(
       }
 
       if (isSubmissionError(s)) {
+        // evt is a SubmissionResponse union — narrow to ErrorResponse-like shape
+        const err = evt as Partial<import("~/types/submission").ErrorResponse>;
         await db.submission.update({
           where: { id: submission.id },
           data: {
             status: s,
-            errorMessage: evt.error ?? "Unknown error",
-            errorDetails: evt.details ?? "",
+            errorMessage: err.message ?? "Unknown error",
+            errorDetails: err.details ?? "",
             passedTests,
             totalTests,
           },
@@ -270,12 +272,12 @@ export default async function handler(
     res,
     `${env.MODAL_ENDPOINT}/benchmark-${submission.gpuType ?? "t4"}`,
     payload,
-    async (evt) => {
+    async (evt: import("~/types/submission").SubmissionResponse) => {
       const s = evt?.status as string | undefined;
       if (!s) return "CONTINUE";
 
       if (s === SubmissionStatus.BENCHMARK_RESULT) {
-        const r = evt as BenchmarkResultResponse;
+        const r = evt as import("~/types/submission").BenchmarkResultResponse;
         if (r.result) {
           benchResults.push(r.result);
           await db.submission.update({
@@ -287,19 +289,22 @@ export default async function handler(
       }
 
       if (s === SubmissionStatus.BENCHMARKED) {
-        const r = evt as BenchmarkedResponse;
+        const r = evt as import("~/types/submission").BenchmarkedResponse;
         // Worker may or may not emit ACCEPTED. Persist final numbers here.
-        const data: any = {
+        const updateData: Partial<Record<string, unknown>> & {
+          status: SubmissionStatusType;
+        } = {
           status: SubmissionStatus.ACCEPTED,
           benchmarkResults: benchResults,
         };
         if (typeof r.avg_runtime_ms === "number")
-          data.runtime = r.avg_runtime_ms;
-        if (typeof r.avg_gflops === "number") data.gflops = r.avg_gflops;
+          (updateData as Record<string, unknown>).runtime = r.avg_runtime_ms;
+        if (typeof r.avg_gflops === "number")
+          (updateData as Record<string, unknown>).gflops = r.avg_gflops;
 
         await db.submission.update({
           where: { id: submission.id },
-          data,
+          data: updateData,
         });
 
         // If your worker does NOT emit ACCEPTED, you can also emit it here:
@@ -316,12 +321,13 @@ export default async function handler(
       }
 
       if (isSubmissionError(s)) {
+        const err = evt as Partial<import("~/types/submission").ErrorResponse>;
         await db.submission.update({
           where: { id: submission.id },
           data: {
             status: s,
-            errorMessage: evt.error ?? "Unknown error",
-            errorDetails: evt.details ?? "",
+            errorMessage: err.message ?? "Unknown error",
+            errorDetails: err.details ?? "",
           },
         });
         return "STOP";
