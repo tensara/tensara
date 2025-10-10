@@ -1,0 +1,65 @@
+import type { NextApiResponse } from "next";
+
+export type OnEvent = (data: any) => Promise<"CONTINUE" | "STOP">;
+
+export async function proxyUpstreamSSE(
+  res: NextApiResponse,
+  url: string,
+  payload: unknown,
+  onEvent: OnEvent,
+  abort: AbortSignal
+): Promise<"DONE" | "STOPPED"> {
+  const upstream = await fetch(url, {
+    method: "POST",
+    signal: abort,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!upstream.ok || !upstream.body) {
+    const text = await upstream.text().catch(() => "");
+    res.status(upstream.status);
+    if (text) res.write(text);
+    return "STOPPED";
+  }
+
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value?.byteLength) continue;
+
+      // 1) forward raw SSE bytes to client
+      res.write(Buffer.from(value));
+
+      // 2) also parse locally to trigger DB side-effects
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split(/\r?\n\r?\n/);
+      buffer = frames.pop() ?? "";
+
+      for (const frame of frames) {
+        const dataLine = frame
+          .split(/\r?\n/)
+          .find((l) => l.startsWith("data: "));
+        if (!dataLine) continue;
+        let json: any;
+        try {
+          json = JSON.parse(dataLine.slice(6).trim());
+        } catch {
+          continue;
+        }
+        const decision = await onEvent(json);
+        if (decision === "STOP") return "STOPPED";
+      }
+    }
+    return "DONE";
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {}
+  }
+}

@@ -110,11 +110,10 @@ export function useSampleStream() {
               continue;
             }
 
-            // Heartbeats / comments may have no status
-            if (!data?.status) continue;
+            // Heartbeats / comments may have no status            if (!data?.status) continue;
 
             // Drive UI by status codes only
-            switch (data.status as SampleStatusType) {
+            switch (data.status) {
               case SampleStatus.IN_QUEUE:
               case SampleStatus.COMPILING:
               case SampleStatus.RUNNING:
@@ -129,9 +128,9 @@ export function useSampleStream() {
                 setOutput({
                   status: data.status,
                   message: data.message,
-                  details: (data as any).details,
-                  stdout: (data as any).stdout,
-                  stderr: (data as any).stderr,
+                  details: data.details,
+                  stdout: data.stdout,
+                  stderr: data.stderr,
                 });
                 setIsRunning(false);
                 break;
@@ -143,8 +142,8 @@ export function useSampleStream() {
                   status: data.status,
                   input: data.input ? formatParameters(data.input) : undefined,
                   output: data.output ? formatVector(data.output) : undefined,
-                  stdout: (data as any).stdout,
-                  stderr: (data as any).stderr,
+                  stdout: data.stdout,
+                  stderr: data.stderr,
                   expected_output: data.expected_output
                     ? formatVector(data.expected_output)
                     : undefined,
