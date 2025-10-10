@@ -166,7 +166,7 @@ def run_checker(
         }
 
 
-@utils.subproc_generator(timeout=10)
+@utils.subproc_generator(timeout=60)
 def run_sample_case(
     problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_func=None
 ):
