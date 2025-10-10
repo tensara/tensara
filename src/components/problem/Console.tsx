@@ -59,6 +59,7 @@ const StatusBadge = ({
       case SampleStatus.ERROR:
       case SampleStatus.COMPILE_ERROR:
       case SampleStatus.RUNTIME_ERROR:
+      case SampleStatus.TIME_LIMIT_EXCEEDED:
         return {
           color: "#FF5D5D",
           bg: "#351B1B",
