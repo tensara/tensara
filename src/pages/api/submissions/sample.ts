@@ -1,20 +1,20 @@
-/**
- * /api/submissions/sample.ts
- *
- * API route that proxies sample submissions to the Modal GPU runner.
- * - Authenticates the user and validates the request body.
- * - Resets and decrements the user’s daily sample submission quota atomically.
- * - Streams Modal’s raw SSE response directly back to the frontend (true proxy).
- * - Aborts upstream request cleanly if the client disconnects.
- *
- * This is the main backend entrypoint for Tensara’s "Run Sample" feature.
- */
-
+// /**
+//  * /api/submissions/sample.ts
+//  *
+//  * API route that proxies sample submissions to the Modal GPU runner.
+//  * - Authenticates the user and validates the request body.
+//  * - Resets and decrements the user’s daily sample submission quota atomically.
+//  * - Streams Modal’s raw SSE response directly back to the frontend (true proxy).
+//  * - Aborts upstream request cleanly if the client disconnects.
+//  *
+//  * This is the main backend entrypoint for Tensara’s "Run Sample" feature.
+//  */
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { env } from "~/env";
 import { DateTime } from "luxon";
 import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
+import { proxyUpstreamSSE } from "./sseProxy";
 
 export default async function handler(
   req: NextApiRequest,
@@ -35,13 +35,13 @@ export default async function handler(
     return;
   }
 
-  // ----- Validate body -----
   const { problemSlug, code, language, gpuType } = req.body as {
     problemSlug?: string;
     code?: string;
     language?: string;
     gpuType?: string;
   };
+
   const missing = Object.entries({ problemSlug, code, language, gpuType })
     .filter(([, v]) => !v)
     .map(([k]) => k);
@@ -61,11 +61,8 @@ export default async function handler(
     return;
   }
 
-  // ----- Atomic daily reset + upfront decrement -----
-  // Reset to 200 if day changed, then decrement by 1 if > 0. Count this attempt
-  // regardless of success (your Option B).
+  // Quota: atomic reset + upfront decrement (Option B)
   const today = DateTime.now().startOf("day");
-
   const quotaOk = await db.$transaction(async (tx) => {
     const u = await tx.user.findUnique({
       where: { id: session.user.id },
@@ -86,7 +83,6 @@ export default async function handler(
       });
     }
 
-    // Decrement only if > 0 (use updateMany for conditional)
     const dec = await tx.user.updateMany({
       where: { id: session.user.id, sampleSubmissionCount: { gt: 0 } },
       data: {
@@ -94,7 +90,6 @@ export default async function handler(
         totalSampleSubmissions: { increment: 1 },
       },
     });
-
     return dec.count === 1;
   });
 
@@ -103,71 +98,44 @@ export default async function handler(
     return;
   }
 
-  // ----- Prepare streaming proxy to Modal -----
-  // We proxy raw SSE bytes from Modal to the client. No wrapping, no re-parsing.
+  // SSE headers once
   res.status(200);
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
-  // Note: do NOT set "Transfer-Encoding" manually; Node handles it.
 
-  const abort = new AbortController();
-  req.on("close", () => abort.abort());
+  const controller = new AbortController();
+  req.on("close", () => controller.abort());
+
+  const payload = {
+    solution_code: code,
+    problem: problemSlug,
+    problem_def: problem.definition,
+    gpu_type: gpuType,
+    dtype: "float32",
+    language,
+  };
 
   try {
-    const upstream = await fetch(`${env.MODAL_ENDPOINT}/sample-${gpuType}`, {
-      method: "POST",
-      signal: abort.signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        solution_code: code,
-        problem: problemSlug,
-        problem_def: problem.definition,
-        gpu_type: gpuType,
-        dtype: "float32",
-        language,
-      }),
-    });
+    // No-op onEvent: we don't need server-side taps for Sample
+    const result = await proxyUpstreamSSE(
+      res,
+      `${env.MODAL_ENDPOINT}/sample-${gpuType}`,
+      payload,
+      async () => "CONTINUE",
+      controller.signal
+    );
 
-    if (!upstream.ok || !upstream.body) {
-      // Bubble up the status and any body text for quick diagnosis
-      const text = await upstream.text().catch(() => "");
-      res.status(upstream.status);
-      if (text) res.write(text);
-      res.end();
-      return;
-    }
-
-    // Pipe the SSE stream as-is
-    const reader = upstream.body.getReader();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value?.byteLength) {
-        // value: Uint8Array — write directly
-        res.write(Buffer.from(value));
-      }
-    }
-  } catch (e: unknown) {
-    if (abort.signal.aborted) {
-      // client disconnected — just end silently
-      try {
-        res.end();
-      } catch {}
-      return;
-    }
-
-    // Safely extract a message from unknown error
-    let message = "Upstream error";
-    if (e instanceof Error) {
-      message = e.message;
-    } else if (typeof e === "object" && e !== null && "message" in e) {
-      const m = (e as Record<string, unknown>).message;
-      if (typeof m === "string") message = m;
-    }
-
+    // proxyUpstreamSSE already wrote any upstream error status/body; we just end.
+    if (result === "STOPPED") return;
+  } catch (e) {
+    if (controller.signal.aborted) return; // client disconnected
+    // Emit a minimal SSE error frame so clients handle it uniformly
+    const message =
+      e instanceof Error
+        ? e.message
+        : "Upstream error while streaming sample output";
     res.write(
       `event: ERROR\ndata: ${JSON.stringify({ status: "ERROR", message })}\n\n`
     );
