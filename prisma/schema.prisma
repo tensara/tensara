@@ -105,6 +105,7 @@ model Problem {
   baselineBenchmarks Json?      @default("{}")
 
   definition String? @db.Text
+  referenceSolution  String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
