@@ -16,6 +16,7 @@ export const generateStarterCode = (
   dataType: DataType
 ) => {
   if (language === "cuda") {
+    parameters = parameters ?? [];
     const names = parameters
       .map((parameter: Parameter) =>
         parameter.pointer === "true" ? parameter.name : null
