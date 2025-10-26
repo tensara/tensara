@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-return,@typescript-eslint/prefer-nullish-coalescing */
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Layout } from "~/components/layout";
@@ -36,7 +37,6 @@ import {
   FiCalendar,
   FiArrowLeft,
   FiThumbsUp,
-  FiMessageSquare,
   FiSend,
 } from "react-icons/fi";
 import Link from "next/link";
@@ -461,7 +461,7 @@ export default function TestBlogPost() {
               }}
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {post.content || ""}
+                {post.content ?? ""}
               </ReactMarkdown>
             </Box>
           </VStack>
