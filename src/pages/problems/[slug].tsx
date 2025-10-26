@@ -195,36 +195,36 @@ export default function ProblemPage({ slug }: { slug: string }) {
     });
   };
 
-  // // Keyboard shortcuts:
-  // // - Cmd+Enter => submit
-  // // - Cmd+' (Quote) => run sample
-  // useEffect(() => {
-  //   const onKeyDown = (e: KeyboardEvent) => {
-  //     // Only respond to plain Meta (Cmd) + key (no Ctrl/Alt)
-  //     if (!e.metaKey || e.ctrlKey || e.altKey) return;
+  // Keyboard shortcuts:
+  // - Cmd+Enter => submit
+  // - Cmd+' (Quote) => run sample
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Only respond to plain Meta (Cmd) + key (no Ctrl/Alt)
+      if (!e.metaKey || e.ctrlKey || e.altKey) return;
 
-  //     // Cmd+Enter -> submit
-  //     if (e.key === "Enter") {
-  //       e.preventDefault();
-  //       void handleSubmit();
-  //       return;
-  //     }
+      // Cmd+Enter -> submit
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void handleSubmit();
+        return;
+      }
 
-  //     // Cmd+' (Quote) -> run sample
-  //     // Some keyboards report "'" as the key, some report code === "Quote"
-  //     if (e.key === "'" || e.code === "Quote") {
-  //       e.preventDefault();
-  //       void handleRun();
-  //       return;
-  //     }
-  //   };
+      // Cmd+' (Quote) -> run sample
+      // Some keyboards report "'" as the key, some report code === "Quote"
+      if (e.key === "'" || e.code === "Quote") {
+        e.preventDefault();
+        void handleRun();
+        return;
+      }
+    };
 
-  //   window.addEventListener("keydown", onKeyDown, { capture: true });
-  //   return () =>
-  //     window.removeEventListener("keydown", onKeyDown, {
-  //       capture: true,
-  //     } as any);
-  // }, [handleSubmit, handleRun]);
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", onKeyDown, {
+        capture: true,
+      } as any);
+  }, [handleSubmit, handleRun]);
   if (isLoading) {
     return (
       <Layout title="Loading...">
