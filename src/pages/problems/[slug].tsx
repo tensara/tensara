@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Box,
   Spinner,
@@ -72,8 +72,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         slug,
       },
     };
-  } catch (e) {
-    console.error(e);
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.error(err);
+    } else {
+      console.error(String(err));
+    }
     return {
       notFound: true,
     };
@@ -186,14 +190,43 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setViewType,
     toast,
   ]);
-  const handleRun = async () => {
+  const handleRun = useCallback(async () => {
     await startSampleRun({
       code,
       language: selectedLanguage,
       gpuType: selectedGpuType,
       problemSlug: slug,
     });
-  };
+  }, [startSampleRun, code, selectedLanguage, selectedGpuType, slug]);
+
+  // Keyboard shortcuts:
+  // - Cmd+Enter => submit
+  // - Cmd+' (Quote) => run sample
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Only respond to plain Meta (Cmd) + key (no Ctrl/Alt)
+      if (!e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Cmd+Enter -> submit
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void handleSubmit();
+        return;
+      }
+
+      // Cmd+' (Quote) -> run sample
+      // Some keyboards report "'" as the key, some report code === "Quote"
+      if (e.key === "'" || e.code === "Quote") {
+        e.preventDefault();
+        void handleRun();
+        return;
+      }
+    };
+
+    const opts: AddEventListenerOptions = { capture: true };
+    window.addEventListener("keydown", onKeyDown, opts);
+    return () => window.removeEventListener("keydown", onKeyDown, opts);
+  }, [handleSubmit, handleRun]);
   if (isLoading) {
     return (
       <Layout title="Loading...">
