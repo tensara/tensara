@@ -20,7 +20,7 @@ model User {
   lastLogin                 DateTime?
   lastLimitReset            DateTime?
   currentLimit              Int?
-  totalSampleSubmissions    Int       @default(0) 
+  totalSampleSubmissions    Int       @default(0)
   sampleSubmissionCount     Int       @default(200)
   lastSampleSubmissionReset DateTime  @default(now())
   rating                    Int?
@@ -35,6 +35,10 @@ model User {
   workspaces        Workspace[]
   SandboxSubmission SandboxSubmission[]
   snapshots         Snapshot[]
+  BlogPost          BlogPost[]
+  Comment           Comment[]
+  PostUpvote        PostUpvote[]
+  CommentUpvote     CommentUpvote[]
 
   @@index([email])
   @@index([createdAt])
@@ -216,4 +220,61 @@ model Snapshot {
 
   user   User   @relation(fields: [userId], references: [id])
   userId String
+}
+
+model BlogPost {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments Comment[]
+  upvotes  PostUpvote[]
+
+  @@index([authorId])
+  @@index([createdAt]) // sort by newest
+}
+
+model Comment {
+  id              String          @id @default(cuid())
+  postId          String
+  post            BlogPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content         String          @db.Text
+  // threading
+  parentCommentId String?
+  parent          Comment?        @relation("Thread", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  children        Comment[]       @relation("Thread")
+  createdAt       DateTime        @default(now())
+  upvotes         CommentUpvote[]
+
+  @@index([postId, createdAt]) // helps thread pagination
+}
+
+model PostUpvote {
+  id        String   @id @default(cuid())
+  postId    String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId]) // 1 upvote per user per post
+  @@index([userId])
+}
+
+model CommentUpvote {
+  id        String   @id @default(cuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId]) // 1 upvote per user per comment
+  @@index([commentId])
 }
