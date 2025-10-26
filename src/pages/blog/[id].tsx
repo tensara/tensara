@@ -169,7 +169,8 @@ export default function TestBlogPost() {
           <HStack align="start">
             <Avatar
               size="sm"
-              name={comment.author?.name ?? ""}
+              src={comment.author?.image ?? undefined}
+              name={comment.author?.name ?? undefined}
               bg="green.600"
             />
             <Box>
@@ -353,8 +354,9 @@ export default function TestBlogPost() {
               >
                 <HStack spacing={4}>
                   <Avatar
-                    name={post.author?.name ?? ""}
                     size="md"
+                    src={post.author?.image ?? undefined}
+                    name={post.author?.name ?? undefined}
                     bg="green.600"
                   />
                   <Box>
@@ -558,7 +560,8 @@ export default function TestBlogPost() {
                 <Flex gap={4} align="start">
                   <Avatar
                     size="sm"
-                    name={session.user?.name ?? ""}
+                    src={session.user?.image ?? undefined}
+                    name={session.user?.name ?? undefined}
                     bg="green.600"
                   />
                   <Box flex={1}>

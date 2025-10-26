@@ -60,7 +60,7 @@ export const commentRouter = createTRPCRouter({
       const flatComments = await db.comment.findMany({
         where: { postId: input.postId },
         orderBy: { createdAt: "asc" },
-        include: { author: { select: { id: true, name: true } } },
+        include: { author: { select: { id: true, name: true, image: true } } },
       });
 
       // Build map id -> comment (and initialize children arrays)

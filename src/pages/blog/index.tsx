@@ -132,7 +132,12 @@ export default function TestBlogIndex() {
 
           <Flex align="center" justify="space-between" mt={6}>
             <HStack spacing={3}>
-              <Avatar size="sm" name={post.author?.name ?? ""} bg="green.600" />
+              <Avatar
+                size="sm"
+                src={post.author?.image ?? undefined}
+                name={post.author?.name ?? undefined}
+                bg="green.600"
+              />
               <Box>
                 <Text color="gray.300" fontSize="sm" fontWeight="600">
                   {post.author?.name}

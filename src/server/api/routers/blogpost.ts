@@ -8,7 +8,7 @@ export const blogpostRouter = createTRPCRouter({
     const posts: any[] = await db.blogPost.findMany({
       orderBy: { createdAt: "desc" },
       include: {
-        author: { select: { id: true, name: true } },
+        author: { select: { id: true, name: true, image: true } },
         _count: { select: { comments: true, upvotes: true } },
       },
     });
@@ -33,9 +33,11 @@ export const blogpostRouter = createTRPCRouter({
       const post = await db.blogPost.findUnique({
         where: { id: input.id },
         include: {
-          author: { select: { id: true, name: true } },
+          author: { select: { id: true, name: true, image: true } },
           comments: {
-            include: { author: { select: { id: true, name: true } } },
+            include: {
+              author: { select: { id: true, name: true, image: true } },
+            },
             orderBy: { createdAt: "asc" },
           },
           _count: { select: { comments: true, upvotes: true } },
