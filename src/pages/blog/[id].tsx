@@ -74,7 +74,7 @@ export default function TestBlogPost() {
   const del = api.blogpost.delete.useMutation({
     onSuccess: () => {
       void utils.blogpost.getAll.invalidate();
-      void router.push("/testblog");
+      void router.push("/blog");
     },
   });
 
@@ -227,7 +227,7 @@ export default function TestBlogPost() {
               </Text>
               <Button
                 as={Link}
-                href="/testblog"
+                href="/blog"
                 leftIcon={<Icon as={FiArrowLeft} />}
                 variant="ghost"
                 colorScheme="green"
@@ -247,7 +247,7 @@ export default function TestBlogPost() {
           {/* Back Button */}
           <Button
             as={Link}
-            href="/testblog"
+            href="/blog"
             leftIcon={<Icon as={FiArrowLeft} />}
             variant="ghost"
             colorScheme="green"
