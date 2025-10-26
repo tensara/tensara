@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-return,@typescript-eslint/prefer-nullish-coalescing */
 import { useRouter } from "next/router";
+import type { RouterOutputs } from "~/utils/api";
 import { useEffect, useState } from "react";
 import { Layout } from "~/components/layout";
 import {
@@ -37,9 +37,14 @@ import {
   FiCalendar,
   FiArrowLeft,
   FiThumbsUp,
+  FiMessageSquare,
   FiSend,
 } from "react-icons/fi";
 import Link from "next/link";
+
+// Typed helper aliases for tRPC outputs
+type Post = RouterOutputs["blogpost"]["getById"];
+type CommentType = RouterOutputs["comments"]["getByPost"][number];
 
 export default function TestBlogPost() {
   const router = useRouter();
@@ -124,7 +129,9 @@ export default function TestBlogPost() {
   const [newComment, setNewComment] = useState("");
 
   // Comment item component (defined here but used later)
-  function CommentItem({ comment }: { comment: any }) {
+  function CommentItem({ comment }: { comment: CommentType }) {
+    const [replyOpen, setReplyOpen] = useState(false);
+    const [replyText, setReplyText] = useState("");
     const cuCount = api.commentUpvote.count.useQuery(
       { commentId: comment.id },
       { enabled: !!comment?.id }
@@ -184,6 +191,14 @@ export default function TestBlogPost() {
             >
               {cuCount.data?.count ?? 0}
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={<Icon as={FiMessageSquare} />}
+              onClick={() => setReplyOpen((s) => !s)}
+            >
+              Reply
+            </Button>
             {isCommentAuthor && (
               <IconButton
                 aria-label="Delete comment"
@@ -199,6 +214,62 @@ export default function TestBlogPost() {
         <Box mt={3} color="gray.300">
           <Text whiteSpace="pre-wrap">{comment.content}</Text>
         </Box>
+
+        {replyOpen && (
+          <Box mt={3}>
+            <Textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              rows={2}
+              placeholder="Write a reply..."
+              bg="whiteAlpha.50"
+              borderColor="whiteAlpha.100"
+              color="gray.100"
+            />
+            <Flex justify="flex-end" mt={2} gap={2}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setReplyOpen(false);
+                  setReplyText("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                colorScheme="green"
+                onClick={() => {
+                  if (!replyText.trim() || !post?.id) return;
+                  createComment.mutate({
+                    postId: post.id,
+                    content: replyText,
+                    parentCommentId: comment.id,
+                  });
+                  setReplyText("");
+                  setReplyOpen(false);
+                }}
+              >
+                Reply
+              </Button>
+            </Flex>
+          </Box>
+        )}
+
+        {/* Render immediate children replies (compact) - children are included by the query */}
+        {comment.children?.map((child: CommentType) => (
+          <Box
+            key={child.id}
+            mt={3}
+            ml={8}
+            borderLeftWidth="1px"
+            borderColor="whiteAlpha.50"
+            pl={4}
+          >
+            <CommentItem comment={child as CommentType} />
+          </Box>
+        ))}
       </Box>
     );
   }
@@ -532,7 +603,7 @@ export default function TestBlogPost() {
 
             {/* Comments List */}
             <VStack spacing={4} align="stretch">
-              {comments?.map((c: any) => (
+              {comments?.map((c: CommentType) => (
                 <CommentItem key={c.id} comment={c} />
               ))}
               {comments?.length === 0 && (
