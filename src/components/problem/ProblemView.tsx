@@ -8,7 +8,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { IoMdTime } from "react-icons/io";
-import { FiTrendingUp } from "react-icons/fi";
+import { FiTrendingUp, FiBookOpen } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -20,9 +20,14 @@ import { getDifficultyColor } from "~/pages/problems";
 interface ProblemViewProps {
   problem: Problem;
   onViewSubmissions: () => void;
+  onViewReference?: () => void;
 }
 
-const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) => {
+const ProblemView = ({
+  problem,
+  onViewSubmissions,
+  onViewReference,
+}: ProblemViewProps) => {
   return (
     <Box>
       <Heading as="h1" size="lg" mb={2}>
@@ -78,6 +83,27 @@ const ProblemView = ({ problem, onViewSubmissions }: ProblemViewProps) => {
         >
           Leaderboard
         </Button>
+        {problem.referenceSolution && onViewReference && (
+          <Button
+            variant="outline"
+            height="28px"
+            px={2}
+            py={1}
+            fontSize="xs"
+            onClick={onViewReference}
+            leftIcon={<Icon as={FiBookOpen} boxSize={3} />}
+            borderRadius="lg"
+            borderColor="whiteAlpha.200"
+            color="gray.300"
+            cursor="pointer"
+            _hover={{
+              bg: "whiteAlpha.50",
+              color: "white",
+            }}
+          >
+            Reference
+          </Button>
+        )}
       </HStack>
 
       <Box className="markdown" color="gray.100">

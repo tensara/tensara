@@ -7,6 +7,13 @@ import {
   useToast,
   Icon,
   Heading,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { useSession } from "next-auth/react";
 import superjson from "superjson";
@@ -37,6 +44,7 @@ import { createInnerTRPCContext } from "~/server/api/trpc";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { api } from "~/utils/api";
+import Editor from "@monaco-editor/react";
 
 type ViewType = "submissions" | "problem" | "result";
 
@@ -78,6 +86,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
+  const { isOpen, onOpen, onClose } = useDisclosure();
   // const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   // const [isRunning, setIsRunning] = useState(false);
 
@@ -242,6 +251,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
           <ProblemView
             problem={problem}
             onViewSubmissions={() => setViewType("submissions")}
+            onViewReference={onOpen}
           />
         );
     }
@@ -337,6 +347,48 @@ export default function ProblemPage({ slug }: { slug: string }) {
           onClose={() => setIsResetModalOpen(false)}
           onReset={handleReset}
         />
+        <Modal isOpen={isOpen} onClose={onClose} isCentered size="4xl">
+          <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
+          <ModalContent
+            bg="brand.secondary"
+            borderColor="whiteAlpha.100"
+            borderWidth={1}
+          >
+            <ModalHeader color="white">Reference Solution</ModalHeader>
+            <ModalCloseButton color="gray.400" />
+            <ModalBody pb={6}>
+              {problem.referenceSolution && (
+                <Box
+                  borderRadius="md"
+                  overflow="hidden"
+                  border="1px solid"
+                  borderColor="whiteAlpha.200"
+                >
+                  {(() => {
+                    const lines = problem.referenceSolution.split("\n").length;
+                    const height = Math.min(lines * 20 + 100, 600);
+                    return (
+                      <Editor
+                        height={height}
+                        language="python"
+                        value={problem.referenceSolution}
+                        theme="vs-dark"
+                        options={{
+                          readOnly: true,
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineNumbers: "on",
+                          scrollBeyondLastLine: false,
+                          fontFamily: "JetBrains Mono, monospace",
+                        }}
+                      />
+                    );
+                  })()}
+                </Box>
+              )}
+            </ModalBody>
+          </ModalContent>
+        </Modal>
       </Box>
     </Layout>
   );
