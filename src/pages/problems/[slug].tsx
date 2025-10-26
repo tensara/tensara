@@ -72,8 +72,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         slug,
       },
     };
-  } catch (e) {
-    console.error(e);
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.error(err);
+    } else {
+      console.error(String(err));
+    }
     return {
       notFound: true,
     };
@@ -186,14 +190,14 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setViewType,
     toast,
   ]);
-  const handleRun = async () => {
+  const handleRun = useCallback(async () => {
     await startSampleRun({
       code,
       language: selectedLanguage,
       gpuType: selectedGpuType,
       problemSlug: slug,
     });
-  };
+  }, [startSampleRun, code, selectedLanguage, selectedGpuType, slug]);
 
   // Keyboard shortcuts:
   // - Cmd+Enter => submit
@@ -219,11 +223,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
       }
     };
 
-    window.addEventListener("keydown", onKeyDown, { capture: true });
-    return () =>
-      window.removeEventListener("keydown", onKeyDown, {
-        capture: true,
-      } as any);
+    const opts: AddEventListenerOptions = { capture: true };
+    window.addEventListener("keydown", onKeyDown, opts);
+    return () => window.removeEventListener("keydown", onKeyDown, opts);
   }, [handleSubmit, handleRun]);
   if (isLoading) {
     return (
