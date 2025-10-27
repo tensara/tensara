@@ -11,7 +11,7 @@ RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
 
-PIP_PACKAGES = ["torch", "numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl"]
+PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl"]
 UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
 APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
@@ -23,35 +23,27 @@ devel_image = (
     .env({"PATH": "/root/.local/bin:$PATH"})
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
+    .run_commands(
+        "uv pip install --system torch==2.9.0"
+    )
     .add_local_python_source(*LOCAL_SOURCE)
 )
 
 
-def build_runtime_image(gpu: str):
-    if gpu == "B200":
-        return (
-            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.12")
-            .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
-            .env({"CC": "gcc"})
-            .env({"PATH": "/root/.local/bin:$PATH"})
-            .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
-            .run_commands(UV_PREFIX + " ".join([p for p in PIP_PACKAGES if p != "torch"]))
-            .run_commands(
-                "uv pip install --system --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128"
-            )
-            .add_local_python_source(*LOCAL_SOURCE)
-        )
-    else:
-        return (
-            modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.12")
-            .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
-            .env({"CC": "gcc"})
-            .env({"PATH": "/root/.local/bin:$PATH"})
-            .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
-            .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
-            .run_commands("uv pip install --system modular==25.4.0")
-            .add_local_python_source(*LOCAL_SOURCE)
-        )
+runtime_image = (
+    modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.12")
+    .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
+    .env({"CC": "gcc"})
+    .env({"PATH": "/root/.local/bin:$PATH"})
+    .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
+    .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
+    .run_commands("uv pip install --system modular==25.4.0")
+    # install torch separately with CUDA 12.8
+    .run_commands(
+        "uv pip install --system torch==2.9.0 --index-url https://download.pytorch.org/whl/cu128"
+    )
+    .add_local_python_source(*LOCAL_SOURCE)
+)
 
 
 app = modal.App("tensara", image=devel_image)
@@ -117,7 +109,7 @@ def binary_runner(
 
 gpu_runners = {
     gpu: app.function(
-        image=build_runtime_image(gpu),
+        image=runtime_image,
         name=f"runner_{gpu}",
         gpu=gpu + "!" if gpu == "H100" else gpu,
         enable_memory_snapshot=False if gpu == "B200" else True,

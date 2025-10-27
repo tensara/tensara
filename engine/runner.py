@@ -61,17 +61,8 @@ def run_checker(
             input_tensors = test_case["create_inputs"]()
 
             # Get the reference solution and move it to CPU
-            with torch.autocast("cuda", enabled=False, dtype=dtype):
-                old_tf32_setting = torch.backends.cuda.matmul.allow_tf32
-                old_cudnn_tf32_setting = torch.backends.cudnn.allow_tf32
-
-                torch.backends.cuda.matmul.allow_tf32 = False
-                torch.backends.cudnn.allow_tf32 = False
-
+            with utils.ReferenceSolutionContext(dtype=dtype):
                 expected_output = problem.reference_solution(*input_tensors).cpu()
-
-                torch.backends.cuda.matmul.allow_tf32 = old_tf32_setting
-                torch.backends.cudnn.allow_tf32 = old_cudnn_tf32_setting
 
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
@@ -255,17 +246,8 @@ def run_sanity_check(
             input_tensors = test_case["create_inputs"]()
 
             # Get the reference solution and move it to CPU
-            with torch.autocast("cuda", enabled=False, dtype=dtype):
-                old_tf32_setting = torch.backends.cuda.matmul.allow_tf32
-                old_cudnn_tf32_setting = torch.backends.cudnn.allow_tf32
-
-                torch.backends.cuda.matmul.allow_tf32 = False
-                torch.backends.cudnn.allow_tf32 = False
-
+            with utils.ReferenceSolutionContext(dtype=dtype):
                 expected_output = problem.reference_solution(*input_tensors).cpu()
-
-                torch.backends.cuda.matmul.allow_tf32 = old_tf32_setting
-                torch.backends.cudnn.allow_tf32 = old_cudnn_tf32_setting
 
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()

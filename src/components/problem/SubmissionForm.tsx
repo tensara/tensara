@@ -109,7 +109,6 @@ const SubmissionForm = ({
                     _hover={{ bg: "gray.700" }}
                     color="white"
                     borderRadius="lg"
-                    isDisabled={key === "B200" && selectedLanguage === "mojo"}
                     fontSize="sm"
                   >
                     {value}
@@ -170,26 +169,17 @@ const SubmissionForm = ({
               >
                 Triton
               </MenuItem>
-              <Tooltip
-                label="Mojo does not support NVIDIA B200 GPUs yet"
-                isDisabled={selectedGpuType !== "B200"}
-                placement="right"
-                hasArrow
-                bg="gray.700"
+              <MenuItem
+                key="mojo"
+                onClick={() => setSelectedLanguage("mojo")}
+                bg="brand.secondary"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+                borderRadius="lg"
+                fontSize="sm"
               >
-                <MenuItem
-                  key="mojo"
-                  onClick={() => setSelectedLanguage("mojo")}
-                  bg="brand.secondary"
-                  _hover={{ bg: "gray.700" }}
-                  color="white"
-                  borderRadius="lg"
-                  isDisabled={selectedGpuType === "B200"}
-                  fontSize="sm"
-                >
-                  Mojo
-                </MenuItem>
-              </Tooltip>
+                Mojo
+              </MenuItem>
               <MenuItem
                 key="cute"
                 onClick={() => setSelectedLanguage("cute")}
