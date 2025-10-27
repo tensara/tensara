@@ -283,6 +283,31 @@ function setupMonaco(monaco: Monaco) {
     },
   });
 
+  // Configure Mojo as a Python-like language for editor features
+  // (so toggle line/comment uses `#` and triple-quotes are recognized
+  // for block docstrings). This makes Cmd+/ behave Pythonically.
+  monaco.languages.setLanguageConfiguration("mojo", {
+    comments: {
+      lineComment: "#",
+      blockComment: ["'''", "'''"]
+    },
+    brackets: [["{", "}"], ["[", "]"], ["(", ")"]],
+    autoClosingPairs: [
+      { open: "{", close: "}" },
+      { open: "[", close: "]" },
+      { open: "(", close: ")" },
+      { open: '"', close: '"' },
+      { open: "'", close: "'" }
+    ],
+    surroundingPairs: [
+      { open: "{", close: "}" },
+      { open: "[", close: "]" },
+      { open: "(", close: ")" },
+      { open: '"', close: '"' },
+      { open: "'", close: "'" }
+    ]
+  });
+
   monaco.languages.setMonarchTokensProvider("cpp", {
     defaultToken: "",
 
