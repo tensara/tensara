@@ -289,23 +289,27 @@ function setupMonaco(monaco: Monaco) {
   monaco.languages.setLanguageConfiguration("mojo", {
     comments: {
       lineComment: "#",
-      blockComment: ["'''", "'''"]
+      blockComment: ["'''", "'''"],
     },
-    brackets: [["{", "}"], ["[", "]"], ["(", ")"]],
+    brackets: [
+      ["{", "}"],
+      ["[", "]"],
+      ["(", ")"],
+    ],
     autoClosingPairs: [
       { open: "{", close: "}" },
       { open: "[", close: "]" },
       { open: "(", close: ")" },
       { open: '"', close: '"' },
-      { open: "'", close: "'" }
+      { open: "'", close: "'" },
     ],
     surroundingPairs: [
       { open: "{", close: "}" },
       { open: "[", close: "]" },
       { open: "(", close: ")" },
       { open: '"', close: '"' },
-      { open: "'", close: "'" }
-    ]
+      { open: "'", close: "'" },
+    ],
   });
 
   monaco.languages.setMonarchTokensProvider("cpp", {
