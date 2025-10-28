@@ -10,7 +10,6 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  Tooltip,
   Badge,
 } from "@chakra-ui/react";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";

@@ -23,9 +23,7 @@ devel_image = (
     .env({"PATH": "/root/.local/bin:$PATH"})
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
-    .run_commands(
-        "uv pip install --system torch==2.9.0"
-    )
+    .run_commands("uv pip install --system torch==2.9.0")
     .add_local_python_source(*LOCAL_SOURCE)
 )
 

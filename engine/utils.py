@@ -715,6 +715,7 @@ def to_lossless_jsonable(x):
     # Fallback (e.g., custom objects) — let json handle or str()
     return x
 
+
 class ReferenceSolutionContext:
     def __init__(self, dtype):
         self.dtype = dtype
@@ -727,7 +728,7 @@ class ReferenceSolutionContext:
         self.old_conv_fp32 = torch.backends.cudnn.conv.fp32_precision
         self.old_rnn_fp32 = torch.backends.cudnn.rnn.fp32_precision
         self.cudnn_deterministic = torch.backends.cudnn.deterministic
-        
+
         torch.backends.fp32_precision = "ieee"
         torch.backends.cuda.matmul.fp32_precision = "ieee"
         torch.backends.cudnn.fp32_precision = "ieee"
@@ -735,10 +736,10 @@ class ReferenceSolutionContext:
         torch.backends.cudnn.rnn.fp32_precision = "ieee"
         torch.backends.cudnn.deterministic = True
         torch.use_deterministic_algorithms(True)
-        
+
         self.autocast_ctx = torch.autocast("cuda", enabled=False, dtype=self.dtype)
         return self.autocast_ctx.__enter__()
-    
+
     def __exit__(self, *args):
         self.autocast_ctx.__exit__(*args)
         torch.backends.fp32_precision = self.old_fp32
