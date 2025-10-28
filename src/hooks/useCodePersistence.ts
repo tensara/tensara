@@ -3,6 +3,7 @@ import {
   saveSolutionToStorage,
   loadSolutionFromStorage,
   getSolutionKey,
+  loadPreferences,
 } from "~/utils/localStorage";
 import { generateStarterCode } from "~/utils/starter";
 import { type ProgrammingLanguage, type DataType } from "~/types/misc";
@@ -21,9 +22,33 @@ export function useCodePersistence(
     useState<ProgrammingLanguage>(initialLanguage);
   const [selectedDataType, setSelectedDataType] =
     useState<DataType>(initialDataType);
+  const [savedGpuType, setSavedGpuType] = useState<string | undefined>(
+    undefined
+  );
   const [isCodeDirty, setIsCodeDirty] = useState<boolean>(false);
   const [starterCode, setStarterCode] = useState<string>("");
   const [hasSetInitialCode, setHasSetInitialCode] = useState<boolean>(false);
+  const [hasLoadedPreferences, setHasLoadedPreferences] =
+    useState<boolean>(false);
+
+  // Load preferences from localStorage on client side only
+  useEffect(() => {
+    if (!hasLoadedPreferences && slug) {
+      const savedPreferences = loadPreferences(slug);
+      if (savedPreferences) {
+        if (savedPreferences.language) {
+          setSelectedLanguage(savedPreferences.language as ProgrammingLanguage);
+        }
+        if (savedPreferences.dataType) {
+          setSelectedDataType(savedPreferences.dataType as DataType);
+        }
+        if (savedPreferences.gpuType) {
+          setSavedGpuType(savedPreferences.gpuType);
+        }
+      }
+      setHasLoadedPreferences(true);
+    }
+  }, [slug, hasLoadedPreferences]);
 
   const memoizedStarterCode = useMemo(
     () =>
@@ -123,5 +148,7 @@ export function useCodePersistence(
     isCodeDirty,
     handleReset,
     starterCode,
+    savedGpuType,
+    hasLoadedPreferences,
   };
 }

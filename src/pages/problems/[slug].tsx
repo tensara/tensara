@@ -39,6 +39,7 @@ import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSampleStream } from "~/hooks/useSampleStream";
 
 import { validateCode } from "~/utils/starter";
+import { savePreferences } from "~/utils/localStorage";
 
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import { createServerSideHelpers } from "@trpc/react-query/server";
@@ -87,7 +88,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 export default function ProblemPage({ slug }: { slug: string }) {
   const { data: session } = useSession();
   const toast = useToast();
-  const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -127,7 +127,18 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setSelectedDataType,
     isCodeDirty,
     handleReset,
+    savedGpuType,
+    hasLoadedPreferences,
   } = useCodePersistence(slug, problem as Problem);
+
+  const [selectedGpuType, setSelectedGpuType] = useState("T4");
+
+  // Update GPU type when saved preferences are loaded
+  useEffect(() => {
+    if (savedGpuType) {
+      setSelectedGpuType(savedGpuType);
+    }
+  }, [savedGpuType]);
 
   // Submission stream logic
   const {
@@ -144,6 +155,28 @@ export default function ProblemPage({ slug }: { slug: string }) {
     totalTests,
     getTypedResponse,
   } = useSubmissionStream(submissionsQuery.refetch);
+
+  useEffect(() => {
+    if (
+      hasLoadedPreferences &&
+      slug &&
+      selectedLanguage &&
+      selectedDataType &&
+      selectedGpuType
+    ) {
+      savePreferences(slug, {
+        language: selectedLanguage,
+        dataType: selectedDataType,
+        gpuType: selectedGpuType,
+      });
+    }
+  }, [
+    slug,
+    selectedLanguage,
+    selectedDataType,
+    selectedGpuType,
+    hasLoadedPreferences,
+  ]);
 
   // Handle submission
   const handleSubmit = useCallback(() => {
