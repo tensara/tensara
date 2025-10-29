@@ -148,8 +148,9 @@ model Submission {
   problemId String
   createdAt DateTime @default(now())
 
-  callId   String?
-  isPublic Boolean @default(false)
+  callId    String?
+  isPublic  Boolean              @default(false)
+  blogPosts BlogPostSubmission[]
 
   @@index([userId])
   @@index([problemId])
@@ -161,6 +162,29 @@ enum Difficulty {
   MEDIUM
   HARD
   EXPERT
+}
+
+enum PostType {
+  GENERAL
+  SOLUTION
+  COMPARISON
+  TUTORIAL
+  BENCHMARK_ANALYSIS
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TagCategory {
+  GENERAL
+  PROBLEM
+  LANGUAGE
+  OPTIMIZATION
+  DIFFICULTY
+  TOPIC
 }
 
 model ApiKey {
@@ -223,19 +247,32 @@ model Snapshot {
 }
 
 model BlogPost {
-  id        String   @id @default(cuid())
-  title     String
-  content   String   @db.Text
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String     @id @default(cuid())
+  title           String
+  content         String     @db.Text
+  slug            String?    @unique
+  excerpt         String?    @db.Text
+  postType        PostType   @default(GENERAL)
+  status          PostStatus @default(DRAFT)
+  publishedAt     DateTime?
+  viewCount       Int        @default(0)
+  readTimeMinutes Int?
+  authorId        String
+  author          User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  comments Comment[]
-  upvotes  PostUpvote[]
+  comments    Comment[]
+  upvotes     PostUpvote[]
+  tags        BlogPostTag[]
+  submissions BlogPostSubmission[]
 
   @@index([authorId])
   @@index([createdAt]) // sort by newest
+  @@index([slug])
+  @@index([status])
+  @@index([postType])
+  @@index([publishedAt])
 }
 
 model Comment {
@@ -277,4 +314,48 @@ model CommentUpvote {
 
   @@unique([commentId, userId]) // 1 upvote per user per comment
   @@index([commentId])
+}
+
+model BlogPostSubmission {
+  id           String   @id @default(cuid())
+  postId       String
+  submissionId String
+  order        Int      @default(0)
+  description  String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  post       BlogPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, submissionId])
+  @@index([postId])
+  @@index([submissionId])
+}
+
+model Tag {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  slug        String      @unique
+  description String?
+  category    TagCategory @default(GENERAL)
+  createdAt   DateTime    @default(now())
+
+  posts BlogPostTag[]
+
+  @@index([slug])
+  @@index([category])
+}
+
+model BlogPostTag {
+  id        String   @id @default(cuid())
+  postId    String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@index([postId])
+  @@index([tagId])
 }

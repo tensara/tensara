@@ -29,8 +29,6 @@ import {
 } from "@chakra-ui/react";
 import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   FiEdit3,
   FiTrash2,
@@ -41,6 +39,8 @@ import {
   FiSend,
 } from "react-icons/fi";
 import Link from "next/link";
+import { format } from "date-fns";
+import { SubmissionEmbedRenderer } from "~/components/blog/SubmissionEmbedRenderer";
 
 // Typed helper aliases for tRPC outputs
 type Post = RouterOutputs["blogpost"]["getById"];
@@ -52,7 +52,7 @@ export default function TestBlogPost() {
   const { data: session } = useSession();
 
   const { data: post, isLoading } = api.blogpost.getById.useQuery(
-    typeof id === "string" ? { id } : { id: "" },
+    typeof id === "string" ? { slug: id } : { slug: "" },
     { enabled: typeof id === "string" }
   );
 
@@ -178,7 +178,7 @@ export default function TestBlogPost() {
                 {comment.author?.name}
               </Text>
               <Text color="gray.400" fontSize="xs">
-                {new Date(comment.createdAt).toLocaleString()}
+                {format(new Date(comment.createdAt), "MM/dd/yyyy, h:mm:ss a")}
               </Text>
             </Box>
           </HStack>
@@ -533,9 +533,7 @@ export default function TestBlogPost() {
                 },
               }}
             >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {post.content ?? ""}
-              </ReactMarkdown>
+              <SubmissionEmbedRenderer content={post.content ?? ""} />
             </Box>
           </VStack>
         </Container>

@@ -23,19 +23,24 @@ import {
   HStack,
   Badge,
   Icon,
+  SimpleGrid,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
-import { FiEdit3, FiCalendar, FiThumbsUp } from "react-icons/fi";
+import { FiEdit3, FiCalendar, FiThumbsUp, FiUser } from "react-icons/fi";
 
 export default function TestBlogIndex() {
+  const router = useRouter();
   const { data: session } = useSession();
-  const { data: posts, isLoading } = api.blogpost.getAll.useQuery();
+  const { data, isLoading } = api.blogpost.getAll.useQuery({});
+  const posts = data?.posts;
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [showMyPosts, setShowMyPosts] = useState(false);
 
   const utils = api.useContext();
   const create = api.blogpost.create.useMutation({
@@ -46,6 +51,12 @@ export default function TestBlogIndex() {
       setContent("");
     },
   });
+
+  // Filter posts based on showMyPosts state
+  const filteredPosts =
+    showMyPosts && session
+      ? posts?.filter((p: any) => p.author.id === session.user.id)
+      : posts;
 
   // Extract first paragraph from markdown for preview
   const getPreview = (markdown: string) => {
@@ -66,7 +77,7 @@ export default function TestBlogIndex() {
     return (
       <Box
         as={Link}
-        href={`/blog/${post.id}`}
+        href={`/blog/${post.slug ?? post.id}`}
         position="relative"
         overflow="hidden"
         borderRadius="2xl"
@@ -82,6 +93,9 @@ export default function TestBlogIndex() {
           bg: "whiteAlpha.100",
         }}
         textDecoration="none !important"
+        minH="320px"
+        display="flex"
+        flexDirection="column"
         _before={{
           content: '""',
           position: "absolute",
@@ -107,30 +121,29 @@ export default function TestBlogIndex() {
           "&:hover::after": { opacity: 0.05 },
         }}
       >
-        <Box p={8}>
-          <Flex align="start" justify="space-between" mb={4}>
-            <Box flex={1}>
-              <Heading
-                size="xl"
-                mb={3}
-                color="white"
-                fontWeight="700"
-                letterSpacing="tight"
-              >
-                {post.title}
-              </Heading>
-              <Text
-                color="gray.400"
-                fontSize="md"
-                lineHeight="tall"
-                noOfLines={2}
-              >
-                {getPreview(post.content || "")}
-              </Text>
-            </Box>
-          </Flex>
+        <Box p={6} flex={1} display="flex" flexDirection="column">
+          <Box flex={1} mb={4}>
+            <Heading
+              size="lg"
+              mb={3}
+              color="white"
+              fontWeight="700"
+              letterSpacing="tight"
+              noOfLines={2}
+            >
+              {post.title}
+            </Heading>
+            <Text
+              color="gray.400"
+              fontSize="sm"
+              lineHeight="tall"
+              noOfLines={3}
+            >
+              {getPreview(post.content || "")}
+            </Text>
+          </Box>
 
-          <Flex align="center" justify="space-between" mt={6}>
+          <Flex align="center" justify="space-between" mt="auto">
             <HStack spacing={3}>
               <Avatar
                 size="sm"
@@ -181,7 +194,7 @@ export default function TestBlogIndex() {
   return (
     <Layout title="Blog">
       <Box bg="gray.900" minH="100vh">
-        <Container maxW="5xl" py={12}>
+        <Container maxW="7xl" py={12}>
           {/* Header */}
           <Flex mb={12} align="center" justify="space-between">
             <Box>
@@ -199,23 +212,43 @@ export default function TestBlogIndex() {
                 Thoughts, ideas, and stories
               </Text>
             </Box>
-            <HStack>
+            <HStack spacing={3}>
               {session ? (
-                <Button
-                  colorScheme="green"
-                  size="lg"
-                  leftIcon={<Icon as={FiEdit3} />}
-                  onClick={onOpen}
-                  bgGradient="linear(to-r, green.600, green.800)"
-                  _hover={{
-                    bgGradient: "linear(to-r, green.700, green.900)",
-                    transform: "translateY(-2px)",
-                    shadow: "xl",
-                  }}
-                  transition="all 0.2s"
-                >
-                  New Post
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    leftIcon={<Icon as={FiUser} />}
+                    onClick={() => setShowMyPosts(!showMyPosts)}
+                    borderColor={showMyPosts ? "green.500" : "whiteAlpha.300"}
+                    color={showMyPosts ? "green.400" : "gray.400"}
+                    bg={showMyPosts ? "green.500/10" : "transparent"}
+                    _hover={{
+                      borderColor: "green.500",
+                      color: "green.400",
+                      bg: "green.500/20",
+                      transform: "translateY(-2px)",
+                    }}
+                    transition="all 0.2s"
+                  >
+                    {showMyPosts ? "All Posts" : "Your Posts"}
+                  </Button>
+                  <Button
+                    colorScheme="green"
+                    size="lg"
+                    leftIcon={<Icon as={FiEdit3} />}
+                    onClick={() => router.push("/blog/create")}
+                    bgGradient="linear(to-r, green.600, green.800)"
+                    _hover={{
+                      bgGradient: "linear(to-r, green.700, green.900)",
+                      transform: "translateY(-2px)",
+                      shadow: "xl",
+                    }}
+                    transition="all 0.2s"
+                  >
+                    New Post
+                  </Button>
+                </>
               ) : (
                 <Button
                   colorScheme="green"
@@ -238,16 +271,24 @@ export default function TestBlogIndex() {
           </Flex>
 
           {/* Posts Grid */}
-          <VStack spacing={6} align="stretch">
-            {isLoading && (
-              <Flex justify="center" py={20}>
-                <Text color="gray.500" fontSize="lg">
-                  Loading posts...
-                </Text>
-              </Flex>
-            )}
-            {posts?.map((post: any) => <PostCard key={post.id} post={post} />)}
-          </VStack>
+          {isLoading && (
+            <Flex justify="center" py={20}>
+              <Text color="gray.500" fontSize="lg">
+                Loading posts...
+              </Text>
+            </Flex>
+          )}
+          {!isLoading && (
+            <SimpleGrid
+              columns={{ base: 1, md: 2, lg: 3 }}
+              spacing={8}
+              alignItems="stretch"
+            >
+              {filteredPosts?.map((post: any) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </SimpleGrid>
+          )}
         </Container>
 
         {/* Create Post Modal */}

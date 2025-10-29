@@ -42,6 +42,7 @@ import {
 import { FiCopy } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
+import { format } from "date-fns";
 
 type BenchmarkTestResult = {
   test_id: number;

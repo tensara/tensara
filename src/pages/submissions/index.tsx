@@ -25,7 +25,7 @@ import { useState, useEffect } from "react";
 import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import type { Submission } from "@prisma/client";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
@@ -584,7 +584,10 @@ const SubmissionsPage: NextPage = () => {
                       }}
                     >
                       <Tooltip
-                        label={new Date(submission.createdAt).toLocaleString()}
+                        label={format(
+                          new Date(submission.createdAt),
+                          "MM/dd/yyyy, h:mm:ss a"
+                        )}
                       >
                         <Text>
                           {formatDistanceToNow(new Date(submission.createdAt))}{" "}

@@ -29,7 +29,7 @@ import { api } from "~/utils/api";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
@@ -508,7 +508,10 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             <Text color="gray.400">-</Text>
                           ) : (
                             <Tooltip
-                              label={new Date(entry.createdAt).toLocaleString()}
+                              label={format(
+                                new Date(entry.createdAt),
+                                "MM/dd/yyyy, h:mm:ss a"
+                              )}
                             >
                               <Text>
                                 {formatDistanceToNow(new Date(entry.createdAt))}{" "}
