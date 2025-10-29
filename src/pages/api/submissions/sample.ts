@@ -107,7 +107,7 @@ export default async function handler(
     if (!src || typeof src !== "string") return null;
     const patterns = loadForbiddenPatterns();
     const mapped = mapSubmissionLanguage(lang);
-    const list = patterns[mapped!] ?? [];
+    const list = patterns[mapped as string] ?? [];
 
     function stripCommentsAndStrings(
       s: string,
@@ -130,7 +130,7 @@ export default async function handler(
       return s;
     }
 
-    const cleaned = stripCommentsAndStrings(src, mapped);
+    const cleaned = stripCommentsAndStrings(src, mapped as string);
 
     for (const p of list) {
       try {
