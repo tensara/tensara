@@ -15,6 +15,8 @@ import { DateTime } from "luxon";
 import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
 import { proxyUpstreamSSE } from "./sseProxy";
+import fs from "fs";
+import path from "path";
 
 export default async function handler(
   req: NextApiRequest,
@@ -58,6 +60,101 @@ export default async function handler(
   });
   if (!problem) {
     res.status(404).json({ error: "Problem not found" });
+    return;
+  }
+
+  // --- pre-submit forbidden-pattern check (fast, server-side)
+  // Set SSE headers now so we can emit an SSE error without consuming quota.
+  res.status(200);
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+
+  res.setHeader("Transfer-Encoding", "chunked");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  res.setHeader("Content-Encoding", "identity");
+
+  res.setHeader("Keep-Alive", "timeout=120, max=1000");
+
+  function loadForbiddenPatterns(): Record<string, string[]> {
+    try {
+      const p = path.join(process.cwd(), "config/forbidden-patterns.json");
+      const raw = fs.readFileSync(p, "utf8");
+      return JSON.parse(raw) as Record<string, string[]>;
+    } catch (e) {
+      console.error("Failed to load forbidden-patterns.json:", e);
+      return {};
+    }
+  }
+
+  function mapSubmissionLanguage(lang?: string) {
+    if (!lang) return lang;
+    const l = lang.toLowerCase();
+    if (l === "triton" || l === "python" || l === "cute") return "python";
+    if (l === "cuda" || l === "c++" || l === "cpp") return "cuda";
+    if (l === "mojo") return "mojo";
+    return l;
+  }
+
+  function findForbiddenMatch(
+    lang: string | undefined,
+    src: string | undefined
+  ): string | null {
+    if (!src || typeof src !== "string") return null;
+    const patterns = loadForbiddenPatterns();
+    const mapped = mapSubmissionLanguage(lang);
+    const list = patterns[mapped!] ?? [];
+
+    function stripCommentsAndStrings(
+      s: string,
+      languageKey: string | undefined
+    ) {
+      if (!s) return s;
+      if (languageKey === "python") {
+        s = s.replace(/"""[\s\S]*?"""/g, "");
+        s = s.replace(/'''[\s\S]*?'''/g, "");
+        s = s.replace(/"(?:\\.|[^"\\])*"/g, "");
+        s = s.replace(/'(?:\\.|[^'\\])*'/g, "");
+        s = s.replace(/#.*$/gm, "");
+        return s;
+      }
+
+      s = s.replace(/"(?:\\.|[^"\\])*"/g, "");
+      s = s.replace(/'(?:\\.|[^'\\])*'/g, "");
+      s = s.replace(/\/\*[\s\S]*?\*\//g, "");
+      s = s.replace(/\/\/.*$/gm, "");
+      return s;
+    }
+
+    const cleaned = stripCommentsAndStrings(src, mapped);
+
+    for (const p of list) {
+      try {
+        const re = new RegExp(p, "i");
+        if (re.test(cleaned)) return p;
+      } catch (e) {
+        console.warn("Invalid forbidden pattern", p, e);
+      }
+    }
+    return null;
+  }
+
+  const matched = findForbiddenMatch(language, code);
+  if (matched) {
+    try {
+      res.write(
+        `event: ERROR\ndata: ${JSON.stringify({ status: "ERROR", message: "Forbidden usage detected", details: `Matched forbidden pattern: ${matched}` })}\n\n`
+      );
+    } catch (e) {
+      console.error("Failed to write forbidden SSE response", e);
+    }
+    try {
+      res.end();
+    } catch {}
     return;
   }
 
