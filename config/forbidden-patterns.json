@@ -7,10 +7,15 @@
     "\\bqsort\\s*\\("
   ],
   "python": [
-    "\\bimport\\s+torch\\b",
-    "\\btorch\\.",
+    "\\bimport\\s+thrust\\b",
+    "\\bfrom\\s+thrust\\b",
+    "\\b(?:tl|torch)\\s*\\.\\s*(?:sort|topk)\\b",
     "\\beval\\s*\\(",
-    "\\bexec\\s*\\("
+    "\\bexec\\s*\\(",
+    "\\bopen\\s*\\(",
+    "__import__",
+    "\\bimportlib\\s*\\.",
+    "from\\s+[\\w\\.]*builtin\\s+import\\s+sort"
   ],
   "mojo": [
     "from\\s+builtin\\.sort\\s+import\\s+sort",
