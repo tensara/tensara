@@ -605,7 +605,6 @@ def run_dynamic_benchmark(
                     break
 
     if len(runtimes) > 1:
-        print(f"Benchmarked Runtimes: {runtimes}")
         mean_runtime = statistics.mean(runtimes)
     else:
         mean_runtime = runtimes[0]
@@ -617,7 +616,6 @@ def run_dynamic_benchmark(
     }
 
     if gflops_measurements:  # only if non-empty
-        print(f"Benchmarked GFLOPS: {gflops_measurements}")
         mean_gflops = statistics.mean(gflops_measurements)
         benchmark_result["gflops"] = mean_gflops
 

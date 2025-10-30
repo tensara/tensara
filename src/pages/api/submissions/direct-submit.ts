@@ -25,8 +25,6 @@ import {
   SubmissionError,
   SubmissionStatus,
 } from "~/types/submission";
-import fs from "fs";
-import path from "path";
 import type {
   BenchmarkResultResponse,
   CheckedResponse,
@@ -136,94 +134,8 @@ export default async function handler(
     } catch {}
   }, 30000);
 
-  // --- pre-submit forbidden-pattern check (fast, server-side)
-  // Load patterns from config/forbidden-patterns.json and run simple regex checks
-  function loadForbiddenPatterns(): Record<string, string[]> {
-    try {
-      const p = path.join(process.cwd(), "config/forbidden-patterns.json");
-      const raw = fs.readFileSync(p, "utf8");
-      return JSON.parse(raw) as Record<string, string[]>;
-    } catch (e) {
-      // If the file doesn't exist or fails to parse, return empty map to avoid blocking
-      console.error("Failed to load forbidden-patterns.json:", e);
-      return {};
-    }
-  }
-
-  function mapSubmissionLanguage(lang: string) {
-    if (!lang) return lang;
-    const l = lang.toLowerCase();
-    if (l === "triton" || l === "python" || l === "cute") return "python";
-    if (l === "cuda" || l === "c++" || l === "cpp") return "cuda";
-    if (l === "mojo") return "mojo";
-    return l;
-  }
-
-  function findForbiddenMatch(lang: string, src: string): string | null {
-    if (!src || typeof src !== "string") return null;
-    const patterns = loadForbiddenPatterns();
-    const mapped = mapSubmissionLanguage(lang);
-    const list = patterns[mapped] ?? [];
-    // Strip comments and string literals similar to the Python scanners so commented-out
-    // occurrences are ignored.
-    function stripCommentsAndStrings(s: string, languageKey: string) {
-      if (!s) return s;
-      // Python: remove triple-quoted strings, normal strings, and line comments (#)
-      if (languageKey === "python") {
-        s = s.replace(/"""[\s\S]*?"""/g, "");
-        s = s.replace(/'''[\s\S]*?'''/g, "");
-        s = s.replace(/"(?:\\.|[^"\\])*"/g, "");
-        s = s.replace(/'(?:\\.|[^'\\])*'/g, "");
-        s = s.replace(/#.*$/gm, "");
-        return s;
-      }
-
-      // C-like / Mojo: remove double/single-quoted strings and C-style comments
-      s = s.replace(/"(?:\\.|[^"\\])*"/g, "");
-      s = s.replace(/'(?:\\.|[^'\\])*'/g, "");
-      s = s.replace(/\/\*[\s\S]*?\*\//g, "");
-      s = s.replace(/\/\/.*$/gm, "");
-      return s;
-    }
-
-    const cleaned = stripCommentsAndStrings(src, mapped);
-
-    for (const p of list) {
-      try {
-        const re = new RegExp(p, "i");
-        if (re.test(cleaned)) return p;
-      } catch (e) {
-        // ignore invalid regex entries
-        console.warn("Invalid forbidden pattern", p, e);
-      }
-    }
-    return null;
-  }
-
   const controller = new AbortController();
   req.on("close", () => controller.abort());
-
-  // Run the fast pre-submit check before creating DB row / proxying to worker.
-  // If a forbidden pattern is found, emit a COMPILE_ERROR SSE event and return early
-  const matched = findForbiddenMatch(language, code);
-  if (matched) {
-    try {
-      res.write(
-        `event: ${SubmissionError.COMPILE_ERROR}\ndata: ${JSON.stringify({
-          status: SubmissionError.COMPILE_ERROR,
-          message: "Forbidden usage detected",
-          details: `Matched forbidden pattern: ${matched}`,
-        })}\n\n`
-      );
-    } catch (e) {
-      console.error("Failed to write forbidden SSE response", e);
-    }
-    clearInterval(heartbeat);
-    try {
-      res.end();
-    } catch {}
-    return;
-  }
 
   const submission = await db.submission.create({
     data: {

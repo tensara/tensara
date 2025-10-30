@@ -191,13 +191,36 @@ export default function ProblemPage({ slug }: { slug: string }) {
     toast,
   ]);
   const handleRun = useCallback(async () => {
+    if (!session?.user) {
+      toast({
+        title: "Not signed in",
+        description: "Please sign in to run solutions",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    const { valid, error } = validateCode(code, selectedLanguage);
+    if (!valid) {
+      toast({
+        title: "Invalid code",
+        description: error,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     await startSampleRun({
       code,
       language: selectedLanguage,
       gpuType: selectedGpuType,
       problemSlug: slug,
     });
-  }, [startSampleRun, code, selectedLanguage, selectedGpuType, slug]);
+  }, [startSampleRun, code, selectedLanguage, selectedGpuType, slug, toast]);
 
   // Keyboard shortcuts:
   // - Cmd+Enter => submit
