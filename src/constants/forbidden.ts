@@ -23,4 +23,3 @@ export const FORBIDDEN_PATTERNS: Record<string, string[]> = {
     "\\bsort\\s*\\(",
   ],
 };
-
