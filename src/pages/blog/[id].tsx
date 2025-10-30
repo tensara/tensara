@@ -26,6 +26,9 @@ import {
   useDisclosure,
   Icon,
   IconButton,
+  Divider,
+  Tooltip,
+  Badge,
 } from "@chakra-ui/react";
 import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
@@ -83,15 +86,14 @@ export default function TestBlogPost() {
     },
   });
 
-  // Post-related hooks (must be declared before any early returns)
+  // Post-related hooks
   const isAuthor = session?.user?.id === post?.author?.id;
 
-  // Post upvote count and toggle
+  // Post upvote
   const { data: postUpvoteCount } = api.postUpvote.count.useQuery(
     { postId: post?.id ?? "" },
     { enabled: !!post }
   );
-  // whether current user has upvoted (protected)
   const { data: postHasUpvoted } = api.postUpvote.hasUpvoted.useQuery(
     { postId: post?.id ?? "" },
     { enabled: !!post && !!session }
@@ -125,13 +127,12 @@ export default function TestBlogPost() {
     },
   });
 
-  // Local state for new comment
   const [newComment, setNewComment] = useState("");
 
-  // Comment item component (defined here but used later)
   function CommentItem({ comment }: { comment: CommentType }) {
     const [replyOpen, setReplyOpen] = useState(false);
     const [replyText, setReplyText] = useState("");
+
     const cuCount = api.commentUpvote.count.useQuery(
       { commentId: comment.id },
       { enabled: !!comment?.id }
@@ -157,16 +158,9 @@ export default function TestBlogPost() {
     const isCommentAuthor = session?.user?.id === comment.author?.id;
 
     return (
-      <Box
-        key={comment.id}
-        p={4}
-        borderRadius="lg"
-        bg="whiteAlpha.50"
-        borderWidth="1px"
-        borderColor="whiteAlpha.100"
-      >
-        <Flex align="start" justify="space-between">
-          <HStack align="start">
+      <Box key={comment.id} py={4}>
+        <Flex align="start" justify="space-between" gap={4}>
+          <HStack align="start" spacing={3}>
             <Avatar
               size="sm"
               src={comment.author?.image ?? undefined}
@@ -174,103 +168,112 @@ export default function TestBlogPost() {
               bg="green.600"
             />
             <Box>
-              <Text color="white" fontWeight="600" fontSize="sm">
-                {comment.author?.name}
-              </Text>
-              <Text color="gray.400" fontSize="xs">
-                {format(new Date(comment.createdAt), "MM/dd/yyyy, h:mm:ss a")}
-              </Text>
+              <HStack spacing={2} wrap="wrap">
+                <Text color="white" fontWeight="600" fontSize="sm">
+                  {comment.author?.name}
+                </Text>
+                <Text color="gray.500" fontSize="xs">
+                  {format(new Date(comment.createdAt), "MMM d, yyyy • h:mm a")}
+                </Text>
+              </HStack>
+              <Box mt={2} color="gray.200">
+                <Text whiteSpace="pre-wrap" fontSize="sm" lineHeight="taller">
+                  {comment.content}
+                </Text>
+              </Box>
+
+              <HStack mt={3} spacing={2}>
+                <Button
+                  size="xs"
+                  variant={cuHasUpvoted?.hasUpvoted ? "solid" : "ghost"}
+                  leftIcon={<Icon as={FiThumbsUp} />}
+                  onClick={() => cuToggle.mutate({ commentId: comment.id })}
+                  colorScheme="green"
+                >
+                  {cuCount.data?.count ?? 0}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  leftIcon={<Icon as={FiMessageSquare} />}
+                  onClick={() => setReplyOpen((s) => !s)}
+                >
+                  Reply
+                </Button>
+                {isCommentAuthor && (
+                  <IconButton
+                    aria-label="Delete comment"
+                    icon={<Icon as={FiTrash2} />}
+                    size="xs"
+                    variant="ghost"
+                    colorScheme="red"
+                    onClick={() => deleteComment.mutate({ id: comment.id })}
+                  />
+                )}
+              </HStack>
+
+              {replyOpen && (
+                <Box mt={3}>
+                  <Textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    rows={2}
+                    placeholder="Write a reply…"
+                    bg="transparent"
+                    borderColor="whiteAlpha.200"
+                    color="gray.100"
+                  />
+                  <HStack justify="flex-end" mt={2} spacing={2}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setReplyOpen(false);
+                        setReplyText("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      colorScheme="green"
+                      onClick={() => {
+                        if (!replyText.trim() || !post?.id) return;
+                        createComment.mutate({
+                          postId: post.id,
+                          content: replyText,
+                          parentCommentId: comment.id,
+                        });
+                        setReplyText("");
+                        setReplyOpen(false);
+                      }}
+                    >
+                      Reply
+                    </Button>
+                  </HStack>
+                </Box>
+              )}
             </Box>
           </HStack>
-
-          <HStack spacing={2}>
-            <Button
-              variant={cuHasUpvoted?.hasUpvoted ? "solid" : "ghost"}
-              leftIcon={<Icon as={FiThumbsUp} />}
-              onClick={() => cuToggle.mutate({ commentId: comment.id })}
-              colorScheme="green"
-            >
-              {cuCount.data?.count ?? 0}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              leftIcon={<Icon as={FiMessageSquare} />}
-              onClick={() => setReplyOpen((s) => !s)}
-            >
-              Reply
-            </Button>
-            {isCommentAuthor && (
-              <IconButton
-                aria-label="Delete comment"
-                icon={<Icon as={FiTrash2} />}
-                size="sm"
-                variant="ghost"
-                colorScheme="red"
-                onClick={() => deleteComment.mutate({ id: comment.id })}
-              />
-            )}
-          </HStack>
         </Flex>
-        <Box mt={3} color="gray.300">
-          <Text whiteSpace="pre-wrap">{comment.content}</Text>
-        </Box>
 
-        {replyOpen && (
-          <Box mt={3}>
-            <Textarea
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              rows={2}
-              placeholder="Write a reply..."
-              bg="whiteAlpha.50"
-              borderColor="whiteAlpha.100"
-              color="gray.100"
-            />
-            <Flex justify="flex-end" mt={2} gap={2}>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setReplyOpen(false);
-                  setReplyText("");
-                }}
+        {/* children */}
+        {comment.children?.length ? (
+          <VStack align="stretch" mt={3} ml={8} spacing={0}>
+            {comment.children.map((child: CommentType) => (
+              <Box
+                key={child.id}
+                pl={3}
+                borderLeft="1px solid"
+                borderColor="whiteAlpha.200"
               >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                colorScheme="green"
-                onClick={() => {
-                  if (!replyText.trim() || !post?.id) return;
-                  createComment.mutate({
-                    postId: post.id,
-                    content: replyText,
-                    parentCommentId: comment.id,
-                  });
-                  setReplyText("");
-                  setReplyOpen(false);
-                }}
-              >
-                Reply
-              </Button>
-            </Flex>
-          </Box>
-        )}
+                <CommentItem comment={child as CommentType} />
+              </Box>
+            ))}
+          </VStack>
+        ) : null}
 
-        {/* Render immediate children replies (compact) - children are included by the query */}
-        {comment.children?.map((child: CommentType) => (
-          <Box
-            key={child.id}
-            mt={3}
-            ml={8}
-            borderLeftWidth="1px"
-            borderColor="whiteAlpha.50"
-            pl={4}
-          >
-            <CommentItem comment={child as CommentType} />
-          </Box>
-        ))}
+        <Divider mt={4} borderColor="whiteAlpha.200" />
       </Box>
     );
   }
@@ -278,10 +281,10 @@ export default function TestBlogPost() {
   if (isLoading)
     return (
       <Layout title="Loading...">
-        <Box bg="gray.900" minH="100vh" py={10}>
-          <Container maxW="4xl">
+        <Box bg="gray.900" minH="100vh" py={16}>
+          <Container maxW="5xl">
             <Text color="gray.500" textAlign="center" fontSize="lg">
-              Loading post...
+              Loading post…
             </Text>
           </Container>
         </Box>
@@ -291,10 +294,10 @@ export default function TestBlogPost() {
   if (!post)
     return (
       <Layout title="Not found">
-        <Box bg="gray.900" minH="100vh" py={10}>
-          <Container maxW="4xl">
+        <Box bg="gray.900" minH="100vh" py={16}>
+          <Container maxW="5xl">
             <VStack spacing={4}>
-              <Text color="gray.500" fontSize="xl">
+              <Text color="gray.400" fontSize="xl">
                 Post not found
               </Text>
               <Button
@@ -315,87 +318,81 @@ export default function TestBlogPost() {
   return (
     <Layout title={post.title}>
       <Box bg="gray.900" minH="100vh">
-        <Container maxW="4xl" py={12}>
-          {/* Back Button */}
+        {/* Wider container */}
+        <Container maxW="5xl" py={10}>
           <Button
             as={Link}
             href="/blog"
             leftIcon={<Icon as={FiArrowLeft} />}
             variant="ghost"
             colorScheme="green"
-            mb={8}
+            mb={6}
             _hover={{ bg: "whiteAlpha.100" }}
           >
             Back to posts
           </Button>
 
-          <VStack align="stretch" spacing={8}>
-            {/* Article Header */}
+          <VStack align="stretch" spacing={0}>
+            {/* Header */}
             <Box>
               <Heading
-                fontSize={{ base: "3xl", md: "5xl" }}
+                fontSize={{ base: "3xl", md: "4xl" }}
                 fontWeight="800"
-                mb={6}
-                bgGradient="linear(to-r, green.400, green.600, green.800)"
-                bgClip="text"
-                lineHeight="shorter"
+                letterSpacing="-0.01em"
+                color="white"
               >
                 {post.title}
               </Heading>
 
-              <Flex
-                align="center"
-                justify="space-between"
-                flexWrap="wrap"
-                gap={4}
-                pb={6}
-                borderBottomWidth="1px"
-                borderColor="whiteAlpha.200"
-              >
-                <HStack spacing={4}>
+              <HStack spacing={4} mt={3} color="gray.400" fontSize="sm">
+                <HStack spacing={2}>
                   <Avatar
-                    size="md"
+                    size="sm"
                     src={post.author?.image ?? undefined}
                     name={post.author?.name ?? undefined}
                     bg="green.600"
                   />
-                  <Box>
-                    <Text color="white" fontWeight="600" fontSize="lg">
-                      {post.author?.name}
-                    </Text>
-                    <HStack spacing={2} color="gray.500" fontSize="sm">
-                      <Icon as={FiCalendar} />
-                      <Text>
-                        {new Date(post.createdAt).toLocaleDateString("en-US", {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </Text>
-                    </HStack>
-                  </Box>
+                  <Text color="gray.200" fontWeight="600">
+                    {post.author?.name}
+                  </Text>
+                </HStack>
+                <HStack spacing={1}>
+                  <Icon as={FiCalendar} />
+                  <Text>
+                    {new Date(post.createdAt).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </Text>
                 </HStack>
 
-                <HStack>
-                  <Button
-                    variant={postHasUpvoted?.hasUpvoted ? "solid" : "ghost"}
-                    leftIcon={<Icon as={FiThumbsUp} />}
-                    onClick={() => postUpvoteToggle.mutate({ postId: post.id })}
-                    colorScheme="green"
-                    size="lg"
+                <HStack ml="auto" spacing={2}>
+                  <Tooltip
+                    label={postHasUpvoted?.hasUpvoted ? "Unlike" : "Like"}
                   >
-                    {postUpvoteCount?.count ?? 0}
-                  </Button>
+                    <Button
+                      size="sm"
+                      variant={postHasUpvoted?.hasUpvoted ? "solid" : "ghost"}
+                      leftIcon={<Icon as={FiThumbsUp} />}
+                      onClick={() =>
+                        postUpvoteToggle.mutate({ postId: post.id })
+                      }
+                      colorScheme="green"
+                    >
+                      {postUpvoteCount?.count ?? 0}
+                    </Button>
+                  </Tooltip>
 
                   {isAuthor && (
-                    <HStack>
+                    <HStack spacing={1}>
                       <IconButton
                         aria-label="Edit post"
                         icon={<Icon as={FiEdit3} />}
                         onClick={onOpen}
                         colorScheme="green"
                         variant="ghost"
-                        size="lg"
+                        size="sm"
                       />
                       <IconButton
                         aria-label="Delete post"
@@ -406,96 +403,88 @@ export default function TestBlogPost() {
                         }
                         colorScheme="red"
                         variant="ghost"
-                        size="lg"
+                        size="sm"
                       />
                     </HStack>
                   )}
                 </HStack>
-              </Flex>
+              </HStack>
             </Box>
 
-            {/* Article Content */}
+            <Divider my={6} borderColor="whiteAlpha.300" />
 
-            {/* Article Content */}
+            {/* Article content: slightly wider, minimal chrome */}
             <Box
-              p={8}
-              borderRadius="2xl"
-              bg="whiteAlpha.50"
-              backdropFilter="blur(10px)"
-              borderWidth="1px"
-              borderColor="whiteAlpha.100"
+              maxW="900px"
+              // centers the reading column while header and comments can stretch
+              mx="auto"
               className="markdown-content"
               sx={{
                 "& h1": {
-                  fontSize: "3xl",
+                  fontSize: "2xl",
                   fontWeight: "800",
+                  mt: 10,
                   mb: 4,
-                  mt: 8,
                   color: "white",
-                  borderBottomWidth: "2px",
-                  borderColor: "green.700",
-                  pb: 2,
                 },
                 "& h2": {
-                  fontSize: "2xl",
+                  fontSize: "xl",
                   fontWeight: "700",
+                  mt: 8,
                   mb: 3,
-                  mt: 6,
                   color: "white",
                 },
                 "& h3": {
-                  fontSize: "xl",
-                  fontWeight: "600",
+                  fontSize: "lg",
+                  fontWeight: "700",
+                  mt: 6,
                   mb: 2,
-                  mt: 4,
-                  color: "gray.200",
+                  color: "gray.100",
                 },
                 "& p": {
                   fontSize: "lg",
-                  lineHeight: "tall",
+                  lineHeight: 1.85,
                   mb: 4,
-                  color: "gray.300",
+                  color: "gray.200",
                 },
                 "& a": {
-                  color: "green.400",
+                  color: "green.300",
                   textDecoration: "underline",
-                  _hover: { color: "green.300" },
+                  _hover: { color: "green.200" },
                 },
                 "& ul, & ol": {
                   pl: 6,
                   mb: 4,
-                  color: "gray.300",
+                  color: "gray.200",
                 },
                 "& li": {
                   mb: 2,
                   fontSize: "lg",
                 },
                 "& blockquote": {
-                  borderLeftWidth: "4px",
-                  borderColor: "green.600",
+                  borderLeftWidth: "3px",
+                  borderColor: "whiteAlpha.400",
                   pl: 4,
-                  py: 2,
+                  py: 1,
                   fontStyle: "italic",
-                  color: "gray.400",
-                  bg: "whiteAlpha.50",
-                  borderRadius: "md",
-                  mb: 4,
+                  color: "gray.300",
+                  my: 4,
                 },
                 "& code": {
                   bg: "whiteAlpha.200",
-                  px: 2,
-                  py: 1,
+                  px: 1.5,
+                  py: 0.5,
                   borderRadius: "md",
-                  fontSize: "sm",
-                  fontFamily: "'JetBrains Mono', monospace",
-                  color: "green.300",
+                  fontSize: "0.9em",
+                  fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular",
+                  color: "green.200",
                 },
                 "& pre": {
                   bg: "gray.800",
                   p: 4,
                   borderRadius: "lg",
                   overflow: "auto",
-                  mb: 4,
+                  mb: 5,
                   borderWidth: "1px",
                   borderColor: "whiteAlpha.200",
                 },
@@ -505,12 +494,12 @@ export default function TestBlogPost() {
                   color: "gray.100",
                 },
                 "& img": {
-                  borderRadius: "lg",
+                  borderRadius: "md",
                   my: 6,
                 },
                 "& hr": {
-                  borderColor: "whiteAlpha.200",
-                  my: 8,
+                  borderColor: "whiteAlpha.300",
+                  my: 10,
                 },
                 "& table": {
                   width: "100%",
@@ -529,33 +518,33 @@ export default function TestBlogPost() {
                   color: "white",
                 },
                 "& td": {
-                  color: "gray.300",
+                  color: "gray.200",
                 },
               }}
             >
+              {/* keep this exactly as-is per your request */}
               <SubmissionEmbedRenderer content={post.content ?? ""} />
             </Box>
           </VStack>
         </Container>
 
-        {/* Comments Section (moved below article) */}
-        <Container maxW="4xl" py={6}>
-          <Box>
-            <Heading size="lg" color="white" mb={4} fontWeight="700">
+        {/* Comments */}
+        <Container maxW="5xl" py={8}>
+          <Box maxW="900px" mx="auto">
+            <Heading
+              size="md"
+              color="white"
+              mb={4}
+              fontWeight="800"
+              letterSpacing="-0.01em"
+            >
               Comments
             </Heading>
 
-            {/* New Comment Form */}
-            <Box
-              mb={6}
-              p={4}
-              borderRadius="lg"
-              bg="whiteAlpha.50"
-              borderWidth="1px"
-              borderColor="whiteAlpha.100"
-            >
+            {/* New comment */}
+            <Box mb={6}>
               {session ? (
-                <Flex gap={4} align="start">
+                <Flex gap={3} align="start">
                   <Avatar
                     size="sm"
                     src={session.user?.image ?? undefined}
@@ -566,15 +555,15 @@ export default function TestBlogPost() {
                     <Textarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Write a thoughtful comment..."
+                      placeholder="Write a thoughtful comment…"
                       rows={3}
                       bg="transparent"
-                      borderColor="whiteAlpha.200"
+                      borderColor="whiteAlpha.300"
                       color="gray.100"
                     />
-                    <Flex justify="flex-end" mt={2}>
+                    <HStack justify="flex-end" mt={2}>
                       <Button
-                        bgGradient="linear(to-r, green.700, green.900)"
+                        bgColor="green.600"
                         color="white"
                         size="sm"
                         leftIcon={<Icon as={FiSend} />}
@@ -586,9 +575,9 @@ export default function TestBlogPost() {
                         }
                         isLoading={(createComment as any).isLoading}
                       >
-                        Post Comment
+                        Post
                       </Button>
-                    </Flex>
+                    </HStack>
                   </Box>
                 </Flex>
               ) : (
@@ -602,8 +591,8 @@ export default function TestBlogPost() {
               )}
             </Box>
 
-            {/* Comments List */}
-            <VStack spacing={4} align="stretch">
+            {/* List */}
+            <VStack spacing={0} align="stretch">
               {comments?.map((c: CommentType) => (
                 <CommentItem key={c.id} comment={c} />
               ))}
@@ -615,88 +604,57 @@ export default function TestBlogPost() {
             </VStack>
           </Box>
         </Container>
-
-        {/* Edit Modal */}
-        <Modal isOpen={isOpen} onClose={onClose} size="2xl">
-          <ModalOverlay backdropFilter="blur(10px)" />
-          <ModalContent
-            bg="gray.800"
-            borderColor="whiteAlpha.200"
-            borderWidth="1px"
-          >
-            <ModalHeader
-              borderBottomWidth="1px"
-              borderColor="whiteAlpha.200"
-              fontSize="2xl"
-              fontWeight="700"
-            >
-              Edit Post
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody py={6}>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel color="gray.300" fontWeight="600">
-                    Title
-                  </FormLabel>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    size="lg"
-                    bg="whiteAlpha.50"
-                    borderColor="whiteAlpha.200"
-                    _hover={{ borderColor: "green.600" }}
-                    _focus={{
-                      borderColor: "green.600",
-                      boxShadow: "0 0 0 1px var(--chakra-colors-green-600)",
-                    }}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel color="gray.300" fontWeight="600">
-                    Content (Markdown)
-                  </FormLabel>
-                  <Textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    rows={12}
-                    fontFamily="'JetBrains Mono', monospace"
-                    fontSize="sm"
-                    bg="whiteAlpha.50"
-                    borderColor="whiteAlpha.200"
-                    _hover={{ borderColor: "green.600" }}
-                    _focus={{
-                      borderColor: "green.600",
-                      boxShadow: "0 0 0 1px var(--chakra-colors-green-600)",
-                    }}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-
-            <ModalFooter borderTopWidth="1px" borderColor="whiteAlpha.200">
-              <Button variant="ghost" mr={3} onClick={onClose}>
-                Cancel
-              </Button>
-              <Button
-                bgGradient="linear(to-r, green.700, green.900)"
-                color="white"
-                _hover={{
-                  bgGradient: "linear(to-r, green.800, green.900)",
-                }}
-                onClick={() => update.mutate({ id: post.id, title, content })}
-                isLoading={
-                  (update as any).isPending ?? (update as any).isLoading
-                }
-                loadingText="Saving..."
-                size="lg"
-              >
-                Save Changes
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
       </Box>
+
+      {/* (Optional) Edit modal kept intact; style is already minimal */}
+      <Modal isOpen={isOpen} onClose={onClose} size="lg">
+        <ModalOverlay />
+        <ModalContent
+          bg="gray.900"
+          border="1px solid"
+          borderColor="whiteAlpha.200"
+        >
+          <ModalHeader color="white">Edit post</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              <FormControl>
+                <FormLabel color="gray.200">Title</FormLabel>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  bg="transparent"
+                  borderColor="whiteAlpha.300"
+                  color="gray.100"
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel color="gray.200">Content</FormLabel>
+                <Textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  rows={10}
+                  bg="transparent"
+                  borderColor="whiteAlpha.300"
+                  color="gray.100"
+                />
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="green"
+              onClick={() => update.mutate({ id: post!.id, title, content })}
+              isLoading={(update as any).isLoading}
+            >
+              Save
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Layout>
   );
 }

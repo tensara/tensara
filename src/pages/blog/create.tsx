@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Container,
@@ -22,12 +22,8 @@ import {
   AlertDialogContent,
   AlertDialogOverlay,
   useDisclosure,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   IconButton,
+  Divider,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { useRouter } from "next/router";
@@ -35,7 +31,6 @@ import { useSession, signIn } from "next-auth/react";
 import { FiArrowLeft, FiSave, FiTrash2, FiEye, FiEdit } from "react-icons/fi";
 import { api } from "~/utils/api";
 import ReactMarkdown from "react-markdown";
-import { useRef } from "react";
 
 interface BlogDraft {
   title: string;
@@ -112,7 +107,7 @@ export default function CreateBlogPost() {
         localStorage.setItem(draftKey, JSON.stringify(draft));
         setLastSaved(new Date());
       }
-    }, 2000); // 2 second debounce
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [title, content, description, isPublished, session?.user?.id]);
@@ -120,15 +115,16 @@ export default function CreateBlogPost() {
   const utils = api.useContext();
   const createPost = api.blogpost.create.useMutation({
     onSuccess: async (post) => {
-      // Clear localStorage draft
       if (session?.user?.id) {
         const draftKey = `blog-draft-${session.user.id}`;
         localStorage.removeItem(draftKey);
       }
       await utils.blogpost.getAll.invalidate();
       toast({
-        title: "Post published!",
-        description: "Your blog post has been created successfully.",
+        title: isPublished ? "Post published!" : "Draft saved!",
+        description: isPublished
+          ? "Your blog post has been created successfully."
+          : "Your draft has been created successfully.",
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -226,7 +222,6 @@ export default function CreateBlogPost() {
     });
   };
 
-  // Don't render the form until we know the session status
   if (status === "loading") {
     return (
       <Layout title="Create Blog Post">
@@ -243,32 +238,31 @@ export default function CreateBlogPost() {
     );
   }
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
   return (
     <Layout title="Create Blog Post">
       <Box bg="gray.900" minH="100vh">
-        <Container maxW="5xl" py={12}>
+        {/* Wider shell + centered reading column */}
+        <Container maxW="5xl" py={10}>
           {/* Header */}
-          <Flex mb={8} align="center" justify="space-between">
-            <HStack spacing={4}>
+          <Flex mb={6} align="center" justify="space-between">
+            <HStack spacing={3}>
               <IconButton
                 aria-label="Go back"
                 icon={<Icon as={FiArrowLeft} />}
                 onClick={() => router.back()}
                 variant="ghost"
                 colorScheme="gray"
-                size="lg"
+                size="md"
               />
               <Box>
                 <Heading
                   as="h1"
-                  fontSize={{ base: "3xl", md: "4xl" }}
+                  fontSize={{ base: "2xl", md: "3xl" }}
                   fontWeight="800"
-                  bgGradient="linear(to-r, green.400, green.600)"
-                  bgClip="text"
+                  color="white"
+                  letterSpacing="-0.01em"
                 >
                   Create Blog Post
                 </Heading>
@@ -280,13 +274,13 @@ export default function CreateBlogPost() {
               </Box>
             </HStack>
 
-            <HStack spacing={3}>
+            <HStack spacing={2}>
               <Button
                 variant="outline"
                 colorScheme="red"
                 leftIcon={<Icon as={FiTrash2} />}
                 onClick={onOpen}
-                size="md"
+                size="sm"
               >
                 Clear
               </Button>
@@ -295,46 +289,52 @@ export default function CreateBlogPost() {
                 colorScheme="green"
                 leftIcon={<Icon as={FiSave} />}
                 onClick={handleSaveDraft}
-                size="md"
+                size="sm"
               >
                 Save Draft
               </Button>
             </HStack>
           </Flex>
 
-          {/* Form */}
-          <Box
-            bg="whiteAlpha.50"
-            backdropFilter="blur(10px)"
-            borderRadius="2xl"
-            borderWidth="1px"
-            borderColor="whiteAlpha.100"
-            p={8}
-          >
-            <VStack spacing={6} align="stretch">
+          <Divider mb={8} borderColor="whiteAlpha.300" />
+
+          {/* Form wrapper: minimal chrome, no gradients */}
+          <Box maxW="900px" mx="auto">
+            <VStack spacing={8} align="stretch">
               {/* Title */}
               <FormControl isRequired>
-                <FormLabel color="gray.300" fontWeight="600" fontSize="lg">
+                <FormLabel
+                  color="gray.300"
+                  fontWeight="600"
+                  fontSize="sm"
+                  mb={2}
+                >
                   Title
                 </FormLabel>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter an engaging title..."
-                  size="lg"
-                  bg="whiteAlpha.50"
-                  borderColor="whiteAlpha.200"
-                  _hover={{ borderColor: "green.500" }}
+                  placeholder="Enter an engaging title…"
+                  size="md"
+                  bg="transparent"
+                  borderColor="whiteAlpha.300"
+                  color="gray.100"
+                  _hover={{ borderColor: "whiteAlpha.400" }}
                   _focus={{
-                    borderColor: "green.500",
-                    boxShadow: "0 0 0 1px var(--chakra-colors-green-500)",
+                    borderColor: "green.400",
+                    boxShadow: "0 0 0 1px var(--chakra-colors-green-400)",
                   }}
                 />
               </FormControl>
 
               {/* Description */}
               <FormControl>
-                <FormLabel color="gray.300" fontWeight="600" fontSize="lg">
+                <FormLabel
+                  color="gray.300"
+                  fontWeight="600"
+                  fontSize="sm"
+                  mb={2}
+                >
                   Description{" "}
                   <Text as="span" color="gray.500" fontWeight="normal">
                     (optional)
@@ -343,17 +343,18 @@ export default function CreateBlogPost() {
                 <Input
                   value={description}
                   onChange={(e) => setDescription(e.target.value.slice(0, 200))}
-                  placeholder="Brief excerpt for post preview..."
-                  size="lg"
-                  bg="whiteAlpha.50"
-                  borderColor="whiteAlpha.200"
-                  _hover={{ borderColor: "green.500" }}
+                  placeholder="Brief excerpt for post preview…"
+                  size="md"
+                  bg="transparent"
+                  borderColor="whiteAlpha.300"
+                  color="gray.100"
+                  _hover={{ borderColor: "whiteAlpha.400" }}
                   _focus={{
-                    borderColor: "green.500",
-                    boxShadow: "0 0 0 1px var(--chakra-colors-green-500)",
+                    borderColor: "green.400",
+                    boxShadow: "0 0 0 1px var(--chakra-colors-green-400)",
                   }}
                 />
-                <Text color="gray.500" fontSize="sm" mt={2}>
+                <Text color="gray.500" fontSize="xs" mt={2}>
                   {description.length}/200 characters
                 </Text>
               </FormControl>
@@ -364,14 +365,14 @@ export default function CreateBlogPost() {
                   <FormLabel
                     color="gray.300"
                     fontWeight="600"
-                    fontSize="lg"
+                    fontSize="sm"
                     mb={0}
                   >
                     Content
                   </FormLabel>
-                  <HStack>
+                  <HStack spacing={1}>
                     <Button
-                      size="sm"
+                      size="xs"
                       variant={!showPreview ? "solid" : "ghost"}
                       colorScheme="green"
                       leftIcon={<Icon as={FiEdit} />}
@@ -380,7 +381,7 @@ export default function CreateBlogPost() {
                       Edit
                     </Button>
                     <Button
-                      size="sm"
+                      size="xs"
                       variant={showPreview ? "solid" : "ghost"}
                       colorScheme="green"
                       leftIcon={<Icon as={FiEye} />}
@@ -396,121 +397,125 @@ export default function CreateBlogPost() {
                     <Textarea
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
-                      placeholder="# Your Story&#10;&#10;Write your post in markdown...&#10;&#10;**Bold text**, *italic*, [links](url), and more!"
-                      minH="400px"
-                      fontFamily="'JetBrains Mono', monospace"
+                      placeholder="# Your Story\n\nWrite your post in markdown…\n\n**Bold**, *italic*, [links](url), and more!"
+                      minH="420px"
+                      fontFamily="'JetBrains Mono', ui-monospace, SFMono-Regular"
                       fontSize="sm"
-                      bg="whiteAlpha.50"
-                      borderColor="whiteAlpha.200"
-                      _hover={{ borderColor: "green.500" }}
+                      bg="transparent"
+                      borderColor="whiteAlpha.300"
+                      color="gray.100"
+                      _hover={{ borderColor: "whiteAlpha.400" }}
                       _focus={{
-                        borderColor: "green.500",
-                        boxShadow: "0 0 0 1px var(--chakra-colors-green-500)",
+                        borderColor: "green.400",
+                        boxShadow: "0 0 0 1px var(--chakra-colors-green-400)",
                       }}
                     />
                     <Text color="gray.500" fontSize="xs" mt={2}>
-                      💡 Tip: Use markdown syntax for formatting
+                      Tip: Use markdown for faster formatting
                     </Text>
                   </>
                 ) : (
                   <Box
-                    minH="400px"
-                    p={6}
-                    bg="whiteAlpha.50"
-                    borderRadius="lg"
-                    borderWidth="1px"
-                    borderColor="whiteAlpha.200"
-                    overflowY="auto"
-                    css={{
+                    minH="420px"
+                    p={0}
+                    color="gray.100"
+                    className="markdown-preview"
+                    sx={{
                       "& h1": {
                         fontSize: "2xl",
-                        fontWeight: "bold",
-                        marginBottom: "0.5em",
+                        fontWeight: "800",
+                        mt: 6,
+                        mb: 3,
+                        color: "white",
                       },
                       "& h2": {
                         fontSize: "xl",
-                        fontWeight: "bold",
-                        marginBottom: "0.5em",
-                        marginTop: "1em",
+                        fontWeight: "700",
+                        mt: 5,
+                        mb: 2,
+                        color: "white",
                       },
                       "& h3": {
                         fontSize: "lg",
-                        fontWeight: "bold",
-                        marginBottom: "0.5em",
-                        marginTop: "1em",
+                        fontWeight: "700",
+                        mt: 4,
+                        mb: 2,
+                        color: "gray.100",
                       },
-                      "& p": { marginBottom: "1em", lineHeight: "1.7" },
-                      "& ul, & ol": {
-                        marginLeft: "1.5em",
-                        marginBottom: "1em",
-                      },
-                      "& li": { marginBottom: "0.5em" },
+                      "& p": { mb: 3, lineHeight: 1.85, color: "gray.200" },
+                      "& ul, & ol": { pl: 6, mb: 3, color: "gray.200" },
+                      "& li": { mb: 1.5 },
                       "& code": {
-                        background: "rgba(0,0,0,0.3)",
-                        padding: "0.2em 0.4em",
-                        borderRadius: "0.25em",
-                        fontFamily: "'JetBrains Mono', monospace",
+                        bg: "whiteAlpha.200",
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: "md",
+                        fontFamily:
+                          "'JetBrains Mono', ui-monospace, SFMono-Regular",
                       },
                       "& pre": {
-                        background: "rgba(0,0,0,0.3)",
-                        padding: "1em",
-                        borderRadius: "0.5em",
-                        marginBottom: "1em",
+                        bg: "gray.800",
+                        p: 4,
+                        borderRadius: "lg",
                         overflowX: "auto",
+                        mb: 4,
+                        borderWidth: "1px",
+                        borderColor: "whiteAlpha.200",
                       },
                       "& a": {
-                        color: "var(--chakra-colors-green-400)",
+                        color: "green.300",
                         textDecoration: "underline",
+                        _hover: { color: "green.200" },
                       },
-                      "& strong": { fontWeight: "bold" },
-                      "& em": { fontStyle: "italic" },
+                      "& hr": { borderColor: "whiteAlpha.300", my: 6 },
+                      "& img": { borderRadius: "md", my: 4 },
                     }}
                   >
                     {content ? (
                       <ReactMarkdown>{content}</ReactMarkdown>
                     ) : (
-                      <Text color="gray.500" fontStyle="italic">
-                        No content to preview yet. Start writing to see the
-                        preview.
-                      </Text>
+                      <Box
+                        borderWidth="1px"
+                        borderColor="whiteAlpha.200"
+                        borderRadius="md"
+                        p={6}
+                      >
+                        <Text color="gray.500" fontStyle="italic">
+                          No content to preview yet. Start writing to see the
+                          preview.
+                        </Text>
+                      </Box>
                     )}
                   </Box>
                 )}
               </FormControl>
 
-              {/* Is Published Checkbox */}
+              {/* Published */}
               <FormControl>
                 <Checkbox
                   isChecked={isPublished}
                   onChange={(e) => setIsPublished(e.target.checked)}
                   colorScheme="green"
-                  size="lg"
+                  size="md"
                 >
-                  <Text color="gray.300" fontWeight="600">
+                  <Text color="gray.200" fontWeight="600">
                     Publish immediately
                   </Text>
                 </Checkbox>
-                <Text color="gray.500" fontSize="sm" mt={1} ml={8}>
+                <Text color="gray.500" fontSize="sm" mt={1} ml={6}>
                   Uncheck to save as draft
                 </Text>
               </FormControl>
 
-              {/* Action Buttons */}
-              <Flex justify="flex-end" pt={4}>
+              {/* Actions */}
+              <Flex justify="flex-end" pt={2}>
                 <Button
-                  size="lg"
-                  bgGradient="linear(to-r, green.600, green.800)"
-                  color="white"
-                  _hover={{
-                    bgGradient: "linear(to-r, green.700, green.900)",
-                    transform: "translateY(-2px)",
-                    shadow: "xl",
-                  }}
-                  transition="all 0.2s"
+                  size="md"
+                  colorScheme="green"
                   onClick={handlePublish}
                   isLoading={createPost.isPending}
-                  loadingText={isPublished ? "Publishing..." : "Saving..."}
-                  px={12}
+                  loadingText={isPublished ? "Publishing…" : "Saving…"}
+                  px={8}
                 >
                   {isPublished ? "Publish Post" : "Save as Draft"}
                 </Button>
@@ -525,19 +530,23 @@ export default function CreateBlogPost() {
           leastDestructiveRef={cancelRef}
           onClose={onClose}
         >
-          <AlertDialogOverlay backdropFilter="blur(10px)">
-            <AlertDialogContent bg="gray.800" borderColor="whiteAlpha.200">
-              <AlertDialogHeader fontSize="lg" fontWeight="bold">
+          <AlertDialogOverlay backdropFilter="blur(2px)">
+            <AlertDialogContent
+              bg="gray.900"
+              border="1px solid"
+              borderColor="whiteAlpha.300"
+            >
+              <AlertDialogHeader fontSize="lg" fontWeight="bold" color="white">
                 Clear Draft
               </AlertDialogHeader>
 
-              <AlertDialogBody>
+              <AlertDialogBody color="gray.200">
                 Are you sure? This will clear all fields and delete the saved
                 draft. This action cannot be undone.
               </AlertDialogBody>
 
               <AlertDialogFooter>
-                <Button ref={cancelRef} onClick={onClose}>
+                <Button ref={cancelRef} onClick={onClose} variant="ghost">
                   Cancel
                 </Button>
                 <Button colorScheme="red" onClick={handleClearDraft} ml={3}>

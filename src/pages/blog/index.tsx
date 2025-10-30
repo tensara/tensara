@@ -21,16 +21,36 @@ import {
   Flex,
   Avatar,
   HStack,
-  Badge,
-  Icon,
-  SimpleGrid,
+  Divider,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
+  LinkBox,
+  LinkOverlay,
+  Portal,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
-import { FiEdit3, FiCalendar, FiThumbsUp, FiUser } from "react-icons/fi";
+
+function timeAgo(d: string | Date) {
+  const s = Math.max(
+    1,
+    Math.floor((Date.now() - new Date(d).getTime()) / 1000)
+  );
+  const steps = [
+    { n: 31536000, u: "y" },
+    { n: 2592000, u: "mo" },
+    { n: 86400, u: "d" },
+    { n: 3600, u: "h" },
+    { n: 60, u: "m" },
+  ];
+  for (const { n, u } of steps) if (s >= n) return `${Math.floor(s / n)}${u}`;
+  return `${s}s`;
+}
 
 export default function TestBlogIndex() {
   const router = useRouter();
@@ -52,324 +72,258 @@ export default function TestBlogIndex() {
     },
   });
 
-  // Filter posts based on showMyPosts state
   const filteredPosts =
     showMyPosts && session
       ? posts?.filter((p: any) => p.author.id === session.user.id)
       : posts;
 
-  // Extract first paragraph from markdown for preview
-  const getPreview = (markdown: string) => {
+  const getPreview = (markdown: string, maxLength = 220) => {
     const text = markdown
-      .replace(/#{1,6}\s/g, "") // Remove headers
-      .replace(/[*_~`]/g, "") // Remove formatting
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Remove links
+      .replace(/#{1,6}\s/g, "")
+      .replace(/[*_~`]/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       .trim();
-    return text.slice(0, 200) + (text.length > 200 ? "..." : "");
+    return text.slice(0, maxLength) + (text.length > maxLength ? "…" : "");
   };
 
-  function PostCard({ post }: { post: any }) {
+  function PostRow({ post }: { post: any }) {
     const upvote = api.postUpvote.count.useQuery(
       { postId: post.id },
       { enabled: !!post.id }
     );
 
     return (
-      <Box
-        as={Link}
-        href={`/blog/${post.slug ?? post.id}`}
-        position="relative"
-        overflow="hidden"
-        borderRadius="2xl"
-        bg="whiteAlpha.50"
-        backdropFilter="blur(10px)"
-        borderWidth="1px"
-        borderColor="whiteAlpha.100"
-        transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-        _hover={{
-          borderColor: "green.500",
-          transform: "translateY(-4px)",
-          shadow: "2xl",
-          bg: "whiteAlpha.100",
-        }}
-        textDecoration="none !important"
-        minH="320px"
-        display="flex"
-        flexDirection="column"
-        _before={{
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "3px",
-          bgGradient: "linear(to-r, green.400, green.600, green.800)",
-          opacity: 0,
-          transition: "opacity 0.3s",
-        }}
-        _after={{
-          content: '""',
-          position: "absolute",
-          inset: 0,
-          bgGradient: "linear(to-br, green.600, green.800)",
-          opacity: 0,
-          transition: "opacity 0.3s",
-          zIndex: -1,
-        }}
-        sx={{
-          "&:hover::before": { opacity: 1 },
-          "&:hover::after": { opacity: 0.05 },
-        }}
+      <Popover
+        trigger="hover"
+        placement="auto-start"
+        openDelay={200}
+        isLazy
+        modifiers={[
+          { name: "offset", options: { offset: [0, 8] } },
+          {
+            name: "preventOverflow",
+            options: { padding: 8, boundary: "viewport" },
+          },
+        ]}
       >
-        <Box p={6} flex={1} display="flex" flexDirection="column">
-          <Box flex={1} mb={4}>
-            <Heading
-              size="lg"
-              mb={3}
-              color="white"
-              fontWeight="700"
-              letterSpacing="tight"
-              noOfLines={2}
-            >
-              {post.title}
-            </Heading>
-            <Text
-              color="gray.400"
-              fontSize="sm"
-              lineHeight="tall"
-              noOfLines={3}
-            >
-              {getPreview(post.content || "")}
-            </Text>
-          </Box>
-
-          <Flex align="center" justify="space-between" mt="auto">
-            <HStack spacing={3}>
-              <Avatar
-                size="sm"
-                src={post.author?.image ?? undefined}
-                name={post.author?.name ?? undefined}
-                bg="green.600"
-              />
-              <Box>
-                <Text color="gray.300" fontSize="sm" fontWeight="600">
-                  {post.author?.name}
+        <PopoverTrigger>
+          <LinkBox
+            as="article"
+            py={2.5}
+            px={2}
+            borderBottom="1px solid"
+            borderColor="gray.800"
+            _hover={{ bg: "gray.850" }}
+            transition="background 0.15s ease"
+          >
+            <Flex gap={3} align="center" minW={0}>
+              {/* votes */}
+              <Box
+                w="44px"
+                textAlign="center"
+                flexShrink={0}
+                rounded="md"
+                border="1px solid"
+                borderColor="gray.800"
+                bg="gray.900"
+                py={1}
+              >
+                <Text fontSize="sm" fontWeight="600" color="gray.300">
+                  {upvote.data?.count ?? 0}
                 </Text>
-                <HStack spacing={2} color="gray.500" fontSize="xs">
-                  <Icon as={FiCalendar} />
-                  <Text>
-                    {new Date(post.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+              </Box>
+
+              {/* title + author */}
+              <Flex flex="1" minW={0} align="center" gap={2}>
+                <LinkOverlay
+                  as={Link}
+                  href={`/blog/${post.slug ?? post.id}`}
+                  _hover={{ textDecoration: "none", color: "blue.300" }}
+                >
+                  <Text
+                    color="white"
+                    fontWeight="600"
+                    noOfLines={1}
+                    letterSpacing="-0.01em"
+                  >
+                    {post.title}
+                  </Text>
+                </LinkOverlay>
+                <HStack spacing={2} color="gray.500" flexShrink={0}>
+                  <Avatar
+                    size="xs"
+                    src={post.author?.image ?? undefined}
+                    name={post.author?.name ?? undefined}
+                  />
+                  <Text fontSize="xs" noOfLines={1}>
+                    {post.author?.name}
                   </Text>
                 </HStack>
-              </Box>
-            </HStack>
+              </Flex>
 
-            <HStack spacing={4} align="center">
-              <HStack color="gray.300" spacing={2}>
-                <Icon as={FiThumbsUp} />
-                <Text>{upvote.data?.count ?? 0}</Text>
-              </HStack>
-              <Badge
-                colorScheme="green"
-                px={3}
-                py={1}
-                borderRadius="full"
+              {/* time on the right */}
+              <Text
                 fontSize="xs"
-                textTransform="uppercase"
-                letterSpacing="wider"
+                color="gray.500"
+                flexShrink={0}
+                w="48px"
+                textAlign="right"
               >
-                Read more →
-              </Badge>
-            </HStack>
-          </Flex>
-        </Box>
-      </Box>
+                {timeAgo(post.createdAt)}
+              </Text>
+            </Flex>
+          </LinkBox>
+        </PopoverTrigger>
+
+        {/* compact preview that never escapes viewport */}
+        <Portal>
+          <PopoverContent
+            bg="gray.900"
+            borderColor="gray.700"
+            maxW="420px"
+            boxShadow="xl"
+            _focus={{ boxShadow: "xl" }}
+            zIndex={1600}
+          >
+            <PopoverBody p={4}>
+              <Text color="white" fontWeight="600" mb={2}>
+                {post.title}
+              </Text>
+              <Text color="gray.300" fontSize="sm" lineHeight="1.6">
+                {getPreview(post.content || "", 380)}
+              </Text>
+            </PopoverBody>
+          </PopoverContent>
+        </Portal>
+      </Popover>
     );
   }
 
   return (
     <Layout title="Blog">
       <Box bg="gray.900" minH="100vh">
-        <Container maxW="7xl" py={12}>
-          {/* Header */}
-          <Flex mb={12} align="center" justify="space-between">
+        {/* narrower, readable column similar to LW */}
+        <Container maxW={{ base: "100%", md: "760px", lg: "860px" }} py={8}>
+          <Flex
+            mb={6}
+            align="center"
+            justify="space-between"
+            gap={4}
+            wrap="wrap"
+          >
             <Box>
               <Heading
                 as="h1"
-                fontSize={{ base: "4xl", md: "5xl" }}
-                fontWeight="800"
-                bgGradient="linear(to-r, green.400, green.600, green.800)"
-                bgClip="text"
-                mb={2}
+                fontSize="2xl"
+                fontWeight="700"
+                color="white"
+                mb={1}
               >
                 Blog
               </Heading>
-              <Text color="gray.400" fontSize="lg">
+              <Text color="gray.400" fontSize="sm">
                 Thoughts, ideas, and stories
               </Text>
             </Box>
-            <HStack spacing={3}>
+            <HStack spacing={2}>
               {session ? (
                 <>
                   <Button
-                    variant="outline"
-                    size="lg"
-                    leftIcon={<Icon as={FiUser} />}
+                    size="sm"
+                    variant={showMyPosts ? "solid" : "outline"}
                     onClick={() => setShowMyPosts(!showMyPosts)}
-                    borderColor={showMyPosts ? "green.500" : "whiteAlpha.300"}
-                    color={showMyPosts ? "green.400" : "gray.400"}
-                    bg={showMyPosts ? "green.500/10" : "transparent"}
-                    _hover={{
-                      borderColor: "green.500",
-                      color: "green.400",
-                      bg: "green.500/20",
-                      transform: "translateY(-2px)",
-                    }}
-                    transition="all 0.2s"
+                    colorScheme={showMyPosts ? "blue" : "blue"}
                   >
                     {showMyPosts ? "All Posts" : "Your Posts"}
                   </Button>
                   <Button
-                    colorScheme="green"
-                    size="lg"
-                    leftIcon={<Icon as={FiEdit3} />}
+                    size="sm"
+                    colorScheme="blue"
                     onClick={() => router.push("/blog/create")}
-                    bgGradient="linear(to-r, green.600, green.800)"
-                    _hover={{
-                      bgGradient: "linear(to-r, green.700, green.900)",
-                      transform: "translateY(-2px)",
-                      shadow: "xl",
-                    }}
-                    transition="all 0.2s"
                   >
                     New Post
                   </Button>
                 </>
               ) : (
-                <Button
-                  colorScheme="green"
-                  size="lg"
-                  onClick={() => signIn()}
-                  variant="outline"
-                  borderColor="green.500"
-                  color="green.400"
-                  _hover={{
-                    bg: "green.500",
-                    color: "white",
-                    transform: "translateY(-2px)",
-                  }}
-                  transition="all 0.2s"
-                >
+                <Button size="sm" colorScheme="blue" onClick={() => signIn()}>
                   Sign in to post
                 </Button>
               )}
             </HStack>
           </Flex>
 
-          {/* Posts Grid */}
-          {isLoading && (
-            <Flex justify="center" py={20}>
-              <Text color="gray.500" fontSize="lg">
-                Loading posts...
-              </Text>
+          <Divider mb={4} borderColor="gray.800" />
+
+          {isLoading ? (
+            <Flex justify="center" py={16}>
+              <Text color="gray.500">Loading posts…</Text>
             </Flex>
-          )}
-          {!isLoading && (
-            <SimpleGrid
-              columns={{ base: 1, md: 2, lg: 3 }}
-              spacing={8}
-              alignItems="stretch"
-            >
+          ) : (
+            <VStack spacing={0} align="stretch">
               {filteredPosts?.map((post: any) => (
-                <PostCard key={post.id} post={post} />
+                <PostRow key={post.id} post={post} />
               ))}
-            </SimpleGrid>
+            </VStack>
           )}
         </Container>
 
-        {/* Create Post Modal */}
+        {/* create modal (unchanged) */}
         <Modal isOpen={isOpen} onClose={onClose} size="2xl">
-          <ModalOverlay backdropFilter="blur(10px)" />
-          <ModalContent
-            bg="gray.800"
-            borderColor="whiteAlpha.200"
-            borderWidth="1px"
-          >
-            <ModalHeader
-              borderBottomWidth="1px"
-              borderColor="whiteAlpha.200"
-              fontSize="2xl"
-              fontWeight="700"
-            >
+          <ModalOverlay />
+          <ModalContent bg="gray.800" borderColor="gray.700" borderWidth="1px">
+            <ModalHeader fontSize="xl" fontWeight="600" color="white">
               Create New Post
             </ModalHeader>
-            <ModalCloseButton />
+            <ModalCloseButton color="gray.400" />
             <ModalBody py={6}>
               <VStack spacing={4}>
                 <FormControl>
-                  <FormLabel color="gray.300" fontWeight="600">
+                  <FormLabel fontWeight="600" fontSize="sm" color="gray.300">
                     Title
                   </FormLabel>
                   <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Enter an engaging title..."
-                    size="lg"
-                    bg="whiteAlpha.50"
-                    borderColor="whiteAlpha.200"
-                    _hover={{ borderColor: "green.600" }}
-                    _focus={{
-                      borderColor: "green.600",
-                      boxShadow: "0 0 0 1px var(--chakra-colors-green-600)",
-                    }}
+                    placeholder="Enter title…"
+                    bg="gray.900"
+                    borderColor="gray.600"
+                    color="white"
+                    _placeholder={{ color: "gray.500" }}
                   />
                 </FormControl>
                 <FormControl>
-                  <FormLabel color="gray.300" fontWeight="600">
+                  <FormLabel fontWeight="600" fontSize="sm" color="gray.300">
                     Content (Markdown Supported)
                   </FormLabel>
                   <Textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="# Your Story&#10;&#10;Write your post in markdown...&#10;&#10;**Bold text**, *italic*, [links](url), and more!"
+                    placeholder="Write your post in markdown…"
                     rows={12}
-                    fontFamily="'JetBrains Mono', monospace"
+                    fontFamily="monospace"
                     fontSize="sm"
-                    bg="whiteAlpha.50"
-                    borderColor="whiteAlpha.200"
-                    _hover={{ borderColor: "green.600" }}
-                    _focus={{
-                      borderColor: "green.600",
-                      boxShadow: "0 0 0 1px var(--chakra-colors-green-600)",
-                    }}
+                    bg="gray.900"
+                    borderColor="gray.600"
+                    color="white"
+                    _placeholder={{ color: "gray.500" }}
                   />
                   <Text color="gray.500" fontSize="xs" mt={2}>
-                    💡 Tip: Use markdown syntax for formatting
+                    Markdown formatting is supported
                   </Text>
                 </FormControl>
               </VStack>
             </ModalBody>
 
-            <ModalFooter borderTopWidth="1px" borderColor="whiteAlpha.200">
-              <Button variant="ghost" mr={3} onClick={onClose}>
+            <ModalFooter>
+              <Button variant="ghost" mr={3} onClick={onClose} color="gray.400">
                 Cancel
               </Button>
               <Button
-                bgGradient="linear(to-r, green.700, green.900)"
-                color="white"
-                _hover={{
-                  bgGradient: "linear(to-r, green.800, green.900)",
-                }}
+                colorScheme="blue"
                 onClick={() => create.mutate({ title, content })}
                 isLoading={
                   (create as any).isPending ?? (create as any).isLoading
                 }
-                loadingText="Creating..."
-                size="lg"
               >
                 Create Post
               </Button>
