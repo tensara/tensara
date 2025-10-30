@@ -253,7 +253,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       gpuType: selectedGpuType,
       problemSlug: slug,
     });
-  }, [startSampleRun, code, selectedLanguage, selectedGpuType, slug, toast]);
+  }, [startSampleRun, session?.user, code, selectedLanguage, selectedGpuType, slug, toast]);
 
   // Keyboard shortcuts:
   // - Cmd+Enter => submit
