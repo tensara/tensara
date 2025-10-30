@@ -91,6 +91,163 @@ def nvcc_command_executable(gpu: str, srcs: list[Path | str], out: Path | str):
     return cmd
 
 
+def _scan_cuda_forbidden(source: str) -> str | None:
+    """Return an error message if source contains forbidden CUDA/C++ tokens.
+
+    Forbidden tokens per policy: #include <thrust/ , thrust::, std::sort, std::stable_sort, qsort(
+    This scanner strips C/C++ comments and string literals first so commented-out occurrences are ignored.
+    """
+    if not isinstance(source, str):
+        return None
+
+    import re
+
+    def _strip_comments_and_strings(s: str) -> str:
+        # remove string literals (double-quoted then single-quoted) using two safe regex calls
+        s = re.sub(r'"(?:\\.|[^"\\])*"', "", s, flags=re.DOTALL)
+        s = re.sub(r"'(?:\\.|[^'\\])*'", "", s, flags=re.DOTALL)
+        # remove block comments
+        s = re.sub(r"/\*.*?\*/", "", s, flags=re.DOTALL)
+        # remove line comments
+        s = re.sub(r"//.*?$", "", s, flags=re.MULTILINE)
+        return s
+
+    cleaned = _strip_comments_and_strings(source)
+
+    patterns = [
+        r"#\s*include\s*<thrust/",
+        r"\bthrust::",
+        r"\bstd::sort\b",
+        r"\bstd::stable_sort\b",
+        r"\bqsort\s*\(",
+    ]
+
+    for p in patterns:
+        if re.search(p, cleaned):
+            return f"Forbidden C++/CUDA usage detected: pattern '{p}' found. This project disallows Thrust, std::sort/std::stable_sort and qsort; please implement using allowed primitives."
+
+    return None
+
+
+def _scan_triton_python_forbidden(source: str) -> str | None:
+    if not isinstance(source, str):
+        return None
+
+    import ast
+
+    try:
+        tree = ast.parse(source)
+    except Exception:
+        # Can't parse -> be conservative
+        return "Unable to parse Python source for safety checks — rejecting submission."
+
+    class Visitor(ast.NodeVisitor):
+        def __init__(self):
+            self.msg = None
+
+        def visit_Attribute(self, node: ast.Attribute):
+            # e.g., tl.sort, torch.sort, torch.topk
+            try:
+                if isinstance(node.attr, str) and node.attr in ("sort", "topk"):
+                    if isinstance(node.value, ast.Name) and node.value.id in ("tl", "torch"):
+                        self.msg = f"Forbidden call to '{node.value.id}.{node.attr}' detected."
+            except Exception:
+                pass
+            self.generic_visit(node)
+
+        def visit_Call(self, node: ast.Call):
+            # detect eval/exec/open/__import__
+            if isinstance(node.func, ast.Name) and node.func.id in (
+                "eval",
+                "exec",
+                "open",
+                "__import__",
+            ):
+                self.msg = f"Forbidden builtin '{node.func.id}' used in Python submission."
+
+            # detect importlib.*(...) calls
+            if (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "importlib"
+            ):
+                self.msg = "Forbidden use of importlib detected."
+
+            self.generic_visit(node)
+
+        def visit_Import(self, node: ast.Import):
+            for alias in node.names:
+                if alias.name == "thrust":
+                    self.msg = "Import of 'thrust' is forbidden."
+
+        def visit_ImportFrom(self, node: ast.ImportFrom):
+            if node.module == "thrust" or (
+                isinstance(node.module, str) and node.module.endswith(".thrust")
+            ):
+                self.msg = "Import of 'thrust' is forbidden."
+            # detect 'from builtin.sort import sort' as a trick
+            if node.module and node.module.endswith("builtin"):
+                for alias in node.names:
+                    if alias.name == "sort":
+                        self.msg = "Importing builtin sort is forbidden."
+
+    v = Visitor()
+    v.visit(tree)
+
+    return v.msg
+
+
+def _scan_mojo_forbidden(source: str) -> str | None:
+    """Text-based scan to detect Mojo forbidden patterns: builtin.sort imports or bare sort on Span types.
+
+    This is heuristic: we look for "from builtin.sort import sort", "builtin.sort.sort" or a bare "sort(" which may be ambiguous.
+    """
+    if not isinstance(source, str):
+        return None
+
+    import re
+
+    # For Mojo (C-like), strip comments and string literals before scanning so commented-out uses are allowed
+    def _strip_comments_and_strings(s: str) -> str:
+        s = re.sub(r'"(?:\\.|[^"\\])*"', "", s, flags=re.DOTALL)
+        s = re.sub(r"'(?:\\.|[^'\\])*'", "", s, flags=re.DOTALL)
+        s = re.sub(r"/\*.*?\*/", "", s, flags=re.DOTALL)
+        s = re.sub(r"//.*?$", "", s, flags=re.MULTILINE)
+        return s
+
+    cleaned = _strip_comments_and_strings(source)
+
+    # explicit import
+    if re.search(r"from\s+builtin\.sort\s+import\s+sort", cleaned):
+        return "Forbidden Mojo import 'from builtin.sort import sort' detected."
+
+    if re.search(r"\bbuiltin\.sort\.sort\b", cleaned):
+        return "Forbidden access to 'builtin.sort.sort' detected."
+
+    # bare sort( is ambiguous; only reject if we also see 'Span' nearby in the file (heuristic)
+    if re.search(r"\bsort\s*\(", cleaned) and re.search(r"\bSpan\b", cleaned):
+        return "Forbidden use of bare 'sort(' on Span types detected."
+
+    return None
+
+
+def reject_forbidden_patterns(language: str, source: str):
+    """Run the appropriate scanner for the language and raise an error if forbidden patterns found."""
+    if language == "cuda" or language == "c++":
+        msg = _scan_cuda_forbidden(source)
+        if msg:
+            raise NVCCError(msg)
+    elif language == "python" or language == "triton":
+        msg = _scan_triton_python_forbidden(source)
+        if msg:
+            # reuse NVCCError for a consistent error type the runner knows how to handle
+            raise NVCCError(msg)
+    elif language == "mojo":
+        msg = _scan_mojo_forbidden(source)
+        if msg:
+            raise MojoError(msg)
+
+
 def mojo_command(srcs: list[Path | str], out: Path | str):
     """Get mojo command for the given source files and output file"""
     srcs = [str(src) for src in srcs]
@@ -157,6 +314,9 @@ def run_nvcc_and_return_bytes(gpu: str, solution_code: str, output_name: str) ->
     Raises:
         NVCCError: If compilation fails
     """
+    # Run forbidden-pattern rejection for CUDA/C++ sources
+    reject_forbidden_patterns("cuda", solution_code)
+
     # Create a temporary file for output that won't be deleted
     output_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".lib{output_name}.so")
     output_file.close()
@@ -201,6 +361,9 @@ def run_mojo_and_return_bytes(solution_code: str, output_name: str) -> bytes:
     Raises:
         MojoError: If compilation fails
     """
+    # Reject forbidden patterns for Mojo sources
+    reject_forbidden_patterns("mojo", solution_code)
+
     # Create a temporary file for output that won't be deleted
     output_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".lib{output_name}.so")
     output_file.close()
@@ -446,15 +609,6 @@ def run_dynamic_benchmark(
     else:
         mean_runtime = runtimes[0]
 
-    # mean_gflops = statistics.mean(gflops_measurements)
-
-    # benchmark_result = {
-    #     "name": test_case["name"],
-    #     "test_id": test_id,
-    #     "runtime_ms": mean_runtime * 1000,
-    # }
-    # if has_flops and gflops_measurements:
-    #     benchmark_result["gflops"] = statistics.mean(gflops_measurements)
     benchmark_result = {
         "name": test_case["name"],
         "test_id": test_id,
@@ -532,6 +686,10 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         return mojo_lib.solution
 
     elif language == "python" or language == "cute":
+        # Run Python/Triton AST checks to reject forbidden patterns
+        if solution_code:
+            reject_forbidden_patterns("triton", solution_code)
+
         filename = "triton_solution.py" if language == "python" else "cute_solution.py"
         if not solution_code:
             raise ValueError("Source code required for Triton submissions")
@@ -650,6 +808,9 @@ def run_nvcc_and_return_executable(gpu: str, solution_code: str) -> bytes:
     Raises:
         NVCCError: If compilation fails
     """
+    # Reject forbidden patterns for CUDA executable sources
+    reject_forbidden_patterns("cuda", solution_code)
+
     output_file = tempfile.NamedTemporaryFile(delete=False, suffix=".bin")
     output_file.close()
     out_path = Path(output_file.name)
