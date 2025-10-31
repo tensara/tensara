@@ -43,7 +43,7 @@ import {
 } from "react-icons/fi";
 import Link from "next/link";
 import { format } from "date-fns";
-import { SubmissionEmbedRenderer } from "~/components/blog/SubmissionEmbedRenderer";
+import { MarkdownRenderer } from "~/components/blog";
 
 // Typed helper aliases for tRPC outputs
 type Post = RouterOutputs["blogpost"]["getById"];
@@ -522,8 +522,7 @@ export default function TestBlogPost() {
                 },
               }}
             >
-              {/* keep this exactly as-is per your request */}
-              <SubmissionEmbedRenderer content={post.content ?? ""} />
+              <MarkdownRenderer content={post.content ?? ""} />
             </Box>
           </VStack>
         </Container>

@@ -25,7 +25,8 @@ import {
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
+import { useRouter } from "next/router";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
@@ -111,7 +112,7 @@ const SubmissionPage: NextPage<{
   pageTitle: string;
   error?: string;
 }> = ({ id, pageTitle }) => {
-  // const router = useRouter();
+  const router = useRouter();
   const [code, setCode] = useState("");
   const { data: session } = useSession();
   const toast = useToast();
@@ -644,6 +645,66 @@ const SubmissionPage: NextPage<{
                     transition="background 0.5s"
                   >
                     Copy Code
+                  </Button>
+                )}
+                {canViewCode && (
+                  <Button
+                    size="sm"
+                    colorScheme="green"
+                    variant="ghost"
+                    onClick={() => {
+                      // Publish as a draft to the blog editor
+                      if (!session) {
+                        void signIn();
+                        return;
+                      }
+
+                      if (!submission) return;
+
+                      try {
+                        const draftKey = `blog-draft-${session.user.id}`;
+                        const language = (() => {
+                          const l = (submission.language ?? "").toLowerCase();
+                          if (l === "cuda") return "cpp";
+                          if (l === "triton") return "python";
+                          return l;
+                        })();
+                        const titleDraft = `Solution: ${submission.problem?.title ?? ""}`;
+                        const contentDraft = `# Solution: ${submission.problem?.title ?? ""}\n\nProblem: /problems/${submission.problem?.slug ?? ""}\n\nSubmitted on ${new Date(
+                          submission.createdAt
+                        ).toLocaleString()}\n\nRuntime: ${submission.runtime ?? ""} ms\nGFLOPS: ${submission.gflops ?? ""}\n\n\`\`\`${language}\n${code}\n\`\`\``;
+
+                        const draft = {
+                          title: titleDraft,
+                          content: contentDraft,
+                          description: `Solution for ${submission.problem?.title ?? ""}`,
+                          isPublished: false,
+                          tags: ["solution"],
+                          lastSaved: new Date().toISOString(),
+                        };
+
+                        localStorage.setItem(draftKey, JSON.stringify(draft));
+                        toast({
+                          title: "Draft created",
+                          description: "Opening blog editor",
+                          status: "success",
+                          duration: 2000,
+                          isClosable: true,
+                        });
+                        void router.push("/blog/create");
+                      } catch (e) {
+                        console.error("Failed to create draft", e);
+                        toast({
+                          title: "Error",
+                          description: "Could not create draft",
+                          status: "error",
+                          duration: 3000,
+                          isClosable: true,
+                        });
+                      }
+                    }}
+                  >
+                    Publish
                   </Button>
                 )}
                 {isOwner && (

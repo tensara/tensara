@@ -1,2 +1,2 @@
 export { SubmissionEmbedCard } from "./SubmissionEmbedCard";
-export { SubmissionEmbedRenderer } from "./SubmissionEmbedRenderer";
+export { MarkdownRenderer } from "./MarkdownRenderer";
