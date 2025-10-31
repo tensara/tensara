@@ -32,29 +32,21 @@ import { FiArrowLeft, FiSave, FiTrash2, FiEye, FiEdit } from "react-icons/fi";
 import { api } from "~/utils/api";
 import ReactMarkdown from "react-markdown";
 
-interface BlogDraft {
-  title: string;
-  content: string;
-  description?: string;
-  isPublished: boolean;
-  tags?: string[];
-  lastSaved: string;
-}
-
 export default function CreateBlogPost() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const toast = useToast();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const draftRestoredRef = useRef(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Form state
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [description, setDescription] = useState("");
-  const [isPublished, setIsPublished] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -63,63 +55,89 @@ export default function CreateBlogPost() {
     }
   }, [status]);
 
-  // Load draft from localStorage on mount
-  useEffect(() => {
-    if (session?.user?.id) {
-      const draftKey = `blog-draft-${session.user.id}`;
-      const savedDraft = localStorage.getItem(draftKey);
-      if (savedDraft) {
-        try {
-          const draft: BlogDraft = JSON.parse(savedDraft);
-          setTitle(draft.title || "");
-          setContent(draft.content || "");
-          setDescription(draft.description || "");
-          setIsPublished(draft.isPublished ?? true);
-          setLastSaved(new Date(draft.lastSaved));
-          toast({
-            title: "Draft restored",
-            description: "Your previous draft has been restored.",
-            status: "info",
-            duration: 3000,
-            isClosable: true,
-          });
-        } catch (e) {
-          console.error("Failed to parse draft:", e);
-        }
-      }
-    }
-  }, [session?.user?.id, toast]);
+  // Load draft from database on mount
+  const { data: loadedDraft } = api.blogpost.loadDraft.useQuery(undefined, {
+    enabled: !!session?.user?.id,
+  });
 
-  // Auto-save to localStorage
+  useEffect(() => {
+    if (loadedDraft && !draftRestoredRef.current) {
+      // Populate form fields
+      setTitle(loadedDraft.title || "");
+      setContent(loadedDraft.content || "");
+      setDescription(loadedDraft.excerpt || "");
+      setDraftId(loadedDraft.id);
+      setLastSaved(new Date(loadedDraft.updatedAt));
+
+      // Show toast only once
+      toast({
+        title: "Draft restored",
+        description: "Your previous draft has been restored.",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Mark as restored
+      draftRestoredRef.current = true;
+    }
+  }, [loadedDraft, toast]);
+
+  const utils = api.useContext();
+
+  // Auto-save draft mutation
+  const saveDraftMutation = api.blogpost.saveDraft.useMutation({
+    onSuccess: (draft) => {
+      setDraftId(draft.id);
+      setLastSaved(new Date());
+    },
+  });
+
+  // Delete draft mutation
+  const deleteDraftMutation = api.blogpost.deleteDraft.useMutation({
+    onSuccess: () => {
+      setDraftId(null);
+      void utils.blogpost.loadDraft.invalidate();
+    },
+  });
+
+  // Auto-save to database with debounce
   useEffect(() => {
     if (!session?.user?.id) return;
 
     const timer = setTimeout(() => {
       if (title || content) {
-        const draftKey = `blog-draft-${session.user.id}`;
-        const draft: BlogDraft = {
-          title,
+        saveDraftMutation.mutate({
+          title: title || "Untitled",
           content,
-          description,
-          isPublished,
-          lastSaved: new Date().toISOString(),
-        };
-        localStorage.setItem(draftKey, JSON.stringify(draft));
-        setLastSaved(new Date());
+          excerpt: description,
+        });
       }
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [title, content, description, isPublished, session?.user?.id]);
+  }, [title, content, description, session?.user?.id]);
 
-  const utils = api.useContext();
   const createPost = api.blogpost.create.useMutation({
     onSuccess: async (post) => {
-      if (session?.user?.id) {
-        const draftKey = `blog-draft-${session.user.id}`;
-        localStorage.removeItem(draftKey);
+      // If publishing (not just saving draft), delete the draft
+      if (post.status === "PUBLISHED" && draftId) {
+        try {
+          await deleteDraftMutation.mutateAsync({ id: draftId });
+        } catch (error) {
+          console.error("Failed to delete draft:", error);
+          // Continue anyway - the post was successfully published
+        }
       }
+
+      // Clear local state
+      setDraftId(null);
+      setTitle("");
+      setContent("");
+      setDescription("");
+
       await utils.blogpost.getAll.invalidate();
+      const isPublished = post.status === "PUBLISHED";
       toast({
         title: isPublished ? "Post published!" : "Draft saved!",
         description: isPublished
@@ -142,7 +160,7 @@ export default function CreateBlogPost() {
     },
   });
 
-  const handlePublish = () => {
+  const handlePublish = (status: "PUBLISHED" | "DRAFT" = "PUBLISHED") => {
     if (!title.trim()) {
       toast({
         title: "Title required",
@@ -169,41 +187,18 @@ export default function CreateBlogPost() {
       title,
       content,
       excerpt: description || undefined,
-      status: isPublished ? "PUBLISHED" : "DRAFT",
+      status,
     });
   };
 
-  const handleSaveDraft = () => {
-    if (session?.user?.id) {
-      const draftKey = `blog-draft-${session.user.id}`;
-      const draft: BlogDraft = {
-        title,
-        content,
-        description,
-        isPublished,
-        lastSaved: new Date().toISOString(),
-      };
-      localStorage.setItem(draftKey, JSON.stringify(draft));
-      setLastSaved(new Date());
-      toast({
-        title: "Draft saved",
-        description: "Your draft has been saved to local storage.",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleClearDraft = () => {
-    if (session?.user?.id) {
-      const draftKey = `blog-draft-${session.user.id}`;
-      localStorage.removeItem(draftKey);
+  const handleClearDraft = async () => {
+    if (draftId) {
+      await deleteDraftMutation.mutateAsync({ id: draftId });
+      draftRestoredRef.current = false;
     }
     setTitle("");
     setContent("");
     setDescription("");
-    setIsPublished(true);
     setLastSaved(null);
     onClose();
     toast({
@@ -284,14 +279,32 @@ export default function CreateBlogPost() {
               >
                 Clear
               </Button>
+
               <Button
-                variant="outline"
-                colorScheme="green"
-                leftIcon={<Icon as={FiSave} />}
-                onClick={handleSaveDraft}
                 size="sm"
+                bg="#1DA94C"
+                color="white"
+                _hover={{ bg: "#178a3d" }}
+                _active={{ bg: "#156f32" }}
+                onClick={() => handlePublish("DRAFT")}
+                isLoading={createPost.isPending}
+                loadingText="Saving…"
               >
-                Save Draft
+                Save as Draft
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                borderColor="#1DA94C"
+                color="#1DA94C"
+                _hover={{ bg: "rgba(29, 169, 76, 0.1)" }}
+                _active={{ bg: "rgba(29, 169, 76, 0.2)" }}
+                onClick={() => handlePublish("PUBLISHED")}
+                isLoading={createPost.isPending}
+                loadingText="Publishing…"
+              >
+                Publish Post
               </Button>
             </HStack>
           </Flex>
@@ -374,7 +387,18 @@ export default function CreateBlogPost() {
                     <Button
                       size="xs"
                       variant={!showPreview ? "solid" : "ghost"}
-                      colorScheme="green"
+                      {...(!showPreview
+                        ? {
+                            bg: "#1DA94C",
+                            color: "white",
+                            _hover: { bg: "#178a3d" },
+                            _active: { bg: "#156f32" },
+                          }
+                        : {
+                            color: "#1DA94C",
+                            _hover: { bg: "rgba(29, 169, 76, 0.1)" },
+                            _active: { bg: "rgba(29, 169, 76, 0.2)" },
+                          })}
                       leftIcon={<Icon as={FiEdit} />}
                       onClick={() => setShowPreview(false)}
                     >
@@ -383,7 +407,18 @@ export default function CreateBlogPost() {
                     <Button
                       size="xs"
                       variant={showPreview ? "solid" : "ghost"}
-                      colorScheme="green"
+                      {...(showPreview
+                        ? {
+                            bg: "#1DA94C",
+                            color: "white",
+                            _hover: { bg: "#178a3d" },
+                            _active: { bg: "#156f32" },
+                          }
+                        : {
+                            color: "#1DA94C",
+                            _hover: { bg: "rgba(29, 169, 76, 0.1)" },
+                            _active: { bg: "rgba(29, 169, 76, 0.2)" },
+                          })}
                       leftIcon={<Icon as={FiEye} />}
                       onClick={() => setShowPreview(true)}
                     >
@@ -489,37 +524,6 @@ export default function CreateBlogPost() {
                   </Box>
                 )}
               </FormControl>
-
-              {/* Published */}
-              <FormControl>
-                <Checkbox
-                  isChecked={isPublished}
-                  onChange={(e) => setIsPublished(e.target.checked)}
-                  colorScheme="green"
-                  size="md"
-                >
-                  <Text color="gray.200" fontWeight="600">
-                    Publish immediately
-                  </Text>
-                </Checkbox>
-                <Text color="gray.500" fontSize="sm" mt={1} ml={6}>
-                  Uncheck to save as draft
-                </Text>
-              </FormControl>
-
-              {/* Actions */}
-              <Flex justify="flex-end" pt={2}>
-                <Button
-                  size="md"
-                  colorScheme="green"
-                  onClick={handlePublish}
-                  isLoading={createPost.isPending}
-                  loadingText={isPublished ? "Publishing…" : "Saving…"}
-                  px={8}
-                >
-                  {isPublished ? "Publish Post" : "Save as Draft"}
-                </Button>
-              </Flex>
             </VStack>
           </Box>
         </Container>

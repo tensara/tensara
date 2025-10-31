@@ -403,8 +403,12 @@ export const blogpostRouter = createTRPCRouter({
       // Build where clause
       const where: any = {};
 
+      // Default to PUBLISHED posts if no status specified
+      // This ensures drafts don't appear in public listings
       if (input.status) {
         where.status = input.status;
+      } else {
+        where.status = "PUBLISHED";
       }
 
       if (input.postType) {
@@ -592,6 +596,131 @@ export const blogpostRouter = createTRPCRouter({
       }
 
       return updated;
+    }),
+
+  // Draft auto-save operations
+  saveDraft: protectedProcedure
+    .input(
+      z.object({
+        title: z.string(),
+        content: z.string(),
+        excerpt: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+
+      // Check if user has an existing DRAFT post (only one draft allowed per user for auto-save)
+      const existingDraft = await db.blogPost.findFirst({
+        where: {
+          authorId: ctx.session.user.id,
+          status: "DRAFT",
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      // Calculate read time
+      const readTimeMinutes = calculateReadTime(input.content);
+
+      if (existingDraft) {
+        // Update existing draft
+        const updated = await db.blogPost.update({
+          where: { id: existingDraft.id },
+          data: {
+            title: input.title,
+            content: input.content,
+            excerpt: input.excerpt,
+            readTimeMinutes,
+            updatedAt: new Date(),
+          },
+        });
+        return updated;
+      } else {
+        // Create new draft
+        const slug = await generateUniqueSlug(db, input.title);
+        const post = await db.blogPost.create({
+          data: {
+            title: input.title,
+            content: input.content,
+            excerpt: input.excerpt,
+            slug,
+            postType: "GENERAL",
+            status: "DRAFT",
+            readTimeMinutes,
+            authorId: ctx.session.user.id,
+          },
+        });
+        return post;
+      }
+    }),
+
+  loadDraft: protectedProcedure.query(async ({ ctx }) => {
+    const db = ctx.db as any;
+
+    // Find the most recent draft post for the current user
+    const draft = await db.blogPost.findFirst({
+      where: {
+        authorId: ctx.session.user.id,
+        status: "DRAFT",
+      },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+        submissions: {
+          include: {
+            submission: {
+              include: {
+                problem: true,
+              },
+            },
+          },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    return draft;
+  }),
+
+  deleteDraft: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+
+      // Check if post exists and belongs to current user
+      const existing = await db.blogPost.findUnique({
+        where: { id: input.id },
+        select: { authorId: true, status: true },
+      });
+
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Draft post not found",
+        });
+      }
+
+      if (existing.authorId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only delete your own drafts",
+        });
+      }
+
+      if (existing.status !== "DRAFT") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Can only delete draft posts",
+        });
+      }
+
+      await db.blogPost.delete({ where: { id: input.id } });
+
+      return { ok: true };
     }),
 
   delete: protectedProcedure

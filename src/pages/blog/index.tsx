@@ -232,20 +232,41 @@ export default function TestBlogIndex() {
                     size="sm"
                     variant={showMyPosts ? "solid" : "outline"}
                     onClick={() => setShowMyPosts(!showMyPosts)}
-                    colorScheme={showMyPosts ? "blue" : "blue"}
+                    bg={showMyPosts ? "#1DA94C" : "transparent"}
+                    color={showMyPosts ? "white" : "#1DA94C"}
+                    borderColor="#1DA94C"
+                    _hover={{
+                      bg: showMyPosts ? "#178a3d" : "rgba(29, 169, 76, 0.1)",
+                    }}
+                    _active={{
+                      bg: showMyPosts ? "#156f32" : "rgba(29, 169, 76, 0.2)",
+                    }}
+                    transition="all 0.2s ease"
                   >
                     {showMyPosts ? "All Posts" : "Your Posts"}
                   </Button>
                   <Button
                     size="sm"
-                    colorScheme="blue"
+                    bg="#1DA94C"
+                    color="white"
+                    _hover={{ bg: "#178a3d" }}
+                    _active={{ bg: "#156f32" }}
+                    transition="all 0.2s ease"
                     onClick={() => router.push("/blog/create")}
                   >
                     New Post
                   </Button>
                 </>
               ) : (
-                <Button size="sm" colorScheme="blue" onClick={() => signIn()}>
+                <Button
+                  size="sm"
+                  bg="#1DA94C"
+                  color="white"
+                  _hover={{ bg: "#178a3d" }}
+                  _active={{ bg: "#156f32" }}
+                  transition="all 0.2s ease"
+                  onClick={() => signIn()}
+                >
                   Sign in to post
                 </Button>
               )}

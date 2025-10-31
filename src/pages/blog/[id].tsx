@@ -186,9 +186,20 @@ export default function TestBlogPost() {
                 <Button
                   size="xs"
                   variant={cuHasUpvoted?.hasUpvoted ? "solid" : "ghost"}
+                  {...(cuHasUpvoted?.hasUpvoted
+                    ? {
+                        bg: "#1DA94C",
+                        color: "white",
+                        _hover: { bg: "#178a3d" },
+                        _active: { bg: "#156f32" },
+                      }
+                    : {
+                        color: "#1DA94C",
+                        _hover: { bg: "rgba(29, 169, 76, 0.1)" },
+                        _active: { bg: "rgba(29, 169, 76, 0.2)" },
+                      })}
                   leftIcon={<Icon as={FiThumbsUp} />}
                   onClick={() => cuToggle.mutate({ commentId: comment.id })}
-                  colorScheme="green"
                 >
                   {cuCount.data?.count ?? 0}
                 </Button>
@@ -236,7 +247,10 @@ export default function TestBlogPost() {
                     </Button>
                     <Button
                       size="sm"
-                      colorScheme="green"
+                      bg="#1DA94C"
+                      color="white"
+                      _hover={{ bg: "#178a3d" }}
+                      _active={{ bg: "#156f32" }}
                       onClick={() => {
                         if (!replyText.trim() || !post?.id) return;
                         createComment.mutate({
@@ -305,7 +319,9 @@ export default function TestBlogPost() {
                 href="/blog"
                 leftIcon={<Icon as={FiArrowLeft} />}
                 variant="ghost"
-                colorScheme="green"
+                color="#1DA94C"
+                _hover={{ bg: "rgba(29, 169, 76, 0.1)" }}
+                _active={{ bg: "rgba(29, 169, 76, 0.2)" }}
               >
                 Back to posts
               </Button>
@@ -325,9 +341,10 @@ export default function TestBlogPost() {
             href="/blog"
             leftIcon={<Icon as={FiArrowLeft} />}
             variant="ghost"
-            colorScheme="green"
+            color="#1DA94C"
             mb={6}
-            _hover={{ bg: "whiteAlpha.100" }}
+            _hover={{ bg: "rgba(29, 169, 76, 0.1)" }}
+            _active={{ bg: "rgba(29, 169, 76, 0.2)" }}
           >
             Back to posts
           </Button>
@@ -374,11 +391,22 @@ export default function TestBlogPost() {
                     <Button
                       size="sm"
                       variant={postHasUpvoted?.hasUpvoted ? "solid" : "ghost"}
+                      {...(postHasUpvoted?.hasUpvoted
+                        ? {
+                            bg: "#1DA94C",
+                            color: "white",
+                            _hover: { bg: "#178a3d" },
+                            _active: { bg: "#156f32" },
+                          }
+                        : {
+                            color: "#1DA94C",
+                            _hover: { bg: "rgba(29, 169, 76, 0.1)" },
+                            _active: { bg: "rgba(29, 169, 76, 0.2)" },
+                          })}
                       leftIcon={<Icon as={FiThumbsUp} />}
                       onClick={() =>
                         postUpvoteToggle.mutate({ postId: post.id })
                       }
-                      colorScheme="green"
                     >
                       {postUpvoteCount?.count ?? 0}
                     </Button>
@@ -390,8 +418,10 @@ export default function TestBlogPost() {
                         aria-label="Edit post"
                         icon={<Icon as={FiEdit3} />}
                         onClick={onOpen}
-                        colorScheme="green"
                         variant="ghost"
+                        color="#1DA94C"
+                        _hover={{ bg: "rgba(29, 169, 76, 0.1)" }}
+                        _active={{ bg: "rgba(29, 169, 76, 0.2)" }}
                         size="sm"
                       />
                       <IconButton
@@ -418,6 +448,7 @@ export default function TestBlogPost() {
               maxW="900px"
               // centers the reading column while header and comments can stretch
               mx="auto"
+              textAlign="left"
               className="markdown-content"
               sx={{
                 "& h1": {
@@ -583,8 +614,11 @@ export default function TestBlogPost() {
               ) : (
                 <Button
                   onClick={() => signIn()}
-                  colorScheme="green"
                   variant="outline"
+                  borderColor="#1DA94C"
+                  color="#1DA94C"
+                  _hover={{ bg: "rgba(29, 169, 76, 0.1)" }}
+                  _active={{ bg: "rgba(29, 169, 76, 0.2)" }}
                 >
                   Sign in to comment
                 </Button>
@@ -646,7 +680,10 @@ export default function TestBlogPost() {
               Cancel
             </Button>
             <Button
-              colorScheme="green"
+              bg="#1DA94C"
+              color="white"
+              _hover={{ bg: "#178a3d" }}
+              _active={{ bg: "#156f32" }}
               onClick={() => update.mutate({ id: post!.id, title, content })}
               isLoading={(update as any).isLoading}
             >
