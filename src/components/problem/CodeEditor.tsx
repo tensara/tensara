@@ -408,7 +408,6 @@ const CodeEditor = ({
   sassContent,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
-  const hasAssembly = ptxContent ?? sassContent;
 
   const editorContent = (
     content: string,
@@ -484,29 +483,6 @@ const CodeEditor = ({
       />
     </>
   );
-
-  if (!hasAssembly) {
-    return (
-      <Box
-        w="100%"
-        h="100%"
-        bg="brand.secondary"
-        borderRadius="xl"
-        overflow="hidden"
-        position="relative"
-      >
-        {editorContent(
-          code,
-          selectedLanguage === "cuda"
-            ? "cpp"
-            : selectedLanguage === "mojo"
-              ? "mojo"
-              : "python",
-          !isEditable
-        )}
-      </Box>
-    );
-  }
 
   return (
     <Box
