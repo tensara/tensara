@@ -218,6 +218,17 @@ async def benchmark(gpu: str, request: Request):
                     "details": str(e),
                 }
                 return
+
+            try:
+                ptx_content, sass_content = utils.generate_ptx_sass(gpu, solution_code)
+                yield {"status": "PTX", "content": ptx_content}
+                yield {"status": "SASS", "content": sass_content}
+            except Exception as e:
+                print(f"PTX/SASS generation failed: {e}")
+                yield {
+                    "status": "WARNING",
+                    "message": f"PTX/SASS generation failed: {str(e)}"
+                }
         else:
             benchmark_compiled = None
 
@@ -270,6 +281,17 @@ async def sample_runner(gpu: str, request: Request):
                     "details": str(e),
                 }
                 return
+
+            try:
+                ptx_content, sass_content = utils.generate_ptx_sass(gpu, solution_code)
+                yield {"status": "PTX", "content": ptx_content}
+                yield {"status": "SASS", "content": sass_content}
+            except Exception as e:
+                print(f"PTX/SASS generation failed: {e}")
+                yield {
+                    "status": "WARNING",
+                    "message": f"PTX/SASS generation failed: {str(e)}"
+                }
         else:
             sample_compiled = None
 
@@ -306,6 +328,17 @@ async def sandbox(gpu: str, request: Request):
                 "details": e.args[0],
             }
             return
+
+        try:
+            ptx_content, sass_content = utils.generate_ptx_sass(gpu, solution_code)
+            yield {"status": "PTX", "content": ptx_content}
+            yield {"status": "SASS", "content": sass_content}
+        except Exception as e:
+            print(f"PTX/SASS generation failed: {e}")
+            yield {
+                "status": "WARNING",
+                "message": f"PTX/SASS generation failed: {str(e)}"
+            }
 
         runner = gpu_runners[gpu]
         print("runner", runner)

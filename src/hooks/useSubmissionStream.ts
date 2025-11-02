@@ -62,6 +62,8 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] =
     useState<boolean>(false);
   const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
+  const [ptxContent, setPtxContent] = useState<string | null>(null);
+  const [sassContent, setSassContent] = useState<string | null>(null);
 
   // Type-safe accessor for metaResponse based on current metaStatus
   const getTypedResponse = useCallback(
@@ -126,7 +128,15 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       const status = data?.status as string | undefined;
       if (!status) return;
 
-      // Switch on status (not on "event:")
+      if (status === "PTX" && "content" in data) {
+        setPtxContent((data as { status: string; content: string }).content);
+        return;
+      }
+      if (status === "SASS" && "content" in data) {
+        setSassContent((data as { status: string; content: string }).content);
+        return;
+      }
+
       switch (status) {
         case "IN_QUEUE":
           setMetaStatus(SubmissionStatus.IN_QUEUE);
@@ -372,6 +382,8 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setTestResults([]);
     setBenchmarkResults([]);
     setTotalTests(0);
+    setPtxContent(null);
+    setSassContent(null);
   }, []);
 
   return {
@@ -388,5 +400,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setMetaStatus,
     totalTests,
     getTypedResponse,
+    ptxContent,
+    sassContent,
   };
 }

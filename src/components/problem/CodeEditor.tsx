@@ -1,4 +1,14 @@
-import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Text,
+  Spinner,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+} from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
@@ -10,6 +20,8 @@ interface CodeEditorProps {
   setCode: (code: string) => void;
   selectedLanguage: ProgrammingLanguage;
   isEditable?: boolean;
+  ptxContent?: string | null;
+  sassContent?: string | null;
 }
 
 function setupMonaco(monaco: Monaco) {
@@ -392,18 +404,18 @@ const CodeEditor = ({
   setCode,
   selectedLanguage,
   isEditable = true,
+  ptxContent,
+  sassContent,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
+  const hasAssembly = ptxContent ?? sassContent;
 
-  return (
-    <Box
-      w="100%"
-      h="100%"
-      bg="brand.secondary"
-      borderRadius="xl"
-      overflow="hidden"
-      position="relative"
-    >
+  const editorContent = (
+    content: string,
+    language: string,
+    readOnly: boolean
+  ) => (
+    <>
       {isEditorLoading && (
         <Flex
           position="absolute"
@@ -453,15 +465,9 @@ const CodeEditor = ({
       <Editor
         height="100%"
         theme="tensara-dark"
-        value={code}
-        onChange={(value) => isEditable && setCode(value ?? "")}
-        language={
-          selectedLanguage === "cuda"
-            ? "cpp"
-            : selectedLanguage === "mojo"
-              ? "mojo"
-              : "python"
-        }
+        value={content}
+        onChange={(value) => !readOnly && isEditable && setCode(value ?? "")}
+        language={language}
         beforeMount={setupMonaco}
         onMount={() => setIsEditorLoading(false)}
         loading={null}
@@ -473,9 +479,136 @@ const CodeEditor = ({
           automaticLayout: true,
           padding: { top: 16, bottom: 16 },
           fontFamily: "JetBrains Mono, monospace",
-          readOnly: !isEditable,
+          readOnly: readOnly,
         }}
       />
+    </>
+  );
+
+  if (!hasAssembly) {
+    return (
+      <Box
+        w="100%"
+        h="100%"
+        bg="brand.secondary"
+        borderRadius="xl"
+        overflow="hidden"
+        position="relative"
+      >
+        {editorContent(
+          code,
+          selectedLanguage === "cuda"
+            ? "cpp"
+            : selectedLanguage === "mojo"
+              ? "mojo"
+              : "python",
+          !isEditable
+        )}
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      w="100%"
+      h="100%"
+      bg="brand.secondary"
+      borderRadius="xl"
+      overflow="hidden"
+      position="relative"
+    >
+      <Tabs
+        variant="unstyled"
+        h="100%"
+        display="flex"
+        flexDirection="column"
+        colorScheme="blue"
+      >
+        <TabList
+          bg="#1A1A1A"
+          borderBottom="1px solid"
+          borderColor="#2A2A2A"
+          px={2}
+          gap={1}
+        >
+          <Tab
+            _selected={{
+              color: "#4EC9B0",
+              bg: "brand.secondary",
+              borderBottom: "2px solid",
+              borderColor: "#4EC9B0",
+            }}
+            color="#858585"
+            fontSize="sm"
+            fontWeight="600"
+            py={2}
+            px={4}
+            _hover={{ color: "#CCCCCC" }}
+          >
+            Code
+          </Tab>
+          {ptxContent && (
+            <Tab
+              _selected={{
+                color: "#CE9178",
+                bg: "brand.secondary",
+                borderBottom: "2px solid",
+                borderColor: "#CE9178",
+              }}
+              color="#858585"
+              fontSize="sm"
+              fontWeight="600"
+              py={2}
+              px={4}
+              _hover={{ color: "#CCCCCC" }}
+            >
+              PTX
+            </Tab>
+          )}
+          {sassContent && (
+            <Tab
+              _selected={{
+                color: "#DCDCAA",
+                bg: "brand.secondary",
+                borderBottom: "2px solid",
+                borderColor: "#DCDCAA",
+              }}
+              color="#858585"
+              fontSize="sm"
+              fontWeight="600"
+              py={2}
+              px={4}
+              _hover={{ color: "#CCCCCC" }}
+            >
+              SASS
+            </Tab>
+          )}
+        </TabList>
+
+        <TabPanels flex="1" minH={0}>
+          <TabPanel p={0} h="100%">
+            {editorContent(
+              code,
+              selectedLanguage === "cuda"
+                ? "cpp"
+                : selectedLanguage === "mojo"
+                  ? "mojo"
+                  : "python",
+              !isEditable
+            )}
+          </TabPanel>
+          {ptxContent && (
+            <TabPanel p={0} h="100%">
+              {editorContent(ptxContent, "cpp", true)}
+            </TabPanel>
+          )}
+          {sassContent && (
+            <TabPanel p={0} h="100%">
+              {editorContent(sassContent, "asm", true)}
+            </TabPanel>
+          )}
+        </TabPanels>
+      </Tabs>
     </Box>
   );
 };

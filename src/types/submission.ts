@@ -11,6 +11,9 @@ export const SubmissionStatus = {
   BENCHMARKED: "BENCHMARKED",
   ACCEPTED: "ACCEPTED",
   SANITY_CHECK_PASSED: "SANITY_CHECK_PASSED",
+  PTX: "PTX",
+  SASS: "SASS",
+  WARNING: "WARNING",
   // Sandbox statuses
   SANDBOX_RUNNING: "SANDBOX_RUNNING",
   SANDBOX_OUTPUT: "SANDBOX_OUTPUT",
@@ -171,12 +174,18 @@ export const SampleStatus = {
   TIME_LIMIT_EXCEEDED: "TIME_LIMIT_EXCEEDED",
   RUNTIME_ERROR: "RUNTIME_ERROR",
   TOO_MANY_REQUESTS: "TOO_MANY_REQUESTS",
+  PTX: "PTX",
+  SASS: "SASS",
+  WARNING: "WARNING",
 } as const;
 
 // Sandbox Status Constants
 export const SandboxStatus = {
   IN_QUEUE: "IN_QUEUE",
   COMPILING: "COMPILING",
+  PTX: "PTX",
+  SASS: "SASS",
+  WARNING: "WARNING",
   SANDBOX_RUNNING: "SANDBOX_RUNNING",
   SANDBOX_OUTPUT: "SANDBOX_OUTPUT",
   SANDBOX_SUCCESS: "SANDBOX_SUCCESS",
@@ -186,6 +195,18 @@ export const SandboxStatus = {
 
 export type SandboxStatusType =
   (typeof SandboxStatus)[keyof typeof SandboxStatus];
+
+export interface PTXResponse extends BaseResponse<"PTX"> {
+  content: string;
+}
+
+export interface SASSResponse extends BaseResponse<"SASS"> {
+  content: string;
+}
+
+export interface WarningResponse extends BaseResponse<"WARNING"> {
+  message: string;
+}
 
 export type SampleStatusType = (typeof SampleStatus)[keyof typeof SampleStatus];
 
@@ -233,4 +254,6 @@ export type SampleOutput = {
   message?: string;
   details?: string;
   expected_output?: string;
+  ptx?: string;
+  sass?: string;
 };

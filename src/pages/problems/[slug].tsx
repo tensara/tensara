@@ -91,14 +91,14 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
   const { isOpen, onOpen, onClose } = useDisclosure();
-  // const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
-  // const [isRunning, setIsRunning] = useState(false);
 
   const {
     output: consoleOutput,
     status,
     isRunning,
     startSampleRun,
+    ptxContent,
+    sassContent,
   } = useSampleStream();
 
   // Get problem data
@@ -378,6 +378,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
               code={code}
               setCode={setCode}
               selectedLanguage={selectedLanguage}
+              ptxContent={ptxContent}
+              sassContent={sassContent}
             />
           }
           bottomContent={
