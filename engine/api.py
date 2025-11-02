@@ -124,6 +124,8 @@ def gen_wrapper(gen):
     import simplejson
 
     for event in gen:
+        if event is None or event == {}:
+            continue
         data = simplejson.dumps(event, ignore_nan=True)
         yield "data: " + data + "\n\n"
 
@@ -219,16 +221,8 @@ async def benchmark(gpu: str, request: Request):
                 }
                 return
 
-            try:
-                ptx_content, sass_content = utils.generate_ptx_sass(gpu, solution_code)
-                yield {"status": "PTX", "content": ptx_content}
-                yield {"status": "SASS", "content": sass_content}
-            except Exception as e:
-                print(f"PTX/SASS generation failed: {e}")
-                yield {
-                    "status": "WARNING",
-                    "message": f"PTX/SASS generation failed: {str(e)}"
-                }
+            for event in utils.yield_ptx_sass(gpu, solution_code):
+                yield event
         else:
             benchmark_compiled = None
 
@@ -282,16 +276,8 @@ async def sample_runner(gpu: str, request: Request):
                 }
                 return
 
-            try:
-                ptx_content, sass_content = utils.generate_ptx_sass(gpu, solution_code)
-                yield {"status": "PTX", "content": ptx_content}
-                yield {"status": "SASS", "content": sass_content}
-            except Exception as e:
-                print(f"PTX/SASS generation failed: {e}")
-                yield {
-                    "status": "WARNING",
-                    "message": f"PTX/SASS generation failed: {str(e)}"
-                }
+            for event in utils.yield_ptx_sass(gpu, solution_code):
+                yield event
         else:
             sample_compiled = None
 
@@ -329,16 +315,8 @@ async def sandbox(gpu: str, request: Request):
             }
             return
 
-        try:
-            ptx_content, sass_content = utils.generate_ptx_sass(gpu, solution_code)
-            yield {"status": "PTX", "content": ptx_content}
-            yield {"status": "SASS", "content": sass_content}
-        except Exception as e:
-            print(f"PTX/SASS generation failed: {e}")
-            yield {
-                "status": "WARNING",
-                "message": f"PTX/SASS generation failed: {str(e)}"
-            }
+        for event in utils.yield_ptx_sass(gpu, solution_code):
+            yield event
 
         runner = gpu_runners[gpu]
         print("runner", runner)

@@ -269,6 +269,12 @@ export default async function handler(
 
               res.end();
               return;
+            } else if (
+              response_status === "PTX" ||
+              response_status === "SASS" ||
+              response_status === "WARNING"
+            ) {
+              sendSSE(response_status, parsed);
             } else {
               sendSSE(response_status, {});
             }

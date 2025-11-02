@@ -154,6 +154,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
     startSubmission,
     totalTests,
     getTypedResponse,
+    ptxContent: submissionPtxContent,
+    sassContent: submissionSassContent,
   } = useSubmissionStream(submissionsQuery.refetch);
 
   useEffect(() => {
@@ -378,8 +380,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
               code={code}
               setCode={setCode}
               selectedLanguage={selectedLanguage}
-              ptxContent={ptxContent}
-              sassContent={sassContent}
+              ptxContent={submissionPtxContent ?? ptxContent}
+              sassContent={submissionSassContent ?? sassContent}
             />
           }
           bottomContent={

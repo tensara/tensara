@@ -868,6 +868,20 @@ def generate_ptx_sass(gpu: str, solution_code: str) -> tuple[str, str]:
     return ptx_content, sass_content
 
 
+def yield_ptx_sass(gpu: str, solution_code: str):
+    """Generate and yield PTX/SASS assembly, with graceful error handling"""
+    try:
+        ptx_content, sass_content = generate_ptx_sass(gpu, solution_code)
+        yield {"status": "PTX", "content": ptx_content}
+        yield {"status": "SASS", "content": sass_content}
+    except Exception as e:
+        print(f"PTX/SASS generation failed: {e}")
+        yield {
+            "status": "WARNING",
+            "message": f"PTX/SASS generation failed: {str(e)}"
+        }
+
+
 @hash_dict
 @lru_cache(maxsize=512)
 def run_nvcc_and_return_executable(gpu: str, solution_code: str) -> bytes:
