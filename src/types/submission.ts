@@ -196,18 +196,6 @@ export const SandboxStatus = {
 export type SandboxStatusType =
   (typeof SandboxStatus)[keyof typeof SandboxStatus];
 
-export interface PTXResponse extends BaseResponse<"PTX"> {
-  content: string;
-}
-
-export interface SASSResponse extends BaseResponse<"SASS"> {
-  content: string;
-}
-
-export interface WarningResponse extends BaseResponse<"WARNING"> {
-  message: string;
-}
-
 export type SampleStatusType = (typeof SampleStatus)[keyof typeof SampleStatus];
 
 export type SampleEvent = {
