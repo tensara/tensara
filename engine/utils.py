@@ -889,7 +889,9 @@ class ReferenceSolutionContext:
         self.old_conv_fp32 = torch.backends.cudnn.conv.fp32_precision
         self.old_rnn_fp32 = torch.backends.cudnn.rnn.fp32_precision
         self.cudnn_deterministic = torch.backends.cudnn.deterministic
+        self.old_cublas_config = os.environ.get("CUBLAS_WORKSPACE_CONFIG", "")
 
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
         torch.backends.fp32_precision = "ieee"
         torch.backends.cuda.matmul.fp32_precision = "ieee"
         torch.backends.cudnn.fp32_precision = "ieee"
@@ -910,3 +912,4 @@ class ReferenceSolutionContext:
         torch.backends.cudnn.rnn.fp32_precision = self.old_rnn_fp32
         torch.backends.cudnn.deterministic = self.cudnn_deterministic
         torch.use_deterministic_algorithms(False)
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = self.old_cublas_config
