@@ -17,7 +17,7 @@ LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
 APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
 
 devel_image = (
-    modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.12")
+    modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.13")
     .apt_install(APT_PACKAGES)
     .env({"CC": "gcc"})
     .env({"PATH": "/root/.local/bin:$PATH"})
@@ -29,7 +29,7 @@ devel_image = (
 
 
 runtime_image = (
-    modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.12")
+    modal.Image.from_registry(RUNTIME_IMAGE_NAME, add_python="3.13")
     .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
     .env({"CC": "gcc"})
     .env({"PATH": "/root/.local/bin:$PATH"})
