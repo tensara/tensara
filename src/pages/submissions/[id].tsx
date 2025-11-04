@@ -670,9 +670,26 @@ const SubmissionPage: NextPage<{
                           return l;
                         })();
                         const titleDraft = `Solution: ${submission.problem?.title ?? ""}`;
-                        const contentDraft = `# Solution: ${submission.problem?.title ?? ""}\n\nProblem: /problems/${submission.problem?.slug ?? ""}\n\nSubmitted on ${new Date(
-                          submission.createdAt
-                        ).toLocaleString()}\n\nRuntime: ${submission.runtime ?? ""} ms\nGFLOPS: ${submission.gflops ?? ""}\n\n\`\`\`${language}\n${code}\n\`\`\``;
+                        const created = new Date(submission.createdAt);
+                        const createdStr = created.toLocaleString();
+                        const runtimeStr =
+                          submission.runtime != null
+                            ? submission.runtime.toFixed(2)
+                            : "N/A";
+                        const gflopsStr =
+                          submission.gflops != null
+                            ? submission.gflops.toFixed(2)
+                            : "N/A";
+                        const testsStr =
+                          submission.passedTests != null &&
+                          submission.totalTests != null
+                            ? `${submission.passedTests}/${submission.totalTests}`
+                            : "N/A";
+                        const problemLink = `https://tensara.org/problems/${
+                          submission.problem?.slug ?? ""
+                        }`;
+
+                        const contentDraft = `# Solution: ${submission.problem?.title ?? ""}\n\n[Problem: ${submission.problem?.title ?? ""}](${problemLink})\n\n**Submitted on:** \`${createdStr}\`\n\n- **Runtime:** \`${runtimeStr} ms\`\n- **Performance:** \`${gflopsStr} GFLOPS\`\n- **Tests:** \`${testsStr}\`\n\n\`\`\`${language}\n${code}\n\`\`\``;
 
                         const draft = {
                           title: titleDraft,
