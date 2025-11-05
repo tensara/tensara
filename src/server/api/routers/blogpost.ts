@@ -10,6 +10,7 @@ const PostTypeEnum = z.enum([
   "TUTORIAL",
   "BENCHMARK_ANALYSIS",
 ]);
+const SortEnum = z.enum(["recent", "top"]);
 
 const PostStatusEnum = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 const StatusEnum = PostStatusEnum;
@@ -73,6 +74,59 @@ function calculateReadTime(content: string): number {
   return Math.ceil(wordCount / wordsPerMinute);
 }
 
+// Convert free-form tag strings to Tag IDs (upsert if missing)
+async function resolveTagIdsFromStrings(
+  db: any,
+  rawTags?: string[],
+  defaultCategory: z.infer<typeof TagCategoryEnum> = "GENERAL"
+): Promise<string[]> {
+  if (!rawTags?.length) return [];
+
+  // normalize -> slug -> dedupe while preserving order
+  const slugs: string[] = [];
+  for (const t of rawTags) {
+    const s = slugify(String(t || "").trim());
+    if (s && !slugs.includes(s)) slugs.push(s);
+  }
+  if (!slugs.length) return [];
+
+  // fetch existing
+  const existing = await db.tag.findMany({
+    where: { slug: { in: slugs } },
+    select: { id: true, slug: true },
+  });
+
+  const bySlug = new Map<string, string>();
+  for (const t of existing) bySlug.set(t.slug, t.id);
+
+  // create missing
+  const toCreate = slugs.filter((s) => !bySlug.has(s));
+  if (toCreate.length) {
+    const created = await db.$transaction(
+      toCreate.map((s: string) =>
+        db.tag.create({
+          data: {
+            name: s.replace(/-/g, " ").toUpperCase(),
+            slug: s,
+            category: defaultCategory,
+            description: undefined,
+          },
+          select: { id: true, slug: true },
+        })
+      )
+    );
+    for (const t of created) bySlug.set(t.slug, t.id);
+  }
+
+  // return ids in the same order as input slugs (deduped)
+  const ids: string[] = [];
+  for (const s of slugs) {
+    const id = bySlug.get(s);
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
 // Helper function to generate title from submission
 function generateTitleFromSubmission(submission: any, problem: any): string {
   const gflops = submission.gflops ? submission.gflops.toFixed(1) : "N/A";
@@ -123,6 +177,7 @@ const ListInput = z.object({
   authorId: z.string().optional(),
   query: z.string().optional(),
   tagSlugs: z.array(z.string()).optional(),
+  sort: SortEnum.default("recent"),
 });
 
 // Helper function to generate or find auto tags
@@ -173,6 +228,7 @@ export const blogpostRouter = createTRPCRouter({
         excerpt: z.string().optional(),
         submissionIds: z.array(z.string()).optional(),
         tagIds: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -220,12 +276,11 @@ export const blogpostRouter = createTRPCRouter({
       }
 
       // Create BlogPostTag relations
-      if (input.tagIds && input.tagIds.length > 0) {
+      const resolved = await resolveTagIdsFromStrings(db, input.tags);
+      const tagIds = [...new Set([...(input.tagIds ?? []), ...resolved])];
+      if (tagIds.length) {
         await db.blogPostTag.createMany({
-          data: input.tagIds.map((tagId: string) => ({
-            postId: post.id,
-            tagId,
-          })),
+          data: tagIds.map((tagId) => ({ postId: post.id, tagId })),
         });
       }
 
@@ -512,6 +567,7 @@ export const blogpostRouter = createTRPCRouter({
         excerpt: z.string().optional(),
         submissionIds: z.array(z.string()).optional(),
         tagIds: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -599,19 +655,17 @@ export const blogpostRouter = createTRPCRouter({
       }
 
       // Update tags if provided
-      if (input.tagIds !== undefined) {
-        // Delete existing tag relations
-        await db.blogPostTag.deleteMany({
-          where: { postId: input.id },
-        });
+      if (input.tagIds !== undefined || input.tags !== undefined) {
+        const resolved = await resolveTagIdsFromStrings(db, input.tags);
+        const tagIds =
+          input.tagIds !== undefined
+            ? [...new Set([...(input.tagIds ?? []), ...resolved])]
+            : resolved;
 
-        // Create new tag relations
-        if (input.tagIds.length > 0) {
+        await db.blogPostTag.deleteMany({ where: { postId: input.id } });
+        if (tagIds.length) {
           await db.blogPostTag.createMany({
-            data: input.tagIds.map((tagId: string) => ({
-              postId: input.id,
-              tagId,
-            })),
+            data: tagIds.map((tagId) => ({ postId: input.id, tagId })),
           });
         }
       }
@@ -669,7 +723,7 @@ export const blogpostRouter = createTRPCRouter({
     .input(ListInput)
     .query(async ({ ctx, input }) => {
       const db = ctx.db as any;
-      const { cursor, limit, authorId, query, tagSlugs } = input;
+      const { cursor, limit, authorId, query, tagSlugs, sort } = input;
 
       const where: any = {
         status: "PUBLISHED",
@@ -689,21 +743,29 @@ export const blogpostRouter = createTRPCRouter({
           some: { tag: { slug: { in: tagSlugs } } },
         };
       }
+      const orderBy =
+        sort === "top"
+          ? [
+              { upvotes: { _count: "desc" as const } },
+              { publishedAt: "desc" as const },
+              { id: "desc" as const },
+            ]
+          : [{ publishedAt: "desc" as const }, { id: "desc" as const }];
 
       const posts = await db.blogPost.findMany({
         where: cursor ? { ...where, id: { lt: cursor } } : where,
         take: limit,
-        orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+        orderBy,
         include: {
           author: { select: { id: true, name: true, image: true } },
           _count: { select: { comments: true, upvotes: true } },
+          tags: { include: { tag: true } },
         },
       });
 
       return { posts, nextCursor: toNextCursor(posts, limit) };
     }),
 
-  // ----- NEW: My list (authed, paginated, filter by status) -----
   listMine: protectedProcedure
     .input(
       z.object({
@@ -711,17 +773,17 @@ export const blogpostRouter = createTRPCRouter({
         limit: z.number().min(1).max(50).default(20),
         status: StatusEnum.optional(),
         query: z.string().optional(),
+        sort: SortEnum.default("recent"), // <-- NEW
       })
     )
     .query(async ({ ctx, input }) => {
       const db = ctx.db as any;
-      const { cursor, limit, status, query } = input;
+      const { cursor, limit, status, query, sort } = input;
 
       const where: any = {
         authorId: ctx.session.user.id,
         ...(status ? { status } : {}),
       };
-
       if (query) {
         where.OR = [
           { title: { contains: query, mode: "insensitive" } },
@@ -730,10 +792,19 @@ export const blogpostRouter = createTRPCRouter({
         ];
       }
 
+      const orderBy =
+        sort === "top"
+          ? [
+              { upvotes: { _count: "desc" as const } },
+              { updatedAt: "desc" as const },
+              { id: "desc" as const },
+            ]
+          : [{ updatedAt: "desc" as const }, { id: "desc" as const }];
+
       const posts = await db.blogPost.findMany({
         where: cursor ? { ...where, id: { lt: cursor } } : where,
         take: limit,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        orderBy,
         include: {
           author: { select: { id: true, name: true, image: true } },
           _count: { select: { comments: true, upvotes: true } },
@@ -743,7 +814,6 @@ export const blogpostRouter = createTRPCRouter({
       return { posts, nextCursor: toNextCursor(posts, limit) };
     }),
 
-  // ----- NEW: createDraft -> returns an empty DRAFT you can immediately edit -----
   createDraft: protectedProcedure
     .input(z.object({ title: z.string().default("Untitled draft") }))
     .mutation(async ({ ctx, input }) => {
@@ -761,7 +831,6 @@ export const blogpostRouter = createTRPCRouter({
       return post;
     }),
 
-  // ----- NEW: autosave -> partial update for drafts/published (no status changes) -----
   autosave: protectedProcedure
     .input(
       z.object({
@@ -769,7 +838,8 @@ export const blogpostRouter = createTRPCRouter({
         title: z.string().optional(),
         content: z.string().optional(),
         excerpt: z.string().nullable().optional(),
-        tagIds: z.array(z.string()).optional(), // optional: keep your tag model in sync
+        tagIds: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -798,12 +868,17 @@ export const blogpostRouter = createTRPCRouter({
         select: { id: true, title: true, updatedAt: true, status: true },
       });
 
-      // optional: refresh tags on autosave (idempotent)
-      if (input.tagIds) {
+      if (input.tagIds !== undefined || input.tags !== undefined) {
+        const resolved = await resolveTagIdsFromStrings(db, input.tags);
+        const tagIds =
+          input.tagIds !== undefined
+            ? [...new Set([...(input.tagIds ?? []), ...resolved])]
+            : resolved;
+
         await db.blogPostTag.deleteMany({ where: { postId: input.id } });
-        if (input.tagIds.length) {
+        if (tagIds.length) {
           await db.blogPostTag.createMany({
-            data: input.tagIds.map((tagId) => ({ postId: input.id, tagId })),
+            data: tagIds.map((tagId) => ({ postId: input.id, tagId })),
           });
         }
       }

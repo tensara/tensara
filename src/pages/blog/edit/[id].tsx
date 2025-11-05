@@ -119,11 +119,11 @@ export default function EditPost() {
       if (!dirty || !id) return;
       autosave.mutate(
         // If your server expects tagIds instead, resolve them there and keep this 'tags' string[].
-        { id, title, content, excerpt },
+        { id, title, content, excerpt, tags },
         { onSuccess: () => postQ.refetch() }
       );
     },
-    [dirty, title, content, excerpt, id],
+    [dirty, title, content, excerpt, tags, id],
     1200
   );
 
@@ -157,12 +157,12 @@ export default function EditPost() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        if (id) autosave.mutate({ id, title, content, excerpt });
+        if (id) autosave.mutate({ id, title, content, excerpt, tags });
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [id, title, content, excerpt]);
+  }, [id, title, content, excerpt, tags]);
 
   // status badge
   const statusBadge = useMemo(() => {
@@ -229,7 +229,7 @@ export default function EditPost() {
   const onSaveNow = () => {
     if (!id) return;
     autosave.mutate(
-      { id, title, content, excerpt },
+      { id, title, content, excerpt, tags },
       { onSuccess: () => toast({ title: "Saved", status: "success" }) }
     );
   };

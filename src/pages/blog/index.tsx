@@ -15,6 +15,7 @@ import {
   Flex,
   Input,
   Badge,
+  ButtonGroup,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { Layout } from "~/components/layout";
@@ -47,17 +48,27 @@ function timeAgo(d: string | Date) {
   return `${s}s`;
 }
 
-function StatusBadge({
-  status,
+function TagChips({
+  tags,
 }: {
-  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  tags?: { tag: { id: string; name: string; slug: string } }[];
 }) {
-  const color =
-    status === "PUBLISHED" ? "green" : status === "DRAFT" ? "yellow" : "gray";
+  if (!tags?.length) return null;
   return (
-    <Badge colorScheme={color} variant="subtle" rounded="md" fontWeight="600">
-      {status.toLowerCase()}
-    </Badge>
+    <HStack spacing={1.5} mt={1} wrap="wrap">
+      {tags.map((t) => (
+        <Badge
+          key={t.tag.id}
+          px={2}
+          py={0.5}
+          rounded="md"
+          colorScheme="purple"
+          variant="subtle"
+        >
+          {t.tag.name}
+        </Badge>
+      ))}
+    </HStack>
   );
 }
 
@@ -90,10 +101,11 @@ export default function BlogIndex() {
   // inside BlogIndex()
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
+  const [sort, setSort] = useState<"recent" | "top">("recent");
 
   // use debouncedQuery in queries (not query)
   const pub = api.blogpost.listPublished.useInfiniteQuery(
-    { limit: 20, query: debouncedQuery },
+    { limit: 20, query: debouncedQuery, sort },
     { getNextPageParam: (last) => last.nextCursor, staleTime: 10_000 }
   );
 
@@ -158,6 +170,20 @@ export default function BlogIndex() {
                 color="gray.100"
                 width="260px"
               />
+              <ButtonGroup size="sm" isAttached variant="outline">
+                <Button
+                  onClick={() => setSort("recent")}
+                  colorScheme={sort === "recent" ? "blue" : undefined}
+                >
+                  Most recent
+                </Button>
+                <Button
+                  onClick={() => setSort("top")}
+                  colorScheme={sort === "top" ? "blue" : undefined}
+                >
+                  Most voted
+                </Button>
+              </ButtonGroup>
               {session ? (
                 <Button
                   size="sm"
@@ -212,7 +238,8 @@ export default function BlogIndex() {
                         </Text>
                       </Box>
 
-                      {/* replace badge with votes */}
+                      <TagChips tags={post.tags} />
+
                       <VotePill count={post._count?.upvotes} />
                     </Flex>
                   ))}
@@ -241,7 +268,6 @@ export default function BlogIndex() {
                         </Text>
                       </Box>
                       <HStack>
-                        <StatusBadge status="PUBLISHED" />
                         <Button
                           as={Link}
                           href={`/blog/edit/${post.id}`}
@@ -280,7 +306,7 @@ export default function BlogIndex() {
                           saved {timeAgo(post.updatedAt)}
                         </Text>
                       </Box>
-                      <StatusBadge status="DRAFT" />
+                      {/* <StatusBadge status="DRAFT" /> */}
                     </Flex>
                   ))}
                 </VStack>
