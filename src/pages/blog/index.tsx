@@ -61,6 +61,28 @@ function StatusBadge({
   );
 }
 
+function VotePill({ count }: { count: number | null | undefined }) {
+  return (
+    <Box
+      minW="48px"
+      textAlign="center"
+      px={2.5}
+      py={1}
+      rounded="md"
+      border="1px solid"
+      borderColor="gray.800"
+      bg="gray.900"
+    >
+      <Text fontSize="sm" fontWeight="700" color="gray.200">
+        {typeof count === "number" ? count : 0}
+      </Text>
+      <Text fontSize="10px" color="gray.500" mt={-0.5}>
+        votes
+      </Text>
+    </Box>
+  );
+}
+
 export default function BlogIndex() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -175,21 +197,23 @@ export default function BlogIndex() {
                       py={3}
                       borderBottom="1px solid"
                       borderColor="gray.800"
-                      align="baseline"
+                      align="center"
                       gap={3}
                     >
-                      <Box flex="1">
+                      <Box flex="1" minW={0}>
                         <Link href={`/blog/${post.slug ?? post.id}`}>
                           <Text color="white" fontWeight="600" noOfLines={1}>
                             {post.title}
                           </Text>
                         </Link>
-                        <Text color="gray.500" fontSize="sm">
+                        <Text color="gray.500" fontSize="sm" noOfLines={1}>
                           by {post.author?.name ?? "Unknown"} •{" "}
                           {timeAgo(post.publishedAt ?? post.createdAt)}
                         </Text>
                       </Box>
-                      <StatusBadge status="PUBLISHED" />
+
+                      {/* replace badge with votes */}
+                      <VotePill count={post._count?.upvotes} />
                     </Flex>
                   ))}
                 </VStack>
@@ -223,6 +247,9 @@ export default function BlogIndex() {
                           href={`/blog/edit/${post.id}`}
                           size="xs"
                           variant="outline"
+                          bg={"gray.800"}
+                          color="gray.100"
+                          _hover={{ bg: "gray.700" }}
                         >
                           Edit
                         </Button>
