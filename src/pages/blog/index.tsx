@@ -15,6 +15,8 @@ import {
   Flex,
   Input,
   Badge,
+  Icon,
+  useToast,
   ButtonGroup,
 } from "@chakra-ui/react";
 import Link from "next/link";
@@ -23,7 +25,7 @@ import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
-
+import { FiEdit, FiTrash } from "react-icons/fi";
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -102,6 +104,32 @@ export default function BlogIndex() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
   const [sort, setSort] = useState<"recent" | "top">("recent");
+  const toast = useToast();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deletePost = api.blogpost.delete.useMutation({
+    onMutate: async ({ id }) => {
+      setDeletingId(id); // mark which row is deleting
+    },
+    onSettled: async () => {
+      setDeletingId(null); // clear regardless of success/fail
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        myDrafts.refetch(),
+        minePublished.refetch(),
+        pub.refetch(),
+      ]);
+      toast({ title: "Draft deleted", status: "info" });
+    },
+    onError: (err) => {
+      toast({
+        title: "Delete failed",
+        description: err.message,
+        status: "error",
+      });
+    },
+  });
 
   // use debouncedQuery in queries (not query)
   const pub = api.blogpost.listPublished.useInfiniteQuery(
@@ -276,9 +304,8 @@ export default function BlogIndex() {
                           bg={"gray.800"}
                           color="gray.100"
                           _hover={{ bg: "gray.700" }}
-                        >
-                          Edit
-                        </Button>
+                          leftIcon={<Icon as={FiEdit} />}
+                        />
                       </HStack>
                     </Flex>
                   ))}
@@ -306,7 +333,25 @@ export default function BlogIndex() {
                           saved {timeAgo(post.updatedAt)}
                         </Text>
                       </Box>
-                      {/* <StatusBadge status="DRAFT" /> */}
+
+                      <HStack spacing={2}>
+                        <Button
+                          size="xs"
+                          colorScheme="red"
+                          variant="outline"
+                          onClick={() => {
+                            if (deletingId) return; // prevent double-clicks while another delete runs
+                            if (confirm("Delete this draft permanently?")) {
+                              deletePost.mutate({ id: post.id });
+                            }
+                          }}
+                          isLoading={
+                            deletingId === post.id && deletePost.isPending
+                          }
+                          isDisabled={!!deletingId && deletingId !== post.id}
+                          leftIcon={<Icon as={FiTrash} />}
+                        />
+                      </HStack>
                     </Flex>
                   ))}
                 </VStack>

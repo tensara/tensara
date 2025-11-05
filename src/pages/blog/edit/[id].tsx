@@ -1,3 +1,4 @@
+// src/pages/blog/edit/[id].tsx
 import {
   Box,
   Container,
@@ -16,6 +17,7 @@ import {
   Divider,
   Kbd,
   Badge,
+  BadgeProps,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { useSession, signIn } from "next-auth/react";
@@ -26,7 +28,8 @@ import { FiArrowLeft, FiSave, FiEye, FiEdit, FiUpload } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-function useDebounced(fn: () => void, deps: unknown[], delay = 1500) {
+// --- utils ---
+function useDebounced(fn: () => void, deps: unknown[], delay = 1200) {
   const timeout = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     clearTimeout(timeout.current);
@@ -34,6 +37,24 @@ function useDebounced(fn: () => void, deps: unknown[], delay = 1500) {
     return () => clearTimeout(timeout.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
+}
+
+function parseTags(input: string): string[] {
+  // accept commas OR spaces as separators; dedupe; lowercase slugs
+  return Array.from(
+    new Set(
+      input
+        .split(/[,\s]+/g)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => s.toLowerCase())
+    )
+  );
+}
+
+function tagsToInput(tags: string[]): string {
+  // render as comma+space separated for readability
+  return tags.join(", ");
 }
 
 export default function EditPost() {
@@ -48,6 +69,8 @@ export default function EditPost() {
     { id: id ?? "" },
     { enabled: !!id }
   );
+
+  // Mutations
   const autosave = api.blogpost.autosave.useMutation();
   const publish = api.blogpost.publish.useMutation({
     onSuccess: async (p) => {
@@ -67,64 +90,101 @@ export default function EditPost() {
       }),
   });
 
+  // --- form state (single source of truth) ---
+  const hasHydrated = useRef(false);
+  const lastServerUpdatedAt = useRef<number | null>(null);
+
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [excerpt, setExcerpt] = useState("");
+
+  // tags: store as array + input string (accept comma OR space)
   const [tags, setTags] = useState<string[]>([]);
+  const [tagsInput, setTagsInput] = useState("");
+
   const [showPreview, setShowPreview] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
 
-  // hydrate form whenever post changes
+  // hydrate ONCE when data arrives; never force-reset while typing
   useEffect(() => {
-    const p = postQ.data;
-    if (!p) return;
+    if (!postQ.data || hasHydrated.current) return;
+    const p = postQ.data as any;
+
     setTitle(p.title ?? "");
     setContent(p.content ?? "");
-    setExcerpt(p.excerpt ?? "");
-    // Accept either string[] or { tag: { slug } }[]
-    const nextTags =
-      Array.isArray(p.tags) && typeof p.tags[0] !== "string"
+
+    // normalise tags
+    const initialTags: string[] =
+      Array.isArray(p.tags) && p.tags.length
         ? (p.tags as any[])
             .map((t) => t?.tag?.slug || t?.tag?.name || "")
             .filter(Boolean)
-        : ((p.tags as any[]) ?? []);
-    setTags(nextTags);
+            .map((s: string) => s.toLowerCase())
+        : [];
+
+    setTags(initialTags);
+    setTagsInput(tagsToInput(initialTags));
     setDirty(false);
+    hasHydrated.current = true;
+
+    // remember server timestamp if available
+    if (p.updatedAt)
+      lastServerUpdatedAt.current = new Date(p.updatedAt).getTime();
   }, [postQ.data]);
 
-  // mark dirty on changes
+  // mark dirty on any change (simple shallow compare to hydrated snapshot)
   useEffect(() => {
-    const p = postQ.data;
-    if (!p) return;
-    const equalTags =
-      JSON.stringify(tags) ===
-      JSON.stringify(
-        Array.isArray(p.tags) && typeof p.tags[0] !== "string"
-          ? (p.tags as any[])
-              .map((t) => t?.tag?.slug || t?.tag?.name || "")
-              .filter(Boolean)
-          : ((p.tags as any[]) ?? [])
-      );
-    setDirty(
-      title !== (p.title ?? "") ||
-        content !== (p.content ?? "") ||
-        excerpt !== (p.excerpt ?? "") ||
-        !equalTags
-    );
-  }, [title, content, excerpt, tags, postQ.data]);
+    if (!hasHydrated.current || !postQ.data) return;
+    const p = postQ.data as any;
+    const serverTags =
+      Array.isArray(p.tags) && p.tags.length
+        ? (p.tags as any[])
+            .map((t) => t?.tag?.slug || t?.tag?.name || "")
+            .filter(Boolean)
+            .map((s: string) => s.toLowerCase())
+        : [];
 
-  // Debounced server autosave
+    const equal =
+      title === (p.title ?? "") &&
+      content === (p.content ?? "") &&
+      JSON.stringify(tags) === JSON.stringify(serverTags);
+
+    setDirty(!equal);
+  }, [title, content, tags, postQ.data]);
+
+  // Debounced autosave: NEVER refetch here (prevents rollbacks)
   useDebounced(
     () => {
       if (!dirty || !id) return;
+      setSaving("saving");
       autosave.mutate(
-        // If your server expects tagIds instead, resolve them there and keep this 'tags' string[].
-        { id, title, content, excerpt, tags },
-        { onSuccess: () => postQ.refetch() }
+        { id, title, content, tags },
+        {
+          onSuccess: (res) => {
+            // mark as saved; do not refetch
+            setSaving("saved");
+            setTimeout(() => setSaving("idle"), 1200);
+            // optionally track server updatedAt if mutation returns it
+            try {
+              // @ts-ignore
+              if (res?.updatedAt) {
+                lastServerUpdatedAt.current = new Date(res.updatedAt).getTime();
+              }
+            } catch {}
+          },
+          onError: (err) => {
+            setSaving("idle");
+            toast({
+              title: "Autosave failed",
+              description: err.message,
+              status: "error",
+            });
+          },
+        }
       );
     },
-    [dirty, title, content, excerpt, tags, id],
-    1200
+    [dirty, title, content, tags, id],
+    800
   );
 
   // beforeunload guard
@@ -144,6 +204,8 @@ export default function EditPost() {
       if (dirty && url !== router.asPath) {
         if (!confirm("You have unsaved changes. Leave anyway?")) {
           router.events.emit("routeChangeError");
+          // throwing cancels the navigation in Next.js
+          // eslint-disable-next-line @typescript-eslint/no-throw-literal
           throw "routeChange aborted";
         }
       }
@@ -157,12 +219,32 @@ export default function EditPost() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        if (id) autosave.mutate({ id, title, content, excerpt, tags });
+        if (id) {
+          setSaving("saving");
+          autosave.mutate(
+            { id, title, content, tags },
+            {
+              onSuccess: () => {
+                setSaving("saved");
+                setTimeout(() => setSaving("idle"), 1200);
+                toast({ title: "Saved", status: "success" });
+              },
+              onError: (err) => {
+                setSaving("idle");
+                toast({
+                  title: "Save failed",
+                  description: err.message,
+                  status: "error",
+                });
+              },
+            }
+          );
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [id, title, content, excerpt, tags]);
+  }, [id, title, content, tags]);
 
   // status badge
   const statusBadge = useMemo(() => {
@@ -172,7 +254,7 @@ export default function EditPost() {
       | "ARCHIVED"
       | undefined;
     if (!s) return null;
-    const color =
+    const color: BadgeProps["colorScheme"] =
       s === "PUBLISHED" ? "green" : s === "DRAFT" ? "yellow" : "gray";
     return (
       <Badge colorScheme={color} variant="subtle" rounded="md" fontWeight="600">
@@ -228,9 +310,24 @@ export default function EditPost() {
 
   const onSaveNow = () => {
     if (!id) return;
+    setSaving("saving");
     autosave.mutate(
-      { id, title, content, excerpt, tags },
-      { onSuccess: () => toast({ title: "Saved", status: "success" }) }
+      { id, title, content, tags },
+      {
+        onSuccess: () => {
+          setSaving("saved");
+          setTimeout(() => setSaving("idle"), 1200);
+          toast({ title: "Saved", status: "success" });
+        },
+        onError: (err) => {
+          setSaving("idle");
+          toast({
+            title: "Save failed",
+            description: err.message,
+            status: "error",
+          });
+        },
+      }
     );
   };
 
@@ -254,7 +351,7 @@ export default function EditPost() {
                 variant="outline"
                 leftIcon={<Icon as={FiSave} />}
                 onClick={onSaveNow}
-                isLoading={autosave.isPending}
+                isLoading={autosave.isPending || saving === "saving"}
               >
                 Save <Kbd ml={2}>⌘/Ctrl</Kbd>+<Kbd>S</Kbd>
               </Button>
@@ -275,6 +372,7 @@ export default function EditPost() {
           <Divider mb={6} borderColor="whiteAlpha.300" />
 
           <VStack align="stretch" spacing={6}>
+            {/* Title */}
             <FormControl isRequired>
               <FormLabel color="gray.300" fontWeight="600" fontSize="sm">
                 Title
@@ -289,44 +387,42 @@ export default function EditPost() {
               />
             </FormControl>
 
+            {/* Tags */}
             <FormControl>
               <FormLabel color="gray.300" fontWeight="600" fontSize="sm">
-                Excerpt (optional)
+                Tags (comma or space separated)
               </FormLabel>
               <Input
-                value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value.slice(0, 200))}
-                placeholder="One-liner used in previews"
+                value={tagsInput}
+                onChange={(e) => {
+                  const val = e.currentTarget.value;
+                  setTagsInput(val);
+                  setTags(parseTags(val));
+                }}
+                placeholder="matrix, graphs, cryptography"
                 bg="transparent"
                 borderColor="whiteAlpha.300"
                 color="gray.100"
               />
-              <Text color="gray.500" fontSize="xs">
-                {excerpt.length}/200
-              </Text>
+              {tags.length ? (
+                <HStack spacing={1.5} mt={2} wrap="wrap">
+                  {tags.map((t) => (
+                    <Badge
+                      key={t}
+                      px={2}
+                      py={0.5}
+                      rounded="md"
+                      colorScheme="purple"
+                      variant="subtle"
+                    >
+                      {t}
+                    </Badge>
+                  ))}
+                </HStack>
+              ) : null}
             </FormControl>
 
-            <FormControl>
-              <FormLabel color="gray.300" fontWeight="600" fontSize="sm">
-                Tags (comma separated)
-              </FormLabel>
-              <Input
-                value={tags.join(", ")}
-                onChange={(e) =>
-                  setTags(
-                    e.currentTarget.value
-                      .split(",")
-                      .map((t) => t.trim())
-                      .filter(Boolean)
-                  )
-                }
-                placeholder="zk, rust, distributed-systems"
-                bg="transparent"
-                borderColor="whiteAlpha.300"
-                color="gray.100"
-              />
-            </FormControl>
-
+            {/* Content + Preview */}
             <FormControl isRequired>
               <Flex justify="space-between" align="center" mb={2}>
                 <FormLabel
@@ -435,9 +531,16 @@ export default function EditPost() {
               )}
             </FormControl>
 
+            {/* Save state */}
             <Flex justify="space-between" pt={2}>
               <HStack color="gray.500" fontSize="sm">
-                <Text>Autosaves run after idle.</Text>
+                <Text>
+                  {saving === "saving"
+                    ? "Saving…"
+                    : saving === "saved"
+                      ? "All changes saved."
+                      : "Autosaves after you pause typing."}
+                </Text>
                 {dirty ? (
                   <Badge colorScheme="yellow">unsaved</Badge>
                 ) : (
