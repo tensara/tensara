@@ -123,6 +123,9 @@ const SubmissionPage: NextPage<{
     refetch,
   } = api.submissions.getSubmissionById.useQuery({ id }, { enabled: !!id });
 
+  const createDraftPost = api.blogpost.createDraft.useMutation();
+  const autosavePost = api.blogpost.autosave.useMutation();
+
   const togglePublicMutation = api.problems.toggleSubmissionPublic.useMutation({
     onSuccess: async () => {
       toast({
@@ -652,26 +655,26 @@ const SubmissionPage: NextPage<{
                     size="sm"
                     colorScheme="green"
                     variant="ghost"
-                    onClick={() => {
-                      // Publish as a draft to the blog editor
+                    onClick={async () => {
                       if (!session) {
                         void signIn();
                         return;
                       }
-
                       if (!submission) return;
 
                       try {
-                        const draftKey = `blog-draft-${session.user.id}`;
+                        // 1) Build initial title/content (same as your current localStorage draft)
                         const language = (() => {
                           const l = (submission.language ?? "").toLowerCase();
                           if (l === "cuda") return "cpp";
                           if (l === "triton") return "python";
                           return l;
                         })();
+
                         const titleDraft = `Solution: ${submission.problem?.title ?? ""}`;
-                        const created = new Date(submission.createdAt);
-                        const createdStr = created.toLocaleString();
+                        const createdStr = new Date(
+                          submission.createdAt
+                        ).toLocaleString();
                         const runtimeStr =
                           submission.runtime != null
                             ? submission.runtime.toFixed(2)
@@ -689,37 +692,57 @@ const SubmissionPage: NextPage<{
                           submission.problem?.slug ?? ""
                         }`;
 
-                        const contentDraft = `# Solution: ${submission.problem?.title ?? ""}\n\n[Problem: ${submission.problem?.title ?? ""}](${problemLink})\n\n**Submitted on:** \`${createdStr}\`\n\n- **Runtime:** \`${runtimeStr} ms\`\n- **Performance:** \`${gflopsStr} GFLOPS\`\n- **Tests:** \`${testsStr}\`\n\n\`\`\`${language}\n${code}\n\`\`\``;
+                        const contentDraft = `# Solution: ${submission.problem?.title ?? ""}
 
-                        const draft = {
+[Problem: ${submission.problem?.title ?? ""}](${problemLink})
+
+**Submitted on:** \`${createdStr}\`
+
+- **Runtime:** \`${runtimeStr} ms\`
+- **Performance:** \`${gflopsStr} GFLOPS\`
+- **Tests:** \`${testsStr}\`
+
+\`\`\`${language}
+${code}
+\`\`\``;
+
+                        // 2) Create an empty DRAFT on the server
+                        const newPost = await createDraftPost.mutateAsync({
+                          title: titleDraft || "Untitled draft",
+                        });
+
+                        // 3) Immediately autosave the generated content + tags into that draft
+                        await autosavePost.mutateAsync({
+                          id: newPost.id,
                           title: titleDraft,
                           content: contentDraft,
-                          description: `Solution for ${submission.problem?.title ?? ""}`,
-                          isPublished: false,
-                          tags: ["solution"],
-                          lastSaved: new Date().toISOString(),
-                        };
+                          // optional: seed tag strings; your server resolves strings -> tagIds
+                          tagIds: undefined, // if you're using resolve-by-name server-side, omit this
+                          // If you wired autosave to accept `tags: string[]`, pass that instead:
+                          // tags: ["solution"],
+                        });
 
-                        localStorage.setItem(draftKey, JSON.stringify(draft));
+                        // 4) Jump to the editor for this draft
                         toast({
                           title: "Draft created",
-                          description: "Opening blog editor",
+                          description: "Opening blog editor…",
                           status: "success",
-                          duration: 2000,
+                          duration: 1500,
                           isClosable: true,
                         });
-                        void router.push("/blog/create");
-                      } catch (e) {
-                        console.error("Failed to create draft", e);
+                        void router.push(`/blog/edit/${newPost.id}`);
+                      } catch (e: any) {
+                        console.error(e);
                         toast({
-                          title: "Error",
-                          description: "Could not create draft",
+                          title: "Could not create draft",
+                          description: e?.message ?? "Unexpected error",
                           status: "error",
-                          duration: 3000,
-                          isClosable: true,
                         });
                       }
                     }}
+                    isLoading={
+                      createDraftPost.isPending || autosavePost.isPending
+                    }
                   >
                     Publish
                   </Button>
