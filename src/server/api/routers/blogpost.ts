@@ -12,6 +12,7 @@ const PostTypeEnum = z.enum([
 ]);
 
 const PostStatusEnum = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
+const StatusEnum = PostStatusEnum;
 
 const TagCategoryEnum = z.enum([
   "GENERAL",
@@ -79,6 +80,18 @@ function generateTitleFromSubmission(submission: any, problem: any): string {
   return `My ${gflops} GFLOPS ${language} Solution to ${problem.title}`;
 }
 
+// Only allow slug regeneration while DRAFT; never after publish.
+function shouldRegenerateSlugOnTitleChange(
+  prevStatus: "DRAFT" | "PUBLISHED" | "ARCHIVED"
+) {
+  return prevStatus === "DRAFT";
+}
+
+// Cursor pagination helper
+function toNextCursor<T extends { id: string }>(items: T[], limit: number) {
+  return items.length === limit ? (items[items.length - 1]?.id ?? null) : null;
+}
+
 // Helper function to generate post content with submission markers
 function generatePostContent(
   submissionId: string,
@@ -103,6 +116,14 @@ function generatePostContent(
 
   return content;
 }
+
+const ListInput = z.object({
+  cursor: z.string().nullish(),
+  limit: z.number().min(1).max(50).default(20),
+  authorId: z.string().optional(),
+  query: z.string().optional(),
+  tagSlugs: z.array(z.string()).optional(),
+});
 
 // Helper function to generate or find auto tags
 async function generateAutoTags(
@@ -518,8 +539,12 @@ export const blogpostRouter = createTRPCRouter({
 
       if (input.title !== undefined) {
         data.title = input.title;
-        // Re-generate slug if title changes
-        if (input.title !== existing.title) {
+
+        // Re-generate slug only if the post is still a DRAFT
+        if (
+          input.title !== existing.title &&
+          shouldRegenerateSlugOnTitleChange(existing.status)
+        ) {
           data.slug = await generateUniqueSlug(db, input.title);
         }
       }
@@ -639,4 +664,239 @@ export const blogpostRouter = createTRPCRouter({
 
     return posts as any[];
   }),
+
+  listPublished: publicProcedure
+    .input(ListInput)
+    .query(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+      const { cursor, limit, authorId, query, tagSlugs } = input;
+
+      const where: any = {
+        status: "PUBLISHED",
+        ...(authorId ? { authorId } : {}),
+      };
+
+      if (query) {
+        where.OR = [
+          { title: { contains: query, mode: "insensitive" } },
+          { content: { contains: query, mode: "insensitive" } },
+          { excerpt: { contains: query, mode: "insensitive" } },
+        ];
+      }
+
+      if (tagSlugs?.length) {
+        where.tags = {
+          some: { tag: { slug: { in: tagSlugs } } },
+        };
+      }
+
+      const posts = await db.blogPost.findMany({
+        where: cursor ? { ...where, id: { lt: cursor } } : where,
+        take: limit,
+        orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+        include: {
+          author: { select: { id: true, name: true, image: true } },
+          _count: { select: { comments: true, upvotes: true } },
+        },
+      });
+
+      return { posts, nextCursor: toNextCursor(posts, limit) };
+    }),
+
+  // ----- NEW: My list (authed, paginated, filter by status) -----
+  listMine: protectedProcedure
+    .input(
+      z.object({
+        cursor: z.string().nullish(),
+        limit: z.number().min(1).max(50).default(20),
+        status: StatusEnum.optional(),
+        query: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+      const { cursor, limit, status, query } = input;
+
+      const where: any = {
+        authorId: ctx.session.user.id,
+        ...(status ? { status } : {}),
+      };
+
+      if (query) {
+        where.OR = [
+          { title: { contains: query, mode: "insensitive" } },
+          { content: { contains: query, mode: "insensitive" } },
+          { excerpt: { contains: query, mode: "insensitive" } },
+        ];
+      }
+
+      const posts = await db.blogPost.findMany({
+        where: cursor ? { ...where, id: { lt: cursor } } : where,
+        take: limit,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        include: {
+          author: { select: { id: true, name: true, image: true } },
+          _count: { select: { comments: true, upvotes: true } },
+        },
+      });
+
+      return { posts, nextCursor: toNextCursor(posts, limit) };
+    }),
+
+  // ----- NEW: createDraft -> returns an empty DRAFT you can immediately edit -----
+  createDraft: protectedProcedure
+    .input(z.object({ title: z.string().default("Untitled draft") }))
+    .mutation(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+      const post = await db.blogPost.create({
+        data: {
+          title: input.title.trim() || "Untitled draft",
+          content: "",
+          status: "DRAFT",
+          authorId: ctx.session.user.id,
+          // optional: excerpt: null,
+        },
+        select: { id: true, status: true, title: true },
+      });
+      return post;
+    }),
+
+  // ----- NEW: autosave -> partial update for drafts/published (no status changes) -----
+  autosave: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().optional(),
+        content: z.string().optional(),
+        excerpt: z.string().nullable().optional(),
+        tagIds: z.array(z.string()).optional(), // optional: keep your tag model in sync
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+      const post = await db.blogPost.findUnique({
+        where: { id: input.id },
+        select: { id: true, authorId: true, status: true, content: true },
+      });
+
+      if (!post) throw new TRPCError({ code: "NOT_FOUND" });
+      if (post.authorId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const data: any = {};
+      if (input.title !== undefined) data.title = input.title;
+      if (input.content !== undefined) {
+        data.content = input.content;
+        data.readTimeMinutes = calculateReadTime(input.content);
+      }
+      if (input.excerpt !== undefined) data.excerpt = input.excerpt ?? null;
+
+      const updated = await db.blogPost.update({
+        where: { id: input.id },
+        data,
+        select: { id: true, title: true, updatedAt: true, status: true },
+      });
+
+      // optional: refresh tags on autosave (idempotent)
+      if (input.tagIds) {
+        await db.blogPostTag.deleteMany({ where: { postId: input.id } });
+        if (input.tagIds.length) {
+          await db.blogPostTag.createMany({
+            data: input.tagIds.map((tagId) => ({ postId: input.id, tagId })),
+          });
+        }
+      }
+
+      return updated;
+    }),
+
+  // ----- NEW: publish -> sets status, keeps or assigns slug, sets publishedAt -----
+  publish: protectedProcedure
+    .input(z.object({ id: z.string(), desiredSlug: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+      const post = await db.blogPost.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          authorId: true,
+          title: true,
+          content: true,
+          slug: true,
+          status: true,
+          publishedAt: true,
+        },
+      });
+
+      if (!post) throw new TRPCError({ code: "NOT_FOUND" });
+      if (post.authorId !== ctx.session.user.id)
+        throw new TRPCError({ code: "FORBIDDEN" });
+      if (!post.title?.trim() || !post.content?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Title and content required to publish.",
+        });
+      }
+
+      let slug = post.slug;
+      if (!slug) {
+        const base = input.desiredSlug?.trim().length
+          ? input.desiredSlug!
+          : post.title;
+        slug = await generateUniqueSlug(db, base);
+      }
+
+      const updated = await db.blogPost.update({
+        where: { id: input.id },
+        data: {
+          status: "PUBLISHED",
+          slug,
+          publishedAt: post.publishedAt ?? new Date(),
+        },
+        select: { id: true, slug: true, status: true, publishedAt: true },
+      });
+
+      return updated;
+    }),
+
+  // ----- NEW: unpublish -> back to DRAFT, keeps slug (you may choose to clear) -----
+  unpublish: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+      const post = await db.blogPost.findUnique({
+        where: { id: input.id },
+        select: { id: true, authorId: true },
+      });
+      if (!post) throw new TRPCError({ code: "NOT_FOUND" });
+      if (post.authorId !== ctx.session.user.id)
+        throw new TRPCError({ code: "FORBIDDEN" });
+
+      return db.blogPost.update({
+        where: { id: input.id },
+        data: { status: "DRAFT" },
+        select: { id: true, status: true },
+      });
+    }),
+
+  // ----- NEW: archive -----
+  archive: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = ctx.db as any;
+      const post = await db.blogPost.findUnique({
+        where: { id: input.id },
+        select: { id: true, authorId: true },
+      });
+      if (!post) throw new TRPCError({ code: "NOT_FOUND" });
+      if (post.authorId !== ctx.session.user.id)
+        throw new TRPCError({ code: "FORBIDDEN" });
+
+      return db.blogPost.update({
+        where: { id: input.id },
+        data: { status: "ARCHIVED" },
+        select: { id: true, status: true },
+      });
+    }),
 });

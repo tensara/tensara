@@ -267,12 +267,26 @@ model BlogPost {
   tags        BlogPostTag[]
   submissions BlogPostSubmission[]
 
+  lastAutosaveAt DateTime?
+  revisions    PostRevision[]
+
   @@index([authorId])
   @@index([createdAt]) // sort by newest
   @@index([slug])
   @@index([status])
   @@index([postType])
   @@index([publishedAt])
+}
+
+
+model PostRevision {
+  id        String   @id @default(cuid())
+  postId    String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  authorId  String
 }
 
 model Comment {
