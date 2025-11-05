@@ -1,4 +1,3 @@
-// src/pages/blog/index.tsx
 import {
   Box,
   Container,
@@ -18,6 +17,7 @@ import {
   Icon,
   useToast,
   ButtonGroup,
+  VisuallyHidden,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { Layout } from "~/components/layout";
@@ -26,6 +26,7 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
 import { FiEdit, FiTrash } from "react-icons/fi";
+
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -57,15 +58,19 @@ function TagChips({
 }) {
   if (!tags?.length) return null;
   return (
-    <HStack spacing={1.5} mt={1} wrap="wrap">
+    <HStack spacing={1.5} mt={1} flexWrap="wrap">
       {tags.map((t) => (
         <Badge
           key={t.tag.id}
           px={2}
           py={0.5}
           rounded="md"
-          colorScheme="purple"
+          colorScheme="green"
           variant="subtle"
+          bg="green.900"
+          color="green.200"
+          border="1px solid"
+          borderColor="green.700"
         >
           {t.tag.name}
         </Badge>
@@ -77,19 +82,19 @@ function TagChips({
 function VotePill({ count }: { count: number | null | undefined }) {
   return (
     <Box
-      minW="48px"
+      minW="52px"
       textAlign="center"
       px={2.5}
-      py={1}
-      rounded="md"
+      py={1.5}
+      rounded="lg"
       border="1px solid"
-      borderColor="gray.800"
-      bg="gray.900"
+      borderColor="gray.700"
+      bg="gray.800"
     >
-      <Text fontSize="sm" fontWeight="700" color="gray.200">
+      <Text fontSize="sm" fontWeight="700" color="white">
         {typeof count === "number" ? count : 0}
       </Text>
-      <Text fontSize="10px" color="gray.500" mt={-0.5}>
+      <Text fontSize="10px" color="gray.400" mt={-0.5}>
         votes
       </Text>
     </Box>
@@ -167,11 +172,38 @@ export default function BlogIndex() {
   const minePub = minePublished.data?.pages.flatMap((p) => p.posts) ?? [];
   const drafts = myDrafts.data?.pages.flatMap((p) => p.posts) ?? [];
 
+  // common button styles (dark theme friendly)
+  const solidBtn = {
+    bg: "green.600",
+    color: "white",
+    border: "1px solid",
+    borderColor: "green.500",
+    _hover: { bg: "green.500", borderColor: "green.400" },
+    _active: { bg: "green.700", borderColor: "green.600" },
+    rounded: "lg",
+  } as const;
+
+  const ghostBtn = {
+    bg: "gray.800",
+    color: "gray.100",
+    border: "1px solid",
+    borderColor: "gray.700",
+    _hover: { bg: "gray.700", borderColor: "gray.600" },
+    _active: { bg: "gray.600", borderColor: "gray.500" },
+    rounded: "lg",
+  } as const;
+
   return (
     <Layout title="Blog">
-      <Box bg="gray.900" minH="100vh">
+      <Box minH="100vh">
         <Container maxW="860px" py={8}>
-          <Flex align="center" justify="space-between" mb={6} gap={4}>
+          <Flex
+            align="center"
+            justify="space-between"
+            mb={6}
+            gap={4}
+            flexWrap="wrap"
+          >
             <Box>
               <Heading
                 as="h1"
@@ -187,7 +219,11 @@ export default function BlogIndex() {
               </Text>
             </Box>
 
-            <HStack spacing={2}>
+            <HStack
+              spacing={2}
+              flexWrap="wrap"
+              w={{ base: "100%", md: "auto" }}
+            >
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -196,50 +232,101 @@ export default function BlogIndex() {
                 bg="gray.800"
                 borderColor="gray.700"
                 color="gray.100"
-                width="260px"
+                w={{ base: "100%", md: "260px" }}
+                _placeholder={{ color: "gray.500" }}
+                rounded="lg"
               />
               <ButtonGroup size="sm" isAttached variant="outline">
                 <Button
                   onClick={() => setSort("recent")}
-                  colorScheme={sort === "recent" ? "blue" : undefined}
+                  {...ghostBtn}
+                  borderRightRadius={0}
+                  aria-pressed={sort === "recent"}
+                  {...(sort === "recent"
+                    ? {
+                        bg: "green.700",
+                        borderColor: "green.600",
+                        color: "white",
+                      }
+                    : {})}
                 >
                   Most recent
                 </Button>
                 <Button
                   onClick={() => setSort("top")}
-                  colorScheme={sort === "top" ? "blue" : undefined}
+                  {...ghostBtn}
+                  borderLeftRadius={0}
+                  aria-pressed={sort === "top"}
+                  {...(sort === "top"
+                    ? {
+                        bg: "green.700",
+                        borderColor: "green.600",
+                        color: "white",
+                      }
+                    : {})}
                 >
                   Most voted
                 </Button>
               </ButtonGroup>
               {session ? (
-                <Button
-                  size="sm"
-                  colorScheme="blue"
-                  onClick={() =>
-                    createDraft.mutate({ title: "Untitled draft" })
-                  }
-                >
-                  New Draft
+                <Button size="sm" leftIcon={<Icon as={FiEdit} />} {...solidBtn}>
+                  <Link
+                    href="#"
+                    onClick={() =>
+                      createDraft.mutate({ title: "Untitled draft" })
+                    }
+                  >
+                    New Draft
+                  </Link>
                 </Button>
               ) : (
-                <Button size="sm" colorScheme="blue" onClick={() => signIn()}>
+                <Button size="sm" {...solidBtn} onClick={() => signIn()}>
                   Sign in
                 </Button>
               )}
             </HStack>
           </Flex>
 
-          <Tabs colorScheme="blue" variant="enclosed">
-            <TabList>
-              <Tab>All</Tab>
-              <Tab isDisabled={!session}>
-                My Posts{" "}
-                {session ? <Badge ml={2}>{minePub.length}</Badge> : null}
+          <Tabs colorScheme="green" variant="enclosed" isFitted>
+            <TabList borderColor="gray.800">
+              <Tab
+                _selected={{
+                  bg: "gray.800",
+                  color: "white",
+                  borderColor: "green.600",
+                }}
+              >
+                All
               </Tab>
-              <Tab isDisabled={!session}>
+              <Tab
+                isDisabled={!session}
+                _selected={{
+                  bg: "gray.800",
+                  color: "white",
+                  borderColor: "green.600",
+                }}
+              >
+                My Posts{" "}
+                {session ? (
+                  <Badge ml={2} colorScheme="green">
+                    {minePub.length}
+                  </Badge>
+                ) : null}
+              </Tab>
+              <Tab
+                isDisabled={!session}
+                _selected={{
+                  bg: "gray.800",
+                  color: "white",
+                  borderColor: "green.600",
+                }}
+              >
                 My Drafts{" "}
-                {session ? <Badge ml={2}>{drafts.length}</Badge> : null}
+                {session ? (
+                  <Badge ml={2} colorScheme="green">
+                    {drafts.length}
+                  </Badge>
+                ) : null}
               </Tab>
             </TabList>
             <TabPanels>
@@ -253,6 +340,7 @@ export default function BlogIndex() {
                       borderColor="gray.800"
                       align="center"
                       gap={3}
+                      flexWrap="wrap"
                     >
                       <Box flex="1" minW={0}>
                         <Link href={`/blog/${post.slug ?? post.id}`}>
@@ -284,6 +372,7 @@ export default function BlogIndex() {
                       borderColor="gray.800"
                       align="center"
                       gap={3}
+                      flexWrap="wrap"
                     >
                       <Box flex="1" minW={0}>
                         <Link href={`/blog/${post.slug ?? post.id}`}>
@@ -300,12 +389,12 @@ export default function BlogIndex() {
                           as={Link}
                           href={`/blog/edit/${post.id}`}
                           size="xs"
-                          variant="outline"
-                          bg={"gray.800"}
-                          color="gray.100"
-                          _hover={{ bg: "gray.700" }}
+                          {...ghostBtn}
                           leftIcon={<Icon as={FiEdit} />}
-                        />
+                          aria-label="Edit post"
+                        >
+                          <VisuallyHidden>Edit</VisuallyHidden>
+                        </Button>
                       </HStack>
                     </Flex>
                   ))}
@@ -322,6 +411,7 @@ export default function BlogIndex() {
                       borderColor="gray.800"
                       align="center"
                       gap={3}
+                      flexWrap="wrap"
                     >
                       <Box flex="1" minW={0}>
                         <Link href={`/blog/edit/${post.id}`}>
@@ -337,10 +427,8 @@ export default function BlogIndex() {
                       <HStack spacing={2}>
                         <Button
                           size="xs"
-                          colorScheme="red"
-                          variant="outline"
                           onClick={() => {
-                            if (deletingId) return; // prevent double-clicks while another delete runs
+                            if (deletingId) return;
                             if (confirm("Delete this draft permanently?")) {
                               deletePost.mutate({ id: post.id });
                             }
@@ -350,7 +438,11 @@ export default function BlogIndex() {
                           }
                           isDisabled={!!deletingId && deletingId !== post.id}
                           leftIcon={<Icon as={FiTrash} />}
-                        />
+                          {...ghostBtn}
+                          aria-label="Delete draft"
+                        >
+                          <VisuallyHidden>Delete</VisuallyHidden>
+                        </Button>
                       </HStack>
                     </Flex>
                   ))}
@@ -360,22 +452,17 @@ export default function BlogIndex() {
           </Tabs>
         </Container>
       </Box>
+
       {pub.hasNextPage && (
-        <Flex justify="center" py={4} bg="gray.900">
+        <Flex justify="center" py={4} bg="black">
           <Button
             onClick={() => pub.fetchNextPage()}
             isLoading={pub.isFetchingNextPage}
             aria-label="Load more posts"
             size="sm"
-            variant="ghost"
+            {...ghostBtn}
             rounded="full"
-            p={2}
-            _hover={{
-              transform: "scale(1.35)",
-              bg: "rgba(255,255,255,0.04)",
-            }}
-            _active={{ transform: "scale(1.15)" }}
-            transition="transform 160ms ease, background 160ms ease"
+            px={4}
           >
             <Box
               as="svg"
@@ -383,8 +470,8 @@ export default function BlogIndex() {
               height="18"
               viewBox="0 0 24 24"
               fill="none"
-              bg="gray.900"
               xmlns="http://www.w3.org/2000/svg"
+              mr={2}
             >
               <path
                 d="M6 9l6 6 6-6"
@@ -394,6 +481,7 @@ export default function BlogIndex() {
                 strokeLinejoin="round"
               />
             </Box>
+            Load more
           </Button>
         </Flex>
       )}
