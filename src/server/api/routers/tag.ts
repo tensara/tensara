@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import type { PrismaClient, Prisma, TagCategory } from "@prisma/client";
 
 // Define enum for validation
 const TagCategoryEnum = z.enum([
@@ -21,20 +22,20 @@ export const tagRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Build where clause
-      const where: any = {};
+      const where: Prisma.TagWhereInput = {};
 
       if (input.category) {
-        where.category = input.category;
+        where.category = input.category as TagCategory;
       }
 
       if (input.search) {
         where.name = {
           contains: input.search,
           mode: "insensitive",
-        };
+        } as unknown as Prisma.StringFilter;
       }
 
       const tags = await db.tag.findMany({
@@ -58,13 +59,13 @@ export const tagRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Build where clause
-      const where: any = {};
+      const where: Prisma.TagWhereInput = {};
 
       if (input.category) {
-        where.category = input.category;
+        where.category = input.category as TagCategory;
       }
 
       const tags = await db.tag.findMany({
@@ -92,7 +93,7 @@ export const tagRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       const tag = await db.tag.findUnique({
         where: { slug: input.slug },
@@ -123,7 +124,7 @@ export const tagRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       try {
         const tag = await db.tag.create({
@@ -131,15 +132,21 @@ export const tagRouter = createTRPCRouter({
             name: input.name,
             slug: input.slug,
             description: input.description,
-            category: input.category,
+            category: input.category as TagCategory,
           },
         });
 
         return tag;
-      } catch (error: any) {
+      } catch (error) {
+        const err = error as
+          | {
+              code?: string;
+              meta?: { target?: string[] } | undefined;
+            }
+          | undefined;
         // Handle unique constraint violation
-        if (error.code === "P2002") {
-          const field = error.meta?.target?.[0] || "field";
+        if (err?.code === "P2002") {
+          const field = err.meta?.target?.[0] ?? "field";
           throw new TRPCError({
             code: "CONFLICT",
             message: `A tag with this ${field} already exists`,
@@ -159,7 +166,7 @@ export const tagRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Check if tag exists
       const existing = await db.tag.findUnique({
@@ -175,7 +182,7 @@ export const tagRouter = createTRPCRouter({
       }
 
       // Build update data (excluding slug to preserve URLs)
-      const data: any = {};
+      const data: Prisma.TagUpdateInput = {};
 
       if (input.name !== undefined) {
         data.name = input.name;
@@ -186,7 +193,7 @@ export const tagRouter = createTRPCRouter({
       }
 
       if (input.category !== undefined) {
-        data.category = input.category;
+        data.category = input.category as TagCategory;
       }
 
       try {
@@ -196,9 +203,10 @@ export const tagRouter = createTRPCRouter({
         });
 
         return tag;
-      } catch (error: any) {
+      } catch (error) {
+        const err = error as { code?: string } | undefined;
         // Handle unique constraint violation
-        if (error.code === "P2002") {
+        if (err?.code === "P2002") {
           throw new TRPCError({
             code: "CONFLICT",
             message: "A tag with this name already exists",
@@ -215,7 +223,7 @@ export const tagRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Check if tag exists
       const existing = await db.tag.findUnique({

@@ -2,7 +2,6 @@
 import {
   Box,
   Container,
-  Heading,
   VStack,
   Text,
   Button,
@@ -17,7 +16,7 @@ import {
   Divider,
   Kbd,
   Badge,
-  BadgeProps,
+  type BadgeProps,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { useSession, signIn } from "next-auth/react";
@@ -60,7 +59,7 @@ function tagsToInput(tags: string[]): string {
 export default function EditPost() {
   const router = useRouter();
   const { id } = router.query as { id?: string };
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const toast = useToast();
   const utils = api.useContext();
 
@@ -80,7 +79,7 @@ export default function EditPost() {
         utils.blogpost.getById.invalidate({ id: p.id }),
       ]);
       toast({ title: "Published!", status: "success" });
-      router.push(`/blog/${p.slug ?? p.id}`);
+      void router.push(`/blog/${p.slug ?? p.id}`);
     },
     onError: (err) =>
       toast({
@@ -108,18 +107,36 @@ export default function EditPost() {
   // hydrate ONCE when data arrives; never force-reset while typing
   useEffect(() => {
     if (!postQ.data || hasHydrated.current) return;
-    const p = postQ.data as any;
+    const p = postQ.data;
 
     setTitle(p.title ?? "");
     setContent(p.content ?? "");
 
-    // normalise tags
+    // normalise tags safely (avoid using `any`)
+    const tagToString = (entry: unknown): string => {
+      if (!entry || typeof entry !== "object") return "";
+      const obj = entry as Record<string, unknown>;
+      const tagField = obj.tag;
+      if (tagField && typeof tagField === "object") {
+        const tagObj = tagField as Record<string, unknown>;
+        const slug = tagObj.slug;
+        const name = tagObj.name;
+        if (typeof slug === "string" && slug) return slug;
+        if (typeof name === "string" && name) return name;
+      }
+      const slug = obj.slug;
+      const name = obj.name;
+      if (typeof slug === "string" && slug) return slug;
+      if (typeof name === "string" && name) return name;
+      return "";
+    };
+
     const initialTags: string[] =
       Array.isArray(p.tags) && p.tags.length
-        ? (p.tags as any[])
-            .map((t) => t?.tag?.slug || t?.tag?.name || "")
+        ? (p.tags as unknown[])
+            .map(tagToString)
             .filter(Boolean)
-            .map((s: string) => s.toLowerCase())
+            .map((s) => s.toLowerCase())
         : [];
 
     setTags(initialTags);
@@ -135,13 +152,31 @@ export default function EditPost() {
   // mark dirty on any change (simple shallow compare to hydrated snapshot)
   useEffect(() => {
     if (!hasHydrated.current || !postQ.data) return;
-    const p = postQ.data as any;
+    const p = postQ.data;
+    const tagToString = (entry: unknown): string => {
+      if (!entry || typeof entry !== "object") return "";
+      const obj = entry as Record<string, unknown>;
+      const tagField = obj.tag;
+      if (tagField && typeof tagField === "object") {
+        const tagObj = tagField as Record<string, unknown>;
+        const slug = tagObj.slug;
+        const name = tagObj.name;
+        if (typeof slug === "string" && slug) return slug;
+        if (typeof name === "string" && name) return name;
+      }
+      const slug = obj.slug;
+      const name = obj.name;
+      if (typeof slug === "string" && slug) return slug;
+      if (typeof name === "string" && name) return name;
+      return "";
+    };
+
     const serverTags =
       Array.isArray(p.tags) && p.tags.length
-        ? (p.tags as any[])
-            .map((t) => t?.tag?.slug || t?.tag?.name || "")
+        ? (p.tags as unknown[])
+            .map(tagToString)
             .filter(Boolean)
-            .map((s: string) => s.toLowerCase())
+            .map((s) => s.toLowerCase())
         : [];
 
     const equal =
@@ -157,7 +192,8 @@ export default function EditPost() {
     () => {
       if (!dirty || !id) return;
       setSaving("saving");
-      autosave.mutate(
+      // prefix with void to satisfy no-floating-promises
+      void autosave.mutate(
         { id, title, content, tags },
         {
           onSuccess: (res) => {
@@ -166,9 +202,12 @@ export default function EditPost() {
             setTimeout(() => setSaving("idle"), 1200);
             // optionally track server updatedAt if mutation returns it
             try {
-              // @ts-ignore
-              if (res?.updatedAt) {
-                lastServerUpdatedAt.current = new Date(res.updatedAt).getTime();
+              const result = res as { updatedAt?: string | Date };
+              if (result?.updatedAt) {
+                // support Date from server (Prisma) or ISO string
+                lastServerUpdatedAt.current = new Date(
+                  result.updatedAt
+                ).getTime();
               }
             } catch {}
           },
@@ -183,7 +222,8 @@ export default function EditPost() {
         }
       );
     },
-    [dirty, title, content, tags, id],
+    // include autosave and toast to satisfy exhaustive-deps
+    [dirty, title, content, tags, id, autosave, toast],
     800
   );
 
@@ -205,8 +245,7 @@ export default function EditPost() {
         if (!confirm("You have unsaved changes. Leave anyway?")) {
           router.events.emit("routeChangeError");
           // throwing cancels the navigation in Next.js
-          // eslint-disable-next-line @typescript-eslint/no-throw-literal
-          throw "routeChange aborted";
+          throw new Error("routeChange aborted");
         }
       }
     };
@@ -221,7 +260,7 @@ export default function EditPost() {
         e.preventDefault();
         if (id) {
           setSaving("saving");
-          autosave.mutate(
+          void autosave.mutate(
             { id, title, content, tags },
             {
               onSuccess: () => {
@@ -244,7 +283,7 @@ export default function EditPost() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [id, title, content, tags]);
+  }, [id, title, content, tags, autosave, toast]);
 
   // status badge
   const statusBadge = useMemo(() => {
@@ -311,7 +350,7 @@ export default function EditPost() {
   const onSaveNow = () => {
     if (!id) return;
     setSaving("saving");
-    autosave.mutate(
+    void autosave.mutate(
       { id, title, content, tags },
       {
         onSuccess: () => {

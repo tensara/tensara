@@ -7,21 +7,6 @@ interface MarkdownRendererProps {
   content: string;
 }
 
-/**
- * Parses blog post content and renders submission embeds
- *
- * This component searches for {{submission:id}} markers in markdown content
- * and replaces them with interactive SubmissionEmbedCard components.
- *
- * Example markers:
- * - {{submission:abc123}}
- * - {{submission:def456}}
- *
- * The regex pattern matches:
- * - Opening: {{submission:
- * - Submission ID: alphanumeric, underscores, hyphens
- * - Closing: }}
- */
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   // Regex to match {{submission:submissionId}} patterns
   // Captures the submission ID in group 1
@@ -62,7 +47,10 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   // If no markers found, render as regular markdown
   if (segments.length === 0) {
     return (
-      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+      >
         {content}
       </ReactMarkdown>
     );
@@ -74,12 +62,12 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       {segments.map((segment, index) => (
         <Fragment key={index}>
           {/* {segment.type === "text" ? ( */}
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+          >
             {segment.content}
           </ReactMarkdown>
-          {/* ) : ( */}
-          {/* <SubmissionEmbedCard submissionId={segment.content} /> */}
-          {/* )} */}
         </Fragment>
       ))}
     </>

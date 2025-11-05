@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import type { PrismaClient } from "@prisma/client";
 
 export const commentupvoteRouter = createTRPCRouter({
   toggle: protectedProcedure
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       const comment = await db.comment.findUnique({
         where: { id: input.commentId },
@@ -37,7 +38,7 @@ export const commentupvoteRouter = createTRPCRouter({
   count: publicProcedure
     .input(z.object({ commentId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const count = await db.commentUpvote.count({
         where: { commentId: input.commentId },
       });
@@ -47,7 +48,7 @@ export const commentupvoteRouter = createTRPCRouter({
   hasUpvoted: protectedProcedure
     .input(z.object({ commentId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const userId = ctx.session.user.id;
       const existing = await db.commentUpvote.findUnique({
         where: { commentId_userId: { commentId: input.commentId, userId } },

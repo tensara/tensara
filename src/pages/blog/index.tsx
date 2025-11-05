@@ -164,7 +164,7 @@ export default function BlogIndex() {
   const createDraft = api.blogpost.createDraft.useMutation({
     onSuccess: async (post) => {
       await utils.blogpost.listMine.invalidate();
-      router.push(`/blog/edit/${post.id}`);
+      await router.push(`/blog/edit/${post.id}`);
     },
   });
 

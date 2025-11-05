@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import type {
+  PrismaClient,
+  Prisma,
+  Submission,
+  Problem,
+  TagCategory,
+} from "@prisma/client";
 
 // Define enums for validation
 const PostTypeEnum = z.enum([
@@ -15,7 +22,7 @@ const SortEnum = z.enum(["recent", "top"]);
 const PostStatusEnum = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 const StatusEnum = PostStatusEnum;
 
-const TagCategoryEnum = z.enum([
+const _TagCategoryEnum = z.enum([
   "GENERAL",
   "PROBLEM",
   "LANGUAGE",
@@ -36,7 +43,7 @@ function slugify(text: string): string {
 
 // Helper function to generate a unique slug with random 7-digit number
 async function generateUniqueSlug(
-  db: any,
+  db: PrismaClient,
   title: string,
   maxRetries = 10
 ): Promise<string> {
@@ -76,9 +83,9 @@ function calculateReadTime(content: string): number {
 
 // Convert free-form tag strings to Tag IDs (upsert if missing)
 async function resolveTagIdsFromStrings(
-  db: any,
+  db: PrismaClient,
   rawTags?: string[],
-  defaultCategory: z.infer<typeof TagCategoryEnum> = "GENERAL"
+  defaultCategory: z.infer<typeof _TagCategoryEnum> = "GENERAL"
 ): Promise<string[]> {
   if (!rawTags?.length) return [];
 
@@ -108,7 +115,7 @@ async function resolveTagIdsFromStrings(
           data: {
             name: s.replace(/-/g, " ").toUpperCase(),
             slug: s,
-            category: defaultCategory,
+            category: defaultCategory as unknown as TagCategory,
             description: undefined,
           },
           select: { id: true, slug: true },
@@ -128,7 +135,10 @@ async function resolveTagIdsFromStrings(
 }
 
 // Helper function to generate title from submission
-function generateTitleFromSubmission(submission: any, problem: any): string {
+function generateTitleFromSubmission(
+  submission: Submission & { gflops?: number | null; language: string },
+  problem: Problem
+): string {
   const gflops = submission.gflops ? submission.gflops.toFixed(1) : "N/A";
   const language = submission.language.toUpperCase();
   return `My ${gflops} GFLOPS ${language} Solution to ${problem.title}`;
@@ -182,8 +192,8 @@ const ListInput = z.object({
 
 // Helper function to generate or find auto tags
 async function generateAutoTags(
-  db: any,
-  problem: any,
+  db: PrismaClient,
+  problem: Problem,
   language: string
 ): Promise<string[]> {
   const tagIds: string[] = [];
@@ -232,7 +242,7 @@ export const blogpostRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Generate unique slug
       const slug = await generateUniqueSlug(db, input.title);
@@ -241,7 +251,7 @@ export const blogpostRouter = createTRPCRouter({
       const readTimeMinutes = calculateReadTime(input.content);
 
       // Prepare post data
-      const postData: any = {
+      const postData: Prisma.BlogPostUncheckedCreateInput = {
         title: input.title,
         content: input.content,
         slug,
@@ -299,7 +309,7 @@ export const blogpostRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Fetch submission with problem details
       const submission = await db.submission.findUnique({
@@ -326,8 +336,11 @@ export const blogpostRouter = createTRPCRouter({
 
       // Generate title if not provided
       const title =
-        input.title ||
-        generateTitleFromSubmission(submission, submission.problem);
+        input.title ??
+        generateTitleFromSubmission(
+          submission as Submission & { problem: Problem },
+          submission.problem
+        );
 
       // Generate content template
       const content = generatePostContent(
@@ -351,7 +364,7 @@ export const blogpostRouter = createTRPCRouter({
       );
 
       // Prepare post data
-      const postData: any = {
+      const postData: Prisma.BlogPostUncheckedCreateInput = {
         title,
         content,
         slug,
@@ -399,7 +412,7 @@ export const blogpostRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       if (!input.id && !input.slug) {
         throw new TRPCError({
@@ -474,10 +487,10 @@ export const blogpostRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Build where clause
-      const where: any = {};
+      const where: Prisma.BlogPostWhereInput = {};
 
       if (input.status) {
         where.status = input.status;
@@ -571,7 +584,7 @@ export const blogpostRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Check if post exists and user owns it
       const existing = await db.blogPost.findUnique({
@@ -591,7 +604,7 @@ export const blogpostRouter = createTRPCRouter({
       }
 
       // Build update data
-      const data: any = {};
+      const data: Partial<Prisma.BlogPostUpdateInput> = {};
 
       if (input.title !== undefined) {
         data.title = input.title;
@@ -676,7 +689,7 @@ export const blogpostRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const existing = await db.blogPost.findUnique({
         where: { id: input.id },
         select: { authorId: true },
@@ -702,7 +715,7 @@ export const blogpostRouter = createTRPCRouter({
     }),
 
   getUserPosts: protectedProcedure.query(async ({ ctx }) => {
-    const db = ctx.db as any;
+    const db = ctx.db as PrismaClient;
     const posts = await db.blogPost.findMany({
       where: { authorId: ctx.session.user.id },
       orderBy: { createdAt: "desc" },
@@ -716,16 +729,16 @@ export const blogpostRouter = createTRPCRouter({
       },
     });
 
-    return posts as any[];
+    return posts;
   }),
 
   listPublished: publicProcedure
     .input(ListInput)
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const { cursor, limit, authorId, query, tagSlugs, sort } = input;
 
-      const where: any = {
+      const where: Prisma.BlogPostWhereInput = {
         status: "PUBLISHED",
         ...(authorId ? { authorId } : {}),
       };
@@ -777,10 +790,10 @@ export const blogpostRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const { cursor, limit, status, query, sort } = input;
 
-      const where: any = {
+      const where: Prisma.BlogPostWhereInput = {
         authorId: ctx.session.user.id,
         ...(status ? { status } : {}),
       };
@@ -817,7 +830,7 @@ export const blogpostRouter = createTRPCRouter({
   createDraft: protectedProcedure
     .input(z.object({ title: z.string().default("Untitled draft") }))
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const post = await db.blogPost.create({
         data: {
           title: input.title.trim() || "Untitled draft",
@@ -843,7 +856,7 @@ export const blogpostRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const post = await db.blogPost.findUnique({
         where: { id: input.id },
         select: { id: true, authorId: true, status: true, content: true },
@@ -854,7 +867,7 @@ export const blogpostRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
-      const data: any = {};
+      const data: Partial<Prisma.BlogPostUpdateInput> = {};
       if (input.title !== undefined) data.title = input.title;
       if (input.content !== undefined) {
         data.content = input.content;
@@ -890,7 +903,7 @@ export const blogpostRouter = createTRPCRouter({
   publish: protectedProcedure
     .input(z.object({ id: z.string(), desiredSlug: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const post = await db.blogPost.findUnique({
         where: { id: input.id },
         select: {
@@ -917,7 +930,7 @@ export const blogpostRouter = createTRPCRouter({
       let slug = post.slug;
       if (!slug) {
         const base = input.desiredSlug?.trim().length
-          ? input.desiredSlug!
+          ? input.desiredSlug
           : post.title;
         slug = await generateUniqueSlug(db, base);
       }
@@ -939,7 +952,7 @@ export const blogpostRouter = createTRPCRouter({
   unpublish: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const post = await db.blogPost.findUnique({
         where: { id: input.id },
         select: { id: true, authorId: true },
@@ -959,7 +972,7 @@ export const blogpostRouter = createTRPCRouter({
   archive: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
       const post = await db.blogPost.findUnique({
         where: { id: input.id },
         select: { id: true, authorId: true },

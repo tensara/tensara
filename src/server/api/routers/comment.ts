@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import type { PrismaClient, Comment } from "@prisma/client";
+
+type CommentWithAuthor = Comment & {
+  author: { id: string; name?: string | null; image?: string | null };
+};
+
+type CommentNode = CommentWithAuthor & { children: CommentNode[] };
 
 export const commentRouter = createTRPCRouter({
   create: protectedProcedure
@@ -12,7 +19,7 @@ export const commentRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // verify post exists
       const post = await db.blogPost.findUnique({
@@ -52,29 +59,29 @@ export const commentRouter = createTRPCRouter({
   getByPost: publicProcedure
     .input(z.object({ postId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       // Fetch all comments for the post with their author. We'll build a
       // nested tree on the server so nested replies of arbitrary depth are
       // returned to the client under `children` arrays.
-      const flatComments = await db.comment.findMany({
+      const flatComments = (await db.comment.findMany({
         where: { postId: input.postId },
         orderBy: { createdAt: "asc" },
         include: { author: { select: { id: true, name: true, image: true } } },
-      });
+      })) as CommentWithAuthor[];
 
       // Build map id -> comment (and initialize children arrays)
-      const map: Record<string, any> = {};
+      const map: Record<string, CommentNode> = {};
       for (const c of flatComments) {
         map[c.id] = { ...c, children: [] };
       }
 
       // Attach children to their parents; collect roots
-      const roots: any[] = [];
-      for (const id in map) {
-        const node = map[id];
+      const roots: CommentNode[] = [];
+      for (const key in map) {
+        const node = map[key]!;
         if (node.parentCommentId && map[node.parentCommentId]) {
-          map[node.parentCommentId].children.push(node);
+          map[node.parentCommentId]!.children.push(node);
         } else {
           roots.push(node);
         }
@@ -86,7 +93,7 @@ export const commentRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const db = ctx.db as any;
+      const db = ctx.db as PrismaClient;
 
       const existing = await db.comment.findUnique({
         where: { id: input.id },

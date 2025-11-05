@@ -28,7 +28,6 @@ import {
   IconButton,
   Divider,
   Tooltip,
-  Badge,
 } from "@chakra-ui/react";
 import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
@@ -46,7 +45,6 @@ import { format } from "date-fns";
 import { MarkdownRenderer } from "~/components/blog";
 
 // Typed helper aliases for tRPC outputs
-type Post = RouterOutputs["blogpost"]["getById"];
 type CommentType = RouterOutputs["comments"]["getByPost"][number];
 
 export default function TestBlogPost() {
@@ -78,6 +76,13 @@ export default function TestBlogPost() {
       onClose();
     },
   });
+
+  // small helper to safely check mutation running state without `any` casts
+  function mutationIsRunning(m: unknown): boolean {
+    if (!m || typeof m !== "object") return false;
+    const mm = m as { isPending?: boolean; isLoading?: boolean };
+    return !!mm.isPending || !!mm.isLoading;
+  }
 
   const del = api.blogpost.delete.useMutation({
     onSuccess: () => {
@@ -267,7 +272,7 @@ export default function TestBlogPost() {
                 borderLeft="1px solid"
                 borderColor="whiteAlpha.200"
               >
-                <CommentItem comment={child as CommentType} />
+                <CommentItem comment={child} />
               </Box>
             ))}
           </VStack>
@@ -398,9 +403,7 @@ export default function TestBlogPost() {
                         aria-label="Delete post"
                         icon={<Icon as={FiTrash2} />}
                         onClick={() => del.mutate({ id: post.id })}
-                        isLoading={
-                          (del as any).isPending ?? (del as any).isLoading
-                        }
+                        isLoading={mutationIsRunning(del)}
                         colorScheme="red"
                         variant="ghost"
                         size="sm"
@@ -413,10 +416,8 @@ export default function TestBlogPost() {
 
             <Divider my={6} borderColor="whiteAlpha.300" />
 
-            {/* Article content: slightly wider, minimal chrome */}
             <Box
               maxW="900px"
-              // centers the reading column while header and comments can stretch
               mx="auto"
               className="markdown-content"
               sx={{
@@ -572,7 +573,7 @@ export default function TestBlogPost() {
                             content: newComment,
                           })
                         }
-                        isLoading={(createComment as any).isLoading}
+                        isLoading={mutationIsRunning(createComment)}
                       >
                         Post
                       </Button>
@@ -646,8 +647,8 @@ export default function TestBlogPost() {
             </Button>
             <Button
               colorScheme="green"
-              onClick={() => update.mutate({ id: post!.id, title, content })}
-              isLoading={(update as any).isLoading}
+              onClick={() => update.mutate({ id: post.id, title, content })}
+              isLoading={mutationIsRunning(update)}
             >
               Save
             </Button>

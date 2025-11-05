@@ -43,7 +43,6 @@ import {
 import { FiCopy } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
-import { format } from "date-fns";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -731,11 +730,13 @@ ${code}
                           isClosable: true,
                         });
                         void router.push(`/blog/edit/${newPost.id}`);
-                      } catch (e: any) {
-                        console.error(e);
+                      } catch (error) {
+                        console.error(error);
+                        const err = error as { message?: string } | undefined;
                         toast({
                           title: "Could not create draft",
-                          description: e?.message ?? "Unexpected error",
+                          description:
+                            err?.message ?? String(error) ?? "Unexpected error",
                           status: "error",
                         });
                       }
