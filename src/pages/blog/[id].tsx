@@ -12,18 +12,8 @@ import {
   Flex,
   Avatar,
   HStack,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
   FormControl,
-  FormLabel,
-  Input,
   Textarea,
-  useDisclosure,
   Icon,
   IconButton,
   Divider,
@@ -57,41 +47,17 @@ export default function TestBlogPost() {
     { enabled: typeof id === "string" }
   );
 
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-
-  useEffect(() => {
-    if (post) {
-      setTitle(post.title ?? "");
-      setContent(post.content ?? "");
-    }
-  }, [post]);
-
   const utils = api.useContext();
-  const update = api.blogpost.update.useMutation({
-    onSuccess: () => {
-      void utils.blogpost.getById.invalidate();
-      void utils.blogpost.getAll.invalidate();
-      onClose();
-    },
-  });
 
-  // small helper to safely check mutation running state without `any` casts
-  function mutationIsRunning(m: unknown): boolean {
-    if (!m || typeof m !== "object") return false;
-    const mm = m as { isPending?: boolean; isLoading?: boolean };
-    return !!mm.isPending || !!mm.isLoading;
-  }
-
+  // delete post
   const del = api.blogpost.delete.useMutation({
-    onSuccess: () => {
-      void utils.blogpost.getAll.invalidate();
+    onSuccess: async () => {
+      await utils.blogpost.getAll.invalidate();
       void router.push("/blog");
     },
   });
 
-  // Post-related hooks
+  // Post-related helpers
   const isAuthor = session?.user?.id === post?.author?.id;
 
   // Post upvote
@@ -105,11 +71,12 @@ export default function TestBlogPost() {
   );
   const postUpvoteToggle = api.postUpvote.toggle.useMutation({
     onSuccess: async () => {
-      if (post?.id)
+      if (post?.id) {
         await utils.postUpvote.count.invalidate({ postId: post.id });
-      if (post?.id && session)
-        await utils.postUpvote.hasUpvoted.invalidate({ postId: post.id });
-      await utils.blogpost.getById.invalidate();
+        if (session)
+          await utils.postUpvote.hasUpvoted.invalidate({ postId: post.id });
+        await utils.blogpost.getById.invalidate();
+      }
     },
   });
 
@@ -131,6 +98,13 @@ export default function TestBlogPost() {
         await utils.comments.getByPost.invalidate({ postId: post.id });
     },
   });
+
+  // small helper to safely check mutation running state
+  function mutationIsRunning(m: unknown): boolean {
+    if (!m || typeof m !== "object") return false;
+    const mm = m as { isPending?: boolean; isLoading?: boolean };
+    return !!mm.isPending || !!mm.isLoading;
+  }
 
   const [newComment, setNewComment] = useState("");
 
@@ -213,6 +187,7 @@ export default function TestBlogPost() {
                     variant="ghost"
                     colorScheme="red"
                     onClick={() => deleteComment.mutate({ id: comment.id })}
+                    isLoading={mutationIsRunning(deleteComment)}
                   />
                 )}
               </HStack>
@@ -391,23 +366,27 @@ export default function TestBlogPost() {
 
                   {isAuthor && (
                     <HStack spacing={1}>
-                      <IconButton
-                        aria-label="Edit post"
-                        icon={<Icon as={FiEdit3} />}
-                        onClick={onOpen}
-                        colorScheme="green"
-                        variant="ghost"
-                        size="sm"
-                      />
-                      <IconButton
-                        aria-label="Delete post"
-                        icon={<Icon as={FiTrash2} />}
-                        onClick={() => del.mutate({ id: post.id })}
-                        isLoading={mutationIsRunning(del)}
-                        colorScheme="red"
-                        variant="ghost"
-                        size="sm"
-                      />
+                      <Tooltip label="Edit">
+                        <IconButton
+                          aria-label="Edit post"
+                          icon={<Icon as={FiEdit3} />}
+                          onClick={() => router.push(`/blog/edit/${post.id}`)}
+                          colorScheme="green"
+                          variant="ghost"
+                          size="sm"
+                        />
+                      </Tooltip>
+                      <Tooltip label="Delete">
+                        <IconButton
+                          aria-label="Delete post"
+                          icon={<Icon as={FiTrash2} />}
+                          onClick={() => del.mutate({ id: post.id })}
+                          isLoading={mutationIsRunning(del)}
+                          colorScheme="red"
+                          variant="ghost"
+                          size="sm"
+                        />
+                      </Tooltip>
                     </HStack>
                   )}
                 </HStack>
@@ -605,56 +584,6 @@ export default function TestBlogPost() {
           </Box>
         </Container>
       </Box>
-
-      {/* (Optional) Edit modal kept intact; style is already minimal */}
-      <Modal isOpen={isOpen} onClose={onClose} size="lg">
-        <ModalOverlay />
-        <ModalContent
-          bg="gray.900"
-          border="1px solid"
-          borderColor="whiteAlpha.200"
-        >
-          <ModalHeader color="white">Edit post</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <FormControl>
-                <FormLabel color="gray.200">Title</FormLabel>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  bg="transparent"
-                  borderColor="whiteAlpha.300"
-                  color="gray.100"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel color="gray.200">Content</FormLabel>
-                <Textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  rows={10}
-                  bg="transparent"
-                  borderColor="whiteAlpha.300"
-                  color="gray.100"
-                />
-              </FormControl>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              colorScheme="green"
-              onClick={() => update.mutate({ id: post.id, title, content })}
-              isLoading={mutationIsRunning(update)}
-            >
-              Save
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </Layout>
   );
 }

@@ -34,7 +34,6 @@ function useDebounced(fn: () => void, deps: unknown[], delay = 1200) {
     clearTimeout(timeout.current);
     timeout.current = setTimeout(fn, delay);
     return () => clearTimeout(timeout.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }
 
