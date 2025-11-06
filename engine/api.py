@@ -124,6 +124,8 @@ def gen_wrapper(gen):
     import simplejson
 
     for event in gen:
+        if event is None or event == {}:
+            continue
         data = simplejson.dumps(event, ignore_nan=True)
         yield "data: " + data + "\n\n"
 
@@ -171,6 +173,9 @@ async def checker(gpu: str, request: Request):
                 return
 
             bench_thr.join()
+
+            for event in utils.yield_ptx_sass(gpu, solution_code):
+                yield event
         else:
             checker_compiled = None
 
@@ -218,6 +223,9 @@ async def benchmark(gpu: str, request: Request):
                     "details": str(e),
                 }
                 return
+
+            for event in utils.yield_ptx_sass(gpu, solution_code):
+                yield event
         else:
             benchmark_compiled = None
 
@@ -270,6 +278,9 @@ async def sample_runner(gpu: str, request: Request):
                     "details": str(e),
                 }
                 return
+
+            for event in utils.yield_ptx_sass(gpu, solution_code):
+                yield event
         else:
             sample_compiled = None
 
@@ -306,6 +317,9 @@ async def sandbox(gpu: str, request: Request):
                 "details": e.args[0],
             }
             return
+
+        for event in utils.yield_ptx_sass(gpu, solution_code):
+            yield event
 
         runner = gpu_runners[gpu]
         print("runner", runner)

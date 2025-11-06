@@ -793,6 +793,94 @@ class SystemOutputCapture:
             pass
 
 
+def generate_ptx_sass(gpu: str, solution_code: str) -> tuple[str, str]:
+    """Generate PTX and SASS outputs from CUDA source code
+
+    Args:
+        gpu (str): GPU type to use
+        solution_code (str): Code of the solution
+
+    Returns:
+        tuple[str, str]: (PTX content, SASS content)
+
+    Raises:
+        Exception: If PTX/SASS generation fails
+    """
+    sm = GPU_COMPUTE_CAPABILITIES[gpu]
+
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td)
+
+        # Write source file
+        src_path = path / "solution.cu"
+        src_path.write_text(solution_code)
+
+        ptx_path = path / "output.ptx"
+        cubin_path = path / "output.cubin"
+
+        # Generate PTX
+        ptx_cmd = [
+            "nvcc",
+            "-ptx",
+            str(src_path),
+            "-o",
+            str(ptx_path),
+            "-lineinfo",
+            "-std=c++20",
+            f"-arch=compute_{sm}",
+        ]
+        ptx_process = subprocess.run(ptx_cmd, capture_output=True, text=True)
+
+        if ptx_process.returncode != 0:
+            raise Exception(f"PTX generation failed: {ptx_process.stderr}")
+
+        ptx_content = ptx_path.read_text()
+
+        # Generate CUBIN
+        cubin_cmd = [
+            "nvcc",
+            "-cubin",
+            str(src_path),
+            "-o",
+            str(cubin_path),
+            "-std=c++20",
+            f"-arch=compute_{sm}",
+            f"-code=sm_{sm}",
+        ]
+        cubin_process = subprocess.run(cubin_cmd, capture_output=True, text=True)
+
+        if cubin_process.returncode != 0:
+            raise Exception(f"CUBIN generation failed: {cubin_process.stderr}")
+
+        # Disassemble to SASS using nvdisasm
+        sass_process = subprocess.run(
+            ["nvdisasm", str(cubin_path), "--print-line-info"], capture_output=True, text=True
+        )
+
+        if sass_process.returncode != 0:
+            # Try without line info if it fails
+            sass_process = subprocess.run(
+                ["nvdisasm", str(cubin_path)], capture_output=True, text=True
+            )
+            if sass_process.returncode != 0:
+                raise Exception(f"SASS generation failed: {sass_process.stderr}")
+
+        sass_content = sass_process.stdout
+
+    return ptx_content, sass_content
+
+
+def yield_ptx_sass(gpu: str, solution_code: str):
+    """Generate and yield PTX/SASS assembly, with graceful error handling"""
+    try:
+        ptx_content, sass_content = generate_ptx_sass(gpu, solution_code)
+        yield {"status": "PTX", "content": ptx_content}
+        yield {"status": "SASS", "content": sass_content}
+    except Exception as e:
+        print(f"PTX/SASS generation failed: {e}")
+        yield {"status": "WARNING", "message": f"PTX/SASS generation failed: {str(e)}"}
+
+
 @hash_dict
 @lru_cache(maxsize=512)
 def run_nvcc_and_return_executable(gpu: str, solution_code: str) -> bytes:

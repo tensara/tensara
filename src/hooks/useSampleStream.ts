@@ -48,6 +48,8 @@ export function useSampleStream() {
   const [output, setOutput] = useState<SampleOutput | null>(null);
   const [status, setStatus] = useState<SampleStatusType>(SampleStatus.IDLE);
   const [isRunning, setIsRunning] = useState(false);
+  const [ptxContent, setPtxContent] = useState<string | null>(null);
+  const [sassContent, setSassContent] = useState<string | null>(null);
 
   const startSampleRun = useCallback(
     async (submissionData: {
@@ -110,10 +112,22 @@ export function useSampleStream() {
               continue;
             }
 
-            // Heartbeats / comments may have no status
             if (!data?.status) continue;
 
-            // Drive UI by status codes only
+            const statusStr = data.status as string;
+            if (statusStr === "PTX" && "content" in data) {
+              setPtxContent(
+                (data as { status: string; content: string }).content
+              );
+              continue;
+            }
+            if (statusStr === "SASS" && "content" in data) {
+              setSassContent(
+                (data as { status: string; content: string }).content
+              );
+              continue;
+            }
+
             switch (data.status) {
               case SampleStatus.IN_QUEUE:
               case SampleStatus.COMPILING:
@@ -139,7 +153,7 @@ export function useSampleStream() {
               case SampleStatus.PASSED:
               case SampleStatus.FAILED:
                 setStatus(data.status);
-                setOutput({
+                setOutput(() => ({
                   status: data.status,
                   input: data.input ? formatParameters(data.input) : undefined,
                   output: data.output ? formatVector(data.output) : undefined,
@@ -148,7 +162,9 @@ export function useSampleStream() {
                   expected_output: data.expected_output
                     ? formatVector(data.expected_output)
                     : undefined,
-                });
+                  ptx: ptxContent ?? undefined,
+                  sass: sassContent ?? undefined,
+                }));
                 setIsRunning(false);
                 break;
 
@@ -171,8 +187,8 @@ export function useSampleStream() {
         });
       }
     },
-    [toast]
+    [toast, ptxContent, sassContent]
   );
 
-  return { output, status, isRunning, startSampleRun };
+  return { output, status, isRunning, startSampleRun, ptxContent, sassContent };
 }

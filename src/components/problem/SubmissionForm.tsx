@@ -10,7 +10,6 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  Badge,
   Tooltip,
 } from "@chakra-ui/react";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
@@ -190,15 +189,6 @@ const SubmissionForm = ({
                 fontSize="sm"
               >
                 CuTe DSL
-                <Badge
-                  ml={2}
-                  colorScheme="cyan"
-                  fontSize="2xs"
-                  variant="subtle"
-                  rounded="sm"
-                >
-                  NEW
-                </Badge>
               </MenuItem>
             </MenuList>
           </Menu>
