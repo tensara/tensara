@@ -382,8 +382,6 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setTestResults([]);
     setBenchmarkResults([]);
     setTotalTests(0);
-    setPtxContent(null);
-    setSassContent(null);
   }, []);
 
   return {

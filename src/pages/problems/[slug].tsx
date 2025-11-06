@@ -158,6 +158,86 @@ export default function ProblemPage({ slug }: { slug: string }) {
     sassContent: submissionSassContent,
   } = useSubmissionStream(submissionsQuery.refetch);
 
+  const [submissionPtxTimestamp, setSubmissionPtxTimestamp] =
+    useState<number>(0);
+  const [submissionSassTimestamp, setSubmissionSassTimestamp] =
+    useState<number>(0);
+  const [samplePtxTimestamp, setSamplePtxTimestamp] = useState<number>(0);
+  const [sampleSassTimestamp, setSampleSassTimestamp] = useState<number>(0);
+  const [ptxDirty, setPtxDirty] = useState(false);
+  const [sassDirty, setSassDirty] = useState(false);
+
+  useEffect(() => {
+    if (submissionPtxContent) {
+      setSubmissionPtxTimestamp(Date.now());
+    }
+  }, [submissionPtxContent]);
+
+  useEffect(() => {
+    if (submissionSassContent) {
+      setSubmissionSassTimestamp(Date.now());
+    }
+  }, [submissionSassContent]);
+
+  useEffect(() => {
+    if (ptxContent) {
+      setSamplePtxTimestamp(Date.now());
+    }
+  }, [ptxContent]);
+
+  useEffect(() => {
+    if (sassContent) {
+      setSampleSassTimestamp(Date.now());
+    }
+  }, [sassContent]);
+
+  const handleSetCode = useCallback(
+    (newCode: string) => {
+      setCode(newCode);
+      if (selectedLanguage === "cuda") {
+        const currentPtx =
+          submissionPtxTimestamp > samplePtxTimestamp
+            ? (submissionPtxContent ?? ptxContent)
+            : (ptxContent ?? submissionPtxContent);
+        const currentSass =
+          submissionSassTimestamp > sampleSassTimestamp
+            ? (submissionSassContent ?? sassContent)
+            : (sassContent ?? submissionSassContent);
+
+        if (currentPtx) {
+          setPtxDirty(true);
+        }
+        if (currentSass) {
+          setSassDirty(true);
+        }
+      }
+    },
+    [
+      setCode,
+      selectedLanguage,
+      submissionPtxContent,
+      ptxContent,
+      submissionSassContent,
+      sassContent,
+      submissionPtxTimestamp,
+      samplePtxTimestamp,
+      submissionSassTimestamp,
+      sampleSassTimestamp,
+    ]
+  );
+
+  useEffect(() => {
+    if (submissionPtxContent || ptxContent) {
+      setPtxDirty(false);
+    }
+  }, [submissionPtxContent, ptxContent]);
+
+  useEffect(() => {
+    if (submissionSassContent || sassContent) {
+      setSassDirty(false);
+    }
+  }, [submissionSassContent, sassContent]);
+
   useEffect(() => {
     if (
       hasLoadedPreferences &&
@@ -378,10 +458,21 @@ export default function ProblemPage({ slug }: { slug: string }) {
           topContent={
             <CodeEditor
               code={code}
-              setCode={setCode}
+              setCode={handleSetCode}
               selectedLanguage={selectedLanguage}
-              ptxContent={submissionPtxContent ?? ptxContent}
-              sassContent={submissionSassContent ?? sassContent}
+              ptxContent={
+                submissionPtxTimestamp > samplePtxTimestamp
+                  ? (submissionPtxContent ?? ptxContent)
+                  : (ptxContent ?? submissionPtxContent)
+              }
+              sassContent={
+                submissionSassTimestamp > sampleSassTimestamp
+                  ? (submissionSassContent ?? sassContent)
+                  : (sassContent ?? submissionSassContent)
+              }
+              enablePtxSassView={selectedLanguage === "cuda"}
+              ptxDirty={ptxDirty}
+              sassDirty={sassDirty}
             />
           }
           bottomContent={

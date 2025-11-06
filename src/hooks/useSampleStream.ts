@@ -61,8 +61,6 @@ export function useSampleStream() {
       setIsRunning(true);
       setOutput(null);
       setStatus(SampleStatus.IN_QUEUE);
-      setPtxContent(null);
-      setSassContent(null);
 
       try {
         const response = await fetch("/api/submissions/sample", {
