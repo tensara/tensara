@@ -59,6 +59,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     BenchmarkResultResponse[]
   >([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] =
     useState<boolean>(false);
   const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
@@ -116,6 +117,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     (frame: string): void => {
       const lines = frame.split(/\r?\n/);
       const dataLine = lines.find((l) => l.startsWith("data: "));
+      const eventLine = lines.find((l) => l.startsWith("event: "));
       if (!dataLine) return;
 
       let data: SubmissionResponse | undefined;
@@ -125,7 +127,8 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         return;
       }
 
-      const status = data?.status as string | undefined;
+      const eventName = eventLine?.slice(7).trim();
+      const status = (data as Partial<{ status: string }>)?.status ?? eventName;
       if (!status) return;
 
       if (status === "PTX" && "content" in data) {
@@ -144,6 +147,8 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
             const remaining = (
               data as Partial<{ remainingSubmissions: number }>
             ).remainingSubmissions;
+            const newSubmissionId = (data as Partial<{ id: string }>).id;
+            if (newSubmissionId) setSubmissionId(newSubmissionId);
             if (
               remaining === 50 ||
               remaining === 25 ||
@@ -382,6 +387,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setTestResults([]);
     setBenchmarkResults([]);
     setTotalTests(0);
+    setSubmissionId(null);
   }, []);
 
   return {
@@ -400,5 +406,6 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     getTypedResponse,
     ptxContent,
     sassContent,
+    submissionId,
   };
 }

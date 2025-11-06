@@ -156,6 +156,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     getTypedResponse,
     ptxContent: submissionPtxContent,
     sassContent: submissionSassContent,
+    submissionId,
   } = useSubmissionStream(submissionsQuery.refetch);
 
   const [submissionPtxTimestamp, setSubmissionPtxTimestamp] =
@@ -445,6 +446,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             getTypedResponse={getTypedResponse}
             onBackToProblem={() => setViewType("problem")}
             onViewSubmissions={() => setViewType("submissions")}
+            submissionId={submissionId}
           />
         ) : null;
       default:
