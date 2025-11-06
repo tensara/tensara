@@ -355,24 +355,46 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
       // Cmd+Enter -> submit
       if (e.key === "Enter") {
-        e.preventDefault();
-        void handleSubmit();
-        return;
+        if (isSubmitting) {
+          toast({
+            title: "Already submitting",
+            description: "Please wait for the submission to complete",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return;
+        } else {
+          e.preventDefault();
+          void handleSubmit();
+          return;
+        }
       }
 
       // Cmd+' (Quote) -> run sample
       // Some keyboards report "'" as the key, some report code === "Quote"
       if (e.key === "'" || e.code === "Quote") {
-        e.preventDefault();
-        void handleRun();
-        return;
+        if (isRunning) {
+          toast({
+            title: "Already running",
+            description: "Please wait for the sample run to complete",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return;
+        } else {
+          e.preventDefault();
+          void handleRun();
+          return;
+        }
       }
     };
 
     const opts: AddEventListenerOptions = { capture: true };
     window.addEventListener("keydown", onKeyDown, opts);
     return () => window.removeEventListener("keydown", onKeyDown, opts);
-  }, [handleSubmit, handleRun]);
+  }, [handleSubmit, handleRun, isSubmitting, isRunning]);
   if (isLoading) {
     return (
       <Layout title="Loading...">
