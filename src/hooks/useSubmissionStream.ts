@@ -1,8 +1,25 @@
+/**
+ * useSubmissionStream.ts
+ *
+ * React hook for consuming `/api/submissions/direct-submit` SSE events.
+ * - Opens a streaming POST request and incrementally updates client state for
+ *   each event (`IN_QUEUE`, `CHECKING`, `TEST_RESULT`, `WRONG_ANSWER`,
+ *   `BENCHMARK_RESULT`, `BENCHMARKED`, `ACCEPTED`, or error).
+ * - Maintains high-level submission state (`metaStatus`, `metaResponse`,
+ *   `isSubmitting`, `isBenchmarking`, `testResults`, `benchmarkResults`).
+ * - Provides safe event parsing, retry/backoff, and toast-based notifications.
+ * - Exposes helpers: `startSubmission()`, `processSubmission()`,
+ *   `getTypedResponse()`, and `setIsTestCaseTableOpen()`.
+ *
+ * Primary frontend state manager for Tensara’s live submission results.
+ */
+
 import { useState, useCallback } from "react";
 import { useToast } from "@chakra-ui/react";
 import {
   type SubmissionStatusType,
   type SubmissionErrorType,
+  type SubmissionResponse,
   type ErrorResponse,
   type WrongAnswerResponse,
   type CheckedResponse,
@@ -42,9 +59,12 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     BenchmarkResultResponse[]
   >([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [isTestCaseTableOpen, setIsTestCaseTableOpen] =
     useState<boolean>(false);
   const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
+  const [ptxContent, setPtxContent] = useState<string | null>(null);
+  const [sassContent, setSassContent] = useState<string | null>(null);
 
   // Type-safe accessor for metaResponse based on current metaStatus
   const getTypedResponse = useCallback(
@@ -94,142 +114,145 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
   );
 
   const processEvent = useCallback(
-    (event: string): void => {
-      const eventLines = event.split("\n");
-      let eventType = "message";
-      let eventData = "";
+    (frame: string): void => {
+      const lines = frame.split(/\r?\n/);
+      const dataLine = lines.find((l) => l.startsWith("data: "));
+      const eventLine = lines.find((l) => l.startsWith("event: "));
+      if (!dataLine) return;
 
-      for (const line of eventLines) {
-        if (line.startsWith("event: ")) {
-          eventType = line.slice(7);
-        } else if (line.startsWith("data: ")) {
-          eventData = line.slice(6);
-        }
+      let data: SubmissionResponse | undefined;
+      try {
+        data = JSON.parse(dataLine.slice(6).trim()) as SubmissionResponse;
+      } catch {
+        return;
       }
 
-      if (!eventData) return;
+      const eventName = eventLine?.slice(7).trim();
+      const status = (data as Partial<{ status: string }>)?.status ?? eventName;
+      if (!status) return;
 
-      try {
-        console.log(`[sse] ${eventType} event:`, eventData);
+      if (status === "PTX" && "content" in data) {
+        setPtxContent((data as { status: string; content: string }).content);
+        return;
+      }
+      if (status === "SASS" && "content" in data) {
+        setSassContent((data as { status: string; content: string }).content);
+        return;
+      }
 
-        switch (eventType) {
-          case "IN_QUEUE":
-            setMetaStatus(SubmissionStatus.IN_QUEUE);
-
-            try {
-              const data = JSON.parse(eventData) as {
-                remainingSubmissions?: number;
-              };
-              const remaining = data.remainingSubmissions;
-
-              if (
-                remaining === 50 ||
-                remaining === 25 ||
-                (remaining !== undefined && remaining <= 10)
-              ) {
-                toast({
-                  title: "Submissions Remaining",
-                  description: `You have ${remaining} submission${remaining !== 1 ? "s" : ""} left today.`,
-                  status: remaining <= 10 ? "warning" : "info",
-                  duration: 50000,
-                  isClosable: true,
-                });
-              }
-            } catch (e) {
-              console.error("Error parsing IN_QUEUE event data:", e);
+      switch (status) {
+        case "IN_QUEUE":
+          setMetaStatus(SubmissionStatus.IN_QUEUE);
+          try {
+            const remaining = (
+              data as Partial<{ remainingSubmissions: number }>
+            ).remainingSubmissions;
+            const newSubmissionId = (data as Partial<{ id: string }>).id;
+            if (newSubmissionId) setSubmissionId(newSubmissionId);
+            if (
+              remaining === 50 ||
+              remaining === 25 ||
+              (remaining !== undefined && remaining <= 10)
+            ) {
+              toast({
+                title: "Submissions Remaining",
+                description: `You have ${remaining} submission${remaining !== 1 ? "s" : ""} left today.`,
+                status: remaining <= 10 ? "warning" : "info",
+                duration: 5000,
+                isClosable: true,
+              });
             }
-            break;
-          case "COMPILING":
-          case "CHECKING":
-          case "BENCHMARKING":
-            setMetaStatus(eventType as SubmissionStatusType);
-            break;
+          } catch {}
+          break;
 
-          case "TEST_RESULT":
-            const testData = JSON.parse(eventData) as TestResultResponse;
-            setTestResults((prev) => [...prev, testData]);
-            setTotalTests(testData.total_tests);
-            break;
+        case "CHECKING":
+        case "BENCHMARKING":
+          setMetaStatus(status as SubmissionStatusType);
+          break;
 
-          case "BENCHMARK_RESULT":
-            setIsBenchmarking(true);
-            setIsTestCaseTableOpen(true);
+        case "TEST_RESULT":
+          setTestResults((prev) => [...prev, data as TestResultResponse]);
+          setTotalTests((data as TestResultResponse).total_tests);
+          break;
 
-            const benchmarkResultData = JSON.parse(
-              eventData
-            ) as BenchmarkResultResponse;
-            setBenchmarkResults((prev) => [...prev, benchmarkResultData]);
-            setTotalTests(benchmarkResultData.total_tests);
-            break;
+        case "CHECKED":
+          setMetaStatus(SubmissionStatus.CHECKED);
+          setMetaResponse(data as CheckedResponse);
+          refetchSubmissions();
+          break;
 
-          case "WRONG_ANSWER":
-            const wrongAnswerData = JSON.parse(
-              eventData
-            ) as WrongAnswerResponse;
-            setIsSubmitting(false);
-            setMetaStatus(SubmissionStatus.WRONG_ANSWER);
-            setMetaResponse(wrongAnswerData);
-            refetchSubmissions();
-            break;
+        case "WRONG_ANSWER":
+          setIsSubmitting(false);
+          setMetaStatus(SubmissionStatus.WRONG_ANSWER);
+          setMetaResponse(data as WrongAnswerResponse);
+          refetchSubmissions();
+          break;
 
-          case "CHECKED":
-            const checkedData = JSON.parse(eventData) as CheckedResponse;
-            setMetaStatus(SubmissionStatus.CHECKED);
-            setMetaResponse(checkedData);
-            refetchSubmissions();
-            break;
+        case "BENCHMARK_RESULT":
+          setIsBenchmarking(true);
+          setIsTestCaseTableOpen(true);
+          setBenchmarkResults((prev) => [
+            ...prev,
+            data as BenchmarkResultResponse,
+          ]);
+          setTotalTests((data as BenchmarkResultResponse).total_tests);
+          break;
 
-          case "BENCHMARKED":
-            const benchmarkedData = JSON.parse(
-              eventData
-            ) as BenchmarkedResponse;
-            setMetaStatus(SubmissionStatus.BENCHMARKED);
-            setMetaResponse(benchmarkedData);
-            refetchSubmissions();
-            break;
+        case "BENCHMARKED": {
+          const bench = data as BenchmarkedResponse;
 
-          case "ACCEPTED":
-            setMetaStatus(SubmissionStatus.ACCEPTED);
-            setMetaResponse(JSON.parse(eventData) as AcceptedResponse);
-            refetchSubmissions();
-            break;
+          // Mark stream done
+          setIsSubmitting(false);
+          setMetaStatus(SubmissionStatus.BENCHMARKED);
+          setMetaResponse(bench);
+          refetchSubmissions();
 
-          case "ERROR":
-          case "RATE_LIMIT_EXCEEDED":
-          case "COMPILE_ERROR":
-          case "RUNTIME_ERROR":
-          case "TIME_LIMIT_EXCEEDED":
-            const errorData = JSON.parse(eventData) as ErrorResponse;
-            setMetaStatus(eventType as SubmissionErrorType);
-            setMetaResponse(errorData);
+          // Synthesize ACCEPTED for UI (works whether or not server sends it)
+          const accepted: AcceptedResponse = {
+            status: SubmissionStatus.ACCEPTED,
+            avg_runtime_ms: bench.avg_runtime_ms ?? undefined,
+            avg_gflops: bench.avg_gflops ?? undefined,
+            // If your AcceptedResponse supports passing the per-test results:
+            benchmark_results: benchmarkResults, // <-- from hook state
+            total_tests: benchmarkResults.length,
+          };
 
-            // Display toast for errors
-            toast({
-              title: "Submission Error",
-              description:
-                errorData.message || "An error occurred during submission",
-              status: "error",
-              duration: 5000,
-              isClosable: true,
-            });
-
-            refetchSubmissions();
-            break;
-
-          default:
-            console.log(`[sse] Unhandled event type: ${eventType}`);
-            break;
+          setMetaStatus(SubmissionStatus.ACCEPTED);
+          setMetaResponse(accepted);
+          break;
         }
-      } catch (error) {
-        console.error(
-          "Error parsing event data:",
-          error,
-          "Raw data:",
-          eventData
-        );
+
+        case "ACCEPTED":
+          setMetaStatus(SubmissionStatus.ACCEPTED);
+          setMetaResponse(data as AcceptedResponse);
+          refetchSubmissions();
+          break;
+
+        case "ERROR":
+        case "COMPILE_ERROR":
+        case "RUNTIME_ERROR":
+        case "TIME_LIMIT_EXCEEDED":
+        case "RATE_LIMIT_EXCEEDED":
+          setMetaStatus(status as SubmissionErrorType);
+          setMetaResponse(data as ErrorResponse);
+          toast({
+            title: "Submission Error",
+            description:
+              (data as Partial<ErrorResponse>).message ??
+              "An error occurred during submission",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          refetchSubmissions();
+          break;
+
+        default:
+          // ignore unknown
+          break;
       }
     },
-    [refetchSubmissions, toast]
+    [refetchSubmissions, toast, benchmarkResults]
   );
 
   const processEventStream = useCallback(
@@ -256,7 +279,8 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
             buffer += chunk;
 
             // Process complete events in buffer
-            const events = buffer.split("\n\n");
+            const events = buffer.split(/\r?\n\r?\n/);
+
             buffer = events.pop() ?? "";
 
             for (const event of events) {
@@ -363,6 +387,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setTestResults([]);
     setBenchmarkResults([]);
     setTotalTests(0);
+    setSubmissionId(null);
   }, []);
 
   return {
@@ -379,5 +404,8 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setMetaStatus,
     totalTests,
     getTypedResponse,
+    ptxContent,
+    sassContent,
+    submissionId,
   };
 }

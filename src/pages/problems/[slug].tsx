@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Box,
   Spinner,
@@ -7,6 +7,13 @@ import {
   useToast,
   Icon,
   Heading,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { useSession } from "next-auth/react";
 import superjson from "superjson";
@@ -32,11 +39,13 @@ import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSampleStream } from "~/hooks/useSampleStream";
 
 import { validateCode } from "~/utils/starter";
+import { savePreferences } from "~/utils/localStorage";
 
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { api } from "~/utils/api";
+import Editor from "@monaco-editor/react";
 
 type ViewType = "submissions" | "problem" | "result";
 
@@ -64,8 +73,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         slug,
       },
     };
-  } catch (e) {
-    console.error(e);
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.error(err);
+    } else {
+      console.error(String(err));
+    }
     return {
       notFound: true,
     };
@@ -75,17 +88,17 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 export default function ProblemPage({ slug }: { slug: string }) {
   const { data: session } = useSession();
   const toast = useToast();
-  const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
-  // const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
-  // const [isRunning, setIsRunning] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const {
     output: consoleOutput,
     status,
     isRunning,
     startSampleRun,
+    ptxContent,
+    sassContent,
   } = useSampleStream();
 
   // Get problem data
@@ -114,7 +127,18 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setSelectedDataType,
     isCodeDirty,
     handleReset,
+    savedGpuType,
+    hasLoadedPreferences,
   } = useCodePersistence(slug, problem as Problem);
+
+  const [selectedGpuType, setSelectedGpuType] = useState("T4");
+
+  // Update GPU type when saved preferences are loaded
+  useEffect(() => {
+    if (savedGpuType) {
+      setSelectedGpuType(savedGpuType);
+    }
+  }, [savedGpuType]);
 
   // Submission stream logic
   const {
@@ -130,7 +154,112 @@ export default function ProblemPage({ slug }: { slug: string }) {
     startSubmission,
     totalTests,
     getTypedResponse,
+    ptxContent: submissionPtxContent,
+    sassContent: submissionSassContent,
+    submissionId,
   } = useSubmissionStream(submissionsQuery.refetch);
+
+  const [submissionPtxTimestamp, setSubmissionPtxTimestamp] =
+    useState<number>(0);
+  const [submissionSassTimestamp, setSubmissionSassTimestamp] =
+    useState<number>(0);
+  const [samplePtxTimestamp, setSamplePtxTimestamp] = useState<number>(0);
+  const [sampleSassTimestamp, setSampleSassTimestamp] = useState<number>(0);
+  const [ptxDirty, setPtxDirty] = useState(false);
+  const [sassDirty, setSassDirty] = useState(false);
+
+  useEffect(() => {
+    if (submissionPtxContent) {
+      setSubmissionPtxTimestamp(Date.now());
+    }
+  }, [submissionPtxContent]);
+
+  useEffect(() => {
+    if (submissionSassContent) {
+      setSubmissionSassTimestamp(Date.now());
+    }
+  }, [submissionSassContent]);
+
+  useEffect(() => {
+    if (ptxContent) {
+      setSamplePtxTimestamp(Date.now());
+    }
+  }, [ptxContent]);
+
+  useEffect(() => {
+    if (sassContent) {
+      setSampleSassTimestamp(Date.now());
+    }
+  }, [sassContent]);
+
+  const handleSetCode = useCallback(
+    (newCode: string) => {
+      setCode(newCode);
+      if (selectedLanguage === "cuda") {
+        const currentPtx =
+          submissionPtxTimestamp > samplePtxTimestamp
+            ? (submissionPtxContent ?? ptxContent)
+            : (ptxContent ?? submissionPtxContent);
+        const currentSass =
+          submissionSassTimestamp > sampleSassTimestamp
+            ? (submissionSassContent ?? sassContent)
+            : (sassContent ?? submissionSassContent);
+
+        if (currentPtx) {
+          setPtxDirty(true);
+        }
+        if (currentSass) {
+          setSassDirty(true);
+        }
+      }
+    },
+    [
+      setCode,
+      selectedLanguage,
+      submissionPtxContent,
+      ptxContent,
+      submissionSassContent,
+      sassContent,
+      submissionPtxTimestamp,
+      samplePtxTimestamp,
+      submissionSassTimestamp,
+      sampleSassTimestamp,
+    ]
+  );
+
+  useEffect(() => {
+    if (submissionPtxContent || ptxContent) {
+      setPtxDirty(false);
+    }
+  }, [submissionPtxContent, ptxContent]);
+
+  useEffect(() => {
+    if (submissionSassContent || sassContent) {
+      setSassDirty(false);
+    }
+  }, [submissionSassContent, sassContent]);
+
+  useEffect(() => {
+    if (
+      hasLoadedPreferences &&
+      slug &&
+      selectedLanguage &&
+      selectedDataType &&
+      selectedGpuType
+    ) {
+      savePreferences(slug, {
+        language: selectedLanguage,
+        dataType: selectedDataType,
+        gpuType: selectedGpuType,
+      });
+    }
+  }, [
+    slug,
+    selectedLanguage,
+    selectedDataType,
+    selectedGpuType,
+    hasLoadedPreferences,
+  ]);
 
   // Handle submission
   const handleSubmit = useCallback(() => {
@@ -177,14 +306,96 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setViewType,
     toast,
   ]);
-  const handleRun = async () => {
+  const handleRun = useCallback(async () => {
+    if (!session?.user) {
+      toast({
+        title: "Not signed in",
+        description: "Please sign in to run solutions",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    const { valid, error } = validateCode(code, selectedLanguage);
+    if (!valid) {
+      toast({
+        title: "Invalid code",
+        description: error,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     await startSampleRun({
       code,
       language: selectedLanguage,
       gpuType: selectedGpuType,
       problemSlug: slug,
     });
-  };
+  }, [
+    startSampleRun,
+    session?.user,
+    code,
+    selectedLanguage,
+    selectedGpuType,
+    slug,
+    toast,
+  ]);
+
+  // Keyboard shortcuts:
+  // - Cmd+Enter => submit
+  // - Cmd+' (Quote) => run sample
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Only respond to plain Meta (Cmd) + key (no Ctrl/Alt)
+      if (!e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Cmd+Enter -> submit
+      if (e.key === "Enter") {
+        if (isSubmitting) {
+          toast({
+            title: "Already submitting",
+            description: "Please wait for the submission to complete",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return;
+        } else {
+          e.preventDefault();
+          void handleSubmit();
+          return;
+        }
+      }
+
+      // Cmd+' (Quote) -> run sample
+      // Some keyboards report "'" as the key, some report code === "Quote"
+      if (e.key === "'" || e.code === "Quote") {
+        if (isRunning) {
+          toast({
+            title: "Already running",
+            description: "Please wait for the sample run to complete",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return;
+        } else {
+          e.preventDefault();
+          void handleRun();
+          return;
+        }
+      }
+    };
+
+    const opts: AddEventListenerOptions = { capture: true };
+    window.addEventListener("keydown", onKeyDown, opts);
+    return () => window.removeEventListener("keydown", onKeyDown, opts);
+  }, [handleSubmit, handleRun, isSubmitting, isRunning]);
   if (isLoading) {
     return (
       <Layout title="Loading...">
@@ -235,6 +446,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             getTypedResponse={getTypedResponse}
             onBackToProblem={() => setViewType("problem")}
             onViewSubmissions={() => setViewType("submissions")}
+            submissionId={submissionId}
           />
         ) : null;
       default:
@@ -242,6 +454,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
           <ProblemView
             problem={problem}
             onViewSubmissions={() => setViewType("submissions")}
+            onViewReference={onOpen}
           />
         );
     }
@@ -269,8 +482,21 @@ export default function ProblemPage({ slug }: { slug: string }) {
           topContent={
             <CodeEditor
               code={code}
-              setCode={setCode}
+              setCode={handleSetCode}
               selectedLanguage={selectedLanguage}
+              ptxContent={
+                submissionPtxTimestamp > samplePtxTimestamp
+                  ? (submissionPtxContent ?? ptxContent)
+                  : (ptxContent ?? submissionPtxContent)
+              }
+              sassContent={
+                submissionSassTimestamp > sampleSassTimestamp
+                  ? (submissionSassContent ?? sassContent)
+                  : (sassContent ?? submissionSassContent)
+              }
+              enablePtxSassView={selectedLanguage === "cuda"}
+              ptxDirty={ptxDirty}
+              sassDirty={sassDirty}
             />
           }
           bottomContent={
@@ -337,6 +563,48 @@ export default function ProblemPage({ slug }: { slug: string }) {
           onClose={() => setIsResetModalOpen(false)}
           onReset={handleReset}
         />
+        <Modal isOpen={isOpen} onClose={onClose} isCentered size="4xl">
+          <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
+          <ModalContent
+            bg="brand.secondary"
+            borderColor="whiteAlpha.100"
+            borderWidth={1}
+          >
+            <ModalHeader color="white">Reference Solution</ModalHeader>
+            <ModalCloseButton color="gray.400" />
+            <ModalBody pb={6}>
+              {problem.referenceSolution && (
+                <Box
+                  borderRadius="md"
+                  overflow="hidden"
+                  border="1px solid"
+                  borderColor="whiteAlpha.200"
+                >
+                  {(() => {
+                    const lines = problem.referenceSolution.split("\n").length;
+                    const height = Math.min(lines * 20 + 100, 600);
+                    return (
+                      <Editor
+                        height={height}
+                        language="python"
+                        value={problem.referenceSolution}
+                        theme="vs-dark"
+                        options={{
+                          readOnly: true,
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineNumbers: "on",
+                          scrollBeyondLastLine: false,
+                          fontFamily: "JetBrains Mono, monospace",
+                        }}
+                      />
+                    );
+                  })()}
+                </Box>
+              )}
+            </ModalBody>
+          </ModalContent>
+        </Modal>
       </Box>
     </Layout>
   );

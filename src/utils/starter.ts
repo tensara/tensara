@@ -9,6 +9,7 @@ import {
   CUTE_TYPES,
   CUTE_MISC_TYPES,
 } from "~/constants/datatypes";
+import { FORBIDDEN_PATTERNS } from "~/constants/forbidden";
 
 export const generateStarterCode = (
   parameters: Parameter[],
@@ -97,11 +98,75 @@ def solution(${paramStr}):
   return "";
 };
 
+/**
+ * Map submission language to the key used in FORBIDDEN_PATTERNS
+ */
+function mapSubmissionLanguage(lang: string): string {
+  if (!lang) return lang;
+  const l = lang.toLowerCase();
+  if (l === "triton" || l === "python" || l === "cute") return "python";
+  if (l === "cuda" || l === "c++" || l === "cpp") return "cuda";
+  if (l === "mojo") return "mojo";
+  return l;
+}
+
+/**
+ * Strip comments and string literals so that commented-out occurrences are ignored
+ */
+function stripCommentsAndStrings(s: string, languageKey: string): string {
+  if (!s) return s;
+
+  // Python: remove triple-quoted strings, normal strings, and line comments (#)
+  if (languageKey === "python") {
+    s = s.replace(/"""[\s\S]*?"""/g, "");
+    s = s.replace(/'''[\s\S]*?'''/g, "");
+    s = s.replace(/"(?:\\.|[^"\\])*"/g, "");
+    s = s.replace(/'(?:\\.|[^'\\])*'/g, "");
+    s = s.replace(/#.*$/gm, "");
+    return s;
+  }
+
+  // C-like / Mojo: remove double/single-quoted strings and C-style comments
+  s = s.replace(/"(?:\\.|[^"\\])*"/g, "");
+  s = s.replace(/'(?:\\.|[^'\\])*'/g, "");
+  s = s.replace(/\/\*[\s\S]*?\*\//g, "");
+  s = s.replace(/\/\/.*$/gm, "");
+  return s;
+}
+
+/**
+ * Check if code matches any forbidden patterns for the given language
+ * Returns the matched pattern if found, null otherwise
+ */
+function findForbiddenMatch(lang: string, src: string): string | null {
+  if (!src || typeof src !== "string") return null;
+
+  const mapped = mapSubmissionLanguage(lang);
+  const list = FORBIDDEN_PATTERNS[mapped] ?? [];
+
+  const cleaned = stripCommentsAndStrings(src, mapped);
+
+  for (const p of list) {
+    try {
+      const re = new RegExp(p, "i");
+      if (re.test(cleaned)) return p;
+    } catch (e) {
+      // ignore invalid regex entries
+      console.warn("Invalid forbidden pattern", p, e);
+    }
+  }
+  return null;
+}
+
+/**
+ * Validate code for forbidden patterns and disallowed usage
+ */
 export function validateCode(
   code: string,
   language: string
-): { valid: boolean; error: string } {
-  if (language === "python") {
+): { valid: boolean; error: string; details?: string } {
+  // legacy validation checks (kept for backward compatibility and specific error messages)
+  if (language === "python" || language === "triton" || language === "cute") {
     if (code.includes("torch.") || code.includes("import torch")) {
       return { valid: false, error: "You cannot use PyTorch in the code!" };
     }
@@ -109,5 +174,16 @@ export function validateCode(
       return { valid: false, error: "You cannot use exec() in the code!" };
     }
   }
+
+  // Check forbidden patterns from config
+  const matched = findForbiddenMatch(language, code);
+  if (matched) {
+    return {
+      valid: false,
+      error: "Forbidden usage detected",
+      details: `Matched forbidden pattern: ${matched}`,
+    };
+  }
+
   return { valid: true, error: "" };
 }

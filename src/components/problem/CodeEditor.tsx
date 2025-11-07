@@ -1,15 +1,34 @@
-import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Text,
+  Spinner,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+  IconButton,
+  Button,
+  Tooltip,
+} from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
+import { FiX, FiAlertTriangle } from "react-icons/fi";
 
 interface CodeEditorProps {
   code: string;
   setCode: (code: string) => void;
   selectedLanguage: ProgrammingLanguage;
   isEditable?: boolean;
+  ptxContent?: string | null;
+  sassContent?: string | null;
+  enablePtxSassView?: boolean;
+  ptxDirty?: boolean;
+  sassDirty?: boolean;
 }
 
 function setupMonaco(monaco: Monaco) {
@@ -283,6 +302,35 @@ function setupMonaco(monaco: Monaco) {
     },
   });
 
+  // Configure Mojo as a Python-like language for editor features
+  // (so toggle line/comment uses `#` and triple-quotes are recognized
+  // for block docstrings). This makes Cmd+/ behave Pythonically.
+  monaco.languages.setLanguageConfiguration("mojo", {
+    comments: {
+      lineComment: "#",
+      blockComment: ["'''", "'''"],
+    },
+    brackets: [
+      ["{", "}"],
+      ["[", "]"],
+      ["(", ")"],
+    ],
+    autoClosingPairs: [
+      { open: "{", close: "}" },
+      { open: "[", close: "]" },
+      { open: "(", close: ")" },
+      { open: '"', close: '"' },
+      { open: "'", close: "'" },
+    ],
+    surroundingPairs: [
+      { open: "{", close: "}" },
+      { open: "[", close: "]" },
+      { open: "(", close: ")" },
+      { open: '"', close: '"' },
+      { open: "'", close: "'" },
+    ],
+  });
+
   monaco.languages.setMonarchTokensProvider("cpp", {
     defaultToken: "",
 
@@ -363,18 +411,29 @@ const CodeEditor = ({
   setCode,
   selectedLanguage,
   isEditable = true,
+  ptxContent,
+  sassContent,
+  enablePtxSassView = false,
+  ptxDirty,
+  sassDirty,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
+  const [isSplitViewOpen, setIsSplitViewOpen] = useState(false);
 
-  return (
-    <Box
-      w="100%"
-      h="100%"
-      bg="brand.secondary"
-      borderRadius="xl"
-      overflow="hidden"
-      position="relative"
-    >
+  const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
+
+  useEffect(() => {
+    if (!enablePtxSassView && isSplitViewOpen) {
+      setIsSplitViewOpen(false);
+    }
+  }, [enablePtxSassView, isSplitViewOpen]);
+
+  const editorContent = (
+    content: string,
+    language: string,
+    readOnly: boolean
+  ) => (
+    <>
       {isEditorLoading && (
         <Flex
           position="absolute"
@@ -424,15 +483,9 @@ const CodeEditor = ({
       <Editor
         height="100%"
         theme="tensara-dark"
-        value={code}
-        onChange={(value) => isEditable && setCode(value ?? "")}
-        language={
-          selectedLanguage === "cuda"
-            ? "cpp"
-            : selectedLanguage === "mojo"
-              ? "mojo"
-              : "python"
-        }
+        value={content}
+        onChange={(value) => !readOnly && isEditable && setCode(value ?? "")}
+        language={language}
         beforeMount={setupMonaco}
         onMount={() => setIsEditorLoading(false)}
         loading={null}
@@ -444,9 +497,300 @@ const CodeEditor = ({
           automaticLayout: true,
           padding: { top: 16, bottom: 16 },
           fontFamily: "JetBrains Mono, monospace",
-          readOnly: !isEditable,
+          readOnly: readOnly,
         }}
       />
+    </>
+  );
+
+  const codeEditorPanel = (
+    <Box w="100%" h="100%" position="relative">
+      {editorContent(
+        code,
+        selectedLanguage === "cuda"
+          ? "cpp"
+          : selectedLanguage === "mojo"
+            ? "mojo"
+            : "python",
+        !isEditable
+      )}
+      {hasPtxSassContent && !isSplitViewOpen && (
+        <Button
+          size="sm"
+          borderRadius="md"
+          position="absolute"
+          top="8px"
+          right="8px"
+          zIndex={10}
+          bg="#1A1A1A"
+          color="#858585"
+          border="1px solid"
+          borderColor="#2A2A2A"
+          _hover={{
+            bg: "#252525",
+            color: "#CCCCCC",
+            borderColor: "#3A3A3A",
+          }}
+          leftIcon={(ptxDirty ?? sassDirty) ? <FiAlertTriangle /> : undefined}
+          onClick={() => setIsSplitViewOpen(true)}
+          fontSize="14px"
+          fontWeight="500"
+          h="36px"
+          px={4}
+        >
+          Show PTX/SASS
+        </Button>
+      )}
+    </Box>
+  );
+
+  const ptxSassPanel = (
+    <Box w="100%" h="100%" bg="brand.secondary" overflow="hidden">
+      <Tabs
+        variant="unstyled"
+        h="100%"
+        display="flex"
+        flexDirection="column"
+        colorScheme="blue"
+      >
+        <Flex
+          bg="#1A1A1A"
+          borderBottom="1px solid"
+          borderColor="#2A2A2A"
+          px={1}
+          align="center"
+          justify="space-between"
+          h="24px"
+          minH="24px"
+        >
+          <TabList gap={0} flex={1} h="100%">
+            {enablePtxSassView && (
+              <Tab
+                _selected={{
+                  color: "#FFFFFF",
+                  bg: "rgba(206, 145, 120, 0.2)",
+                  borderBottom: "1.5px solid",
+                  borderColor: "#CE9178",
+                }}
+                color="#858585"
+                fontSize="10px"
+                fontWeight="500"
+                py={0}
+                px={2}
+                h="100%"
+                _hover={{ color: "#CCCCCC" }}
+                isDisabled={!ptxContent}
+              >
+                PTX
+              </Tab>
+            )}
+            {enablePtxSassView && (
+              <Tab
+                _selected={{
+                  color: "#FFFFFF",
+                  bg: "rgba(220, 220, 170, 0.2)",
+                  borderBottom: "1.5px solid",
+                  borderColor: "#DCDCAA",
+                }}
+                color="#858585"
+                fontSize="10px"
+                fontWeight="500"
+                py={0}
+                px={2}
+                h="100%"
+                _hover={{ color: "#CCCCCC" }}
+                isDisabled={!sassContent}
+              >
+                SASS
+              </Tab>
+            )}
+          </TabList>
+          {(ptxDirty ?? sassDirty) && (
+            <Tooltip
+              label="PTX/SASS may be outdated. Run or submit your CUDA source to refresh."
+              placement="top"
+              hasArrow
+            >
+              <IconButton
+                aria-label="PTX/SASS might be outdated"
+                icon={<FiAlertTriangle />}
+                size="xs"
+                variant="ghost"
+                color="#E5A50A"
+                _hover={{ color: "#FFCC33", bg: "rgba(255, 204, 51, 0.06)" }}
+                mr={1}
+                h="20px"
+                minW="20px"
+                w="20px"
+              />
+            </Tooltip>
+          )}
+          <IconButton
+            aria-label="Close Split View"
+            icon={<FiX />}
+            size="xs"
+            variant="ghost"
+            color="#858585"
+            _hover={{ color: "#CCCCCC", bg: "rgba(255, 255, 255, 0.05)" }}
+            onClick={() => setIsSplitViewOpen(false)}
+            mr={0.5}
+            h="20px"
+            minW="20px"
+            w="20px"
+          />
+        </Flex>
+
+        <TabPanels flex="1" minH={0}>
+          {enablePtxSassView && (
+            <TabPanel p={0} h="100%">
+              {ptxContent ? (
+                editorContent(ptxContent, "cpp", true)
+              ) : (
+                <Box
+                  h="100%"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  color="#858585"
+                  fontSize="sm"
+                >
+                  <Text>
+                    PTX content will appear here after running or submitting
+                    your code.
+                  </Text>
+                </Box>
+              )}
+            </TabPanel>
+          )}
+          {enablePtxSassView && (
+            <TabPanel p={0} h="100%">
+              {sassContent ? (
+                editorContent(sassContent, "asm", true)
+              ) : (
+                <Box
+                  h="100%"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  color="#858585"
+                  fontSize="sm"
+                >
+                  <Text>
+                    SASS content will appear here after running or submitting
+                    your code.
+                  </Text>
+                </Box>
+              )}
+            </TabPanel>
+          )}
+        </TabPanels>
+      </Tabs>
+    </Box>
+  );
+
+  // Custom split view state
+  const [splitRatio, setSplitRatio] = useState(60);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const containerRect = document
+        .getElementById("code-editor-split-container")
+        ?.getBoundingClientRect();
+
+      if (!containerRect) return;
+
+      const containerWidth = containerRect.width;
+      const mouseX = e.clientX - containerRect.left;
+      let newRatio = (mouseX / containerWidth) * 100;
+
+      // Apply min-width constraints (40% each)
+      if (mouseX < (containerWidth * 40) / 100) {
+        newRatio = 40;
+      } else if (mouseX > (containerWidth * 60) / 100) {
+        newRatio = 60;
+      }
+
+      setSplitRatio(newRatio);
+    },
+    [isResizing]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    } else {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  return (
+    <Box
+      w="100%"
+      h="100%"
+      bg="brand.secondary"
+      borderRadius="xl"
+      overflow="hidden"
+      position="relative"
+    >
+      {isSplitViewOpen && enablePtxSassView ? (
+        <Box
+          id="code-editor-split-container"
+          display="flex"
+          h="100%"
+          position="relative"
+        >
+          {/* Left Panel - Code Editor */}
+          <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
+            {codeEditorPanel}
+          </Box>
+
+          {/* Minimal Divider */}
+          <Box
+            position="absolute"
+            left={`${splitRatio}%`}
+            transform="translateX(-50%)"
+            width="1px"
+            height="100%"
+            bg="#2A2A2A"
+            cursor="col-resize"
+            zIndex={2}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={handleMouseDown}
+            _hover={{
+              bg: "#4EC9B0",
+              width: "2px",
+              opacity: 0.6,
+            }}
+            transition="all 0.15s ease"
+          />
+
+          {/* Right Panel - PTX/SASS */}
+          <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
+            {ptxSassPanel}
+          </Box>
+        </Box>
+      ) : (
+        codeEditorPanel
+      )}
     </Box>
   );
 };

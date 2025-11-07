@@ -43,7 +43,8 @@ import {
   FaChevronDown,
 } from "react-icons/fa";
 
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiExternalLink } from "react-icons/fi";
+import NextLink from "next/link";
 
 import { getStatusIcon } from "~/constants/problem";
 import { useSplitPanel } from "./SplitPanel";
@@ -75,6 +76,7 @@ interface SubmissionResultsProps {
   ) => T extends keyof ResponseTypeMap ? ResponseTypeMap[T] | null : null;
   onBackToProblem: () => void;
   onViewSubmissions: () => void;
+  submissionId?: string | null;
 }
 
 const getStatusMessage = (
@@ -124,6 +126,7 @@ const SubmissionResults = ({
   getTypedResponse,
   onBackToProblem,
   onViewSubmissions,
+  submissionId,
 }: SubmissionResultsProps) => {
   const { splitRatio } = useSplitPanel();
   const useCompactLabels = splitRatio < 40;
@@ -528,6 +531,27 @@ const SubmissionResults = ({
               </>
             );
           })()}
+        </Box>
+      )}
+
+      {submissionId && (
+        <Box pt={2}>
+          <Button
+            as={NextLink}
+            href={`/submissions/${submissionId}`}
+            rightIcon={<Icon as={FiExternalLink} boxSize={4} />}
+            size="sm"
+            variant="ghost"
+            borderRadius="lg"
+            color="gray.300"
+            _hover={{
+              bg: "whiteAlpha.50",
+              color: "white",
+            }}
+            px={4}
+          >
+            View Submission
+          </Button>
         </Box>
       )}
     </VStack>

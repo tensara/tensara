@@ -11,7 +11,6 @@ import {
   MenuList,
   MenuItem,
   Tooltip,
-  Badge,
 } from "@chakra-ui/react";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 
@@ -109,7 +108,6 @@ const SubmissionForm = ({
                     _hover={{ bg: "gray.700" }}
                     color="white"
                     borderRadius="lg"
-                    isDisabled={key === "B200" && selectedLanguage === "mojo"}
                     fontSize="sm"
                   >
                     {value}
@@ -170,26 +168,17 @@ const SubmissionForm = ({
               >
                 Triton
               </MenuItem>
-              <Tooltip
-                label="Mojo does not support NVIDIA B200 GPUs yet"
-                isDisabled={selectedGpuType !== "B200"}
-                placement="right"
-                hasArrow
-                bg="gray.700"
+              <MenuItem
+                key="mojo"
+                onClick={() => setSelectedLanguage("mojo")}
+                bg="brand.secondary"
+                _hover={{ bg: "gray.700" }}
+                color="white"
+                borderRadius="lg"
+                fontSize="sm"
               >
-                <MenuItem
-                  key="mojo"
-                  onClick={() => setSelectedLanguage("mojo")}
-                  bg="brand.secondary"
-                  _hover={{ bg: "gray.700" }}
-                  color="white"
-                  borderRadius="lg"
-                  isDisabled={selectedGpuType === "B200"}
-                  fontSize="sm"
-                >
-                  Mojo
-                </MenuItem>
-              </Tooltip>
+                Mojo
+              </MenuItem>
               <MenuItem
                 key="cute"
                 onClick={() => setSelectedLanguage("cute")}
@@ -200,15 +189,6 @@ const SubmissionForm = ({
                 fontSize="sm"
               >
                 CuTe DSL
-                <Badge
-                  ml={2}
-                  colorScheme="cyan"
-                  fontSize="2xs"
-                  variant="subtle"
-                  rounded="sm"
-                >
-                  NEW
-                </Badge>
               </MenuItem>
             </MenuList>
           </Menu>
@@ -334,58 +314,78 @@ const SubmissionForm = ({
             </Button>
           </>
         )}
-        <Button
-          bg="rgba(59, 130, 246, 0.1)"
-          color="rgb(59, 130, 246)"
-          size="md"
-          onClick={onRun}
-          isLoading={isRunning}
-          loadingText="Run"
-          spinner={<></>}
-          disabled={isRunning}
-          borderRadius="lg"
-          height="40px"
-          fontSize="sm"
-          fontWeight="semibold"
-          px={{ base: 2, md: 6 }}
-          minW="70px"
-          _hover={{
-            bg: "rgba(59, 130, 246, 0.2)",
-            transform: "translateY(-1px)",
-          }}
-          _active={{
-            bg: "rgba(59, 130, 246, 0.25)",
-          }}
-          transition="all 0.2s"
+        <Tooltip
+          label="⌘ + '"
+          placement="bottom"
+          bg="transparent"
+          color="gray.400"
+          fontSize="xs"
+          hasArrow
+          offset={[0, 0]}
         >
-          Run
-        </Button>
-        <Button
-          bg="rgba(34, 197, 94, 0.1)"
-          color="rgb(34, 197, 94)"
-          size="md"
-          onClick={onSubmit}
-          isLoading={isSubmitting}
-          loadingText="Submit"
-          spinner={<></>}
-          disabled={isSubmitting}
-          borderRadius="lg"
-          height="40px"
-          fontSize="sm"
-          fontWeight="semibold"
-          px={{ base: 4, md: 6 }}
-          minW="80px"
-          _hover={{
-            bg: "rgba(34, 197, 94, 0.2)",
-            transform: "translateY(-1px)",
-          }}
-          _active={{
-            bg: "rgba(34, 197, 94, 0.25)",
-          }}
-          transition="all 0.2s"
+          <Button
+            bg="rgba(59, 130, 246, 0.1)"
+            color="rgb(59, 130, 246)"
+            size="md"
+            onClick={onRun}
+            isLoading={isRunning}
+            loadingText="Run"
+            spinner={<></>}
+            disabled={isRunning}
+            borderRadius="lg"
+            height="40px"
+            fontSize="sm"
+            fontWeight="semibold"
+            px={{ base: 2, md: 6 }}
+            minW="70px"
+            _hover={{
+              bg: "rgba(59, 130, 246, 0.2)",
+              transform: "translateY(-1px)",
+            }}
+            _active={{
+              bg: "rgba(59, 130, 246, 0.25)",
+            }}
+            transition="all 0.2s"
+          >
+            Run
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label="⌘ + ⏎"
+          placement="bottom"
+          bg="transparent"
+          color="gray.400"
+          fontSize="xs"
+          hasArrow
+          offset={[0, 0]}
         >
-          Submit
-        </Button>
+          <Button
+            bg="rgba(34, 197, 94, 0.1)"
+            color="rgb(34, 197, 94)"
+            size="md"
+            onClick={onSubmit}
+            isLoading={isSubmitting}
+            loadingText="Submit"
+            spinner={<></>}
+            disabled={isSubmitting}
+            borderRadius="lg"
+            height="40px"
+            fontSize="sm"
+            fontWeight="semibold"
+            px={{ base: 4, md: 6 }}
+            minW="80px"
+            _hover={{
+              bg: "rgba(34, 197, 94, 0.2)",
+              transform: "translateY(-1px)",
+            }}
+            _active={{
+              bg: "rgba(34, 197, 94, 0.25)",
+            }}
+            transition="all 0.2s"
+          >
+            Submit
+          </Button>
+        </Tooltip>
       </HStack>
     </Flex>
   );

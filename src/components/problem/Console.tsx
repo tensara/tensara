@@ -59,6 +59,7 @@ const StatusBadge = ({
       case SampleStatus.ERROR:
       case SampleStatus.COMPILE_ERROR:
       case SampleStatus.RUNTIME_ERROR:
+      case SampleStatus.TIME_LIMIT_EXCEEDED:
         return {
           color: "#FF5D5D",
           bg: "#351B1B",
@@ -222,7 +223,6 @@ const ResizableConsole = ({ output, status, isRunning }: ConsoleProps) => {
           </VStack>
         ) : (
           <VStack align="stretch" spacing={4}>
-            {/* Status */}
             <HStack justify="space-between" align="center">
               <Text color="#D4D4D4" fontSize="md" fontWeight="600">
                 Sample Run Results
@@ -230,7 +230,6 @@ const ResizableConsole = ({ output, status, isRunning }: ConsoleProps) => {
               <StatusBadge status={status} isRunning={isRunning} />
             </HStack>
 
-            {/* Results Grid */}
             <VStack align="stretch" spacing={3}>
               <OutputBox content={output?.input} type="input" />
               <OutputBox content={output?.output} type="output" />
