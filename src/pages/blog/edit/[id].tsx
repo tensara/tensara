@@ -14,29 +14,18 @@ import {
   Icon,
   useToast,
   Divider,
-  Kbd,
   Badge,
   type BadgeProps,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { api } from "~/utils/api";
-import { FiArrowLeft, FiSave, FiEye, FiEdit, FiUpload } from "react-icons/fi";
+import { FiArrowLeft, FiEye, FiEdit, FiUpload } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
 // --- utils ---
-function useDebounced(fn: () => void, deps: unknown[], delay = 1200) {
-  const timeout = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => {
-    clearTimeout(timeout.current);
-    timeout.current = setTimeout(fn, delay);
-    return () => clearTimeout(timeout.current);
-  }, deps);
-}
-
 function parseTags(input: string): string[] {
   // accept commas OR spaces as separators; dedupe; lowercase slugs
   return Array.from(
@@ -62,14 +51,12 @@ export default function EditPost() {
   const toast = useToast();
   const utils = api.useContext();
 
-  // Fetch existing (draft or published)
   const postQ = api.blogpost.getById.useQuery(
     { id: id ?? "" },
-    { enabled: !!id }
+    { enabled: !!id, refetchOnMount: true, refetchOnWindowFocus: false }
   );
 
-  // Mutations
-  const autosave = api.blogpost.autosave.useMutation();
+  const updatePost = api.blogpost.update.useMutation();
   const publish = api.blogpost.publish.useMutation({
     onSuccess: async (p) => {
       await Promise.all([
@@ -88,30 +75,55 @@ export default function EditPost() {
       }),
   });
 
-  // --- form state (single source of truth) ---
   const hasHydrated = useRef(false);
-  const lastServerUpdatedAt = useRef<number | null>(null);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-
-  // tags: store as array + input string (accept comma OR space)
   const [tags, setTags] = useState<string[]>([]);
   const [tagsInput, setTagsInput] = useState("");
-
   const [showPreview, setShowPreview] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
 
-  // hydrate ONCE when data arrives; never force-reset while typing
+  const onSaveNow = useCallback(async () => {
+    if (!id || !hasHydrated.current) return;
+    if (!title.trim() || !content.trim()) {
+      toast({
+        title: "Title and content required",
+        status: "warning",
+      });
+      return;
+    }
+
+    try {
+      await updatePost.mutateAsync({
+        id,
+        title,
+        content,
+        tags,
+      });
+      void utils.blogpost.getById.invalidate({ id });
+      toast({
+        title: "Saved",
+        status: "success",
+        duration: 2000,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save";
+      toast({
+        title: "Save failed",
+        description: message,
+        status: "error",
+      });
+    }
+  }, [id, title, content, tags, updatePost, toast, utils]);
+
   useEffect(() => {
-    if (!postQ.data || hasHydrated.current) return;
+    hasHydrated.current = false;
+  }, [id]);
+
+  useEffect(() => {
+    if (!postQ.data || hasHydrated.current || !id) return;
     const p = postQ.data;
 
-    setTitle(p.title ?? "");
-    setContent(p.content ?? "");
-
-    // normalise tags safely (avoid using `any`)
     const tagToString = (entry: unknown): string => {
       if (!entry || typeof entry !== "object") return "";
       const obj = entry as Record<string, unknown>;
@@ -138,153 +150,29 @@ export default function EditPost() {
             .map((s) => s.toLowerCase())
         : [];
 
+    const initialTitle = p.title ?? "";
+    const initialContent = p.content ?? "";
+
+    setTitle(initialTitle);
+    setContent(initialContent);
     setTags(initialTags);
     setTagsInput(tagsToInput(initialTags));
-    setDirty(false);
+
     hasHydrated.current = true;
+  }, [postQ.data, id]);
 
-    // remember server timestamp if available
-    if (p.updatedAt)
-      lastServerUpdatedAt.current = new Date(p.updatedAt).getTime();
-  }, [postQ.data]);
-
-  // mark dirty on any change (simple shallow compare to hydrated snapshot)
-  useEffect(() => {
-    if (!hasHydrated.current || !postQ.data) return;
-    const p = postQ.data;
-    const tagToString = (entry: unknown): string => {
-      if (!entry || typeof entry !== "object") return "";
-      const obj = entry as Record<string, unknown>;
-      const tagField = obj.tag;
-      if (tagField && typeof tagField === "object") {
-        const tagObj = tagField as Record<string, unknown>;
-        const slug = tagObj.slug;
-        const name = tagObj.name;
-        if (typeof slug === "string" && slug) return slug;
-        if (typeof name === "string" && name) return name;
-      }
-      const slug = obj.slug;
-      const name = obj.name;
-      if (typeof slug === "string" && slug) return slug;
-      if (typeof name === "string" && name) return name;
-      return "";
-    };
-
-    const serverTags =
-      Array.isArray(p.tags) && p.tags.length
-        ? (p.tags as unknown[])
-            .map(tagToString)
-            .filter(Boolean)
-            .map((s) => s.toLowerCase())
-        : [];
-
-    const equal =
-      title === (p.title ?? "") &&
-      content === (p.content ?? "") &&
-      JSON.stringify(tags) === JSON.stringify(serverTags);
-
-    setDirty(!equal);
-  }, [title, content, tags, postQ.data]);
-
-  // Debounced autosave: NEVER refetch here (prevents rollbacks)
-  useDebounced(
-    () => {
-      if (!dirty || !id) return;
-      setSaving("saving");
-      // prefix with void to satisfy no-floating-promises
-      void autosave.mutate(
-        { id, title, content, tags },
-        {
-          onSuccess: (res) => {
-            // mark as saved; do not refetch
-            setSaving("saved");
-            setTimeout(() => setSaving("idle"), 1200);
-            // optionally track server updatedAt if mutation returns it
-            try {
-              const result = res as { updatedAt?: string | Date };
-              if (result?.updatedAt) {
-                // support Date from server (Prisma) or ISO string
-                lastServerUpdatedAt.current = new Date(
-                  result.updatedAt
-                ).getTime();
-              }
-            } catch {}
-          },
-          onError: (err) => {
-            setSaving("idle");
-            toast({
-              title: "Autosave failed",
-              description: err.message,
-              status: "error",
-            });
-          },
-        }
-      );
-    },
-    // include autosave and toast to satisfy exhaustive-deps
-    [dirty, title, content, tags, id, autosave, toast],
-    800
-  );
-
-  // beforeunload guard
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (!dirty) return;
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [dirty]);
-
-  // route change guard
-  useEffect(() => {
-    const onRoute = (url: string) => {
-      if (dirty && url !== router.asPath) {
-        if (!confirm("You have unsaved changes. Leave anyway?")) {
-          router.events.emit("routeChangeError");
-          // throwing cancels the navigation in Next.js
-          throw new Error("routeChange aborted");
-        }
-      }
-    };
-    router.events.on("routeChangeStart", onRoute);
-    return () => router.events.off("routeChangeStart", onRoute);
-  }, [dirty, router]);
-
-  // cmd/ctrl+s save
+  // cmd/ctrl+s keyboard shortcut for manual save
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        if (id) {
-          setSaving("saving");
-          void autosave.mutate(
-            { id, title, content, tags },
-            {
-              onSuccess: () => {
-                setSaving("saved");
-                setTimeout(() => setSaving("idle"), 1200);
-                toast({ title: "Saved", status: "success" });
-              },
-              onError: (err) => {
-                setSaving("idle");
-                toast({
-                  title: "Save failed",
-                  description: err.message,
-                  status: "error",
-                });
-              },
-            }
-          );
-        }
+        onSaveNow();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [id, title, content, tags, autosave, toast]);
+  }, [onSaveNow]);
 
-  // status badge
   const statusBadge = useMemo(() => {
     const s = postQ.data?.status as
       | "PUBLISHED"
@@ -300,6 +188,7 @@ export default function EditPost() {
       </Badge>
     );
   }, [postQ.data?.status]);
+
 
   if (status === "loading" || postQ.isLoading) {
     return (
@@ -331,7 +220,7 @@ export default function EditPost() {
 
   const onPublish = () => {
     if (!id) return;
-    if (autosave.isPending) {
+    if (updatePost.isPending) {
       toast({
         title: "Saving…",
         description: "Please wait a moment.",
@@ -346,31 +235,8 @@ export default function EditPost() {
     publish.mutate({ id });
   };
 
-  const onSaveNow = () => {
-    if (!id) return;
-    setSaving("saving");
-    void autosave.mutate(
-      { id, title, content, tags },
-      {
-        onSuccess: () => {
-          setSaving("saved");
-          setTimeout(() => setSaving("idle"), 1200);
-          toast({ title: "Saved", status: "success" });
-        },
-        onError: (err) => {
-          setSaving("idle");
-          toast({
-            title: "Save failed",
-            description: err.message,
-            status: "error",
-          });
-        },
-      }
-    );
-  };
-
   return (
-    <Layout title={dirty ? "● Editing…" : "Edit Post"}>
+    <Layout title="Edit Post">
       <Box bg="gray.900" minH="100vh">
         <Container maxW="900px" py={8}>
           <Flex align="center" justify="space-between" mb={4}>
@@ -384,22 +250,20 @@ export default function EditPost() {
               </Button>
               {statusBadge}
             </HStack>
-            <HStack spacing={2}>
+            <HStack spacing={3} align="center">
               <Button
-                variant="outline"
-                leftIcon={<Icon as={FiSave} />}
+                size="sm"
+                variant="ghost"
                 onClick={onSaveNow}
-                isLoading={autosave.isPending || saving === "saving"}
+                isLoading={updatePost.isPending}
               >
-                Save <Kbd ml={2}>⌘/Ctrl</Kbd>+<Kbd>S</Kbd>
+                Save
               </Button>
               <Button
                 colorScheme="green"
                 leftIcon={<Icon as={FiUpload} />}
                 onClick={onPublish}
-                isDisabled={
-                  autosave.isPending || !title.trim() || !content.trim()
-                }
+                isDisabled={updatePost.isPending || !title.trim() || !content.trim()}
                 isLoading={publish.isPending}
               >
                 Publish
@@ -410,7 +274,6 @@ export default function EditPost() {
           <Divider mb={6} borderColor="whiteAlpha.300" />
 
           <VStack align="stretch" spacing={6}>
-            {/* Title */}
             <FormControl isRequired>
               <FormLabel color="gray.300" fontWeight="600" fontSize="sm">
                 Title
@@ -425,7 +288,6 @@ export default function EditPost() {
               />
             </FormControl>
 
-            {/* Tags */}
             <FormControl>
               <FormLabel color="gray.300" fontWeight="600" fontSize="sm">
                 Tags (comma or space separated)
@@ -460,7 +322,6 @@ export default function EditPost() {
               ) : null}
             </FormControl>
 
-            {/* Content + Preview */}
             <FormControl isRequired>
               <Flex justify="space-between" align="center" mb={2}>
                 <FormLabel
@@ -499,8 +360,8 @@ export default function EditPost() {
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="# Your Story\n\nWrite your post in markdown…"
                   minH="420px"
-                  fontFamily="'JetBrains Mono', ui-monospace, SFMono-Regular"
-                  fontSize="sm"
+                  fontSize="md"
+                  lineHeight="1.6"
                   bg="transparent"
                   borderColor="whiteAlpha.300"
                   color="gray.100"
@@ -541,8 +402,7 @@ export default function EditPost() {
                       px: 1.5,
                       py: 0.5,
                       borderRadius: "md",
-                      fontFamily:
-                        "'JetBrains Mono', ui-monospace, SFMono-Regular",
+                      fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular",
                     },
                     "& pre": {
                       bg: "gray.800",
@@ -568,24 +428,6 @@ export default function EditPost() {
                 </Box>
               )}
             </FormControl>
-
-            {/* Save state */}
-            <Flex justify="space-between" pt={2}>
-              <HStack color="gray.500" fontSize="sm">
-                <Text>
-                  {saving === "saving"
-                    ? "Saving…"
-                    : saving === "saved"
-                      ? "All changes saved."
-                      : "Autosaves after you pause typing."}
-                </Text>
-                {dirty ? (
-                  <Badge colorScheme="yellow">unsaved</Badge>
-                ) : (
-                  <Badge colorScheme="green">saved</Badge>
-                )}
-              </HStack>
-            </Flex>
           </VStack>
         </Container>
       </Box>

@@ -15,6 +15,7 @@ import {
   Input,
   Badge,
   Icon,
+  IconButton,
   useToast,
   ButtonGroup,
   VisuallyHidden,
@@ -266,7 +267,7 @@ export default function BlogIndex() {
   return (
     <Layout title="Blog">
       <Box minH="100vh">
-        <Container maxW="860px" py={8}>
+        <Container maxW="7xl" mx="auto" py={8}>
           <Flex
             align="center"
             justify="space-between"
@@ -290,7 +291,7 @@ export default function BlogIndex() {
             </Box>
 
             <HStack
-              spacing={2}
+              spacing={4}
               flexWrap="wrap"
               w={{ base: "100%", md: "auto" }}
             >
@@ -383,28 +384,77 @@ export default function BlogIndex() {
             </HStack>
           </Flex>
 
-          <Tabs colorScheme="green" variant="enclosed" isFitted>
-            <TabList borderColor="gray.800">
+          <Tabs colorScheme="green" variant="unstyled" isFitted>
+            <TabList
+              bg="whiteAlpha.50"
+              p={1}
+              borderRadius="lg"
+              gap={1}
+              border="1px solid"
+              borderColor="gray.700"
+            >
               <Tab
                 _selected={{
-                  bg: "gray.800",
                   color: "white",
-                  borderColor: "green.600",
+                  bg: "green.600",
+                  boxShadow: "sm",
+                  _hover: {
+                    bg: "green.500",
+                  },
                 }}
+                _hover={{
+                  bg: "whiteAlpha.100",
+                  transition: "all 0.2s ease-in-out",
+                }}
+                color="gray.300"
+                borderRadius="md"
+                px={4}
+                py={2}
+                fontWeight="medium"
+                transition="all 0.2s ease-in-out"
               >
                 All
               </Tab>
               <Tab
                 isDisabled={!session}
                 _selected={{
-                  bg: "gray.800",
                   color: "white",
-                  borderColor: "green.600",
+                  bg: "green.600",
+                  boxShadow: "sm",
+                  _hover: {
+                    bg: "green.500",
+                  },
                 }}
+                _hover={{
+                  bg: "whiteAlpha.100",
+                  transition: "all 0.2s ease-in-out",
+                }}
+                _disabled={{
+                  opacity: 0.4,
+                  cursor: "not-allowed",
+                  _hover: {
+                    bg: "transparent",
+                  },
+                }}
+                color="gray.300"
+                borderRadius="md"
+                px={4}
+                py={2}
+                fontWeight="medium"
+                transition="all 0.2s ease-in-out"
               >
                 My Posts{" "}
                 {session ? (
-                  <Badge ml={2} colorScheme="green">
+                  <Badge
+                    ml={2}
+                    bg="green.500"
+                    color="white"
+                    fontWeight="semibold"
+                    fontSize="xs"
+                    px={1.5}
+                    py={0.5}
+                    borderRadius="md"
+                  >
                     {minePub.length}
                   </Badge>
                 ) : null}
@@ -412,136 +462,190 @@ export default function BlogIndex() {
               <Tab
                 isDisabled={!session}
                 _selected={{
-                  bg: "gray.800",
                   color: "white",
-                  borderColor: "green.600",
+                  bg: "green.600",
+                  boxShadow: "sm",
+                  _hover: {
+                    bg: "green.500",
+                  },
                 }}
+                _hover={{
+                  bg: "whiteAlpha.100",
+                  transition: "all 0.2s ease-in-out",
+                }}
+                _disabled={{
+                  opacity: 0.4,
+                  cursor: "not-allowed",
+                  _hover: {
+                    bg: "transparent",
+                  },
+                }}
+                color="gray.300"
+                borderRadius="md"
+                px={4}
+                py={2}
+                fontWeight="medium"
+                transition="all 0.2s ease-in-out"
               >
                 My Drafts{" "}
                 {session ? (
-                  <Badge ml={2} colorScheme="green">
+                  <Badge
+                    ml={2}
+                    bg="green.500"
+                    color="white"
+                    fontWeight="semibold"
+                    fontSize="xs"
+                    px={1.5}
+                    py={0.5}
+                    borderRadius="md"
+                  >
                     {drafts.length}
                   </Badge>
                 ) : null}
               </Tab>
             </TabList>
-            <TabPanels>
+            <TabPanels mt={4}>
               <TabPanel px={0}>
                 <VStack align="stretch" spacing={0}>
-                  {allPublished.map((post) => (
-                    <Flex
-                      key={post.id}
-                      py={3}
-                      borderBottom="1px solid"
-                      borderColor="gray.800"
-                      align="center"
-                      gap={3}
-                      flexWrap="wrap"
-                    >
-                      <Box flex="1" minW={0}>
-                        <Link href={`/blog/${post.slug ?? post.id}`}>
-                          <Text color="white" fontWeight="600" noOfLines={1}>
-                            {post.title}
+                  {allPublished.length === 0 ? (
+                    <Box py={8} textAlign="center">
+                      <Text color="gray.400" fontSize="md">
+                        {debouncedQuery
+                          ? "No posts found matching your search."
+                          : "No published posts yet."}
+                      </Text>
+                    </Box>
+                  ) : (
+                    allPublished.map((post) => (
+                      <Flex
+                        key={post.id}
+                        py={3}
+                        borderBottom="1px solid"
+                        borderColor="gray.800"
+                        align="center"
+                        gap={3}
+                        flexWrap="wrap"
+                      >
+                        <Box flex="1" minW={0}>
+                          <Link href={`/blog/${post.slug ?? post.id}`}>
+                            <Text color="white" fontWeight="600" noOfLines={1}>
+                              {post.title}
+                            </Text>
+                          </Link>
+                          <Text color="gray.500" fontSize="sm" noOfLines={1}>
+                            by {post.author?.name ?? "Unknown"} •{" "}
+                            {timeAgo(post.publishedAt ?? post.createdAt)}
                           </Text>
-                        </Link>
-                        <Text color="gray.500" fontSize="sm" noOfLines={1}>
-                          by {post.author?.name ?? "Unknown"} •{" "}
-                          {timeAgo(post.publishedAt ?? post.createdAt)}
-                        </Text>
-                      </Box>
+                        </Box>
 
-                      <TagChips tags={post.tags} />
+                        <TagChips tags={post.tags} />
 
-                      <VotePill count={post._count?.upvotes} />
-                    </Flex>
-                  ))}
+                        <VotePill count={post._count?.upvotes} />
+                      </Flex>
+                    ))
+                  )}
                 </VStack>
               </TabPanel>
 
               <TabPanel px={0}>
                 <VStack align="stretch" spacing={0}>
-                  {minePub.map((post) => (
-                    <Flex
-                      key={post.id}
-                      py={3}
-                      borderBottom="1px solid"
-                      borderColor="gray.800"
-                      align="center"
-                      gap={3}
-                      flexWrap="wrap"
-                    >
-                      <Box flex="1" minW={0}>
-                        <Link href={`/blog/${post.slug ?? post.id}`}>
-                          <Text color="white" fontWeight="600" noOfLines={1}>
-                            {post.title}
+                  {minePub.length === 0 ? (
+                    <Box py={8} textAlign="center">
+                      <Text color="gray.400" fontSize="md">
+                        {debouncedQuery
+                          ? "No published posts found matching your search."
+                          : "You haven't published any posts yet."}
+                      </Text>
+                    </Box>
+                  ) : (
+                    minePub.map((post) => (
+                      <Flex
+                        key={post.id}
+                        py={3}
+                        borderBottom="1px solid"
+                        borderColor="gray.800"
+                        align="center"
+                        gap={3}
+                        flexWrap="wrap"
+                      >
+                        <Box flex="1" minW={0}>
+                          <Link href={`/blog/${post.slug ?? post.id}`}>
+                            <Text color="white" fontWeight="600" noOfLines={1}>
+                              {post.title}
+                            </Text>
+                          </Link>
+                          <Text color="gray.500" fontSize="sm">
+                            {timeAgo(post.publishedAt ?? post.updatedAt)}
                           </Text>
-                        </Link>
-                        <Text color="gray.500" fontSize="sm">
-                          {timeAgo(post.publishedAt ?? post.updatedAt)}
-                        </Text>
-                      </Box>
-                      <HStack>
-                        <Button
-                          as={Link}
-                          href={`/blog/edit/${post.id}`}
-                          size="xs"
-                          {...ghostBtn}
-                          leftIcon={<Icon as={FiEdit} />}
-                          aria-label="Edit post"
-                        >
-                          <VisuallyHidden>Edit</VisuallyHidden>
-                        </Button>
-                      </HStack>
-                    </Flex>
-                  ))}
+                        </Box>
+                        <HStack>
+                          <IconButton
+                            onClick={() => router.push(`/blog/edit/${post.id}`)}
+                            size="sm"
+                            icon={<Icon as={FiEdit} />}
+                            aria-label="Edit post"
+                            {...ghostBtn}
+                          />
+                        </HStack>
+                      </Flex>
+                    ))
+                  )}
                 </VStack>
               </TabPanel>
 
               <TabPanel px={0}>
                 <VStack align="stretch" spacing={0}>
-                  {drafts.map((post) => (
-                    <Flex
-                      key={post.id}
-                      py={3}
-                      borderBottom="1px solid"
-                      borderColor="gray.800"
-                      align="center"
-                      gap={3}
-                      flexWrap="wrap"
-                    >
-                      <Box flex="1" minW={0}>
-                        <Link href={`/blog/edit/${post.id}`}>
-                          <Text color="white" fontWeight="600" noOfLines={1}>
-                            {post.title || "Untitled draft"}
+                  {drafts.length === 0 ? (
+                    <Box py={8} textAlign="center">
+                      <Text color="gray.400" fontSize="md">
+                        {debouncedQuery
+                          ? "No drafts found matching your search."
+                          : "You don't have any drafts yet. Create one to get started!"}
+                      </Text>
+                    </Box>
+                  ) : (
+                    drafts.map((post) => (
+                      <Flex
+                        key={post.id}
+                        py={3}
+                        borderBottom="1px solid"
+                        borderColor="gray.800"
+                        align="center"
+                        gap={3}
+                        flexWrap="wrap"
+                      >
+                        <Box flex="1" minW={0}>
+                          <Link href={`/blog/edit/${post.id}`}>
+                            <Text color="white" fontWeight="600" noOfLines={1}>
+                              {post.title || "Untitled draft"}
+                            </Text>
+                          </Link>
+                          <Text color="gray.500" fontSize="sm">
+                            saved {timeAgo(post.updatedAt)}
                           </Text>
-                        </Link>
-                        <Text color="gray.500" fontSize="sm">
-                          saved {timeAgo(post.updatedAt)}
-                        </Text>
-                      </Box>
+                        </Box>
 
-                      <HStack spacing={2}>
-                        <Button
-                          size="xs"
-                          onClick={() => {
-                            if (deletingId) return;
-                            if (confirm("Delete this draft permanently?")) {
-                              deletePost.mutate({ id: post.id });
+                        <HStack spacing={2}>
+                          <IconButton
+                            size="sm"
+                            onClick={() => {
+                              if (deletingId) return;
+                              if (confirm("Delete this draft permanently?")) {
+                                deletePost.mutate({ id: post.id });
+                              }
+                            }}
+                            isLoading={
+                              deletingId === post.id && deletePost.isPending
                             }
-                          }}
-                          isLoading={
-                            deletingId === post.id && deletePost.isPending
-                          }
-                          isDisabled={!!deletingId && deletingId !== post.id}
-                          leftIcon={<Icon as={FiTrash} />}
-                          {...ghostBtn}
-                          aria-label="Delete draft"
-                        >
-                          <VisuallyHidden>Delete</VisuallyHidden>
-                        </Button>
-                      </HStack>
-                    </Flex>
-                  ))}
+                            isDisabled={!!deletingId && deletingId !== post.id}
+                            icon={<Icon as={FiTrash} />}
+                            aria-label="Delete draft"
+                            {...ghostBtn}
+                          />
+                        </HStack>
+                      </Flex>
+                    ))
+                  )}
                 </VStack>
               </TabPanel>
             </TabPanels>
