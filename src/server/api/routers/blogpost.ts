@@ -857,15 +857,14 @@ export const blogpostRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const db = ctx.db as PrismaClient;
+
       const post = await db.blogPost.findUnique({
         where: { id: input.id },
         select: { id: true, authorId: true, status: true, content: true },
       });
-
       if (!post) throw new TRPCError({ code: "NOT_FOUND" });
-      if (post.authorId !== ctx.session.user.id) {
+      if (post.authorId !== ctx.session.user.id)
         throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       const data: Partial<Prisma.BlogPostUpdateInput> = {};
       if (input.title !== undefined) data.title = input.title;
@@ -881,25 +880,50 @@ export const blogpostRouter = createTRPCRouter({
         select: { id: true, title: true, updatedAt: true, status: true },
       });
 
+      // --- Safe tag sync (idempotent, no unique-constraint races) ---
       if (input.tagIds !== undefined || input.tags !== undefined) {
-        const resolved = await resolveTagIdsFromStrings(db, input.tags);
-        const tagIds =
-          input.tagIds !== undefined
-            ? [...new Set([...(input.tagIds ?? []), ...resolved])]
-            : resolved;
+        const resolvedFromStrings = await resolveTagIdsFromStrings(
+          db,
+          input.tags ?? []
+        );
+        const desiredTagIds = Array.from(
+          new Set([...(input.tagIds ?? []), ...resolvedFromStrings])
+        ).filter(Boolean);
 
-        await db.blogPostTag.deleteMany({ where: { postId: input.id } });
-        if (tagIds.length) {
-          await db.blogPostTag.createMany({
-            data: tagIds.map((tagId) => ({ postId: input.id, tagId })),
-          });
+        const tx: Array<
+          ReturnType<typeof db.$transaction> extends Promise<infer _T>
+            ? any
+            : never
+        > = [];
+
+        // Remove any relations not in desired set (keeps already-linked ones)
+        tx.push(
+          db.blogPostTag.deleteMany({
+            where: {
+              postId: input.id,
+              ...(desiredTagIds.length
+                ? { tagId: { notIn: desiredTagIds } }
+                : {}), // if empty desired -> delete all
+            },
+          })
+        );
+
+        // Create missing relations; skipDuplicates prevents unique constraint errors
+        if (desiredTagIds.length) {
+          tx.push(
+            db.blogPostTag.createMany({
+              data: desiredTagIds.map((tagId) => ({ postId: input.id, tagId })),
+              skipDuplicates: true,
+            })
+          );
         }
+
+        await db.$transaction(tx);
       }
 
       return updated;
     }),
 
-  // ----- NEW: publish -> sets status, keeps or assigns slug, sets publishedAt -----
   publish: protectedProcedure
     .input(z.object({ id: z.string(), desiredSlug: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {

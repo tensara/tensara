@@ -1,44 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model User {
-  id                        String    @id @default(cuid())
+  id                        String              @id @default(cuid())
   name                      String?
   username                  String?
-  email                     String?   @unique
+  email                     String?             @unique
   emailVerified             DateTime?
   image                     String?
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
-  refreshToken              String?   @unique
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  refreshToken              String?             @unique
   lastLogin                 DateTime?
   lastLimitReset            DateTime?
   currentLimit              Int?
-  totalSampleSubmissions    Int       @default(0)
-  sampleSubmissionCount     Int       @default(200)
-  lastSampleSubmissionReset DateTime  @default(now())
+  sampleSubmissionCount     Int                 @default(200)
+  lastSampleSubmissionReset DateTime            @default(now())
   rating                    Int?
   rank                      Int?
-
-  accounts          Account[]
-  problems          Problem[]
-  submissions       Submission[]
-  RevokedToken      RevokedToken[]
-  Session           Session[]
-  ApiKey            ApiKey[]
-  workspaces        Workspace[]
-  SandboxSubmission SandboxSubmission[]
-  snapshots         Snapshot[]
-  BlogPost          BlogPost[]
-  Comment           Comment[]
-  PostUpvote        PostUpvote[]
-  CommentUpvote     CommentUpvote[]
+  totalSampleSubmissions    Int                 @default(0)
+  accounts                  Account[]
+  ApiKey                    ApiKey[]
+  BlogPost                  BlogPost[]
+  Comment                   Comment[]
+  CommentUpvote             CommentUpvote[]
+  PostUpvote                PostUpvote[]
+  problems                  Problem[]
+  RevokedToken              RevokedToken[]
+  SandboxSubmission         SandboxSubmission[]
+  Session                   Session[]
+  snapshots                 Snapshot[]
+  submissions               Submission[]
+  workspaces                Workspace[]
 
   @@index([email])
   @@index([createdAt])
@@ -51,16 +50,16 @@ model Account {
   type                     String
   provider                 String
   providerAccountId        String
-  refresh_token            String?  @db.Text
-  access_token             String?  @db.Text
+  refresh_token            String?
+  access_token             String?
   expires_at               Int?
   token_type               String?
   scope                    String?
-  id_token                 String?  @db.Text
+  id_token                 String?
   session_state            String?
   refresh_token_expires_in Int?
-  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt                DateTime @default(now())
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -97,26 +96,22 @@ model RevokedToken {
 }
 
 model Problem {
-  id String @id @default(cuid())
-
+  id                 String       @id @default(cuid())
   title              String
-  slug               String     @unique
+  slug               String       @unique
   description        String?
   difficulty         Difficulty
   author             String
-  parameters         Json       @default("[]")
+  parameters         Json         @default("[]")
   tags               String[]
-  baselineBenchmarks Json?      @default("{}")
-
-  definition String? @db.Text
-  referenceSolution  String? @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  submissions Submission[]
-  User        User?        @relation(fields: [userId], references: [id])
-  userId      String?
+  baselineBenchmarks Json?        @default("{}")
+  definition         String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  userId             String?
+  referenceSolution  String?
+  User               User?        @relation(fields: [userId], references: [id])
+  submissions        Submission[]
 
   @@index([author])
   @@index([difficulty])
@@ -124,38 +119,210 @@ model Problem {
 }
 
 model Submission {
-  id          String  @id @default(cuid())
-  code        String  @db.Text
-  language    String
-  status      String? // Can be: PENDING, CHECKING, BENCHMARKING, ACCEPTED, ERROR, WRONG_ANSWER, TIMEOUT
-  runtime     Float?
-  memory      Int?
-  passedTests Int?
-  totalTests  Int?
-  logs        String? @db.Text
-  gpuType     String?
-  timeMs      Float?
-  memoryMB    Float?
-  verified    Boolean @default(false)
-
+  id               String               @id @default(cuid())
+  code             String
+  language         String
+  status           String?
+  runtime          Float?
+  memory           Int?
+  passedTests      Int?
+  totalTests       Int?
+  logs             String?
+  gpuType          String?
+  timeMs           Float?
+  memoryMB         Float?
+  verified         Boolean              @default(false)
   gflops           Float?
   errorMessage     String?
-  errorDetails     String? @db.Text
+  errorDetails     String?
   benchmarkResults Json?
-
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  problem   Problem  @relation(fields: [problemId], references: [id])
-  problemId String
-  createdAt DateTime @default(now())
-
-  callId    String?
-  isPublic  Boolean              @default(false)
-  blogPosts BlogPostSubmission[]
+  userId           String
+  problemId        String
+  createdAt        DateTime             @default(now())
+  callId           String?
+  isPublic         Boolean              @default(false)
+  blogPosts        BlogPostSubmission[]
+  problem          Problem              @relation(fields: [problemId], references: [id])
+  user             User                 @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([problemId])
   @@index([createdAt])
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  keyPrefix String   @unique
+  key       String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([expiresAt])
+}
+
+model Workspace {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  files     Json
+  main      String
+  userId    String
+  snapshots Snapshot[]
+  user      User       @relation(fields: [userId], references: [id])
+
+  @@unique([slug, userId])
+}
+
+model SandboxSubmission {
+  id            String   @id @default(cuid())
+  code          String
+  language      String
+  status        String?
+  stdout_output String?
+  error_message String?
+  error_details String?
+  logs          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model Snapshot {
+  id          String     @id @default(cuid())
+  createdAt   DateTime   @default(now())
+  files       Json
+  main        String
+  workspaceId String?
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+}
+
+model BlogPost {
+  id              String               @id @default(cuid())
+  title           String
+  content         String
+  slug            String?              @unique
+  excerpt         String?
+  postType        PostType             @default(GENERAL)
+  status          PostStatus           @default(DRAFT)
+  publishedAt     DateTime?
+  viewCount       Int                  @default(0)
+  readTimeMinutes Int?
+  authorId        String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  lastAutosaveAt  DateTime?
+  author          User                 @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  submissions     BlogPostSubmission[]
+  tags            BlogPostTag[]
+  comments        Comment[]
+  revisions       PostRevision[]
+  upvotes         PostUpvote[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([slug])
+  @@index([status])
+  @@index([postType])
+  @@index([publishedAt])
+}
+
+model PostRevision {
+  id        String   @id @default(cuid())
+  postId    String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  authorId  String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id              String          @id @default(cuid())
+  postId          String
+  authorId        String
+  content         String
+  parentCommentId String?
+  createdAt       DateTime        @default(now())
+  author          User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent          Comment?        @relation("Thread", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  children        Comment[]       @relation("Thread")
+  post            BlogPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  upvotes         CommentUpvote[]
+
+  @@index([postId, createdAt])
+}
+
+model PostUpvote {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model CommentUpvote {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+}
+
+model BlogPostSubmission {
+  id           String     @id @default(cuid())
+  postId       String
+  submissionId String
+  order        Int        @default(0)
+  description  String?
+  createdAt    DateTime   @default(now())
+  post         BlogPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, submissionId])
+  @@index([postId])
+  @@index([submissionId])
+}
+
+model Tag {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  slug        String        @unique
+  description String?
+  category    TagCategory   @default(GENERAL)
+  createdAt   DateTime      @default(now())
+  posts       BlogPostTag[]
+
+  @@index([slug])
+  @@index([category])
+}
+
+model BlogPostTag {
+  id        String   @id @default(cuid())
+  postId    String
+  tagId     String
+  createdAt DateTime @default(now())
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@index([postId])
+  @@index([tagId])
 }
 
 enum Difficulty {
@@ -186,191 +353,4 @@ enum TagCategory {
   OPTIMIZATION
   DIFFICULTY
   TOPIC
-}
-
-model ApiKey {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  name      String
-  keyPrefix String   @unique
-  key       String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-
-  @@index([expiresAt])
-}
-
-model Workspace {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  files     Json
-  main      String
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  snapshots Snapshot[]
-
-  @@unique([slug, userId])
-}
-
-model SandboxSubmission {
-  id            String   @id @default(cuid())
-  code          String   @db.Text
-  language      String
-  status        String?
-  stdout_output String?  @db.Text
-  error_message String?
-  error_details String?
-  logs          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-}
-
-model Snapshot {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  files     Json
-  main      String
-
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
-  workspaceId String?
-
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
-}
-
-model BlogPost {
-  id              String     @id @default(cuid())
-  title           String
-  content         String     @db.Text
-  slug            String?    @unique
-  excerpt         String?    @db.Text
-  postType        PostType   @default(GENERAL)
-  status          PostStatus @default(DRAFT)
-  publishedAt     DateTime?
-  viewCount       Int        @default(0)
-  readTimeMinutes Int?
-  authorId        String
-  author          User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  comments    Comment[]
-  upvotes     PostUpvote[]
-  tags        BlogPostTag[]
-  submissions BlogPostSubmission[]
-
-  lastAutosaveAt DateTime?
-  revisions    PostRevision[]
-
-  @@index([authorId])
-  @@index([createdAt]) // sort by newest
-  @@index([slug])
-  @@index([status])
-  @@index([postType])
-  @@index([publishedAt])
-}
-
-
-model PostRevision {
-  id        String   @id @default(cuid())
-  postId    String
-  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  title     String
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-  authorId  String
-}
-
-model Comment {
-  id              String          @id @default(cuid())
-  postId          String
-  post            BlogPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorId        String
-  author          User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  content         String          @db.Text
-  // threading
-  parentCommentId String?
-  parent          Comment?        @relation("Thread", fields: [parentCommentId], references: [id], onDelete: Cascade)
-  children        Comment[]       @relation("Thread")
-  createdAt       DateTime        @default(now())
-  upvotes         CommentUpvote[]
-
-  @@index([postId, createdAt]) // helps thread pagination
-}
-
-model PostUpvote {
-  id        String   @id @default(cuid())
-  postId    String
-  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([postId, userId]) // 1 upvote per user per post
-  @@index([userId])
-}
-
-model CommentUpvote {
-  id        String   @id @default(cuid())
-  commentId String
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([commentId, userId]) // 1 upvote per user per comment
-  @@index([commentId])
-}
-
-model BlogPostSubmission {
-  id           String   @id @default(cuid())
-  postId       String
-  submissionId String
-  order        Int      @default(0)
-  description  String?  @db.Text
-  createdAt    DateTime @default(now())
-
-  post       BlogPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
-  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, submissionId])
-  @@index([postId])
-  @@index([submissionId])
-}
-
-model Tag {
-  id          String      @id @default(cuid())
-  name        String      @unique
-  slug        String      @unique
-  description String?
-  category    TagCategory @default(GENERAL)
-  createdAt   DateTime    @default(now())
-
-  posts BlogPostTag[]
-
-  @@index([slug])
-  @@index([category])
-}
-
-model BlogPostTag {
-  id        String   @id @default(cuid())
-  postId    String
-  tagId     String
-  createdAt DateTime @default(now())
-
-  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag  Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, tagId])
-  @@index([postId])
-  @@index([tagId])
 }

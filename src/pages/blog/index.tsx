@@ -18,6 +18,10 @@ import {
   useToast,
   ButtonGroup,
   VisuallyHidden,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { Layout } from "~/components/layout";
@@ -25,7 +29,13 @@ import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
-import { FiEdit, FiTrash } from "react-icons/fi";
+import {
+  FiEdit,
+  FiTrash,
+  FiChevronDown,
+  FiBookOpen,
+  FiFilePlus,
+} from "react-icons/fi";
 
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [v, setV] = useState(value);
@@ -105,12 +115,55 @@ export default function BlogIndex() {
   const router = useRouter();
   const { data: session } = useSession();
 
-  // inside BlogIndex()
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
   const [sort, setSort] = useState<"recent" | "top">("recent");
   const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const autosave = api.blogpost.autosave.useMutation();
+  const createDraftMut = api.blogpost.createDraft.useMutation();
+
+  const fetchTemplate = async (name: string) => {
+    if (name === "blank") return "# ";
+    const tries = [`/templates/${name}.md`, `/template/${name}.md`];
+    for (const url of tries) {
+      const res = await fetch(url);
+      if (res.ok) return await res.text();
+    }
+    throw new Error(`Template "${name}" not found`);
+  };
+
+  const createFromTemplate = async (tpl: "blank" | "worklog" | "example") => {
+    if (!session) {
+      void signIn();
+      return;
+    }
+    try {
+      // 1) create empty draft
+      const draft = await createDraftMut.mutateAsync({
+        title: "Untitled draft",
+      });
+
+      // 2) load template content
+      const md = await fetchTemplate(tpl);
+
+      // 3) prefill via autosave (no refetch → no rollback while typing)
+      await autosave.mutateAsync({
+        id: draft.id,
+        title: tpl === "blank" ? "Untitled draft" : `Draft: ${tpl}`,
+        content: md,
+      });
+
+      // 4) jump to editor
+      await router.push(`/blog/edit/${draft.id}`);
+    } catch (e: any) {
+      toast({
+        title: "Could not start from template",
+        description: e?.message ?? "Unknown error",
+        status: "error",
+      });
+    }
+  };
 
   const deletePost = api.blogpost.delete.useMutation({
     onMutate: async ({ id }) => {
@@ -167,6 +220,23 @@ export default function BlogIndex() {
       await router.push(`/blog/edit/${post.id}`);
     },
   });
+
+  const createBlankDraft = () =>
+    createDraft.mutate({ title: "Untitled draft" });
+  // const createWorklogDraft = async () => {
+  //   const res = await fetch("/templates/worklog.md");
+  //   const template = await res.text();
+
+  //   const post = await createDraft.mutateAsync({ title: "Worklog draft" });
+  //   await updatePost.mutateAsync({
+  //     id: post.id,
+  //     title: "Worklog — <fill in>",
+  //     content: template,
+  //     status: "DRAFT",
+  //   });
+  //   await utils.blogpost.listMine.invalidate();
+  //   void router.push(`/blog/edit/${post.id}`);
+  // };
 
   const allPublished = pub.data?.pages.flatMap((p) => p.posts) ?? [];
   const minePub = minePublished.data?.pages.flatMap((p) => p.posts) ?? [];
@@ -269,18 +339,44 @@ export default function BlogIndex() {
                 </Button>
               </ButtonGroup>
               {session ? (
-                <Button size="sm" leftIcon={<Icon as={FiEdit} />} {...solidBtn}>
-                  <Link
-                    href="#"
-                    onClick={() =>
-                      createDraft.mutate({ title: "Untitled draft" })
-                    }
+                <Menu isLazy>
+                  <MenuButton
+                    as={Button}
+                    size="sm"
+                    leftIcon={<Icon as={FiFilePlus} />}
+                    rightIcon={<Icon as={FiChevronDown} />}
+                    colorScheme="green"
                   >
-                    New Draft
-                  </Link>
-                </Button>
+                    New
+                  </MenuButton>
+                  <MenuList
+                    bg="gray.900"
+                    color="white"
+                    borderColor="whiteAlpha.200"
+                    boxShadow="lg"
+                  >
+                    <MenuItem
+                      onClick={() => createFromTemplate("blank")}
+                      bg="transparent"
+                      _hover={{ bg: "whiteAlpha.100" }}
+                    >
+                      Blank draft
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => createFromTemplate("worklog")}
+                      icon={<Icon as={FiBookOpen} />}
+                      bg="transparent"
+                      _hover={{ bg: "whiteAlpha.100" }}
+                    >
+                      Worklog template
+                    </MenuItem>
+                    {/* add more templates here:
+          <MenuItem onClick={() => createFromTemplate("example")}>Example template</MenuItem>
+      */}
+                  </MenuList>
+                </Menu>
               ) : (
-                <Button size="sm" {...solidBtn} onClick={() => signIn()}>
+                <Button size="sm" colorScheme="blue" onClick={() => signIn()}>
                   Sign in
                 </Button>
               )}
