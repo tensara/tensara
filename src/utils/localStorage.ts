@@ -1,5 +1,6 @@
 const LOCAL_STORAGE_PREFIX = "problem_solution_";
 const PREFERENCES_PREFIX = "problem_preferences_";
+const BLOG_POST_SNAPSHOT_PREFIX = "blogPost_";
 
 export const getSolutionKey = (
   slug: string,
@@ -51,5 +52,48 @@ export const loadPreferences = (slug: string): ProblemPreferences | null => {
     return JSON.parse(stored) as ProblemPreferences;
   } catch {
     return null;
+  }
+};
+
+export interface BlogPostSnapshot {
+  title: string;
+  content: string;
+  tags: string[];
+}
+
+export const saveBlogPostSnapshot = (
+  id: string,
+  snapshot: BlogPostSnapshot
+): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      `${BLOG_POST_SNAPSHOT_PREFIX}${id}`,
+      JSON.stringify(snapshot)
+    );
+  } catch (err) {
+    console.warn("Failed to save blog post snapshot to localStorage:", err);
+  }
+};
+
+export const loadBlogPostSnapshot = (
+  id: string
+): BlogPostSnapshot | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(`${BLOG_POST_SNAPSHOT_PREFIX}${id}`);
+    if (!stored) return null;
+    return JSON.parse(stored) as BlogPostSnapshot;
+  } catch {
+    return null;
+  }
+};
+
+export const clearBlogPostSnapshot = (id: string): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(`${BLOG_POST_SNAPSHOT_PREFIX}${id}`);
+  } catch (err) {
+    console.warn("Failed to clear blog post snapshot from localStorage:", err);
   }
 };
