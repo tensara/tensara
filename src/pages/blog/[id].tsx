@@ -1,6 +1,6 @@
 import { useRouter } from "next/router";
 import type { RouterOutputs } from "~/utils/api";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Layout } from "~/components/layout";
 import {
   Box,
@@ -12,12 +12,13 @@ import {
   Flex,
   Avatar,
   HStack,
-  FormControl,
   Textarea,
   Icon,
   IconButton,
   Divider,
   Tooltip,
+  Collapse,
+  useToast,
 } from "@chakra-ui/react";
 import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
@@ -27,8 +28,9 @@ import {
   FiCalendar,
   FiArrowLeft,
   FiThumbsUp,
-  FiMessageSquare,
-  FiSend,
+  FiChevronDown,
+  FiChevronUp,
+  FiShare2,
 } from "react-icons/fi";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -37,10 +39,11 @@ import { MarkdownRenderer } from "~/components/blog";
 // Typed helper aliases for tRPC outputs
 type CommentType = RouterOutputs["comments"]["getByPost"][number];
 
-export default function TestBlogPost() {
+export default function BlogPost() {
   const router = useRouter();
   const { id } = router.query;
   const { data: session } = useSession();
+  const toast = useToast();
 
   const { data: post, isLoading } = api.blogpost.getById.useQuery(
     typeof id === "string" ? { slug: id } : { slug: "" },
@@ -107,6 +110,7 @@ export default function TestBlogPost() {
   }
 
   const [newComment, setNewComment] = useState("");
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   function CommentItem({ comment }: { comment: CommentType }) {
     const [replyOpen, setReplyOpen] = useState(false);
@@ -137,123 +141,140 @@ export default function TestBlogPost() {
     const isCommentAuthor = session?.user?.id === comment.author?.id;
 
     return (
-      <Box key={comment.id} py={4}>
-        <Flex align="start" justify="space-between" gap={4}>
-          <HStack align="start" spacing={3}>
-            <Avatar
-              size="sm"
-              src={comment.author?.image ?? undefined}
-              name={comment.author?.name ?? undefined}
-              bg="green.600"
-            />
-            <Box>
-              <HStack spacing={2} wrap="wrap">
-                <Text color="white" fontWeight="600" fontSize="sm">
-                  {comment.author?.name}
-                </Text>
-                <Text color="gray.500" fontSize="xs">
-                  {format(new Date(comment.createdAt), "MMM d, yyyy • h:mm a")}
-                </Text>
-              </HStack>
-              <Box mt={2} color="gray.200">
-                <Text whiteSpace="pre-wrap" fontSize="sm" lineHeight="taller">
-                  {comment.content}
-                </Text>
-              </Box>
+      <Box key={comment.id} py={3}>
+        <VStack align="stretch" spacing={2}>
+          <HStack spacing={2} align="baseline">
+            <Text color="gray.400" fontSize="xs" fontWeight="500">
+              {comment.author?.name}
+            </Text>
+            <Text as="span" color="gray.600" fontSize="xs">
+              ·
+            </Text>
+            <Text color="gray.600" fontSize="xs">
+              {format(new Date(comment.createdAt), "MMM d")}
+            </Text>
+          </HStack>
 
-              <HStack mt={3} spacing={2}>
+          <Text
+            whiteSpace="pre-wrap"
+            fontSize="sm"
+            color="gray.300"
+            lineHeight="1.6"
+          >
+            {comment.content}
+          </Text>
+
+          <HStack spacing={3} mt={1}>
+            <Button
+              size="xs"
+              variant="ghost"
+              leftIcon={<Icon as={FiThumbsUp} />}
+              onClick={() => cuToggle.mutate({ commentId: comment.id })}
+              color={cuHasUpvoted?.hasUpvoted ? "green.400" : "gray.500"}
+              _hover={{
+                bg: "transparent",
+                color: cuHasUpvoted?.hasUpvoted ? "green.300" : "gray.400",
+              }}
+              fontWeight="normal"
+              h="auto"
+              py={1}
+              px={2}
+            >
+              {cuCount.data?.count ?? 0}
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => setReplyOpen((s) => !s)}
+              color="gray.500"
+              _hover={{ color: "gray.400", bg: "transparent" }}
+              fontWeight="normal"
+              h="auto"
+              py={1}
+              px={2}
+            >
+              Reply
+            </Button>
+            {isCommentAuthor && (
+              <IconButton
+                aria-label="Delete comment"
+                icon={<Icon as={FiTrash2} />}
+                size="xs"
+                variant="ghost"
+                color="gray.500"
+                _hover={{ color: "red.400", bg: "transparent" }}
+                onClick={() => deleteComment.mutate({ id: comment.id })}
+                isLoading={mutationIsRunning(deleteComment)}
+                h="auto"
+                minW="auto"
+                w="auto"
+              />
+            )}
+          </HStack>
+
+          {replyOpen && (
+            <Box mt={2} pl={3} borderLeftWidth="1px" borderColor="whiteAlpha.100">
+              <Textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                rows={2}
+                placeholder="Write a reply…"
+                bg="transparent"
+                borderColor="whiteAlpha.200"
+                color="gray.100"
+                _focus={{ borderColor: "whiteAlpha.300" }}
+                fontSize="sm"
+              />
+              <HStack justify="flex-end" mt={2} spacing={2}>
                 <Button
                   size="xs"
-                  variant={cuHasUpvoted?.hasUpvoted ? "solid" : "ghost"}
-                  leftIcon={<Icon as={FiThumbsUp} />}
-                  onClick={() => cuToggle.mutate({ commentId: comment.id })}
-                  colorScheme="green"
+                  variant="ghost"
+                  onClick={() => {
+                    setReplyOpen(false);
+                    setReplyText("");
+                  }}
+                  color="gray.500"
+                  _hover={{ color: "gray.300", bg: "transparent" }}
                 >
-                  {cuCount.data?.count ?? 0}
+                  Cancel
                 </Button>
                 <Button
                   size="xs"
                   variant="ghost"
-                  leftIcon={<Icon as={FiMessageSquare} />}
-                  onClick={() => setReplyOpen((s) => !s)}
+                  colorScheme="green"
+                  onClick={() => {
+                    if (!replyText.trim() || !post?.id) return;
+                    createComment.mutate({
+                      postId: post.id,
+                      content: replyText,
+                      parentCommentId: comment.id,
+                    });
+                    setReplyText("");
+                    setReplyOpen(false);
+                  }}
                 >
                   Reply
                 </Button>
-                {isCommentAuthor && (
-                  <IconButton
-                    aria-label="Delete comment"
-                    icon={<Icon as={FiTrash2} />}
-                    size="xs"
-                    variant="ghost"
-                    colorScheme="red"
-                    onClick={() => deleteComment.mutate({ id: comment.id })}
-                    isLoading={mutationIsRunning(deleteComment)}
-                  />
-                )}
               </HStack>
-
-              {replyOpen && (
-                <Box mt={3}>
-                  <Textarea
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    rows={2}
-                    placeholder="Write a reply…"
-                    bg="transparent"
-                    borderColor="whiteAlpha.200"
-                    color="gray.100"
-                  />
-                  <HStack justify="flex-end" mt={2} spacing={2}>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setReplyOpen(false);
-                        setReplyText("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      colorScheme="green"
-                      onClick={() => {
-                        if (!replyText.trim() || !post?.id) return;
-                        createComment.mutate({
-                          postId: post.id,
-                          content: replyText,
-                          parentCommentId: comment.id,
-                        });
-                        setReplyText("");
-                        setReplyOpen(false);
-                      }}
-                    >
-                      Reply
-                    </Button>
-                  </HStack>
-                </Box>
-              )}
             </Box>
-          </HStack>
-        </Flex>
+          )}
 
-        {/* children */}
-        {comment.children?.length ? (
-          <VStack align="stretch" mt={3} ml={8} spacing={0}>
-            {comment.children.map((child: CommentType) => (
-              <Box
-                key={child.id}
-                pl={3}
-                borderLeft="1px solid"
-                borderColor="whiteAlpha.200"
-              >
-                <CommentItem comment={child} />
-              </Box>
-            ))}
-          </VStack>
-        ) : null}
-
-        <Divider mt={4} borderColor="whiteAlpha.200" />
+          {/* children */}
+          {comment.children?.length ? (
+            <VStack align="stretch" mt={2} ml={4} spacing={0}>
+              {comment.children.map((child: CommentType) => (
+                <Box
+                  key={child.id}
+                  pl={3}
+                  borderLeftWidth="1px"
+                  borderColor="whiteAlpha.100"
+                >
+                  <CommentItem comment={child} />
+                </Box>
+              ))}
+            </VStack>
+          ) : null}
+        </VStack>
       </Box>
     );
   }
@@ -262,7 +283,7 @@ export default function TestBlogPost() {
     return (
       <Layout title="Loading...">
         <Box minH="100vh" py={16}>
-          <Container maxW="5xl">
+          <Container maxW="7xl" mx="auto">
             <Text color="gray.500" textAlign="center" fontSize="lg">
               Loading post…
             </Text>
@@ -275,7 +296,7 @@ export default function TestBlogPost() {
     return (
       <Layout title="Not found">
         <Box minH="100vh" py={16}>
-          <Container maxW="5xl">
+        <Container maxW="7xl" mx="auto">
             <VStack spacing={4}>
               <Text color="gray.400" fontSize="xl">
                 Post not found
@@ -287,7 +308,7 @@ export default function TestBlogPost() {
                 variant="ghost"
                 colorScheme="green"
               >
-                Back to posts
+                Back
               </Button>
             </VStack>
           </Container>
@@ -299,7 +320,7 @@ export default function TestBlogPost() {
     <Layout title={post.title}>
       <Box minH="100vh">
         {/* Wider container */}
-        <Container maxW="5xl" py={10}>
+        <Container maxW="7xl" mx="auto" py={10}>
           <Button
             as={Link}
             href="/blog"
@@ -307,9 +328,10 @@ export default function TestBlogPost() {
             variant="ghost"
             colorScheme="green"
             mb={6}
+            size="sm"
             _hover={{ bg: "whiteAlpha.100" }}
           >
-            Back to posts
+            Back
           </Button>
 
           <VStack align="stretch" spacing={0}>
@@ -320,83 +342,114 @@ export default function TestBlogPost() {
                 fontWeight="800"
                 letterSpacing="-0.01em"
                 color="white"
+                fontFamily="Space Grotesk"
+                textAlign="center"
               >
                 {post.title}
               </Heading>
 
-              <HStack spacing={4} mt={3} color="gray.400" fontSize="sm">
-                <HStack spacing={2}>
-                  <Avatar
-                    size="sm"
-                    src={post.author?.image ?? undefined}
-                    name={post.author?.name ?? undefined}
-                    bg="green.600"
-                  />
-                  <Text color="gray.200" fontWeight="600">
-                    {post.author?.name}
-                  </Text>
-                </HStack>
-                <HStack spacing={1}>
-                  <Icon as={FiCalendar} />
+              <Flex justify="space-between" align="center" mt={3} position="relative">
+                <Box flex={1} />
+                <HStack spacing={2} color="gray.500" fontSize="sm" position="absolute" left="50%" transform="translateX(-50%)">
+                  <HStack spacing={2}>
+                    <Avatar
+                      size="xs"
+                      src={post.author?.image ?? undefined}
+                      name={post.author?.name ?? undefined}
+                      bg="green.600"
+                    />
+                    <Text>{post.author?.name}</Text>
+                  </HStack>
+                  <Text>·</Text>
                   <Text>
                     {new Date(post.createdAt).toLocaleDateString("en-US", {
-                      month: "long",
+                      month: "short",
                       day: "numeric",
                       year: "numeric",
                     })}
                   </Text>
-                </HStack>
-
-                <HStack ml="auto" spacing={2}>
-                  <Tooltip
-                    label={postHasUpvoted?.hasUpvoted ? "Unlike" : "Like"}
-                  >
-                    <Button
-                      size="sm"
-                      variant={postHasUpvoted?.hasUpvoted ? "solid" : "ghost"}
-                      leftIcon={<Icon as={FiThumbsUp} />}
-                      onClick={() =>
-                        postUpvoteToggle.mutate({ postId: post.id })
-                      }
-                      colorScheme="green"
-                    >
-                      {postUpvoteCount?.count ?? 0}
-                    </Button>
-                  </Tooltip>
 
                   {isAuthor && (
-                    <HStack spacing={1}>
-                      <Tooltip label="Edit">
-                        <IconButton
-                          aria-label="Edit post"
-                          icon={<Icon as={FiEdit3} />}
-                          onClick={() => router.push(`/blog/edit/${post.id}`)}
-                          colorScheme="green"
-                          variant="ghost"
-                          size="sm"
-                        />
-                      </Tooltip>
-                      <Tooltip label="Delete">
-                        <IconButton
-                          aria-label="Delete post"
-                          icon={<Icon as={FiTrash2} />}
-                          onClick={() => del.mutate({ id: post.id })}
-                          isLoading={mutationIsRunning(del)}
-                          colorScheme="red"
-                          variant="ghost"
-                          size="sm"
-                        />
-                      </Tooltip>
-                    </HStack>
+                    <>
+                      <Text>·</Text>
+                      <HStack spacing={1}>
+                        <Tooltip label="Edit">
+                          <IconButton
+                            aria-label="Edit post"
+                            icon={<Icon as={FiEdit3} />}
+                            onClick={() => router.push(`/blog/edit/${post.id}`)}
+                            colorScheme="green"
+                            variant="ghost"
+                            size="xs"
+                            h="auto"
+                            py={1}
+                          />
+                        </Tooltip>
+                        <Tooltip label="Delete">
+                          <IconButton
+                            aria-label="Delete post"
+                            icon={<Icon as={FiTrash2} />}
+                            onClick={() => del.mutate({ id: post.id })}
+                            isLoading={mutationIsRunning(del)}
+                            colorScheme="red"
+                            variant="ghost"
+                            size="xs"
+                            h="auto"
+                            py={1}
+                          />
+                        </Tooltip>
+                      </HStack>
+                    </>
                   )}
                 </HStack>
-              </HStack>
+                <Flex flex={1} justify="flex-end" gap={4}>
+                  <HStack
+                    as="button"
+                    spacing={1}
+                    color="gray.500"
+                    _hover={{ color: "white" }}
+                    transition="color 0.5s ease"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(window.location.href);
+                        toast({
+                          title: "Link copied",
+                          status: "success",
+                          duration: 2000,
+                          isClosable: true,
+                        });
+                      } catch (err) {
+                      }
+                    }}
+                    cursor="pointer"
+                    fontSize="sm"
+                  >
+                    <Icon as={FiShare2} />
+                  </HStack>
+
+                  <HStack
+                    as="button"
+                    spacing={1}
+                    color={postHasUpvoted?.hasUpvoted ? "white" : "gray.500"}
+                    _hover={{ color: "white" }}
+                    transition="color 0.5s ease"
+                    onClick={() =>
+                      postUpvoteToggle.mutate({ postId: post.id })
+                    }
+                    cursor="pointer"
+                    fontSize="sm"
+                  >
+                    <Icon as={FiThumbsUp} />
+                    <Text>{postUpvoteCount?.count ?? 0}</Text>
+                  </HStack>
+                </Flex>
+              </Flex>
             </Box>
 
             <Divider my={6} borderColor="whiteAlpha.300" />
 
             <Box
-              maxW="900px"
+              w="90%"
               mx="auto"
               className="markdown-content"
               sx={{
@@ -504,48 +557,73 @@ export default function TestBlogPost() {
             >
               <MarkdownRenderer content={post.content ?? ""} />
             </Box>
+            <Divider my={6} borderColor="whiteAlpha.300" />
           </VStack>
         </Container>
 
-        {/* Comments */}
-        <Container maxW="5xl" py={8}>
-          <Box maxW="900px" mx="auto">
-            <Heading
-              size="md"
-              color="white"
-              mb={4}
-              fontWeight="800"
-              letterSpacing="-0.01em"
-            >
-              Comments
-            </Heading>
+        {/* Collapsible Comments Section */}
+        <Container maxW="7xl" mx="auto" py={8} mb={10}>
+          <Box w="80%" mx="auto">
+            <Flex align="center" justify="space-between" mb={4}>
+              <Heading
+                fontSize="2xl"
+                fontWeight="700"
+                color="white"
+                fontFamily="Space Grotesk"
+              >
+                Comments
+              </Heading>
+              <Button
+                variant="ghost"
+                onClick={() => setCommentsOpen(!commentsOpen)}
+                color="gray.400"
+                _hover={{ color: "gray.300", bg: "transparent" }}
+                rightIcon={
+                  <Icon as={commentsOpen ? FiChevronUp : FiChevronDown} />
+                }
+                fontWeight="normal"
+                fontSize="sm"
+                px={0}
+                h="auto"
+                py={1}
+              >
+                {comments?.length ?? 0}{" "}
+                {comments?.length === 1 ? "comment" : "comments"}
+              </Button>
+            </Flex>
 
-            {/* New comment */}
-            <Box mb={6}>
-              {session ? (
-                <Flex gap={3} align="start">
-                  <Avatar
-                    size="sm"
-                    src={session.user?.image ?? undefined}
-                    name={session.user?.name ?? undefined}
-                    bg="green.600"
-                  />
-                  <Box flex={1}>
+            <Collapse in={commentsOpen} animateOpacity>
+              <VStack align="stretch" spacing={6}>
+                {/* New comment */}
+                {session ? (
+                  <Box>
                     <Textarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Write a thoughtful comment…"
+                      placeholder="Write a comment…"
                       rows={3}
-                      bg="transparent"
-                      borderColor="whiteAlpha.300"
-                      color="gray.100"
+                      bg="whiteAlpha.50"
+                      border="1px solid"
+                      borderColor="transparent"
+                      color="white"
+                      _hover={{ borderColor: "gray.600" }}
+                      _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                      fontSize="sm"
                     />
-                    <HStack justify="flex-end" mt={2}>
+                    <HStack justify="flex-end" mt={3} spacing={2}>
                       <Button
-                        bgColor="green.600"
-                        color="white"
-                        size="sm"
-                        leftIcon={<Icon as={FiSend} />}
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => setNewComment("")}
+                        color="gray.500"
+                        _hover={{ color: "gray.300", bg: "transparent" }}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        colorScheme="green"
                         onClick={() =>
                           createComment.mutate({
                             postId: post.id,
@@ -553,34 +631,38 @@ export default function TestBlogPost() {
                           })
                         }
                         isLoading={mutationIsRunning(createComment)}
+                        isDisabled={!newComment.trim()}
                       >
                         Post
                       </Button>
                     </HStack>
                   </Box>
-                </Flex>
-              ) : (
-                <Button
-                  onClick={() => signIn()}
-                  colorScheme="green"
-                  variant="outline"
-                >
-                  Sign in to comment
-                </Button>
-              )}
-            </Box>
+                ) : (
+                  <Button
+                    onClick={() => signIn()}
+                    variant="ghost"
+                    color="gray.500"
+                    _hover={{ color: "gray.300", bg: "transparent" }}
+                    size="sm"
+                    fontWeight="normal"
+                  >
+                    Sign in to comment
+                  </Button>
+                )}
 
-            {/* List */}
-            <VStack spacing={0} align="stretch">
-              {comments?.map((c: CommentType) => (
-                <CommentItem key={c.id} comment={c} />
-              ))}
-              {comments?.length === 0 && (
-                <Text color="gray.500">
-                  No comments yet. Be the first to comment!
-                </Text>
-              )}
-            </VStack>
+                {/* Comments list */}
+                <VStack spacing={0} align="stretch" mt={2}>
+                  {comments?.map((c: CommentType) => (
+                    <CommentItem key={c.id} comment={c} />
+                  ))}
+                  {comments?.length === 0 && (
+                    <Text color="gray.500" fontSize="sm" py={4}>
+                      No comments yet.
+                    </Text>
+                  )}
+                </VStack>
+              </VStack>
+            </Collapse>
           </Box>
         </Container>
       </Box>

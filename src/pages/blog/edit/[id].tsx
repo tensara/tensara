@@ -346,7 +346,7 @@ export default function EditPost() {
                       px={2}
                       py={0.5}
                       rounded="md"
-                      colorScheme="purple"
+                      colorScheme="green"
                       variant="subtle"
                     >
                       {t}
