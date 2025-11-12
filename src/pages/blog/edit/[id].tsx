@@ -189,6 +189,31 @@ export default function EditPost() {
     );
   }, [postQ.data?.status]);
 
+  // Button styles matching index.tsx
+  const getGhostBtnStyles = () => ({
+    bg: "gray.800",
+    color: "gray.100",
+    borderColor: "gray.700",
+    px: 4,
+    _hover: {
+      bg: "gray.700",
+      borderColor: "gray.600",
+    },
+    _active: { bg: "green.700", borderColor: "green.600" },
+    transition: "all 0.5s ease",
+    rounded: "lg",
+  } as const);
+
+  const solidBtn = {
+    bg: "green.600",
+    color: "white",
+    px: 4,
+    borderColor: "green.500",
+    _hover: { bg: "green.500", borderColor: "green.400" },
+    _active: { bg: "green.700", borderColor: "green.600" },
+    rounded: "lg",
+  } as const;
+
 
   if (status === "loading" || postQ.isLoading) {
     return (
@@ -238,33 +263,36 @@ export default function EditPost() {
   return (
     <Layout title="Edit Post">
       <Box minH="100vh">
-        <Container maxW="900px" py={8}>
+        <Container maxW="7xl" mx="auto" py={8}>
           <Flex align="center" justify="space-between" mb={4}>
             <HStack>
               <Button
                 variant="ghost"
+                size="sm"
                 leftIcon={<Icon as={FiArrowLeft} />}
                 onClick={() => router.push("/blog")}
+                _active={{ bg: "gray.700", color: "gray.100" }}
               >
                 Back
               </Button>
               {statusBadge}
             </HStack>
-            <HStack spacing={3} align="center">
+            <HStack spacing={1.5} align="center">
               <Button
                 size="sm"
-                variant="ghost"
                 onClick={onSaveNow}
                 isLoading={updatePost.isPending}
+                {...getGhostBtnStyles()}
               >
                 Save
               </Button>
               <Button
-                colorScheme="green"
+                size="sm"
                 leftIcon={<Icon as={FiUpload} />}
                 onClick={onPublish}
                 isDisabled={updatePost.isPending || !title.trim() || !content.trim()}
                 isLoading={publish.isPending}
+                {...solidBtn}
               >
                 Publish
               </Button>
@@ -282,9 +310,12 @@ export default function EditPost() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Catchy, clear title"
-                bg="transparent"
-                borderColor="whiteAlpha.300"
-                color="gray.100"
+                bg="whiteAlpha.50"
+                border="1px solid"
+                borderColor="transparent"
+                color="white"
+                _hover={{ borderColor: "gray.600" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
               />
             </FormControl>
 
@@ -300,9 +331,12 @@ export default function EditPost() {
                   setTags(parseTags(val));
                 }}
                 placeholder="matrix, graphs, cryptography"
-                bg="transparent"
-                borderColor="whiteAlpha.300"
-                color="gray.100"
+                bg="whiteAlpha.50"
+                border="1px solid"
+                borderColor="transparent"
+                color="white"
+                _hover={{ borderColor: "gray.600" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
               />
               {tags.length ? (
                 <HStack spacing={1.5} mt={2} wrap="wrap">
@@ -332,22 +366,22 @@ export default function EditPost() {
                 >
                   Content
                 </FormLabel>
-                <HStack spacing={1}>
+                <HStack spacing={1.5}>
                   <Button
-                    size="xs"
-                    variant={!showPreview ? "solid" : "ghost"}
-                    colorScheme="green"
+                    size="sm"
                     leftIcon={<Icon as={FiEdit} />}
                     onClick={() => setShowPreview(false)}
+                    {...(!showPreview ? solidBtn : getGhostBtnStyles())}
+                    px={3}
                   >
                     Edit
                   </Button>
                   <Button
-                    size="xs"
-                    variant={showPreview ? "solid" : "ghost"}
-                    colorScheme="green"
+                    size="sm"
                     leftIcon={<Icon as={FiEye} />}
                     onClick={() => setShowPreview(true)}
+                    {...(showPreview ? solidBtn : getGhostBtnStyles())}
+                    px={3}
                   >
                     Preview
                   </Button>
@@ -362,9 +396,12 @@ export default function EditPost() {
                   minH="420px"
                   fontSize="md"
                   lineHeight="1.6"
-                  bg="transparent"
-                  borderColor="whiteAlpha.300"
-                  color="gray.100"
+                  bg="whiteAlpha.50"
+                  border="1px solid"
+                  borderColor="transparent"
+                  color="white"
+                  _hover={{ borderColor: "gray.600" }}
+                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
                 />
               ) : (
                 <Box

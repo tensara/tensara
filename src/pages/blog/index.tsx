@@ -578,13 +578,15 @@ export default function BlogIndex() {
                         </Text>
                       </Box>
                       <HStack>
-                        <IconButton
-                          onClick={() => router.push(`/blog/edit/${post.id}`)}
-                          size="sm"
-                          icon={<Icon as={FiEdit} />}
-                          aria-label="Edit post"
-                          {...getGhostBtnStyles()}
-                        />
+                        <Link href={`/blog/edit/${post.id}`} passHref legacyBehavior>
+                          <IconButton
+                            as="a"
+                            size="sm"
+                            icon={<Icon as={FiEdit} />}
+                            aria-label="Edit post"
+                            {...getGhostBtnStyles()}
+                          />
+                        </Link>
                       </HStack>
                     </Flex>
                   ))
