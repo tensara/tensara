@@ -8,6 +8,8 @@ import {
   VStack,
   Flex,
   Input,
+  InputGroup,
+  InputLeftElement,
   Badge,
   Icon,
   IconButton,
@@ -31,7 +33,7 @@ import {
   FiBookOpen,
   FiFilePlus,
 } from "react-icons/fi";
-import { FaSortAmountDown } from "react-icons/fa";
+import { FaSortAmountDown, FaSearch } from "react-icons/fa";
 
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [v, setV] = useState(value);
@@ -257,7 +259,6 @@ export default function BlogIndex() {
     return {
       bg: "gray.800",
       color: "gray.100",
-      border: "1px solid",
       borderColor: "gray.700",
       _hover: {
         bg: isActive ? "green.700" : "gray.700",
@@ -271,16 +272,15 @@ export default function BlogIndex() {
 
   return (
     <Layout title="Blog">
-      <Box minH="100vh">
+      <Box>
         <Container maxW="7xl" mx="auto" py={8}>
           <Flex
+            direction="row"
             align="center"
-            justify="space-between"
             mb={6}
             gap={4}
-            flexWrap="wrap"
           >
-            <Box>
+            <Box w="full">
               <Heading
                 as="h1"
                 fontSize="2xl"
@@ -297,56 +297,82 @@ export default function BlogIndex() {
 
             <HStack
               spacing={4}
-              flexWrap="wrap"
-              w={{ base: "100%", md: "auto" }}
+              w="full"
+              align="stretch"
             >
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search title, text, tags…"
-                size="sm"
-                bg="gray.800"
-                borderColor="gray.700"
-                color="gray.100"
-                w={{ base: "100%", md: "260px" }}
-                _placeholder={{ color: "gray.500" }}
-                rounded="lg"
-              />
+              <InputGroup flex="1">
+                <InputLeftElement pointerEvents="none">
+                  <FaSearch color="#d4d4d8" />
+                </InputLeftElement>
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search title, text, tags…"
+                  bg="whiteAlpha.50"
+                  _hover={{ borderColor: "gray.600" }}
+                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                  color="white"
+                />
+              </InputGroup>
               {session ? (
                 <Menu isLazy>
                   <MenuButton
                     as={Button}
-                    size="sm"
                     leftIcon={<Icon as={FiFilePlus} />}
-                    rightIcon={<Icon as={FiChevronDown} />}
-                    colorScheme="green"
+                    bg="green.700"
+                    border="1px solid"
+                    borderColor="whiteAlpha.100"
+                    _hover={{ bg: "green.600", borderColor: "whiteAlpha.200" }}
+                    _active={{ bg: "green.600", borderColor: "whiteAlpha.200" }}
+                    _expanded={{ bg: "green.600", borderColor: "whiteAlpha.200" }}
+                    _focus={{ bg: "green.600", borderColor: "whiteAlpha.200", boxShadow: "none" }}
+                    color="white"
+                    borderRadius="md"
+                    h="40px"
+                    flexShrink={0}
+                    sx={{
+                      "&[aria-expanded='true']": {
+                        bg: "green.600",
+                        borderColor: "whiteAlpha.200",
+                      },
+                    }}
                   >
                     New
                   </MenuButton>
                   <MenuList
-                    bg="gray.900"
-                    color="white"
-                    borderColor="whiteAlpha.200"
-                    boxShadow="lg"
+                    bg="brand.secondary"
+                    borderColor="gray.800"
+                    p={0}
+                    borderRadius="md"
+                    minW="100px"
                   >
                     <MenuItem
                       onClick={() => createFromTemplate("blank")}
-                      bg="transparent"
-                      _hover={{ bg: "whiteAlpha.100" }}
+                      bg="brand.secondary"
+                      _hover={{ bg: "gray.700" }}
+                      color="white"
+                      borderRadius="md"
                     >
-                      Blank draft
+                      Blank Draft
                     </MenuItem>
                     <MenuItem
                       onClick={() => createFromTemplate("worklog")}
-                      icon={<Icon as={FiBookOpen} />}
-                      bg="transparent"
-                      _hover={{ bg: "whiteAlpha.100" }}
+                      bg="brand.secondary"
+                      _hover={{ bg: "gray.700" }}
+                      color="white"
+                      borderRadius="md"
                     >
-                      Worklog template
+                      Optimization Worklog
                     </MenuItem>
-                    {/* add more templates here:
-          <MenuItem onClick={() => createFromTemplate("example")}>Example template</MenuItem>
-      */}
+                    <MenuItem
+                      onClick={() => createFromTemplate("worklog")}
+                      bg="brand.secondary"
+                      _hover={{ bg: "gray.700" }}
+                      color="white"
+                      borderRadius="md"
+                    >
+                      Daily Log
+                    </MenuItem>
                   </MenuList>
                 </Menu>
               ) : (
@@ -622,41 +648,41 @@ export default function BlogIndex() {
               </VStack>
             )}
           </Box>
+
+          {activeTab === "all" && pub.hasNextPage && (
+            <Flex justify="center" py={4}>
+              <Button
+                onClick={() => pub.fetchNextPage()}
+                isLoading={pub.isFetchingNextPage}
+                aria-label="Load more posts"
+                size="sm"
+                {...getGhostBtnStyles()}
+                rounded="full"
+                px={4}
+              >
+                <Box
+                  as="svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  mr={2}
+                >
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Box>
+                Load more
+              </Button>
+            </Flex>
+          )}
         </Container>
       </Box>
-
-      {activeTab === "all" && pub.hasNextPage && (
-        <Flex justify="center" py={4} bg="black">
-          <Button
-            onClick={() => pub.fetchNextPage()}
-            isLoading={pub.isFetchingNextPage}
-            aria-label="Load more posts"
-            size="sm"
-            {...getGhostBtnStyles()}
-            rounded="full"
-            px={4}
-          >
-            <Box
-              as="svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              mr={2}
-            >
-              <path
-                d="M6 9l6 6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Box>
-            Load more
-          </Button>
-        </Flex>
-      )}
     </Layout>
   );
 }
