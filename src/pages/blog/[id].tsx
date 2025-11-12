@@ -261,7 +261,7 @@ export default function TestBlogPost() {
   if (isLoading)
     return (
       <Layout title="Loading...">
-        <Box bg="gray.900" minH="100vh" py={16}>
+        <Box minH="100vh" py={16}>
           <Container maxW="5xl">
             <Text color="gray.500" textAlign="center" fontSize="lg">
               Loading post…
@@ -274,7 +274,7 @@ export default function TestBlogPost() {
   if (!post)
     return (
       <Layout title="Not found">
-        <Box bg="gray.900" minH="100vh" py={16}>
+        <Box minH="100vh" py={16}>
           <Container maxW="5xl">
             <VStack spacing={4}>
               <Text color="gray.400" fontSize="xl">
@@ -297,7 +297,7 @@ export default function TestBlogPost() {
 
   return (
     <Layout title={post.title}>
-      <Box bg="gray.900" minH="100vh">
+      <Box minH="100vh">
         {/* Wider container */}
         <Container maxW="5xl" py={10}>
           <Button

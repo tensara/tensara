@@ -4,11 +4,6 @@ import {
   Heading,
   Text,
   Button,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
   HStack,
   VStack,
   Flex,
@@ -18,7 +13,6 @@ import {
   IconButton,
   useToast,
   ButtonGroup,
-  VisuallyHidden,
   Menu,
   MenuButton,
   MenuList,
@@ -37,6 +31,7 @@ import {
   FiBookOpen,
   FiFilePlus,
 } from "react-icons/fi";
+import { FaSortAmountDown } from "react-icons/fa";
 
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [v, setV] = useState(value);
@@ -119,6 +114,7 @@ export default function BlogIndex() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
   const [sort, setSort] = useState<"recent" | "top">("recent");
+  const [activeTab, setActiveTab] = useState<"all" | "myPosts" | "myDrafts">("all");
   const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const autosave = api.blogpost.autosave.useMutation();
@@ -254,15 +250,24 @@ export default function BlogIndex() {
     rounded: "lg",
   } as const;
 
-  const ghostBtn = {
-    bg: "gray.800",
-    color: "gray.100",
-    border: "1px solid",
-    borderColor: "gray.700",
-    _hover: { bg: "gray.700", borderColor: "gray.600" },
-    _active: { bg: "gray.600", borderColor: "gray.500" },
-    rounded: "lg",
-  } as const;
+  const getGhostBtnStyles = (tabName?: "all" | "myPosts" | "myDrafts") => {
+    const isTabButton = tabName !== undefined;
+    const isActive = isTabButton && tabName === activeTab;
+    
+    return {
+      bg: "gray.800",
+      color: "gray.100",
+      border: "1px solid",
+      borderColor: "gray.700",
+      _hover: {
+        bg: isActive ? "green.700" : "gray.700",
+        borderColor: isActive ? "green.600" : "gray.600",
+      },
+      _active: { bg: "green.700", borderColor: "green.600" },
+      transition: "all 0.5s ease",
+      rounded: "lg",
+    };
+  };
 
   return (
     <Layout title="Blog">
@@ -307,38 +312,6 @@ export default function BlogIndex() {
                 _placeholder={{ color: "gray.500" }}
                 rounded="lg"
               />
-              <ButtonGroup size="sm" isAttached variant="outline">
-                <Button
-                  onClick={() => setSort("recent")}
-                  {...ghostBtn}
-                  borderRightRadius={0}
-                  aria-pressed={sort === "recent"}
-                  {...(sort === "recent"
-                    ? {
-                        bg: "green.700",
-                        borderColor: "green.600",
-                        color: "white",
-                      }
-                    : {})}
-                >
-                  Most recent
-                </Button>
-                <Button
-                  onClick={() => setSort("top")}
-                  {...ghostBtn}
-                  borderLeftRadius={0}
-                  aria-pressed={sort === "top"}
-                  {...(sort === "top"
-                    ? {
-                        bg: "green.700",
-                        borderColor: "green.600",
-                        color: "white",
-                      }
-                    : {})}
-                >
-                  Most voted
-                </Button>
-              </ButtonGroup>
               {session ? (
                 <Menu isLazy>
                   <MenuButton
@@ -384,283 +357,282 @@ export default function BlogIndex() {
             </HStack>
           </Flex>
 
-          <Tabs colorScheme="green" variant="unstyled" isFitted>
-            <TabList
-              bg="whiteAlpha.50"
-              p={1}
-              borderRadius="lg"
-              gap={1}
-              border="1px solid"
-              borderColor="gray.700"
-            >
-              <Tab
-                _selected={{
-                  color: "white",
-                  bg: "green.600",
-                  boxShadow: "sm",
-                  _hover: {
-                    bg: "green.500",
-                  },
-                }}
-                _hover={{
-                  bg: "whiteAlpha.100",
-                  transition: "all 0.2s ease-in-out",
-                }}
-                color="gray.300"
-                borderRadius="md"
-                px={4}
-                py={2}
-                fontWeight="medium"
-                transition="all 0.2s ease-in-out"
+          <Flex
+            align="center"
+            justify="space-between"
+            mb={4}
+            gap={4}
+            flexWrap="wrap"
+          >
+            <ButtonGroup size="sm" spacing={2}>
+              <Button
+                onClick={() => setActiveTab("all")}
+                {...getGhostBtnStyles("all")}
+                aria-pressed={activeTab === "all"}
+                {...(activeTab === "all"
+                  ? {
+                      bg: "green.700",
+                      borderColor: "green.600",
+                      color: "white",
+                    }
+                  : {})}
               >
                 All
-              </Tab>
-              <Tab
+              </Button>
+              <Button
+                onClick={() => session && setActiveTab("myPosts")}
                 isDisabled={!session}
-                _selected={{
-                  color: "white",
-                  bg: "green.600",
-                  boxShadow: "sm",
-                  _hover: {
-                    bg: "green.500",
-                  },
-                }}
-                _hover={{
-                  bg: "whiteAlpha.100",
-                  transition: "all 0.2s ease-in-out",
-                }}
+                {...getGhostBtnStyles("myPosts")}
+                aria-pressed={activeTab === "myPosts"}
+                {...(activeTab === "myPosts"
+                  ? {
+                      bg: "green.700",
+                      borderColor: "green.600",
+                      color: "white",
+                    }
+                  : {})}
                 _disabled={{
                   opacity: 0.4,
                   cursor: "not-allowed",
-                  _hover: {
-                    bg: "transparent",
-                  },
                 }}
-                color="gray.300"
-                borderRadius="md"
-                px={4}
-                py={2}
-                fontWeight="medium"
-                transition="all 0.2s ease-in-out"
               >
-                My Posts{" "}
-                {session ? (
+                My Posts
+                {session && (
                   <Badge
-                    ml={2}
-                    bg="green.500"
-                    color="white"
-                    fontWeight="semibold"
-                    fontSize="xs"
+                    ml={1.5}
                     px={1.5}
                     py={0.5}
+                    bg={activeTab === "myPosts" ? "green.600" : "gray.700"}
+                    color="white"
+                    fontSize="10px"
+                    fontWeight="700"
                     borderRadius="md"
+                    lineHeight="1"
+                    minW="20px"
+                    height="18px"
+                    display="inline-flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    border="none"
+                    transition="all 0.5s ease"
                   >
                     {minePub.length}
                   </Badge>
-                ) : null}
-              </Tab>
-              <Tab
+                )}
+              </Button>
+              <Button
+                onClick={() => session && setActiveTab("myDrafts")}
                 isDisabled={!session}
-                _selected={{
-                  color: "white",
-                  bg: "green.600",
-                  boxShadow: "sm",
-                  _hover: {
-                    bg: "green.500",
-                  },
-                }}
-                _hover={{
-                  bg: "whiteAlpha.100",
-                  transition: "all 0.2s ease-in-out",
-                }}
+                {...getGhostBtnStyles("myDrafts")}
+                aria-pressed={activeTab === "myDrafts"}
+                {...(activeTab === "myDrafts"
+                  ? {
+                      bg: "green.700",
+                      borderColor: "green.600",
+                      color: "white",
+                    }
+                  : {})}
                 _disabled={{
                   opacity: 0.4,
                   cursor: "not-allowed",
-                  _hover: {
-                    bg: "transparent",
-                  },
                 }}
-                color="gray.300"
-                borderRadius="md"
-                px={4}
-                py={2}
-                fontWeight="medium"
-                transition="all 0.2s ease-in-out"
               >
-                My Drafts{" "}
-                {session ? (
+                My Drafts
+                {session && (
                   <Badge
-                    ml={2}
-                    bg="green.500"
-                    color="white"
-                    fontWeight="semibold"
-                    fontSize="xs"
+                    ml={1.5}
                     px={1.5}
                     py={0.5}
+                    bg={activeTab === "myDrafts" ? "green.600" : "gray.700"}
+                    color="white"
+                    fontSize="10px"
+                    fontWeight="700"
                     borderRadius="md"
+                    lineHeight="1"
+                    minW="20px"
+                    height="18px"
+                    display="inline-flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    border="none"
+                    transition="all 0.5s ease"
                   >
                     {drafts.length}
                   </Badge>
-                ) : null}
-              </Tab>
-            </TabList>
-            <TabPanels mt={4}>
-              <TabPanel px={0}>
-                <VStack align="stretch" spacing={0}>
-                  {allPublished.length === 0 ? (
-                    <Box py={8} textAlign="center">
-                      <Text color="gray.400" fontSize="md">
-                        {debouncedQuery
-                          ? "No posts found matching your search."
-                          : "No published posts yet."}
-                      </Text>
-                    </Box>
-                  ) : (
-                    allPublished.map((post) => (
-                      <Flex
-                        key={post.id}
-                        py={3}
-                        borderBottom="1px solid"
-                        borderColor="gray.800"
-                        align="center"
-                        gap={3}
-                        flexWrap="wrap"
-                      >
-                        <Box flex="1" minW={0}>
-                          <Link href={`/blog/${post.slug ?? post.id}`}>
-                            <Text color="white" fontWeight="600" noOfLines={1}>
-                              {post.title}
-                            </Text>
-                          </Link>
-                          <Text color="gray.500" fontSize="sm" noOfLines={1}>
-                            by {post.author?.name ?? "Unknown"} •{" "}
-                            {timeAgo(post.publishedAt ?? post.createdAt)}
+                )}
+              </Button>
+            </ButtonGroup>
+
+            {activeTab === "all" && (
+              <Button
+                size="sm"
+                leftIcon={<Icon as={FaSortAmountDown} />}
+                onClick={() => setSort(sort === "recent" ? "top" : "recent")}
+                {...getGhostBtnStyles()}
+                fontSize="sm"
+                fontWeight="medium"
+              >
+                {sort === "recent" ? "Most recent" : "Most voted"}
+              </Button>
+            )}
+          </Flex>
+
+          <Box>
+            {activeTab === "all" && (
+              <VStack align="stretch" spacing={0}>
+                {allPublished.length === 0 ? (
+                  <Box py={8} textAlign="center">
+                    <Text color="gray.400" fontSize="md">
+                      {debouncedQuery
+                        ? "No posts found matching your search."
+                        : "No published posts yet."}
+                    </Text>
+                  </Box>
+                ) : (
+                  allPublished.map((post) => (
+                    <Flex
+                      key={post.id}
+                      py={3}
+                      borderBottom="1px solid"
+                      borderColor="gray.800"
+                      align="center"
+                      gap={3}
+                      flexWrap="wrap"
+                    >
+                      <Box flex="1" minW={0}>
+                        <Link href={`/blog/${post.slug ?? post.id}`}>
+                          <Text color="white" fontWeight="600" noOfLines={1}>
+                            {post.title}
                           </Text>
-                        </Box>
+                        </Link>
+                        <Text color="gray.500" fontSize="sm" noOfLines={1}>
+                          by {post.author?.name ?? "Unknown"} •{" "}
+                          {timeAgo(post.publishedAt ?? post.createdAt)}
+                        </Text>
+                      </Box>
 
-                        <TagChips tags={post.tags} />
+                      <TagChips tags={post.tags} />
 
-                        <VotePill count={post._count?.upvotes} />
-                      </Flex>
-                    ))
-                  )}
-                </VStack>
-              </TabPanel>
+                      <VotePill count={post._count?.upvotes} />
+                    </Flex>
+                  ))
+                )}
+              </VStack>
+            )}
 
-              <TabPanel px={0}>
-                <VStack align="stretch" spacing={0}>
-                  {minePub.length === 0 ? (
-                    <Box py={8} textAlign="center">
-                      <Text color="gray.400" fontSize="md">
-                        {debouncedQuery
-                          ? "No published posts found matching your search."
-                          : "You haven't published any posts yet."}
-                      </Text>
-                    </Box>
-                  ) : (
-                    minePub.map((post) => (
-                      <Flex
-                        key={post.id}
-                        py={3}
-                        borderBottom="1px solid"
-                        borderColor="gray.800"
-                        align="center"
-                        gap={3}
-                        flexWrap="wrap"
-                      >
-                        <Box flex="1" minW={0}>
-                          <Link href={`/blog/${post.slug ?? post.id}`}>
-                            <Text color="white" fontWeight="600" noOfLines={1}>
-                              {post.title}
-                            </Text>
-                          </Link>
-                          <Text color="gray.500" fontSize="sm">
-                            {timeAgo(post.publishedAt ?? post.updatedAt)}
+            {activeTab === "myPosts" && (
+              <VStack align="stretch" spacing={0}>
+                {minePub.length === 0 ? (
+                  <Box py={8} textAlign="center">
+                    <Text color="gray.400" fontSize="md">
+                      {debouncedQuery
+                        ? "No published posts found matching your search."
+                        : "You haven't published any posts yet."}
+                    </Text>
+                  </Box>
+                ) : (
+                  minePub.map((post) => (
+                    <Flex
+                      key={post.id}
+                      py={3}
+                      borderBottom="1px solid"
+                      borderColor="gray.800"
+                      align="center"
+                      gap={3}
+                      flexWrap="wrap"
+                    >
+                      <Box flex="1" minW={0}>
+                        <Link href={`/blog/${post.slug ?? post.id}`}>
+                          <Text color="white" fontWeight="600" noOfLines={1}>
+                            {post.title}
                           </Text>
-                        </Box>
-                        <HStack>
-                          <IconButton
-                            onClick={() => router.push(`/blog/edit/${post.id}`)}
-                            size="sm"
-                            icon={<Icon as={FiEdit} />}
-                            aria-label="Edit post"
-                            {...ghostBtn}
-                          />
-                        </HStack>
-                      </Flex>
-                    ))
-                  )}
-                </VStack>
-              </TabPanel>
+                        </Link>
+                        <Text color="gray.500" fontSize="sm">
+                          {timeAgo(post.publishedAt ?? post.updatedAt)}
+                        </Text>
+                      </Box>
+                      <HStack>
+                        <IconButton
+                          onClick={() => router.push(`/blog/edit/${post.id}`)}
+                          size="sm"
+                          icon={<Icon as={FiEdit} />}
+                          aria-label="Edit post"
+                          {...getGhostBtnStyles()}
+                        />
+                      </HStack>
+                    </Flex>
+                  ))
+                )}
+              </VStack>
+            )}
 
-              <TabPanel px={0}>
-                <VStack align="stretch" spacing={0}>
-                  {drafts.length === 0 ? (
-                    <Box py={8} textAlign="center">
-                      <Text color="gray.400" fontSize="md">
-                        {debouncedQuery
-                          ? "No drafts found matching your search."
-                          : "You don't have any drafts yet. Create one to get started!"}
-                      </Text>
-                    </Box>
-                  ) : (
-                    drafts.map((post) => (
-                      <Flex
-                        key={post.id}
-                        py={3}
-                        borderBottom="1px solid"
-                        borderColor="gray.800"
-                        align="center"
-                        gap={3}
-                        flexWrap="wrap"
-                      >
-                        <Box flex="1" minW={0}>
-                          <Link href={`/blog/edit/${post.id}`}>
-                            <Text color="white" fontWeight="600" noOfLines={1}>
-                              {post.title || "Untitled draft"}
-                            </Text>
-                          </Link>
-                          <Text color="gray.500" fontSize="sm">
-                            saved {timeAgo(post.updatedAt)}
+            {activeTab === "myDrafts" && (
+              <VStack align="stretch" spacing={0}>
+                {drafts.length === 0 ? (
+                  <Box py={8} textAlign="center">
+                    <Text color="gray.400" fontSize="md">
+                      {debouncedQuery
+                        ? "No drafts found matching your search."
+                        : "You don't have any drafts yet. Create one to get started!"}
+                    </Text>
+                  </Box>
+                ) : (
+                  drafts.map((post) => (
+                    <Flex
+                      key={post.id}
+                      py={3}
+                      borderBottom="1px solid"
+                      borderColor="gray.800"
+                      align="center"
+                      gap={3}
+                      flexWrap="wrap"
+                    >
+                      <Box flex="1" minW={0}>
+                        <Link href={`/blog/edit/${post.id}`}>
+                          <Text color="white" fontWeight="600" noOfLines={1}>
+                            {post.title || "Untitled draft"}
                           </Text>
-                        </Box>
+                        </Link>
+                        <Text color="gray.500" fontSize="sm">
+                          saved {timeAgo(post.updatedAt)}
+                        </Text>
+                      </Box>
 
-                        <HStack spacing={2}>
-                          <IconButton
-                            size="sm"
-                            onClick={() => {
-                              if (deletingId) return;
-                              if (confirm("Delete this draft permanently?")) {
-                                deletePost.mutate({ id: post.id });
-                              }
-                            }}
-                            isLoading={
-                              deletingId === post.id && deletePost.isPending
+                      <HStack spacing={2}>
+                        <IconButton
+                          size="sm"
+                          onClick={() => {
+                            if (deletingId) return;
+                            if (confirm("Delete this draft permanently?")) {
+                              deletePost.mutate({ id: post.id });
                             }
-                            isDisabled={!!deletingId && deletingId !== post.id}
-                            icon={<Icon as={FiTrash} />}
-                            aria-label="Delete draft"
-                            {...ghostBtn}
-                          />
-                        </HStack>
-                      </Flex>
-                    ))
-                  )}
-                </VStack>
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
+                          }}
+                          isLoading={
+                            deletingId === post.id && deletePost.isPending
+                          }
+                          isDisabled={!!deletingId && deletingId !== post.id}
+                          icon={<Icon as={FiTrash} />}
+                          aria-label="Delete draft"
+                          {...getGhostBtnStyles()}
+                        />
+                      </HStack>
+                    </Flex>
+                  ))
+                )}
+              </VStack>
+            )}
+          </Box>
         </Container>
       </Box>
 
-      {pub.hasNextPage && (
+      {activeTab === "all" && pub.hasNextPage && (
         <Flex justify="center" py={4} bg="black">
           <Button
             onClick={() => pub.fetchNextPage()}
             isLoading={pub.isFetchingNextPage}
             aria-label="Load more posts"
             size="sm"
-            {...ghostBtn}
+            {...getGhostBtnStyles()}
             rounded="full"
             px={4}
           >

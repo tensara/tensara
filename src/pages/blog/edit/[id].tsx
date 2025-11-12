@@ -237,7 +237,7 @@ export default function EditPost() {
 
   return (
     <Layout title="Edit Post">
-      <Box bg="gray.900" minH="100vh">
+      <Box minH="100vh">
         <Container maxW="900px" py={8}>
           <Flex align="center" justify="space-between" mb={4}>
             <HStack>
