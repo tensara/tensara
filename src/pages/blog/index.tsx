@@ -26,6 +26,7 @@ import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
+import { saveBlogActiveTab, loadBlogActiveTab } from "~/utils/localStorage";
 import {
   FiEdit,
   FiTrash,
@@ -116,7 +117,15 @@ export default function BlogIndex() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
   const [sort, setSort] = useState<"recent" | "top">("recent");
-  const [activeTab, setActiveTab] = useState<"all" | "myPosts" | "myDrafts">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "myPosts" | "myDrafts">(() => {
+    // Load saved tab from localStorage on mount
+    return loadBlogActiveTab() ?? "all";
+  });
+
+  // Save tab to localStorage whenever it changes
+  useEffect(() => {
+    saveBlogActiveTab(activeTab);
+  }, [activeTab]);
   const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const autosave = api.blogpost.autosave.useMutation();

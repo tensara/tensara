@@ -23,8 +23,8 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { api } from "~/utils/api";
 import { FiArrowLeft, FiEye, FiEdit, FiUpload } from "react-icons/fi";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { MarkdownRenderer } from "~/components/blog";
+import { markdownContentStyles } from "~/constants/blog";
 // --- utils ---
 function parseTags(input: string): string[] {
   // accept commas OR spaces as separators; dedupe; lowercase slugs
@@ -410,53 +410,10 @@ export default function EditPost() {
                   borderColor="whiteAlpha.200"
                   rounded="md"
                   p={4}
-                  sx={{
-                    "& h1": {
-                      fontSize: "2xl",
-                      fontWeight: "800",
-                      mt: 6,
-                      mb: 3,
-                      color: "white",
-                    },
-                    "& h2": {
-                      fontSize: "xl",
-                      fontWeight: "700",
-                      mt: 5,
-                      mb: 2,
-                      color: "white",
-                    },
-                    "& h3": {
-                      fontSize: "lg",
-                      fontWeight: "700",
-                      mt: 4,
-                      mb: 2,
-                      color: "gray.100",
-                    },
-                    "& p": { mb: 3, lineHeight: 1.85, color: "gray.200" },
-                    "& ul, & ol": { pl: 6, mb: 3, color: "gray.200" },
-                    "& code": {
-                      bg: "whiteAlpha.200",
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: "md",
-                      fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular",
-                    },
-                    "& pre": {
-                      bg: "gray.800",
-                      p: 4,
-                      borderRadius: "lg",
-                      overflowX: "auto",
-                      mb: 4,
-                      borderWidth: "1px",
-                      borderColor: "whiteAlpha.200",
-                    },
-                    "& a": { color: "green.300", textDecoration: "underline" },
-                  }}
+                  sx={markdownContentStyles}
                 >
                   {content ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {content}
-                    </ReactMarkdown>
+                    <MarkdownRenderer content={content} />
                   ) : (
                     <Text color="gray.500" fontStyle="italic">
                       No content yet.

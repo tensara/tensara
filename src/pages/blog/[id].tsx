@@ -35,6 +35,7 @@ import {
 import Link from "next/link";
 import { format } from "date-fns";
 import { MarkdownRenderer } from "~/components/blog";
+import { markdownContentStyles } from "~/constants/blog";
 
 // Typed helper aliases for tRPC outputs
 type CommentType = RouterOutputs["comments"]["getByPost"][number];
@@ -373,31 +374,29 @@ export default function BlogPost() {
                     <>
                       <Text>·</Text>
                       <HStack spacing={1}>
-                        <Tooltip label="Edit">
-                          <IconButton
-                            aria-label="Edit post"
-                            icon={<Icon as={FiEdit3} />}
-                            onClick={() => router.push(`/blog/edit/${post.id}`)}
-                            colorScheme="green"
-                            variant="ghost"
-                            size="xs"
-                            h="auto"
-                            py={1}
-                          />
-                        </Tooltip>
-                        <Tooltip label="Delete">
-                          <IconButton
-                            aria-label="Delete post"
-                            icon={<Icon as={FiTrash2} />}
-                            onClick={() => del.mutate({ id: post.id })}
-                            isLoading={mutationIsRunning(del)}
-                            colorScheme="red"
-                            variant="ghost"
-                            size="xs"
-                            h="auto"
-                            py={1}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="Edit post"
+                          icon={<Icon as={FiEdit3} />}
+                          onClick={() => router.push(`/blog/edit/${post.id}`)}
+                          variant="ghost"
+                          color="gray.500"
+                          size="xs"
+                          h="auto"
+                          bg="none"
+                          _hover={{ bg: "none" }}
+                        />
+                        <IconButton
+                          aria-label="Delete post"
+                          icon={<Icon as={FiTrash2} />}
+                          onClick={() => del.mutate({ id: post.id })}
+                          isLoading={mutationIsRunning(del)}
+                          variant="ghost"
+                          color="gray.500"
+                          size="xs"
+                          h="auto"
+                          bg="none"
+                          _hover={{ bg: "none" }}
+                        />
                       </HStack>
                     </>
                   )}
@@ -452,108 +451,7 @@ export default function BlogPost() {
               w="90%"
               mx="auto"
               className="markdown-content"
-              sx={{
-                "& h1": {
-                  fontSize: "2xl",
-                  fontWeight: "800",
-                  mt: 10,
-                  mb: 4,
-                  color: "white",
-                },
-                "& h2": {
-                  fontSize: "xl",
-                  fontWeight: "700",
-                  mt: 8,
-                  mb: 3,
-                  color: "white",
-                },
-                "& h3": {
-                  fontSize: "lg",
-                  fontWeight: "700",
-                  mt: 6,
-                  mb: 2,
-                  color: "gray.100",
-                },
-                "& p": {
-                  fontSize: "lg",
-                  lineHeight: 1.85,
-                  mb: 4,
-                  color: "gray.200",
-                },
-                "& a": {
-                  color: "green.300",
-                  textDecoration: "underline",
-                  _hover: { color: "green.200" },
-                },
-                "& ul, & ol": {
-                  pl: 6,
-                  mb: 4,
-                  color: "gray.200",
-                },
-                "& li": {
-                  mb: 2,
-                  fontSize: "lg",
-                },
-                "& blockquote": {
-                  borderLeftWidth: "3px",
-                  borderColor: "whiteAlpha.400",
-                  pl: 4,
-                  py: 1,
-                  fontStyle: "italic",
-                  color: "gray.300",
-                  my: 4,
-                },
-                "& code": {
-                  bg: "whiteAlpha.200",
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: "md",
-                  fontSize: "0.9em",
-                  fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular",
-                  color: "green.200",
-                },
-                "& pre": {
-                  bg: "gray.800",
-                  p: 4,
-                  borderRadius: "lg",
-                  overflow: "auto",
-                  mb: 5,
-                  borderWidth: "1px",
-                  borderColor: "whiteAlpha.200",
-                },
-                "& pre code": {
-                  bg: "transparent",
-                  p: 0,
-                  color: "gray.100",
-                },
-                "& img": {
-                  borderRadius: "md",
-                  my: 6,
-                },
-                "& hr": {
-                  borderColor: "whiteAlpha.300",
-                  my: 10,
-                },
-                "& table": {
-                  width: "100%",
-                  mb: 4,
-                  borderCollapse: "collapse",
-                },
-                "& th, & td": {
-                  borderWidth: "1px",
-                  borderColor: "whiteAlpha.200",
-                  p: 3,
-                  textAlign: "left",
-                },
-                "& th": {
-                  bg: "whiteAlpha.100",
-                  fontWeight: "600",
-                  color: "white",
-                },
-                "& td": {
-                  color: "gray.200",
-                },
-              }}
+              sx={markdownContentStyles}
             >
               <MarkdownRenderer content={post.content ?? ""} />
             </Box>

@@ -97,3 +97,28 @@ export const clearBlogPostSnapshot = (id: string): void => {
     console.warn("Failed to clear blog post snapshot from localStorage:", err);
   }
 };
+
+const BLOG_ACTIVE_TAB_KEY = "blog_active_tab";
+
+export const saveBlogActiveTab = (tab: "all" | "myPosts" | "myDrafts"): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(BLOG_ACTIVE_TAB_KEY, tab);
+  } catch (err) {
+    console.warn("Failed to save blog active tab to localStorage:", err);
+  }
+};
+
+export const loadBlogActiveTab = (): "all" | "myPosts" | "myDrafts" | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(BLOG_ACTIVE_TAB_KEY);
+    if (!stored) return null;
+    if (stored === "all" || stored === "myPosts" || stored === "myDrafts") {
+      return stored;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};

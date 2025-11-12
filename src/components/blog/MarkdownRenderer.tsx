@@ -1,6 +1,8 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import { Fragment } from "react";
 
 interface MarkdownRendererProps {
@@ -48,8 +50,8 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   if (segments.length === 0) {
     return (
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex, rehypeHighlight]}
       >
         {content}
       </ReactMarkdown>
@@ -63,8 +65,8 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         <Fragment key={index}>
           {/* {segment.type === "text" ? ( */}
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeHighlight]}
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex, rehypeHighlight]}
           >
             {segment.content}
           </ReactMarkdown>
