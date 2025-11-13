@@ -27,13 +27,7 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
 import { saveBlogActiveTab, loadBlogActiveTab } from "~/utils/localStorage";
-import {
-  FiEdit,
-  FiTrash,
-  FiChevronDown,
-  FiBookOpen,
-  FiFilePlus,
-} from "react-icons/fi";
+import { FiEdit, FiTrash, FiFilePlus } from "react-icons/fi";
 import { FaSortAmountDown, FaSearch } from "react-icons/fa";
 
 function useDebouncedValue<T>(value: T, delay = 300) {
@@ -117,10 +111,12 @@ export default function BlogIndex() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
   const [sort, setSort] = useState<"recent" | "top">("recent");
-  const [activeTab, setActiveTab] = useState<"all" | "myPosts" | "myDrafts">(() => {
-    // Load saved tab from localStorage on mount
-    return loadBlogActiveTab() ?? "all";
-  });
+  const [activeTab, setActiveTab] = useState<"all" | "myPosts" | "myDrafts">(
+    () => {
+      // Load saved tab from localStorage on mount
+      return loadBlogActiveTab() ?? "all";
+    }
+  );
 
   // Save tab to localStorage whenever it changes
   useEffect(() => {
@@ -145,7 +141,7 @@ export default function BlogIndex() {
     tpl: "blank" | "worklog" | "tutorial-submission" | "daily-log"
   ) => {
     if (!session) {
-      void signIn();
+      await signIn();
       return;
     }
     try {
@@ -166,12 +162,20 @@ export default function BlogIndex() {
 
       // 4) jump to editor
       await router.push(`/blog/edit/${draft.id}`);
-    } catch (e: any) {
-      toast({
-        title: "Could not start from template",
-        description: e?.message ?? "Unknown error",
-        status: "error",
-      });
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        toast({
+          title: "Could not start from template",
+          description: e.message,
+          status: "error",
+        });
+      } else {
+        toast({
+          title: "Could not start from template",
+          description: "Unknown error",
+          status: "error",
+        });
+      }
     }
   };
 
@@ -223,50 +227,14 @@ export default function BlogIndex() {
     }
   );
 
-  const utils = api.useContext();
-  const createDraft = api.blogpost.createDraft.useMutation({
-    onSuccess: async (post) => {
-      await utils.blogpost.listMine.invalidate();
-      await router.push(`/blog/edit/${post.id}`);
-    },
-  });
-
-  const createBlankDraft = () =>
-    createDraft.mutate({ title: "Untitled draft" });
-  // const createWorklogDraft = async () => {
-  //   const res = await fetch("/templates/worklog.md");
-  //   const template = await res.text();
-
-  //   const post = await createDraft.mutateAsync({ title: "Worklog draft" });
-  //   await updatePost.mutateAsync({
-  //     id: post.id,
-  //     title: "Worklog — <fill in>",
-  //     content: template,
-  //     status: "DRAFT",
-  //   });
-  //   await utils.blogpost.listMine.invalidate();
-  //   void router.push(`/blog/edit/${post.id}`);
-  // };
-
   const allPublished = pub.data?.pages.flatMap((p) => p.posts) ?? [];
   const minePub = minePublished.data?.pages.flatMap((p) => p.posts) ?? [];
   const drafts = myDrafts.data?.pages.flatMap((p) => p.posts) ?? [];
 
-  // common button styles (dark theme friendly)
-  const solidBtn = {
-    bg: "green.600",
-    color: "white",
-    border: "1px solid",
-    borderColor: "green.500",
-    _hover: { bg: "green.500", borderColor: "green.400" },
-    _active: { bg: "green.700", borderColor: "green.600" },
-    rounded: "lg",
-  } as const;
-
   const getGhostBtnStyles = (tabName?: "all" | "myPosts" | "myDrafts") => {
     const isTabButton = tabName !== undefined;
     const isActive = isTabButton && tabName === activeTab;
-    
+
     return {
       bg: "gray.800",
       color: "gray.100",
@@ -286,12 +254,7 @@ export default function BlogIndex() {
     <Layout title="Blog">
       <Box>
         <Container maxW="7xl" mx="auto" py={8}>
-          <Flex
-            direction="row"
-            align="center"
-            mb={6}
-            gap={4}
-          >
+          <Flex direction="row" align="center" mb={6} gap={4}>
             <Box w="full">
               <Heading
                 as="h1"
@@ -307,11 +270,7 @@ export default function BlogIndex() {
               </Text>
             </Box>
 
-            <HStack
-              spacing={4}
-              w="full"
-              align="stretch"
-            >
+            <HStack spacing={4} w="full" align="stretch">
               <InputGroup flex="1">
                 <InputLeftElement pointerEvents="none">
                   <FaSearch color="#d4d4d8" />
@@ -336,8 +295,15 @@ export default function BlogIndex() {
                     borderColor="whiteAlpha.100"
                     _hover={{ bg: "green.600", borderColor: "whiteAlpha.200" }}
                     _active={{ bg: "green.600", borderColor: "whiteAlpha.200" }}
-                    _expanded={{ bg: "green.600", borderColor: "whiteAlpha.200" }}
-                    _focus={{ bg: "green.600", borderColor: "whiteAlpha.200", boxShadow: "none" }}
+                    _expanded={{
+                      bg: "green.600",
+                      borderColor: "whiteAlpha.200",
+                    }}
+                    _focus={{
+                      bg: "green.600",
+                      borderColor: "whiteAlpha.200",
+                      boxShadow: "none",
+                    }}
                     color="white"
                     borderRadius="md"
                     h="40px"
@@ -599,7 +565,11 @@ export default function BlogIndex() {
                         </Text>
                       </Box>
                       <HStack>
-                        <Link href={`/blog/edit/${post.id}`} passHref legacyBehavior>
+                        <Link
+                          href={`/blog/edit/${post.id}`}
+                          passHref
+                          legacyBehavior
+                        >
                           <IconButton
                             as="a"
                             size="sm"

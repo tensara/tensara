@@ -16,7 +16,6 @@ import {
   Icon,
   IconButton,
   Divider,
-  Tooltip,
   Collapse,
   useToast,
 } from "@chakra-ui/react";
@@ -25,7 +24,6 @@ import { useSession, signIn } from "next-auth/react";
 import {
   FiEdit3,
   FiTrash2,
-  FiCalendar,
   FiArrowLeft,
   FiThumbsUp,
   FiChevronDown,
@@ -214,7 +212,12 @@ export default function BlogPost() {
           </HStack>
 
           {replyOpen && (
-            <Box mt={2} pl={3} borderLeftWidth="1px" borderColor="whiteAlpha.100">
+            <Box
+              mt={2}
+              pl={3}
+              borderLeftWidth="1px"
+              borderColor="whiteAlpha.100"
+            >
               <Textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
@@ -297,7 +300,7 @@ export default function BlogPost() {
     return (
       <Layout title="Not found">
         <Box minH="100vh" py={16}>
-        <Container maxW="7xl" mx="auto">
+          <Container maxW="7xl" mx="auto">
             <VStack spacing={4}>
               <Text color="gray.400" fontSize="xl">
                 Post not found
@@ -349,9 +352,21 @@ export default function BlogPost() {
                 {post.title}
               </Heading>
 
-              <Flex justify="space-between" align="center" mt={3} position="relative">
+              <Flex
+                justify="space-between"
+                align="center"
+                mt={3}
+                position="relative"
+              >
                 <Box flex={1} />
-                <HStack spacing={2} color="gray.500" fontSize="sm" position="absolute" left="50%" transform="translateX(-50%)">
+                <HStack
+                  spacing={2}
+                  color="gray.500"
+                  fontSize="sm"
+                  position="absolute"
+                  left="50%"
+                  transform="translateX(-50%)"
+                >
                   <HStack spacing={2}>
                     <Avatar
                       size="xs"
@@ -410,7 +425,9 @@ export default function BlogPost() {
                     transition="color 0.5s ease"
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText(window.location.href);
+                        await navigator.clipboard.writeText(
+                          window.location.href
+                        );
                         toast({
                           title: "Link copied",
                           status: "success",
@@ -418,6 +435,7 @@ export default function BlogPost() {
                           isClosable: true,
                         });
                       } catch (err) {
+                        console.error(err);
                       }
                     }}
                     cursor="pointer"
@@ -432,9 +450,7 @@ export default function BlogPost() {
                     color={postHasUpvoted?.hasUpvoted ? "white" : "gray.500"}
                     _hover={{ color: "white" }}
                     transition="color 0.5s ease"
-                    onClick={() =>
-                      postUpvoteToggle.mutate({ postId: post.id })
-                    }
+                    onClick={() => postUpvoteToggle.mutate({ postId: post.id })}
                     cursor="pointer"
                     fontSize="sm"
                   >

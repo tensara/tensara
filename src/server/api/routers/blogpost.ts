@@ -890,11 +890,7 @@ export const blogpostRouter = createTRPCRouter({
           new Set([...(input.tagIds ?? []), ...resolvedFromStrings])
         ).filter(Boolean);
 
-        const tx: Array<
-          ReturnType<typeof db.$transaction> extends Promise<infer _T>
-            ? any
-            : never
-        > = [];
+        const tx: Prisma.PrismaPromise<unknown>[] = [];
 
         // Remove any relations not in desired set (keeps already-linked ones)
         tx.push(

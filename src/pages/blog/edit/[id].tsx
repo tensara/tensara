@@ -166,7 +166,7 @@ export default function EditPost() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        onSaveNow();
+        void onSaveNow();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -190,19 +190,20 @@ export default function EditPost() {
   }, [postQ.data?.status]);
 
   // Button styles matching index.tsx
-  const getGhostBtnStyles = () => ({
-    bg: "gray.800",
-    color: "gray.100",
-    borderColor: "gray.700",
-    px: 4,
-    _hover: {
-      bg: "gray.700",
-      borderColor: "gray.600",
-    },
-    _active: { bg: "green.700", borderColor: "green.600" },
-    transition: "all 0.5s ease",
-    rounded: "lg",
-  } as const);
+  const getGhostBtnStyles = () =>
+    ({
+      bg: "gray.800",
+      color: "gray.100",
+      borderColor: "gray.700",
+      px: 4,
+      _hover: {
+        bg: "gray.700",
+        borderColor: "gray.600",
+      },
+      _active: { bg: "green.700", borderColor: "green.600" },
+      transition: "all 0.5s ease",
+      rounded: "lg",
+    }) as const;
 
   const solidBtn = {
     bg: "green.600",
@@ -213,7 +214,6 @@ export default function EditPost() {
     _active: { bg: "green.700", borderColor: "green.600" },
     rounded: "lg",
   } as const;
-
 
   if (status === "loading" || postQ.isLoading) {
     return (
@@ -257,7 +257,7 @@ export default function EditPost() {
       toast({ title: "Title and content required", status: "warning" });
       return;
     }
-    
+
     try {
       // Save the content first before publishing
       await updatePost.mutateAsync({
@@ -308,7 +308,9 @@ export default function EditPost() {
                 size="sm"
                 leftIcon={<Icon as={FiUpload} />}
                 onClick={onPublish}
-                isDisabled={updatePost.isPending || !title.trim() || !content.trim()}
+                isDisabled={
+                  updatePost.isPending || !title.trim() || !content.trim()
+                }
                 isLoading={publish.isPending}
                 {...solidBtn}
               >

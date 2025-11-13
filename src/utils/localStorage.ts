@@ -76,9 +76,7 @@ export const saveBlogPostSnapshot = (
   }
 };
 
-export const loadBlogPostSnapshot = (
-  id: string
-): BlogPostSnapshot | null => {
+export const loadBlogPostSnapshot = (id: string): BlogPostSnapshot | null => {
   if (typeof window === "undefined") return null;
   try {
     const stored = localStorage.getItem(`${BLOG_POST_SNAPSHOT_PREFIX}${id}`);
@@ -100,7 +98,9 @@ export const clearBlogPostSnapshot = (id: string): void => {
 
 const BLOG_ACTIVE_TAB_KEY = "blog_active_tab";
 
-export const saveBlogActiveTab = (tab: "all" | "myPosts" | "myDrafts"): void => {
+export const saveBlogActiveTab = (
+  tab: "all" | "myPosts" | "myDrafts"
+): void => {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(BLOG_ACTIVE_TAB_KEY, tab);

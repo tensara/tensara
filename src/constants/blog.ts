@@ -61,7 +61,8 @@ export const markdownContentStyles: SystemStyleObject = {
     py: 0.5,
     borderRadius: "md",
     fontSize: "0.9em",
-    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace",
+    fontFamily:
+      "'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace",
     color: "green.200",
   },
   "& pre": {
@@ -72,13 +73,15 @@ export const markdownContentStyles: SystemStyleObject = {
     mb: 5,
     borderWidth: "1px",
     borderColor: "whiteAlpha.200",
-    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace",
+    fontFamily:
+      "'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace",
   },
   "& pre code": {
     bg: "transparent",
     p: 0,
     color: "gray.100",
-    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace",
+    fontFamily:
+      "'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace",
   },
   "& img": {
     borderRadius: "md",
@@ -108,4 +111,3 @@ export const markdownContentStyles: SystemStyleObject = {
     color: "gray.200",
   },
 };
-
