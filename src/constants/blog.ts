@@ -29,13 +29,20 @@ export const markdownContentStyles: SystemStyleObject = {
   "& p": {
     fontSize: "md",
     lineHeight: 1.5,
-    mb: 4,
+    mb: 2,
     color: "gray.200",
   },
   "& a": {
     color: "green.300",
     textDecoration: "underline",
-    _hover: { color: "green.200" },
+    textDecorationColor: "green.500",
+    textUnderlineOffset: "3px",
+    transition: "color 0.2s",
+    _hover: {
+      color: "green.400",
+      textDecorationColor: "green.600",
+    },
+    cursor: "pointer",
   },
   "& ul, & ol": {
     pl: 6,
@@ -43,8 +50,7 @@ export const markdownContentStyles: SystemStyleObject = {
     color: "gray.200",
   },
   "& li": {
-    mb: 2,
-    fontSize: "lg",
+    fontSize: "md",
   },
   "& blockquote": {
     borderLeftWidth: "3px",
@@ -63,7 +69,7 @@ export const markdownContentStyles: SystemStyleObject = {
     fontSize: "0.9em",
     fontFamily:
       "'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace",
-    color: "green.200",
+    color: "gray.200",
   },
   "& pre": {
     bg: "gray.800",
