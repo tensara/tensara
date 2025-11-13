@@ -1,0 +1,285 @@
+# dstack.ai Task Configuration for ROCm Kernel Execution
+# This task definition is used to compile and execute HIP kernels on AMD GPUs
+# Based on Section 3.1 and 3.3 of the implementation plan
+
+type: task
+name: tensara-rocm-runner
+
+# Task metadata
+description: "Execute and benchmark ROCm/HIP kernels on AMD GPU VMs"
+version: "1.0"
+
+# Python environment configuration
+python: "3.11"
+
+# Working directory inside the container
+working_dir: /workspace
+
+# Commands to execute (run sequentially)
+commands:
+  # Step 1: Update environment and verify ROCm installation
+  - echo "=== ROCm Environment Setup ==="
+  - rocm-smi || echo "ROCm SMI not available, will install"
+  
+  # Step 2: Install Python dependencies
+  - pip install --upgrade pip setuptools wheel
+  - pip install torch --index-url https://download.pytorch.org/whl/rocm6.0
+  - pip install numpy scipy pandas fastapi pydantic httpx
+  
+  # Step 3: Verify PyTorch ROCm support
+  - python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'ROCm available: {torch.cuda.is_available()}'); print(f'GPU count: {torch.cuda.device_count()}')"
+  
+  # Step 4: Display GPU information
+  - rocm-smi --showproductname --showmeminfo --showtemp
+  
+  # Step 5: Execute the ROCm runner script
+  - python rocm_runner.py
+
+# GPU requirements - will be overridden by profile selection
+gpu:
+  # Default to MI210 for cost efficiency
+  name: MI210
+  memory: 64GB
+  count: 1
+  # GPU architecture for compilation
+  arch: gfx90a
+
+# CPU and memory resources
+resources:
+  cpu: 16
+  memory: 64GB
+  # Disk space for binaries and temporary files
+  disk: 100GB
+  # Shared memory for kernel execution
+  shm_size: 16GB
+
+# Backend preference (from profiles.yml)
+backends:
+  - hotaisle-amd
+
+# Environment variables
+env:
+  # ROCm configuration
+  ROCM_PATH: /opt/rocm
+  HIP_PLATFORM: amd
+  HIP_VISIBLE_DEVICES: "0"
+  
+  # Compilation settings
+  HIP_CLANG_PATH: /opt/rocm/llvm/bin
+  HIPCC_VERBOSE: "0"
+  
+  # PyTorch settings
+  PYTORCH_ROCM_ARCH: gfx90a
+  HSA_OVERRIDE_GFX_VERSION: "9.0.0"
+  
+  # Logging and debugging
+  AMD_LOG_LEVEL: "1"
+  HIP_TRACE_API: "0"
+  
+  # Tensara-specific settings
+  TENSARA_BACKEND: rocm
+  TENSARA_GPU_TYPE: ${GPU_TYPE:-MI210}
+  TENSARA_MAX_EXECUTION_TIME: "60"
+  
+  # Cost tracking
+  TASK_START_TIME: $(date +%s)
+
+# Ports to expose (for future web interface)
+ports:
+  - 8000:8000  # FastAPI endpoint for status/results
+
+# Volume mounts
+volumes:
+  # Mount submission code
+  - ./submissions:/workspace/submissions:rw
+  # Mount compiled binaries cache
+  - ./cache:/workspace/cache:rw
+  # Mount results output
+  - ./results:/workspace/results:rw
+
+# Spot instance configuration for cost optimization
+spot_policy: auto
+# Fallback to on-demand if spot unavailable within 5 minutes
+spot_timeout: 300
+
+# Automatic termination settings
+termination:
+  # Terminate VM after task completion
+  on_completion: true
+  # Terminate if idle for 5 minutes (no new tasks)
+  idle_timeout: 300
+  # Maximum task duration: 1 hour (safety limit)
+  max_duration: 3600
+  # Graceful shutdown with 30 second warning
+  grace_period: 30
+
+# Resource limits and quotas
+limits:
+  # Maximum cost per task execution
+  max_cost: 0.15  # USD (approximately 3 minutes on MI210)
+  # Memory limit per process
+  memory_limit: 60GB
+  # CPU limit per process
+  cpu_limit: 15
+  # Execution timeout
+  timeout: 600  # 10 minutes including provisioning
+
+# Retry configuration for transient failures
+retry:
+  # Retry up to 2 times on failure
+  max_attempts: 3
+  # Exponential backoff between retries
+  backoff_multiplier: 2
+  # Initial retry delay
+  initial_delay: 30
+  # Maximum retry delay
+  max_delay: 300
+  # Retry on these error types
+  retry_on:
+    - ProvisioningError
+    - NetworkError
+    - TimeoutError
+
+# Health checks
+health_check:
+  # Check if GPU is responsive
+  command: rocm-smi --showproductname
+  # Run health check every 30 seconds
+  interval: 30
+  # Timeout for health check
+  timeout: 10
+  # Number of consecutive failures before marking unhealthy
+  retries: 3
+
+# Caching configuration
+cache:
+  # Cache compiled HIP binaries
+  enabled: true
+  # Cache key based on GPU type and source code hash
+  key: ${GPU_TYPE}-${SOURCE_HASH}
+  # Cache location
+  path: /workspace/cache
+  # Cache size limit
+  size_limit: 5GB
+  # Cache expiration
+  ttl: 86400  # 24 hours
+
+# Monitoring and metrics
+monitoring:
+  enabled: true
+  # Metrics to collect
+  metrics:
+    - gpu_utilization
+    - gpu_memory_used
+    - gpu_memory_total
+    - gpu_temperature
+    - gpu_power_usage
+    - cpu_utilization
+    - memory_used
+    - execution_time
+    - compilation_time
+    - cost_usd
+  # Sample interval
+  interval: 5  # seconds
+  # Export metrics to
+  export:
+    - stdout
+    - file:/workspace/results/metrics.json
+
+# Logging configuration
+logging:
+  # Log level
+  level: INFO
+  # Log format
+  format: json
+  # Log outputs
+  outputs:
+    - stdout
+    - file:/workspace/results/execution.log
+  # Capture stdout/stderr from commands
+  capture_output: true
+
+# Security settings
+security:
+  # Run as non-root user
+  run_as_user: ubuntu
+  # Drop capabilities
+  capabilities:
+    drop:
+      - ALL
+    add:
+      - SYS_PTRACE  # For debugging
+  # Read-only root filesystem
+  read_only_root_fs: false
+  # No privilege escalation
+  allow_privilege_escalation: false
+
+# Networking configuration
+network:
+  # Public IP required for results upload
+  public_ip: true
+  # Security groups
+  security_groups:
+    - dstack-rocm-compute
+  # Allowed outbound destinations
+  egress:
+    - 0.0.0.0/0  # Allow all outbound (for pip, PyTorch downloads)
+
+# Image configuration
+image:
+  # Base image with ROCm pre-installed
+  name: ubuntu-22.04-rocm-6.0
+  registry: hotaisle
+  # Image pull policy
+  pull_policy: IfNotPresent
+
+# Init containers (run before main task)
+init:
+  # Pre-warm the GPU
+  - name: gpu-warmup
+    command: python -c "import torch; torch.cuda.init(); print('GPU initialized')"
+    timeout: 30
+
+# Post-execution hooks
+hooks:
+  # Execute before task starts
+  pre_run:
+    - echo "Task starting at $(date)"
+    - df -h  # Show disk space
+    - free -h  # Show memory
+  
+  # Execute after task completes (success or failure)
+  post_run:
+    - echo "Task completed at $(date)"
+    - echo "Duration: $(($(date +%s) - ${TASK_START_TIME})) seconds"
+    # Clean up temporary files
+    - rm -rf /tmp/tensara-*
+  
+  # Execute on success
+  on_success:
+    - echo "✓ Task succeeded"
+    - cat /workspace/results/metrics.json
+  
+  # Execute on failure
+  on_failure:
+    - echo "✗ Task failed"
+    - cat /workspace/results/execution.log
+    - rocm-smi  # Show GPU state on failure
+
+# Task dependencies (for chaining tasks)
+dependencies: []
+
+# Tags for organization and filtering
+tags:
+  - rocm
+  - hip
+  - amd-gpu
+  - tensara
+  - benchmark
+
+# Annotations (metadata)
+annotations:
+  created_by: tensara-platform
+  purpose: kernel-benchmarking
+  cost_center: research
+  environment: production

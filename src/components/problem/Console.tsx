@@ -28,6 +28,13 @@ const StatusBadge = ({
           text: "Queued",
           loading: true,
         };
+      case SampleStatus.PROVISIONING:
+        return {
+          color: "#FFA500",
+          bg: "#352B1B",
+          text: "Provisioning GPU (2-5 min)",
+          loading: true,
+        };
       case SampleStatus.COMPILING:
         return {
           color: "#569cd6",

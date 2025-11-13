@@ -115,23 +115,27 @@ export default async function handler(
   }, 30000);
 
   try {
-    const benchmarkResponse = await fetch(
-      env.MODAL_ENDPOINT + "/benchmark_cli-" + (gpuType ?? "T4"),
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          solution_code: code,
-          problem: problem.slug,
-          problem_def: problem.definition,
-          gpu_type: gpuType,
-          dtype: "float32",
-          language: language,
-        }),
-      }
-    );
+    // Route AMD GPUs to new dstack endpoint, others to Modal
+    const isAMDGPU = gpuType?.startsWith("MI");
+    const endpoint = isAMDGPU
+      ? `http://localhost:${process.env.PORT || 3000}/api/amd/submit`
+      : env.MODAL_ENDPOINT + "/benchmark_cli-" + (gpuType ?? "T4");
+
+    const benchmarkResponse = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        solution_code: code,
+        problem: problem.slug,
+        problem_def: problem.definition,
+        gpu_type: gpuType,
+        dtype: "float32",
+        language: language,
+        ...(isAMDGPU && { endpoint: "benchmark" }),
+      }),
+    });
 
     if (!benchmarkResponse.ok) {
       const errorText = await benchmarkResponse.text();

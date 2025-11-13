@@ -1,6 +1,7 @@
 // Submission Status Constants
 export const SubmissionStatus = {
   IN_QUEUE: "IN_QUEUE",
+  PROVISIONING: "PROVISIONING", // AMD GPU provisioning status
   COMPILING: "COMPILING",
   CHECKING: "CHECKING",
   TEST_RESULT: "TEST_RESULT",
@@ -165,6 +166,7 @@ export type SubmissionResponse =
 export const SampleStatus = {
   IDLE: "IDLE",
   IN_QUEUE: "IN_QUEUE",
+  PROVISIONING: "PROVISIONING", // AMD GPU provisioning status
   COMPILING: "COMPILING",
   RUNNING: "RUNNING",
   PASSED: "PASSED",

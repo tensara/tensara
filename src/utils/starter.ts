@@ -16,6 +16,11 @@ export const generateStarterCode = (
   language: string,
   dataType: DataType
 ) => {
+  // Safety check: return empty string if parameters is undefined or not an array
+  if (!parameters || !Array.isArray(parameters)) {
+    return "";
+  }
+
   if (language === "cuda") {
     const names = parameters
       .map((parameter: Parameter) =>

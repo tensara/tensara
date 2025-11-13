@@ -118,11 +118,22 @@ export default async function handler(
   };
 
   try {
+    // Route AMD GPUs to new dstack endpoint, others to Modal
+    const isAMDGPU = gpuType?.startsWith("MI");
+    const endpoint = isAMDGPU
+      ? `http://localhost:${process.env.PORT || 3000}/api/amd/submit`
+      : `${env.MODAL_ENDPOINT}/sample-${gpuType}`;
+
+    // Add endpoint field for AMD GPU
+    const finalPayload = isAMDGPU
+      ? { ...payload, endpoint: "sample" }
+      : payload;
+
     // No-op onEvent: we don't need server-side taps for Sample
     const result = await proxyUpstreamSSE(
       res,
-      `${env.MODAL_ENDPOINT}/sample-${gpuType}`,
-      payload,
+      endpoint,
+      finalPayload,
       async () => "CONTINUE",
       controller.signal
     );

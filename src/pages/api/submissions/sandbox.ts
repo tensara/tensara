@@ -28,7 +28,7 @@ export default async function handler(
     return;
   }
 
-  const { code } = req.body as { code: string };
+  const { code, gpuType } = req.body as { code: string; gpuType?: string };
 
   if (!code) {
     res.status(400).json({
@@ -36,6 +36,9 @@ export default async function handler(
     });
     return;
   }
+
+  // Default to T4 if no GPU type specified
+  const selectedGpuType = gpuType ?? "T4";
 
   const rateLimit = await checkRateLimit(session.user.id);
   if (!rateLimit.allowed) {
@@ -119,14 +122,29 @@ export default async function handler(
     });
 
     console.log("Starting sandbox process");
-    const sandboxResponse = await fetch(env.MODAL_ENDPOINT + "/sandbox-T4", {
+
+    // Route AMD GPUs to new dstack endpoint, others to Modal
+    const isAMDGPU = selectedGpuType.startsWith("MI");
+    const endpoint = isAMDGPU
+      ? `http://localhost:${process.env.PORT || 3000}/api/amd/submit`
+      : env.MODAL_ENDPOINT + "/sandbox-" + selectedGpuType;
+
+    const sandboxResponse = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        solution_code: submission.code,
         code: submission.code,
         language: submission.language,
+        problem: "sandbox",
+        problem_def: "Sandbox execution",
+        gpu_type: selectedGpuType,
+        dtype: "float32",
+        ...(isAMDGPU && {
+          endpoint: "sandbox",
+        }),
       }),
     });
 

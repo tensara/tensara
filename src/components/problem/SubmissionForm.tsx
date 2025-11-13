@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import {
   HStack,
   Box,
@@ -11,6 +11,7 @@ import {
   MenuList,
   MenuItem,
   Tooltip,
+  useToast,
 } from "@chakra-ui/react";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 
@@ -54,6 +55,22 @@ const SubmissionForm = ({
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
+
+  // Show warning toast when AMD GPU is selected
+  useEffect(() => {
+    if (selectedGpuType?.startsWith("MI")) {
+      toast({
+        title: "AMD GPU Selected",
+        description:
+          "AMD GPUs require VM provisioning which takes 2-5 minutes. Please be patient during execution.",
+        status: "info",
+        duration: 8000,
+        isClosable: true,
+        position: "top",
+      });
+    }
+  }, [selectedGpuType, toast]);
 
   return (
     <Flex
