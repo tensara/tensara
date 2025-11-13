@@ -243,9 +243,9 @@ export default function EditPost() {
     );
   }
 
-  const onPublish = () => {
+  const onPublish = async () => {
     if (!id) return;
-    if (updatePost.isPending) {
+    if (updatePost.isPending || publish.isPending) {
       toast({
         title: "Saving…",
         description: "Please wait a moment.",
@@ -257,7 +257,25 @@ export default function EditPost() {
       toast({ title: "Title and content required", status: "warning" });
       return;
     }
-    publish.mutate({ id });
+    
+    try {
+      // Save the content first before publishing
+      await updatePost.mutateAsync({
+        id,
+        title,
+        content,
+        tags,
+      });
+      // Then publish
+      await publish.mutateAsync({ id });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to publish";
+      toast({
+        title: "Publish failed",
+        description: message,
+        status: "error",
+      });
+    }
   };
 
   return (

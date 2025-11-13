@@ -141,7 +141,9 @@ export default function BlogIndex() {
     throw new Error(`Template "${name}" not found`);
   };
 
-  const createFromTemplate = async (tpl: "blank" | "worklog" | "example") => {
+  const createFromTemplate = async (
+    tpl: "blank" | "worklog" | "tutorial-submission" | "daily-log"
+  ) => {
     if (!session) {
       void signIn();
       return;
@@ -276,6 +278,7 @@ export default function BlogIndex() {
       _active: { bg: "green.700", borderColor: "green.600" },
       transition: "all 0.5s ease",
       rounded: "lg",
+      cursor: "pointer",
     };
   };
 
@@ -374,7 +377,16 @@ export default function BlogIndex() {
                       Optimization Worklog
                     </MenuItem>
                     <MenuItem
-                      onClick={() => createFromTemplate("worklog")}
+                      onClick={() => createFromTemplate("tutorial-submission")}
+                      bg="brand.secondary"
+                      _hover={{ bg: "gray.700" }}
+                      color="white"
+                      borderRadius="md"
+                    >
+                      Tutorial Submission
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => createFromTemplate("daily-log")}
                       bg="brand.secondary"
                       _hover={{ bg: "gray.700" }}
                       color="white"
