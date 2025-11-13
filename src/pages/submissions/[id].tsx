@@ -25,7 +25,8 @@ import {
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
+import { useRouter } from "next/router";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
@@ -110,7 +111,7 @@ const SubmissionPage: NextPage<{
   pageTitle: string;
   error?: string;
 }> = ({ id, pageTitle }) => {
-  // const router = useRouter();
+  const router = useRouter();
   const [code, setCode] = useState("");
   const { data: session } = useSession();
   const toast = useToast();
@@ -120,6 +121,9 @@ const SubmissionPage: NextPage<{
     isLoading,
     refetch,
   } = api.submissions.getSubmissionById.useQuery({ id }, { enabled: !!id });
+
+  const createDraftPost = api.blogpost.createDraft.useMutation();
+  const autosavePost = api.blogpost.autosave.useMutation();
 
   const togglePublicMutation = api.problems.toggleSubmissionPublic.useMutation({
     onSuccess: async () => {
@@ -643,6 +647,105 @@ const SubmissionPage: NextPage<{
                     transition="background 0.5s"
                   >
                     Copy Code
+                  </Button>
+                )}
+                {canViewCode && (
+                  <Button
+                    size="sm"
+                    colorScheme="green"
+                    variant="ghost"
+                    onClick={async () => {
+                      if (!session) {
+                        void signIn();
+                        return;
+                      }
+                      if (!submission) return;
+
+                      try {
+                        // 1) Build initial title/content (same as your current localStorage draft)
+                        const language = (() => {
+                          const l = (submission.language ?? "").toLowerCase();
+                          if (l === "cuda") return "cpp";
+                          if (l === "triton") return "python";
+                          return l;
+                        })();
+
+                        const titleDraft = `Solution: ${submission.problem?.title ?? ""}`;
+                        const createdStr = new Date(
+                          submission.createdAt
+                        ).toLocaleString();
+                        const runtimeStr =
+                          submission.runtime != null
+                            ? submission.runtime.toFixed(2)
+                            : "N/A";
+                        const gflopsStr =
+                          submission.gflops != null
+                            ? submission.gflops.toFixed(2)
+                            : "N/A";
+                        const testsStr =
+                          submission.passedTests != null &&
+                          submission.totalTests != null
+                            ? `${submission.passedTests}/${submission.totalTests}`
+                            : "N/A";
+                        const problemLink = `https://tensara.org/problems/${
+                          submission.problem?.slug ?? ""
+                        }`;
+
+                        const contentDraft = `# Solution: ${submission.problem?.title ?? ""}
+
+[Problem: ${submission.problem?.title ?? ""}](${problemLink})
+
+**Submitted on:** \`${createdStr}\`
+
+- **Runtime:** \`${runtimeStr} ms\`
+- **Performance:** \`${gflopsStr} GFLOPS\`
+- **Tests:** \`${testsStr}\`
+
+\`\`\`${language}
+${code}
+\`\`\``;
+
+                        // 2) Create an empty DRAFT on the server
+                        const newPost = await createDraftPost.mutateAsync({
+                          title: titleDraft || "Untitled draft",
+                        });
+
+                        // 3) Immediately autosave the generated content + tags into that draft
+                        await autosavePost.mutateAsync({
+                          id: newPost.id,
+                          title: titleDraft,
+                          content: contentDraft,
+                          // optional: seed tag strings; your server resolves strings -> tagIds
+                          tagIds: undefined, // if you're using resolve-by-name server-side, omit this
+                          // If you wired autosave to accept `tags: string[]`, pass that instead:
+                          // tags: ["solution"],
+                        });
+
+                        // 4) Jump to the editor for this draft
+                        toast({
+                          title: "Draft created",
+                          description: "Opening blog editor…",
+                          status: "success",
+                          duration: 1500,
+                          isClosable: true,
+                        });
+                        void router.push(`/blog/edit/${newPost.id}`);
+                      } catch (error) {
+                        console.error(error);
+                        const err = error as { message?: string } | undefined;
+                        toast({
+                          title: "Could not create draft",
+                          description:
+                            err?.message ?? String(error) ?? "Unexpected error",
+                          status: "error",
+                        });
+                      }
+                    }}
+                    isLoading={
+                      createDraftPost.isPending || autosavePost.isPending
+                    }
+                  >
+                    Publish
                   </Button>
                 )}
                 {isOwner && (

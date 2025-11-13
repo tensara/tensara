@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
+    "migrate:blog-data": "tsx prisma/scripts/data-migration-blog-enhancements.ts",
     "dev": "next dev --turbo",
     "postinstall": "prisma generate",
     "lint": "next lint",

@@ -5,6 +5,11 @@ import { usersRouter } from "~/server/api/routers/users";
 import { apiKeysRouter } from "~/server/api/routers/apikey";
 import { workspaceRouter } from "./routers/workspace";
 import { snapshotRouter } from "./routers/snapshot";
+import { blogpostRouter } from "./routers/blogpost";
+import { commentRouter } from "./routers/comment";
+import { postupvoteRouter } from "./routers/postupvote";
+import { commentupvoteRouter } from "./routers/commentupvote";
+import { tagRouter } from "./routers/tag";
 
 /**
  * This is the primary router for your server.
@@ -18,6 +23,11 @@ export const appRouter = createTRPCRouter({
   apiKeys: apiKeysRouter,
   workspace: workspaceRouter,
   snapshot: snapshotRouter,
+  blogpost: blogpostRouter,
+  comments: commentRouter,
+  postUpvote: postupvoteRouter,
+  commentUpvote: commentupvoteRouter,
+  tag: tagRouter,
 });
 
 // export type definition of API
