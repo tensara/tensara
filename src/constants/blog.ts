@@ -27,8 +27,8 @@ export const markdownContentStyles: SystemStyleObject = {
     color: "gray.100",
   },
   "& p": {
-    fontSize: "lg",
-    lineHeight: 1.85,
+    fontSize: "md",
+    lineHeight: 1.5,
     mb: 4,
     color: "gray.200",
   },
