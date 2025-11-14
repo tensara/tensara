@@ -25,10 +25,11 @@ import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { saveBlogActiveTab, loadBlogActiveTab } from "~/utils/localStorage";
 import { FiEdit, FiTrash, FiFilePlus } from "react-icons/fi";
 import { FaSortAmountDown, FaSearch } from "react-icons/fa";
+import { useHotkey } from "~/hooks/useHotKey";
 
 function useDebouncedValue<T>(value: T, delay = 300) {
   const [v, setV] = useState(value);
@@ -117,6 +118,12 @@ export default function BlogIndex() {
       return loadBlogActiveTab() ?? "all";
     }
   );
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  useHotkey("meta+f", () => {
+    if (!searchInputRef.current) return;
+    searchInputRef.current.focus();
+    searchInputRef.current.select();
+  });
 
   // Save tab to localStorage whenever it changes
   useEffect(() => {
@@ -251,8 +258,11 @@ export default function BlogIndex() {
   };
 
   return (
-    
-    <Layout title="Blog" ogTitle="Blog | Tensara" ogImgSubtitle="Worklogs, tutorials, ideas and more">
+    <Layout
+      title="Blog"
+      ogTitle="Blog | Tensara"
+      ogImgSubtitle="Worklogs, tutorials, ideas and more"
+    >
       <Box>
         <Container maxW="7xl" mx="auto" py={8}>
           <Flex direction="row" align="center" mb={6} gap={4}>
@@ -277,6 +287,7 @@ export default function BlogIndex() {
                   <FaSearch color="#d4d4d8" />
                 </InputLeftElement>
                 <Input
+                  ref={searchInputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search title, text, tags…"
