@@ -17,6 +17,7 @@ import {
 } from "@chakra-ui/react";
 import { useSession } from "next-auth/react";
 import superjson from "superjson";
+import { useHotkey } from "~/hooks/useHotKey";
 
 import type { GetServerSideProps } from "next";
 import { type Problem, type Submission } from "@prisma/client";
@@ -346,56 +347,90 @@ export default function ProblemPage({ slug }: { slug: string }) {
     toast,
   ]);
 
+  // Cmd+Enter to submit
+  useHotkey(
+    "meta+enter",
+    () => {
+      if (isSubmitting) {
+        toast({
+          title: "Already submitting",
+          description: "Please wait for the submission to complete",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+      void handleSubmit();
+    },
+  );
+
+  // Cmd+' to run sample
+  useHotkey("meta+'", () => {
+    if (isRunning) {
+      toast({
+        title: "Already running",
+        description: "Please wait for the sample run to complete",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    void handleRun();
+  });
+
   // Keyboard shortcuts:
   // - Cmd+Enter => submit
   // - Cmd+' (Quote) => run sample
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      // Only respond to plain Meta (Cmd) + key (no Ctrl/Alt)
-      if (!e.metaKey || e.ctrlKey || e.altKey) return;
+  // useEffect(() => {
+  //   const onKeyDown = (e: KeyboardEvent) => {
+  //     // Only respond to plain Meta (Cmd) + key (no Ctrl/Alt)
+  //     if (!e.metaKey || e.ctrlKey || e.altKey) return;
 
-      // Cmd+Enter -> submit
-      if (e.key === "Enter") {
-        if (isSubmitting) {
-          toast({
-            title: "Already submitting",
-            description: "Please wait for the submission to complete",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-          return;
-        } else {
-          e.preventDefault();
-          void handleSubmit();
-          return;
-        }
-      }
+  //     // Cmd+Enter -> submit
+  //     if (e.key === "Enter") {
+  //       if (isSubmitting) {
+  //         toast({
+  //           title: "Already submitting",
+  //           description: "Please wait for the submission to complete",
+  //           status: "error",
+  //           duration: 5000,
+  //           isClosable: true,
+  //         });
+  //         return;
+  //       } else {
+  //         e.preventDefault();
+  //         void handleSubmit();
+  //         return;
+  //       }
+  //     }
 
-      // Cmd+' (Quote) -> run sample
-      // Some keyboards report "'" as the key, some report code === "Quote"
-      if (e.key === "'" || e.code === "Quote") {
-        if (isRunning) {
-          toast({
-            title: "Already running",
-            description: "Please wait for the sample run to complete",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-          return;
-        } else {
-          e.preventDefault();
-          void handleRun();
-          return;
-        }
-      }
-    };
+  //     // Cmd+' (Quote) -> run sample
+  //     // Some keyboards report "'" as the key, some report code === "Quote"
+  //     if (e.key === "'" || e.code === "Quote") {
+  //       if (isRunning) {
+  //         toast({
+  //           title: "Already running",
+  //           description: "Please wait for the sample run to complete",
+  //           status: "error",
+  //           duration: 5000,
+  //           isClosable: true,
+  //         });
+  //         return;
+  //       } else {
+  //         e.preventDefault();
+  //         void handleRun();
+  //         return;
+  //       }
+  //     }
+  //   };
 
-    const opts: AddEventListenerOptions = { capture: true };
-    window.addEventListener("keydown", onKeyDown, opts);
-    return () => window.removeEventListener("keydown", onKeyDown, opts);
-  }, [handleSubmit, handleRun, isSubmitting, isRunning]);
+  //   const opts: AddEventListenerOptions = { capture: true };
+  //   window.addEventListener("keydown", onKeyDown, opts);
+  //   return () => window.removeEventListener("keydown", onKeyDown, opts);
+  // }, [handleSubmit, handleRun, isSubmitting, isRunning]);
+
   if (isLoading) {
     return (
       <Layout title="Loading...">
