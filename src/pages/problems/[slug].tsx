@@ -348,22 +348,19 @@ export default function ProblemPage({ slug }: { slug: string }) {
   ]);
 
   // Cmd+Enter to submit
-  useHotkey(
-    "meta+enter",
-    () => {
-      if (isSubmitting) {
-        toast({
-          title: "Already submitting",
-          description: "Please wait for the submission to complete",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-        return;
-      }
-      void handleSubmit();
-    },
-  );
+  useHotkey("meta+enter", () => {
+    if (isSubmitting) {
+      toast({
+        title: "Already submitting",
+        description: "Please wait for the submission to complete",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    void handleSubmit();
+  });
 
   // Cmd+' to run sample
   useHotkey("meta+'", () => {

@@ -96,7 +96,7 @@ export default function ProblemsPage() {
   useHotkey("meta+f", () => {
     if (!searchInputRef.current) return;
     searchInputRef.current.focus();
-    searchInputRef.current.select(); 
+    searchInputRef.current.select();
   });
   const difficultyOptions = [
     { label: "All Difficulties", value: "all" },
