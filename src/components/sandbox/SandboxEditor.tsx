@@ -26,6 +26,7 @@ import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
 import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { useToast } from "@chakra-ui/react";
+import { useHotkey } from "~/hooks/useHotKey";
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -81,6 +82,19 @@ export default function Sandbox({
   const terminalRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  useHotkey("meta+enter", () => {
+    if (isRunning) {
+      toast({
+        title: "Already running",
+        description: "Please wait for the execution to complete",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    void runCode();
+  });
   useEffect(() => {
     // Auto-scroll terminal to bottom when new lines are added
     if (terminalRef.current) {

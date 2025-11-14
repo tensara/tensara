@@ -22,7 +22,7 @@ import {
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { FaSearch, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
@@ -30,6 +30,7 @@ import { createInnerTRPCContext } from "~/server/api/trpc";
 import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { tagNames, tagAltNames } from "~/constants/problem";
+import { useHotkey } from "~/hooks/useHotKey";
 
 type SortField = "title" | "difficulty" | "submissionCount";
 type SortDirection = "asc" | "desc";
@@ -84,12 +85,19 @@ export default function ProblemsPage() {
       refetchOnWindowFocus: false,
     }
   );
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
   const [sortField, setSortField] = useState<SortField>("difficulty");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
+  useHotkey("meta+f", () => {
+    if (!searchInputRef.current) return;
+    searchInputRef.current.focus();
+    searchInputRef.current.select();
+  });
   const difficultyOptions = [
     { label: "All Difficulties", value: "all" },
     { label: "Easy", value: "easy" },
@@ -199,6 +207,7 @@ export default function ProblemsPage() {
                 <FaSearch color="#d4d4d8" />
               </InputLeftElement>
               <Input
+                ref={searchInputRef}
                 placeholder="Search problems..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
