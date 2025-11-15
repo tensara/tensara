@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import {
   HStack,
   Box,
@@ -12,6 +12,13 @@ import {
   MenuItem,
   Tooltip,
   useToast,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
 } from "@chakra-ui/react";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 
@@ -37,6 +44,10 @@ interface SubmissionFormProps {
   isSubmitting: boolean;
   onRun?: () => void;
   isRunning?: boolean;
+  onGpuTypeChange?: (
+    newGpuType: string,
+    newLanguage: ProgrammingLanguage
+  ) => void;
 }
 
 const SubmissionForm = ({
@@ -52,25 +63,70 @@ const SubmissionForm = ({
   isSubmitting,
   onRun,
   isRunning,
+  onGpuTypeChange,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
+  const [isAmdWarningOpen, setIsAmdWarningOpen] = useState(false);
+  const [pendingGpuType, setPendingGpuType] = useState<string | null>(null);
 
-  // Show warning toast when AMD GPU is selected
-  useEffect(() => {
-    if (selectedGpuType?.startsWith("MI")) {
+  const handleGpuTypeClick = (gpuType: string) => {
+    // If switching to AMD GPU and code is dirty, show warning
+    if (
+      gpuType === "MI300X" &&
+      !selectedGpuType.startsWith("MI") &&
+      isCodeDirty
+    ) {
+      setPendingGpuType(gpuType);
+      setIsAmdWarningOpen(true);
+      return;
+    }
+
+    // Direct switch if no warning needed
+    applyGpuTypeChange(gpuType);
+  };
+
+  const applyGpuTypeChange = (gpuType: string) => {
+    const isAmdGpu = gpuType === "MI300X";
+    const newLanguage = isAmdGpu ? "hip" : selectedLanguage;
+
+    setSelectedGpuType(gpuType);
+    if (isAmdGpu && selectedLanguage !== "hip") {
+      setSelectedLanguage("hip");
+    }
+
+    // Call the callback if provided
+    if (onGpuTypeChange) {
+      onGpuTypeChange(gpuType, newLanguage);
+    }
+
+    // Show info toast for AMD GPU
+    if (isAmdGpu) {
       toast({
         title: "AMD GPU Selected",
         description:
-          "AMD GPUs require VM provisioning which takes 2-5 minutes. Please be patient during execution.",
+          "AMD GPUs require VM provisioning which takes 2-5 minutes. Code switched to HIP C++.",
         status: "info",
         duration: 8000,
         isClosable: true,
-        position: "top",
+        position: "bottom",
       });
     }
-  }, [selectedGpuType, toast]);
+  };
+
+  const handleAmdWarningConfirm = () => {
+    if (pendingGpuType) {
+      applyGpuTypeChange(pendingGpuType);
+      setPendingGpuType(null);
+    }
+    setIsAmdWarningOpen(false);
+  };
+
+  const handleAmdWarningCancel = () => {
+    setPendingGpuType(null);
+    setIsAmdWarningOpen(false);
+  };
 
   return (
     <Flex
@@ -118,9 +174,7 @@ const SubmissionForm = ({
                 .map(([key, value]) => (
                   <MenuItem
                     key={key}
-                    onClick={() => {
-                      setSelectedGpuType(key);
-                    }}
+                    onClick={() => handleGpuTypeClick(key)}
                     bg="brand.secondary"
                     _hover={{ bg: "gray.700" }}
                     color="white"
@@ -163,50 +217,67 @@ const SubmissionForm = ({
               borderRadius="lg"
               minW="140px"
             >
-              <MenuItem
-                key="cuda"
-                onClick={() => setSelectedLanguage("cuda")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                CUDA C++
-              </MenuItem>
-              <MenuItem
-                key="python"
-                onClick={() => setSelectedLanguage("python")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                Triton
-              </MenuItem>
-              <MenuItem
-                key="mojo"
-                onClick={() => setSelectedLanguage("mojo")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                Mojo
-              </MenuItem>
-              <MenuItem
-                key="cute"
-                onClick={() => setSelectedLanguage("cute")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                CuTe DSL
-              </MenuItem>
+              {/* Show HIP C++ only for AMD GPUs */}
+              {selectedGpuType === "MI300X" ? (
+                <MenuItem
+                  key="hip"
+                  onClick={() => setSelectedLanguage("hip")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="lg"
+                  fontSize="sm"
+                >
+                  HIP C++
+                </MenuItem>
+              ) : (
+                <>
+                  <MenuItem
+                    key="cuda"
+                    onClick={() => setSelectedLanguage("cuda")}
+                    bg="brand.secondary"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="lg"
+                    fontSize="sm"
+                  >
+                    CUDA C++
+                  </MenuItem>
+                  <MenuItem
+                    key="python"
+                    onClick={() => setSelectedLanguage("python")}
+                    bg="brand.secondary"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="lg"
+                    fontSize="sm"
+                  >
+                    Triton
+                  </MenuItem>
+                  <MenuItem
+                    key="mojo"
+                    onClick={() => setSelectedLanguage("mojo")}
+                    bg="brand.secondary"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="lg"
+                    fontSize="sm"
+                  >
+                    Mojo
+                  </MenuItem>
+                  <MenuItem
+                    key="cute"
+                    onClick={() => setSelectedLanguage("cute")}
+                    bg="brand.secondary"
+                    _hover={{ bg: "gray.700" }}
+                    color="white"
+                    borderRadius="lg"
+                    fontSize="sm"
+                  >
+                    CuTe DSL
+                  </MenuItem>
+                </>
+              )}
             </MenuList>
           </Menu>
         </Box>
@@ -404,6 +475,56 @@ const SubmissionForm = ({
           </Button>
         </Tooltip>
       </HStack>
+
+      {/* AMD GPU Warning Modal */}
+      <Modal
+        isOpen={isAmdWarningOpen}
+        onClose={handleAmdWarningCancel}
+        isCentered
+      >
+        <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
+        <ModalContent
+          bg="brand.secondary"
+          borderColor="whiteAlpha.100"
+          borderWidth={1}
+          mx={4}
+          maxW="md"
+        >
+          <ModalHeader color="white">Switch to AMD GPU?</ModalHeader>
+          <ModalCloseButton color="gray.400" />
+          <ModalBody>
+            <Text color="gray.300" mb={3}>
+              Switching to AMD GPU will replace your current code with HIP C++
+              starter template.
+            </Text>
+            <Text color="yellow.400" fontSize="sm">
+              ⚠️ Your current changes will be lost. Make sure to save your work
+              if needed.
+            </Text>
+          </ModalBody>
+
+          <ModalFooter gap={3}>
+            <Button
+              variant="ghost"
+              onClick={handleAmdWarningCancel}
+              color="gray.300"
+              _hover={{ bg: "whiteAlpha.100" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              bg="rgba(249, 115, 22, 0.1)"
+              color="rgb(249, 115, 22)"
+              _hover={{
+                bg: "rgba(249, 115, 22, 0.2)",
+              }}
+              onClick={handleAmdWarningConfirm}
+            >
+              Switch to AMD
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Flex>
   );
 };

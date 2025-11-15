@@ -1,17 +1,26 @@
 type: task
 
-# Terminate instance immediately after task completion (serverless)
-idle_duration: 0s
+# Keep instance warm for 5 minutes after task completion
+# This allows consecutive runs to reuse the same instance
+idle_duration: 5m
+
+# Reuse existing instances when possible
+creation_policy: reuse-or-create
 
 # Use spot instances for cost savings
 spot_policy: auto
 
 resources:
-  # GPU configuration - supports MI210, MI250X, MI300A, MI300X
-  # This will be overridden by the API call based on user selection
   gpu:
     name: MI300X
     count: 1
+  cpu: 2..
+  memory: 8GB..
+  disk: 100GB..
+
+# Backend configuration
+backends:
+  - hotaisle
 
 # ROCm-ready base image
 image: rocm/pytorch:latest
@@ -21,9 +30,9 @@ env:
   - ROCM_PATH=/opt/rocm
   - HIP_PLATFORM=amd
 
-# No files needed - code will be injected via commands
-# files:
-#   - ./matmul.hip
+# Upload the HIP source file
+files:
+  - ./matmul.hip
 
 # Commands will be injected by dstack_runner.py
 # Default example commands for reference:
@@ -33,10 +42,10 @@ commands:
   - hipcc --version || echo 'hipcc not available'
   - echo ""
   - echo "=== Compiling HIP Kernel ==="
-  - hipcc solution.hip -o solution -O3 || exit 1
+  - hipcc matmul.hip -o matmul -O3 || exit 1
   - echo "Compilation successful"
   - echo ""
   - echo "=== Running Kernel ==="
-  - ./solution 1024
+  - ./matmul 1024
   - echo ""
   - echo "=== Execution Complete ==="

@@ -216,16 +216,8 @@ class DStackClient:
                 "echo '=== Execution Complete ==='",
             ]
             
-            # Map GPU types to memory requirements
-            gpu_memory_map = {
-                "MI210": "64GB",
-                "MI250X": "128GB",
-                "MI300A": "192GB",
-                "MI300X": "192GB",
-            }
-            gpu_memory = gpu_memory_map.get(config.gpu_type, "64GB")
-            
             # Create task using official SDK
+            # Matches working CLI config from testing/rocm-dstack-hotaisle/.dstack.yml
             task = Task(
                 name=f"tensara-{config.submission_id}",
                 image="rocm/pytorch:latest",  # ROCm base image with HIP support
@@ -239,13 +231,25 @@ class DStackClient:
                 },
                 commands=commands,
                 resources=Resources(
-                    gpu=GPU(memory=gpu_memory, name=config.gpu_type),
+                    gpu=GPU(
+                        name=config.gpu_type,
+                        count=1,  # Critical: explicit GPU count for resource matching
+                        # NOTE: Removed memory constraint to match CLI behavior
+                    ),
                 ),
+                # CRITICAL: Fleet creation policy - tells dstack whether to reuse or create fleets
+                creation_policy="reuse-or-create",
+                # Working directory for task execution
+                working_dir="/workspace",
+                # Serverless behavior - terminate immediately after completion
+                idle_duration="0s",
+                # Use spot instances for cost savings
+                spot_policy="auto",
             )
             
-            # Submit the task
+            # Submit the task using current API method
             logger.info(f"Applying configuration for {task.name}")
-            run = self.client.runs.submit(
+            run = self.client.runs.apply_configuration(
                 configuration=task,
                 repo=None,  # No repo needed for inline tasks
             )

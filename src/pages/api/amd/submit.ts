@@ -3,151 +3,17 @@
  *
  * This endpoint handles submission of AMD GPU tasks to dstack.ai:
  * - Authenticates and validates the request
- * - Spawns Python runner (amd_task_runner.py) to execute task
+ * - Uses shared executePythonRunner to execute task
  * - Streams SSE events back to frontend
  * - Supports checker, benchmark, sample, and sandbox endpoints
  */
 
 import { type NextApiRequest, type NextApiResponse } from "next";
-import { spawn } from "child_process";
-import path from "path";
 import { combinedAuth } from "~/server/auth";
-
-interface TaskSubmissionPayload {
-  solution_code: string;
-  problem: string;
-  problem_def: string;
-  gpu_type: string;
-  dtype: string;
-  language: string;
-  endpoint?: string; // checker, benchmark, sample, sandbox
-}
-
-/**
- * Execute Python task runner and stream SSE output
- */
-async function executePythonRunner(
-  payload: TaskSubmissionPayload,
-  res: NextApiResponse
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const enginePath = path.join(process.cwd(), "engine");
-    const runnerScript = path.join(enginePath, "amd_task_runner.py");
-
-    // Spawn Python process
-    const pythonProcess = spawn(
-      "python3",
-      [
-        runnerScript,
-        JSON.stringify(payload), // Pass payload as command-line argument
-      ],
-      {
-        cwd: enginePath,
-        env: {
-          ...process.env,
-          PYTHONUNBUFFERED: "1", // Disable Python output buffering
-        },
-      }
-    );
-
-    let buffer = "";
-    let hasOutput = false;
-
-    // Handle stdout - Stream SSE events
-    pythonProcess.stdout.on("data", (data: Buffer) => {
-      hasOutput = true;
-      buffer += data.toString();
-
-      // Process complete lines
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (line.trim()) {
-          res.write(line + "\n");
-        }
-      }
-
-      // Flush output immediately
-      try {
-        if ("flush" in res && typeof (res as any).flush === "function") {
-          (res as any).flush();
-        }
-      } catch (e) {
-        // Ignore flush errors
-      }
-    });
-
-    // Handle stderr - Log errors
-    pythonProcess.stderr.on("data", (data: Buffer) => {
-      console.error("[Python stderr]:", data.toString());
-    });
-
-    // Handle process completion
-    pythonProcess.on("close", (code) => {
-      // Flush any remaining buffer
-      if (buffer.trim()) {
-        res.write(buffer + "\n");
-      }
-
-      if (code === 0) {
-        resolve();
-      } else {
-        // Send error event if no output was sent
-        if (!hasOutput) {
-          res.write(
-            `event: ERROR\ndata: ${JSON.stringify({
-              status: "ERROR",
-              error: `Python process exited with code ${code}`,
-              message: "Task execution failed",
-            })}\n\n`
-          );
-        }
-        reject(new Error(`Python process exited with code ${code}`));
-      }
-    });
-
-    // Handle process errors
-    pythonProcess.on("error", (error) => {
-      console.error("[Python process error]:", error);
-
-      res.write(
-        `event: ERROR\ndata: ${JSON.stringify({
-          status: "ERROR",
-          error: error.message,
-          message: "Failed to start Python process",
-          details:
-            "Ensure Python 3 is installed and engine/amd_task_runner.py exists",
-        })}\n\n`
-      );
-
-      reject(error);
-    });
-
-    // Handle timeout (15 minutes max)
-    const timeout = setTimeout(
-      () => {
-        pythonProcess.kill("SIGTERM");
-
-        res.write(
-          `event: ERROR\ndata: ${JSON.stringify({
-            status: "ERROR",
-            error: "Task execution timeout",
-            message: "Task exceeded maximum execution time (15 minutes)",
-          })}\n\n`
-        );
-
-        reject(new Error("Task execution timeout"));
-      },
-      15 * 60 * 1000
-    );
-
-    // Clear timeout on completion
-    pythonProcess.on("close", () => {
-      clearTimeout(timeout);
-    });
-  });
-}
+import {
+  executePythonRunner,
+  type TaskSubmissionPayload,
+} from "~/server/amd/runner";
 
 export default async function handler(
   req: NextApiRequest,

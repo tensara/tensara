@@ -20,6 +20,7 @@ import superjson from "superjson";
 
 import type { GetServerSideProps } from "next";
 import { type Problem, type Submission } from "@prisma/client";
+import { type Parameter } from "~/types/problem";
 
 import { Layout } from "~/components/layout";
 import MySubmissions from "~/components/problem/MySubmissions";
@@ -38,8 +39,9 @@ import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSampleStream } from "~/hooks/useSampleStream";
 
-import { validateCode } from "~/utils/starter";
+import { validateCode, generateStarterCode } from "~/utils/starter";
 import { savePreferences } from "~/utils/localStorage";
+import { type ProgrammingLanguage } from "~/types/misc";
 
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import { createServerSideHelpers } from "@trpc/react-query/server";
@@ -261,6 +263,23 @@ export default function ProblemPage({ slug }: { slug: string }) {
     hasLoadedPreferences,
   ]);
 
+  // Handle GPU type change with code replacement
+  const handleGpuTypeChange = useCallback(
+    (newGpuType: string, newLanguage: ProgrammingLanguage) => {
+      // Generate new starter code for the new language
+      if (problem?.parameters) {
+        const newStarterCode = generateStarterCode(
+          problem.parameters as unknown as Parameter[],
+          newLanguage,
+          selectedDataType
+        );
+        setCode(newStarterCode);
+        setSelectedLanguage(newLanguage);
+      }
+    },
+    [problem, selectedDataType, setCode, setSelectedLanguage]
+  );
+
   // Handle submission
   const handleSubmit = useCallback(() => {
     if (!session?.user) {
@@ -476,6 +495,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
         isSubmitting={isSubmitting}
         onRun={handleRun}
         isRunning={isRunning}
+        onGpuTypeChange={handleGpuTypeChange}
       />
       <Box flex={1} w="100%" minH={0}>
         <VerticalSplitPanel

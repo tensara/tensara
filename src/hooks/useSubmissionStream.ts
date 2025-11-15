@@ -124,12 +124,18 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       try {
         data = JSON.parse(dataLine.slice(6).trim()) as SubmissionResponse;
       } catch {
+        console.warn("[SSE] Failed to parse event data");
         return;
       }
 
       const eventName = eventLine?.slice(7).trim();
       const status = (data as Partial<{ status: string }>)?.status ?? eventName;
       if (!status) return;
+
+      console.log(`[SSE] Event received: ${eventName || status}`, {
+        status,
+        data: JSON.stringify(data).substring(0, 200),
+      });
 
       if (status === "PTX" && "content" in data) {
         setPtxContent((data as { status: string; content: string }).content);
@@ -142,6 +148,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
       switch (status) {
         case "IN_QUEUE":
+          console.log(`[SSE] Status changed: null → IN_QUEUE`);
           setMetaStatus(SubmissionStatus.IN_QUEUE);
           try {
             const remaining = (
@@ -165,8 +172,14 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           } catch {}
           break;
 
+        case "PROVISIONING":
+          console.log(`[SSE] Status changed: ${metaStatus} → PROVISIONING`);
+          setMetaStatus("PROVISIONING" as SubmissionStatusType);
+          break;
+
         case "CHECKING":
         case "BENCHMARKING":
+          console.log(`[SSE] Status changed: ${metaStatus} → ${status}`);
           setMetaStatus(status as SubmissionStatusType);
           break;
 
@@ -176,12 +189,14 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           break;
 
         case "CHECKED":
+          console.log(`[SSE] Status changed: ${metaStatus} → CHECKED`);
           setMetaStatus(SubmissionStatus.CHECKED);
           setMetaResponse(data as CheckedResponse);
           refetchSubmissions();
           break;
 
         case "WRONG_ANSWER":
+          console.log(`[SSE] Status changed: ${metaStatus} → WRONG_ANSWER`);
           setIsSubmitting(false);
           setMetaStatus(SubmissionStatus.WRONG_ANSWER);
           setMetaResponse(data as WrongAnswerResponse);
@@ -200,6 +215,10 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
         case "BENCHMARKED": {
           const bench = data as BenchmarkedResponse;
+          console.log(`[SSE] Status changed: ${metaStatus} → BENCHMARKED`, {
+            avg_runtime_ms: bench.avg_runtime_ms,
+            avg_gflops: bench.avg_gflops,
+          });
 
           // Mark stream done
           setIsSubmitting(false);
@@ -223,6 +242,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         }
 
         case "ACCEPTED":
+          console.log(`[SSE] Status changed: ${metaStatus} → ACCEPTED`);
           setMetaStatus(SubmissionStatus.ACCEPTED);
           setMetaResponse(data as AcceptedResponse);
           refetchSubmissions();
@@ -233,6 +253,10 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         case "RUNTIME_ERROR":
         case "TIME_LIMIT_EXCEEDED":
         case "RATE_LIMIT_EXCEEDED":
+          console.error(`[SSE] Error status received: ${status}`, {
+            message: (data as ErrorResponse).message,
+            details: (data as ErrorResponse).details,
+          });
           setMetaStatus(status as SubmissionErrorType);
           setMetaResponse(data as ErrorResponse);
           toast({
@@ -265,10 +289,11 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
       const attemptConnection = async (): Promise<void> => {
         try {
+          console.log("[SSE] Starting to read event stream");
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
-              console.log("[sse] Stream complete");
+              console.log("[SSE] Stream completed successfully");
               break;
             }
 
@@ -293,13 +318,13 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           setIsSubmitting(false);
           refetchSubmissions(); // Ensure we refetch submissions when complete
         } catch (error) {
-          console.error("[sse] Stream error:", error);
+          console.error("[SSE] Stream error occurred:", error);
 
           // Attempt retry if we haven't exceeded max retries
           if (retryCount < MAX_RETRIES) {
             retryCount++;
             console.log(
-              `[sse] Retrying connection (${retryCount}/${MAX_RETRIES})...`
+              `[SSE] Retrying connection (${retryCount}/${MAX_RETRIES})...`
             );
 
             // Wait before retrying (exponential backoff)
@@ -327,7 +352,21 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       problemSlug: string;
     }) => {
       try {
-        const response = await fetch("/api/submissions/direct-submit", {
+        // Determine endpoint based on GPU type
+        const isAmdGpu =
+          submissionData.gpuType === "MI300X" ||
+          submissionData.gpuType === "MI210";
+        const endpoint = isAmdGpu
+          ? "/api/submissions/benchmark"
+          : "/api/submissions/direct-submit";
+
+        console.log(`[SSE] Starting SSE stream for endpoint: ${endpoint}`, {
+          problemSlug: submissionData.problemSlug,
+          gpuType: submissionData.gpuType,
+          language: submissionData.language,
+          isAmdGpu,
+        });
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -336,7 +375,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           cache: "no-store",
           credentials: "same-origin",
           keepalive: true,
-          signal: AbortSignal.timeout(300000),
+          signal: AbortSignal.timeout(900000),
         });
 
         if (!response.ok) {
@@ -372,6 +411,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
         await processEventStream(reader);
       } catch (error) {
+        console.error("[SSE] Error in processSubmission:", error);
         handleStreamError(error);
       }
     },

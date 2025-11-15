@@ -8,6 +8,7 @@ import {
   MOJO_MISC_TYPES,
   CUTE_TYPES,
   CUTE_MISC_TYPES,
+  CPP_TYPES as HIP_TYPES,
 } from "~/constants/datatypes";
 import { FORBIDDEN_PATTERNS } from "~/constants/forbidden";
 
@@ -99,6 +100,24 @@ import cutlass.cute as cute
 @cute.jit
 def solution(${paramStr}):
   `;
+  }
+  if (language === "hip") {
+    const names = parameters
+      .map((parameter: Parameter) =>
+        parameter.pointer === "true" ? parameter.name : null
+      )
+      .filter(Boolean);
+    const paramStr = parameters
+      .map(
+        (parameter: Parameter) =>
+          `${parameter.const === "true" ? "const " : ""}${parameter.type === "[VAR]" ? HIP_TYPES[dataType] : parameter.type}${parameter.pointer === "true" ? "*" : ""} ${parameter.name}`
+      )
+      .join(", ");
+    return `#include <hip/hip_runtime.h>
+
+// Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
+extern "C" __global__ void solution(${paramStr}) {
+}`;
   }
   return "";
 };

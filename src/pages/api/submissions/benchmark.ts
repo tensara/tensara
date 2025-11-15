@@ -13,6 +13,7 @@ import type {
   SubmissionErrorType,
 } from "~/types/submission";
 import { db } from "~/server/db";
+import { executePythonRunner } from "~/server/amd/runner";
 
 export default async function handler(
   req: NextApiRequest,
@@ -117,9 +118,82 @@ export default async function handler(
   try {
     // Route AMD GPUs to new dstack endpoint, others to Modal
     const isAMDGPU = gpuType?.startsWith("MI");
-    const endpoint = isAMDGPU
-      ? `http://localhost:${process.env.PORT || 3000}/api/amd/submit`
-      : env.MODAL_ENDPOINT + "/benchmark_cli-" + (gpuType ?? "T4");
+    console.log(
+      `[Benchmark API] Processing submission for GPU type: ${gpuType}, isAMD: ${isAMDGPU}`
+    );
+
+    // For AMD GPUs, create submission record and execute directly
+    if (isAMDGPU) {
+      console.log(
+        `[Benchmark API] Creating AMD submission for problem ${problemSlug}`
+      );
+      const submission = await db.submission.create({
+        data: {
+          code,
+          language,
+          gpuType: gpuType || "MI210",
+          status: SubmissionStatus.BENCHMARKING,
+          problem: { connect: { id: problem.id } },
+          user: { connect: { id: session.user.id } },
+        },
+      });
+
+      console.log(
+        `[Benchmark API] Created submission with ID: ${submission.id}`
+      );
+
+      // Send submission ID to client
+      sendSSE(SubmissionStatus.IN_QUEUE, {
+        id: submission.id,
+        status: SubmissionStatus.IN_QUEUE,
+      });
+
+      // Execute Python runner directly (no HTTP call)
+      try {
+        console.log(
+          `[Benchmark API] Calling AMD runner for submission ${submission.id}`
+        );
+        await executePythonRunner(
+          {
+            solution_code: code,
+            problem: problem.slug,
+            problem_def: problem.definition ?? "",
+            gpu_type: gpuType,
+            dtype: "float32",
+            language: language,
+            endpoint: "benchmark",
+            submission_id: submission.id,
+          },
+          res
+        );
+
+        // Runner completed successfully
+        console.log(
+          `[Benchmark API] AMD runner completed successfully for submission ${submission.id}`
+        );
+        res.end();
+        return;
+      } catch (error) {
+        console.error(
+          `[Benchmark API] AMD runner error for submission ${submission.id}:`,
+          error
+        );
+        console.error(`[Benchmark API] Error details:`, {
+          message: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        sendSSE(SubmissionError.ERROR, {
+          error: error instanceof Error ? error.message : "Unknown error",
+          message: "AMD task execution failed",
+          details: error instanceof Error ? error.stack : undefined,
+        });
+        res.end();
+        return;
+      }
+    }
+
+    // For non-AMD GPUs, use Modal endpoint
+    const endpoint = env.MODAL_ENDPOINT + "/benchmark_cli-" + (gpuType ?? "T4");
 
     const benchmarkResponse = await fetch(endpoint, {
       method: "POST",
@@ -133,7 +207,6 @@ export default async function handler(
         gpu_type: gpuType,
         dtype: "float32",
         language: language,
-        ...(isAMDGPU && { endpoint: "benchmark" }),
       }),
     });
 

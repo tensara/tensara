@@ -1,0 +1,223 @@
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$!?] took 3h44m56s 
+❯ dstack apply
+The working_dir is not set — using legacy default "/workflow". Future versions will default to the image's working directory.
+
+ Project          Tensara                                 
+ User             someshkar                               
+ Configuration    .dstack.yml                             
+ Type             task                                    
+ Resources        cpu=2.. mem=8GB.. disk=100GB.. MI300X:1 
+ Spot policy      auto                                    
+ Max price        -                                       
+ Retry policy     -                                       
+ Creation policy  reuse-or-create                         
+ Idle duration    5m                                      
+ Max duration     -                                       
+ Reservation      -                                       
+
+ #  BACKEND                   RESOURCES                                     INSTANCE TYPE                     PRICE   
+ 1  hotaisle (us-michigan-1)  cpu=13 mem=224GB disk=12288GB MI300X:192GB:1  1x MI300X 13x Xeon Platinum 8470  $1.99   
+
+Submit a new run? [y/n]: y
+ NAME          BACKEND                   GPU             PRICE  STATUS   SUBMITTED 
+ jolly-crab-1  hotaisle (us-michigan-1)  MI300X:192GB:1  $1.99  running  03:14     
+
+The run is using automatically created fleet funny-ladybug.
+Future dstack versions won't create fleets automatically.
+Create a fleet explicitly: https://dstack.ai/docs/concepts/fleets/
+
+
+jolly-crab-1 provisioning completed (running)
+=== ROCm Environment ===
+
+
+============================ ROCm System Management Interface ============================
+WARNING: AMD GPU device(s) is/are in a low-power state. Check power control/runtime_status
+
+====================================== Product Info ======================================
+GPU[0]          : Card Series:          AMD Instinct MI300X VF
+GPU[0]          : Card Model:           0x74b5
+GPU[0]          : Card Vendor:          Advanced Micro Devices, Inc. [AMD/ATI]
+GPU[0]          : Card SKU:             M3000108
+GPU[0]          : Subsystem ID:         0x74a1
+GPU[0]          : Device Rev:           0x00
+GPU[0]          : Node ID:              1
+GPU[0]          : GUID:                 46235
+GPU[0]          : GFX Version:          gfx942
+==========================================================================================
+================================== End of ROCm SMI Log ===================================
+HIP version: 7.1.25424-4179531dcd
+AMD clang version 20.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.1.0 25425 1b0eada6b0ee93e2e694c8c146d23fca90bc11c5)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/rocm-7.1.0/lib/llvm/bin
+Configuration file: /opt/rocm-7.1.0/lib/llvm/bin/clang++.cfg
+
+=== Compiling HIP Kernel ===
+Compilation successful
+
+=== Running Kernel ===
+=== HIP Matrix Multiplication ===
+Matrix dimensions: A(1024x1024) * B(1024x1024) = C(1024x1024)
+Tile size: 16x16
+Memory: 4.00MB per matrix
+
+Kernel execution: 0.64 ms
+Performance: 3362.94 GFLOPS
+
+Verifying result...
+Result: PASSED ✓
+
+=== Execution Complete ===
+Exited (0)
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$!?] took 8m25s 
+❯ dstack apply
+The working_dir is not set — using legacy default "/workflow". Future versions will default to the image's working directory.
+
+ Project          Tensara                                 
+ User             someshkar                               
+ Configuration    .dstack.yml                             
+ Type             task                                    
+ Resources        cpu=2.. mem=8GB.. disk=100GB.. MI300X:1 
+ Spot policy      auto                                    
+ Max price        -                                       
+ Retry policy     -                                       
+ Creation policy  reuse-or-create                         
+ Idle duration    5m                                      
+ Max duration     -                                       
+ Reservation      -                                       
+
+ #  BACKEND                   RESOURCES                                     INSTANCE TYPE                     PRICE       
+ 1  hotaisle (us-michigan-1)  cpu=13 mem=224GB disk=12288GB MI300X:192GB:1  1x MI300X 13x Xeon Platinum 8470  $1.99  idle 
+ 2  hotaisle (us-michigan-1)  cpu=13 mem=224GB disk=12288GB MI300X:192GB:1  1x MI300X 13x Xeon Platinum 8470  $1.99       
+
+Submit a new run? [y/n]: y
+ NAME            BACKEND                   GPU             PRICE  STATUS   SUBMITTED 
+ modern-horse-1  hotaisle (us-michigan-1)  MI300X:192GB:1  $1.99  running  03:22     
+
+The run is using automatically created fleet funny-ladybug.
+Future dstack versions won't create fleets automatically.
+Create a fleet explicitly: https://dstack.ai/docs/concepts/fleets/
+
+
+modern-horse-1 provisioning completed (running)
+=== ROCm Environment ===
+
+
+============================ ROCm System Management Interface ============================
+WARNING: AMD GPU device(s) is/are in a low-power state. Check power control/runtime_status
+
+====================================== Product Info ======================================
+GPU[0]          : Card Series:          AMD Instinct MI300X VF
+GPU[0]          : Card Model:           0x74b5
+GPU[0]          : Card Vendor:          Advanced Micro Devices, Inc. [AMD/ATI]
+GPU[0]          : Card SKU:             M3000108
+GPU[0]          : Subsystem ID:         0x74a1
+GPU[0]          : Device Rev:           0x00
+GPU[0]          : Node ID:              1
+GPU[0]          : GUID:                 46235
+GPU[0]          : GFX Version:          gfx942
+==========================================================================================
+================================== End of ROCm SMI Log ===================================
+HIP version: 7.1.25424-4179531dcd
+AMD clang version 20.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.1.0 25425 1b0eada6b0ee93e2e694c8c146d23fca90bc11c5)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/rocm-7.1.0/lib/llvm/bin
+Configuration file: /opt/rocm-7.1.0/lib/llvm/bin/clang++.cfg
+
+=== Compiling HIP Kernel ===
+Compilation successful
+
+=== Running Kernel ===
+=== HIP Matrix Multiplication ===
+Matrix dimensions: A(1024x1024) * B(1024x1024) = C(1024x1024)
+Tile size: 16x16
+Memory: 4.00MB per matrix
+
+Kernel execution: 0.62 ms
+Performance: 3440.48 GFLOPS
+
+Verifying result...
+Result: PASSED ✓
+
+=== Execution Complete ===
+Exited (0)
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$!?] took 1m15s 
+❯ dstack apply
+The working_dir is not set — using legacy default "/workflow". Future versions will default to the image's working directory.
+
+ Project          Tensara                                 
+ User             someshkar                               
+ Configuration    .dstack.yml                             
+ Type             task                                    
+ Resources        cpu=2.. mem=8GB.. disk=100GB.. MI300X:1 
+ Spot policy      auto                                    
+ Max price        -                                       
+ Retry policy     -                                       
+ Creation policy  reuse-or-create                         
+ Idle duration    5m                                      
+ Max duration     -                                       
+ Reservation      -                                       
+
+ #  BACKEND                   RESOURCES                                     INSTANCE TYPE                     PRICE       
+ 1  hotaisle (us-michigan-1)  cpu=13 mem=224GB disk=12288GB MI300X:192GB:1  1x MI300X 13x Xeon Platinum 8470  $1.99  idle 
+ 2  hotaisle (us-michigan-1)  cpu=13 mem=224GB disk=12288GB MI300X:192GB:1  1x MI300X 13x Xeon Platinum 8470  $1.99       
+
+Submit a new run? [y/n]: y
+ NAME         BACKEND                   GPU             PRICE  STATUS   SUBMITTED 
+ moody-ape-1  hotaisle (us-michigan-1)  MI300X:192GB:1  $1.99  running  03:24     
+
+The run is using automatically created fleet funny-ladybug.
+Future dstack versions won't create fleets automatically.
+Create a fleet explicitly: https://dstack.ai/docs/concepts/fleets/
+
+
+moody-ape-1 provisioning completed (running)
+=== ROCm Environment ===
+
+
+============================ ROCm System Management Interface ============================
+WARNING: AMD GPU device(s) is/are in a low-power state. Check power control/runtime_status
+
+====================================== Product Info ======================================
+GPU[0]          : Card Series:          AMD Instinct MI300X VF
+GPU[0]          : Card Model:           0x74b5
+GPU[0]          : Card Vendor:          Advanced Micro Devices, Inc. [AMD/ATI]
+GPU[0]          : Card SKU:             M3000108
+GPU[0]          : Subsystem ID:         0x74a1
+GPU[0]          : Device Rev:           0x00
+GPU[0]          : Node ID:              1
+GPU[0]          : GUID:                 46235
+GPU[0]          : GFX Version:          gfx942
+==========================================================================================
+================================== End of ROCm SMI Log ===================================
+HIP version: 7.1.25424-4179531dcd
+AMD clang version 20.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.1.0 25425 1b0eada6b0ee93e2e694c8c146d23fca90bc11c5)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/rocm-7.1.0/lib/llvm/bin
+Configuration file: /opt/rocm-7.1.0/lib/llvm/bin/clang++.cfg
+
+=== Compiling HIP Kernel ===
+Compilation successful
+
+=== Running Kernel ===
+=== HIP Matrix Multiplication ===
+Matrix dimensions: A(1024x1024) * B(1024x1024) = C(1024x1024)
+Tile size: 16x16
+Memory: 4.00MB per matrix
+
+Kernel execution: 0.60 ms
+Performance: 3567.19 GFLOPS
+
+Verifying result...
+Result: PASSED ✓
+
+=== Execution Complete ===
+Exited (0)
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$!?] took 1m10s 
+❯ 

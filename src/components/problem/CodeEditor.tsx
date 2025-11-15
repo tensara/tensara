@@ -507,7 +507,9 @@ const CodeEditor = ({
     <Box w="100%" h="100%" position="relative">
       {editorContent(
         code,
-        selectedLanguage === "cuda"
+        selectedLanguage === "cuda" ||
+          selectedLanguage === "hip" ||
+          selectedLanguage === "cute"
           ? "cpp"
           : selectedLanguage === "mojo"
             ? "mojo"
