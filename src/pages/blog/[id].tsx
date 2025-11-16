@@ -298,7 +298,11 @@ export default function BlogPost() {
 
   if (!post)
     return (
-      <Layout title="Not found">
+      <Layout
+        title="Not found"
+        ogTitle="Blog | Tensara"
+        ogImgSubtitle="Worklogs, tutorials, ideas and more"
+      >
         <Box minH="100vh" py={16}>
           <Container maxW="7xl" mx="auto">
             <VStack spacing={4}>
@@ -321,7 +325,11 @@ export default function BlogPost() {
     );
 
   return (
-    <Layout title={post.title}>
+    <Layout
+      title={post.title}
+      ogTitle={post.title}
+      ogImgSubtitle={post.author ? `by ${post.author.name} | Tensara Blog` : ""}
+    >
       <Box minH="100vh">
         {/* Wider container */}
         <Container maxW="7xl" mx="auto" py={10}>
