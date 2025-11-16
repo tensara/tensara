@@ -23,6 +23,7 @@ import {
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useState, useMemo, useRef } from "react";
+import { useSession } from "next-auth/react";
 import {
   FaSearch,
   FaChevronDown,
@@ -94,6 +95,7 @@ export default function ProblemsPage() {
     }
   );
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const { data: session } = useSession();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
@@ -340,44 +342,46 @@ export default function ProblemsPage() {
                   ))}
                 </MenuList>
               </Menu>
-              <Menu>
-                <MenuButton
-                  as={Button}
-                  rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-                  bg="whiteAlpha.50"
-                  _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-                  _active={{ bg: "whiteAlpha.150" }}
-                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-                  color="white"
-                  w="160px"
-                  fontWeight="normal"
-                  textAlign="left"
-                  justifyContent="flex-start"
-                >
-                  {statusOptions.find(
-                    (opt) => opt.value === problemStatusFilter
-                  )?.label ?? "Status"}
-                </MenuButton>
-                <MenuList
-                  bg="brand.secondary"
-                  borderColor="gray.800"
-                  p={0}
-                  minW="160px"
-                >
-                  {statusOptions.map((option) => (
-                    <MenuItem
-                      key={option.value}
-                      onClick={() => setProblemStatusFilter(option.value)}
-                      bg="brand.secondary"
-                      _hover={{ bg: "gray.700" }}
-                      color="white"
-                      borderRadius="md"
-                    >
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </MenuList>
-              </Menu>
+              {session?.user ? (
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                    bg="whiteAlpha.50"
+                    _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                    _active={{ bg: "whiteAlpha.150" }}
+                    _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                    color="white"
+                    w="160px"
+                    fontWeight="normal"
+                    textAlign="left"
+                    justifyContent="flex-start"
+                  >
+                    {statusOptions.find(
+                      (opt) => opt.value === problemStatusFilter
+                    )?.label ?? "Status"}
+                  </MenuButton>
+                  <MenuList
+                    bg="brand.secondary"
+                    borderColor="gray.800"
+                    p={0}
+                    minW="160px"
+                  >
+                    {statusOptions.map((option) => (
+                      <MenuItem
+                        key={option.value}
+                        onClick={() => setProblemStatusFilter(option.value)}
+                        bg="brand.secondary"
+                        _hover={{ bg: "gray.700" }}
+                        color="white"
+                        borderRadius="md"
+                      >
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </Menu>
+              ) : null}
             </HStack>
           </HStack>
 
@@ -413,6 +417,15 @@ export default function ProblemsPage() {
                     _hover={{ color: "white" }}
                   >
                     <HStack spacing={2}>
+                      <Box
+                        display="inline-flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        minW="18px"
+                        minH="18px"
+                      >
+                        <Box w="16px" h="16px" />
+                      </Box>
                       <Text>Title</Text>
                       <SortIcon field="title" />
                     </HStack>
@@ -493,13 +506,22 @@ export default function ProblemsPage() {
                   >
                     <Td color="white" borderBottom="none">
                       <HStack spacing={3} align="center">
-                        <HStack spacing={1} align="center">
+                        <Box
+                          display="inline-flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          minW="18px"
+                          minH="18px"
+                        >
                           {problem.solvedByCurrentUser ? (
-                            <FaCheckCircle color="#4ade80" />
+                            <FaCheckCircle color="#4ade80" size={16} />
                           ) : problem.attemptedByCurrentUser ? (
-                            <FaClock color="#fbbf24" />
-                          ) : null}
-                        </HStack>
+                            <FaClock color="#fbbf24" size={16} />
+                          ) : (
+                            // empty placeholder to preserve alignment
+                            <Box w="16px" h="16px" />
+                          )}
+                        </Box>
                         <Text>{problem.title}</Text>
                       </HStack>
                     </Td>
