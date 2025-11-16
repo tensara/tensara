@@ -1,5 +1,10 @@
 import { useRouter } from "next/router";
 import type { RouterOutputs } from "~/utils/api";
+import type { GetServerSideProps } from "next";
+import superjson from "superjson";
+import { createInnerTRPCContext } from "~/server/api/trpc";
+import { createServerSideHelpers } from "@trpc/react-query/server";
+import { appRouter } from "~/server/api/root";
 import { useState } from "react";
 import { Layout } from "~/components/layout";
 import {
@@ -38,15 +43,38 @@ import { markdownContentStyles } from "~/constants/blog";
 // Typed helper aliases for tRPC outputs
 type CommentType = RouterOutputs["comments"]["getByPost"][number];
 
-export default function BlogPost() {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const helpers = createServerSideHelpers({
+    router: appRouter,
+    ctx: createInnerTRPCContext({ session: null }),
+    transformer: superjson,
+  });
+
+  const slug = context.params?.id as string;
+
+  try {
+    await helpers.blogpost.getById.prefetch({ slug });
+
+    return {
+      props: {
+        trpcState: helpers.dehydrate(),
+        slug,
+      },
+    };
+  } catch (err: unknown) {
+    console.error(err);
+    return { notFound: true };
+  }
+};
+
+export default function BlogPost({ slug }: { slug: string }) {
   const router = useRouter();
-  const { id } = router.query;
   const { data: session } = useSession();
   const toast = useToast();
 
   const { data: post, isLoading } = api.blogpost.getById.useQuery(
-    typeof id === "string" ? { slug: id } : { slug: "" },
-    { enabled: typeof id === "string" }
+    { slug },
+    { enabled: !!slug }
   );
 
   const utils = api.useContext();
