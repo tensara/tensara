@@ -327,7 +327,7 @@ export default function BlogPost({ slug }: { slug: string }) {
   if (!post)
     return (
       <Layout
-        title="Not found"
+        title="Blog | Tensara"
         ogTitle="Blog | Tensara"
         ogImgSubtitle="Worklogs, tutorials, ideas and more"
       >
