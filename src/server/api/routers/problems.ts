@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { env } from "~/env";
 
 // // Simulated evaluation delay
 // const EVAL_DELAY_MS = 1500;
@@ -44,6 +42,7 @@ type SubmissionWithCustomFields = {
 export const problemsRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
     try {
+      // Fetch problems first (no any)
       const problems = await ctx.db.problem.findMany({
         select: {
           id: true,
@@ -60,11 +59,59 @@ export const problemsRouter = createTRPCRouter({
         },
       });
 
-      console.log("Found problems:", problems);
-      return problems.map((problem) => ({
-        ...problem,
-        submissionCount: problem._count.submissions,
+      const userId = ctx.session?.user?.id;
+
+      // Default flags
+      const result: Array<
+        (typeof problems)[number] & {
+          submissionCount: number;
+          solvedByCurrentUser?: boolean;
+          attemptedByCurrentUser?: boolean;
+        }
+      > = problems.map((p) => ({
+        ...p,
+        submissionCount: p._count?.submissions ?? 0,
       }));
+
+      if (!userId || result.length === 0) {
+        // No logged-in user — return with flags undefined/false
+        return result;
+      }
+
+      // Fetch all submissions by this user for the problems we returned
+      const problemIds = result.map((p) => p.id);
+      const userSubmissions = await ctx.db.submission.findMany({
+        where: {
+          userId,
+          problemId: { in: problemIds },
+        },
+        select: {
+          problemId: true,
+          status: true,
+        },
+      });
+
+      // Build map of problemId -> { solved, attempted }
+      const map = new Map<string, { solved: boolean; attempted: boolean }>();
+      for (const pid of problemIds)
+        map.set(pid, { solved: false, attempted: false });
+
+      for (const sub of userSubmissions) {
+        const entry = map.get(sub.problemId)!;
+        if (!entry) continue;
+        entry.attempted = true;
+        if (sub.status === SubmissionStatus.ACCEPTED) entry.solved = true;
+      }
+
+      // Merge flags into result
+      return result.map((p) => {
+        const flags = map.get(p.id) ?? { solved: false, attempted: false };
+        return {
+          ...p,
+          solvedByCurrentUser: flags.solved,
+          attemptedByCurrentUser: flags.attempted && !flags.solved,
+        };
+      });
     } catch (error) {
       console.error("Error fetching problems:", error);
       throw new TRPCError({
