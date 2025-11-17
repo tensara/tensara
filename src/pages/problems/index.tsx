@@ -23,7 +23,14 @@ import {
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useState, useMemo, useRef } from "react";
-import { FaSearch, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { useSession } from "next-auth/react";
+import {
+  FaSearch,
+  FaChevronDown,
+  FaChevronUp,
+  FaCheckCircle,
+  FaClock,
+} from "react-icons/fa";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { createInnerTRPCContext } from "~/server/api/trpc";
@@ -34,7 +41,7 @@ import { useHotkey } from "~/hooks/useHotKey";
 
 type SortField = "title" | "difficulty" | "submissionCount";
 type SortDirection = "asc" | "desc";
-
+type ProblemStatus = "all" | "solved" | "unsolved" | "attempting";
 export const getDifficultyColor = (difficulty: string) => {
   switch (difficulty.toLowerCase()) {
     case "easy":
@@ -81,15 +88,20 @@ export default function ProblemsPage() {
   const { data: problems = [], isLoading } = api.problems.getAll.useQuery(
     undefined,
     {
-      refetchOnMount: false,
+      // Allow client to refetch so per-user flags (solved/attempted) are populated
+      // after SSR prefetch (which runs with session=null).
+      refetchOnMount: true,
       refetchOnWindowFocus: false,
     }
   );
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const { data: session } = useSession();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
+  const [problemStatusFilter, setProblemStatusFilter] =
+    useState<ProblemStatus>("all");
   const [sortField, setSortField] = useState<SortField>("difficulty");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -108,10 +120,17 @@ export default function ProblemsPage() {
   const allTags = useMemo(() => {
     const tags = new Set<string>();
     problems.forEach((problem) => {
-      problem.tags?.forEach((tag) => tags.add(tag));
+      problem.tags?.forEach((tag: string) => tags.add(tag));
     });
     return Array.from(tags).sort();
   }, [problems]);
+
+  const statusOptions: { label: string; value: ProblemStatus }[] = [
+    { label: "All", value: "all" },
+    { label: "Solved", value: "solved" },
+    { label: "Unsolved", value: "unsolved" },
+    { label: "Attempting", value: "attempting" },
+  ];
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -143,8 +162,25 @@ export default function ProblemsPage() {
         difficultyFilter === "all" ||
         problem.difficulty.toLowerCase() === difficultyFilter.toLowerCase();
       const matchesTag =
-        tagFilter === "all" || problem.tags?.some((tag) => tag === tagFilter);
-      return matchesSearch && matchesDifficulty && matchesTag;
+        tagFilter === "all" ||
+        problem.tags?.some((tag: string) => tag === tagFilter);
+
+      const matchesStatus = (() => {
+        switch (problemStatusFilter) {
+          case "all":
+            return true;
+          case "solved":
+            return !!problem.solvedByCurrentUser;
+          case "unsolved":
+            return !problem.solvedByCurrentUser;
+          case "attempting":
+            return !!problem.attemptedByCurrentUser;
+          default:
+            return true;
+        }
+      })();
+
+      return matchesSearch && matchesDifficulty && matchesTag && matchesStatus;
     })
     .sort((a, b) => {
       const multiplier = sortDirection === "asc" ? 1 : -1;
@@ -292,7 +328,7 @@ export default function ProblemsPage() {
                   >
                     All Tags
                   </MenuItem>
-                  {allTags.map((tag) => (
+                  {allTags.map((tag: string) => (
                     <MenuItem
                       key={tag}
                       onClick={() => setTagFilter(tag)}
@@ -306,6 +342,46 @@ export default function ProblemsPage() {
                   ))}
                 </MenuList>
               </Menu>
+              {session?.user ? (
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                    bg="whiteAlpha.50"
+                    _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                    _active={{ bg: "whiteAlpha.150" }}
+                    _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                    color="white"
+                    w="160px"
+                    fontWeight="normal"
+                    textAlign="left"
+                    justifyContent="flex-start"
+                  >
+                    {statusOptions.find(
+                      (opt) => opt.value === problemStatusFilter
+                    )?.label ?? "Status"}
+                  </MenuButton>
+                  <MenuList
+                    bg="brand.secondary"
+                    borderColor="gray.800"
+                    p={0}
+                    minW="160px"
+                  >
+                    {statusOptions.map((option) => (
+                      <MenuItem
+                        key={option.value}
+                        onClick={() => setProblemStatusFilter(option.value)}
+                        bg="brand.secondary"
+                        _hover={{ bg: "gray.700" }}
+                        color="white"
+                        borderRadius="md"
+                      >
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </Menu>
+              ) : null}
             </HStack>
           </HStack>
 
@@ -341,6 +417,15 @@ export default function ProblemsPage() {
                     _hover={{ color: "white" }}
                   >
                     <HStack spacing={2}>
+                      <Box
+                        display="inline-flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        minW="18px"
+                        minH="18px"
+                      >
+                        <Box w="16px" h="16px" />
+                      </Box>
                       <Text>Title</Text>
                       <SortIcon field="title" />
                     </HStack>
@@ -420,7 +505,29 @@ export default function ProblemsPage() {
                     borderColor="gray.800"
                   >
                     <Td color="white" borderBottom="none">
-                      {problem.title}
+                      <HStack spacing={3} align="center">
+                        <Box
+                          display="inline-flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          minW="18px"
+                          minH="18px"
+                        >
+                          {problem.solvedByCurrentUser ? (
+                            <FaCheckCircle
+                              color="#4ade80"
+                              size={16}
+                              opacity={0.68}
+                            />
+                          ) : problem.attemptedByCurrentUser ? (
+                            <FaClock color="#fbbf24" size={16} opacity={0.68} />
+                          ) : (
+                            // empty placeholder to preserve alignment
+                            <Box w="16px" h="16px" />
+                          )}
+                        </Box>
+                        <Text>{problem.title}</Text>
+                      </HStack>
                     </Td>
                     <Td borderBottom="none">
                       <Badge
@@ -435,7 +542,7 @@ export default function ProblemsPage() {
                     <Td color="white" borderBottom="none">
                       {problem.tags && problem.tags.length > 0 && (
                         <HStack spacing={1} flex="0 0 auto">
-                          {problem.tags.map((tag) => (
+                          {problem.tags.map((tag: string) => (
                             <Badge
                               key={tag}
                               bg="transparent"
