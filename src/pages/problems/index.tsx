@@ -417,6 +417,15 @@ export default function ProblemsPage() {
                     _hover={{ color: "white" }}
                   >
                     <HStack spacing={2}>
+                      <Box
+                        display="inline-flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        minW="18px"
+                        minH="18px"
+                      >
+                        <Box w="16px" h="16px" />
+                      </Box>
                       <Text>Title</Text>
                       <SortIcon field="title" />
                     </HStack>
@@ -496,7 +505,25 @@ export default function ProblemsPage() {
                     borderColor="gray.800"
                   >
                     <Td color="white" borderBottom="none">
-                      <Text>{problem.title}</Text>
+                      <HStack spacing={3} align="center">
+                        <Box
+                          display="inline-flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          minW="18px"
+                          minH="18px"
+                        >
+                          {problem.solvedByCurrentUser ? (
+                            <FaCheckCircle color="#4ade80" size={16} />
+                          ) : problem.attemptedByCurrentUser ? (
+                            <FaClock color="#fbbf24" size={16} />
+                          ) : (
+                            // empty placeholder to preserve alignment
+                            <Box w="16px" h="16px" />
+                          )}
+                        </Box>
+                        <Text>{problem.title}</Text>
+                      </HStack>
                     </Td>
                     <Td borderBottom="none">
                       <Badge
@@ -532,30 +559,9 @@ export default function ProblemsPage() {
                       )}
                     </Td>
                     <Td borderBottom="none">
-                      <HStack justifyContent="space-between" align="center">
-                        <Text color="gray.400" fontSize="sm">
-                          {problem.submissionCount}
-                        </Text>
-                        <Box
-                          display="inline-flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          minW="18px"
-                          minH="18px"
-                        >
-                          {problem.solvedByCurrentUser ? (
-                            <Box opacity={0.78}>
-                              <FaCheckCircle color="#4ade80" size={16} />
-                            </Box>
-                          ) : problem.attemptedByCurrentUser ? (
-                            <Box opacity={0.78}>
-                              <FaClock color="#fbbf24" size={16} />
-                            </Box>
-                          ) : (
-                            <Box w="16px" h="16px" />
-                          )}
-                        </Box>
-                      </HStack>
+                      <Text color="gray.400" fontSize="sm">
+                        {problem.submissionCount}
+                      </Text>
                     </Td>
                   </Tr>
                 ))}
