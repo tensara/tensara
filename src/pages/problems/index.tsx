@@ -514,9 +514,13 @@ export default function ProblemsPage() {
                           minH="18px"
                         >
                           {problem.solvedByCurrentUser ? (
-                            <FaCheckCircle color="#4ade80" size={16} />
+                            <FaCheckCircle
+                              color="#4ade80"
+                              size={16}
+                              opacity={0.68}
+                            />
                           ) : problem.attemptedByCurrentUser ? (
-                            <FaClock color="#fbbf24" size={16} />
+                            <FaClock color="#fbbf24" size={16} opacity={0.68} />
                           ) : (
                             // empty placeholder to preserve alignment
                             <Box w="16px" h="16px" />
