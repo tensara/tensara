@@ -27,6 +27,7 @@ import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { useToast } from "@chakra-ui/react";
 import { useHotkey } from "~/hooks/useHotKey";
+import { SandboxStatus } from "~/types/submission";
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -42,11 +43,19 @@ interface SSEMessage {
   message?: string;
   details?: string;
   error?: string;
+  content?: string;
 }
 
 interface TerminalLine {
   id: string;
-  type: "stdout" | "stderr" | "info" | "success" | "error" | "compiling";
+  type:
+    | "stdout"
+    | "stderr"
+    | "info"
+    | "success"
+    | "error"
+    | "compiling"
+    | "warning";
   content: string;
   timestamp: number;
 }
@@ -81,6 +90,10 @@ export default function Sandbox({
   const activeFile = files[activeIndex] ?? files[0];
   const terminalRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [ptxContent, setPtxContent] = useState<string | null>(null);
+  const [sassContent, setSassContent] = useState<string | null>(null);
+  const [ptxDirty, setPtxDirty] = useState(false);
+  const [sassDirty, setSassDirty] = useState(false);
 
   useHotkey("meta+enter", () => {
     if (isRunning) {
@@ -272,6 +285,22 @@ export default function Sandbox({
           `⏱️ Execution timeout: ${data.message ?? "Unknown timeout"}`
         );
         break;
+      case SandboxStatus.PTX:
+        setPtxContent(data.content ?? null);
+        setPtxDirty(false);
+        addTerminalLine("info", "📦 PTX generated");
+        break;
+      case SandboxStatus.SASS:
+        setSassContent(data.content ?? null);
+        setSassDirty(false);
+        addTerminalLine("info", "🧱 SASS generated");
+        break;
+      case SandboxStatus.WARNING:
+        addTerminalLine(
+          "warning",
+          `⚠️ ${data.message ?? data.details ?? "Warning received"}`
+        );
+        break;
 
       default:
         if (event.includes("ERROR")) {
@@ -289,6 +318,12 @@ export default function Sandbox({
     if (updated[activeIndex]) {
       updated[activeIndex].content = content;
       setFiles(updated);
+      if (!ptxDirty && ptxContent !== null) {
+        setPtxDirty(true);
+      }
+      if (!sassDirty && sassContent !== null) {
+        setSassDirty(true);
+      }
     }
   };
 
@@ -318,6 +353,8 @@ export default function Sandbox({
         return "red.500";
       case "compiling":
         return "yellow.400";
+      case "warning":
+        return "yellow.300";
       default:
         return "gray.400";
     }
@@ -723,6 +760,11 @@ export default function Sandbox({
                           setCode={updateFile}
                           selectedLanguage="cuda"
                           isEditable={!readOnly}
+                          enablePtxSassView
+                          ptxContent={ptxContent}
+                          sassContent={sassContent}
+                          ptxDirty={ptxDirty}
+                          sassDirty={sassDirty}
                         />
                       </Box>
                     ) : (

@@ -301,9 +301,7 @@ async def sandbox(gpu: str, request: Request):
         print("gpu not in gpu_runners")
         return 404
 
-    print("req", req)
     solution_code = req["code"]
-    print("solution_code", solution_code)
 
     def create_stream():
         yield {"status": "COMPILING"}
@@ -322,7 +320,6 @@ async def sandbox(gpu: str, request: Request):
             yield event
 
         runner = gpu_runners[gpu]
-        print("runner", runner)
         stream = runner.remote_gen(
             "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", "cuda"
         )

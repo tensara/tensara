@@ -15,9 +15,11 @@ import {
 import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { FiX, FiAlertTriangle } from "react-icons/fi";
+import type { editor as MonacoEditor } from "monaco-editor";
+import { createPtxSourceMap, type PtxSourceMap } from "~/utils/ptx";
 
 interface CodeEditorProps {
   code: string;
@@ -29,6 +31,34 @@ interface CodeEditorProps {
   enablePtxSassView?: boolean;
   ptxDirty?: boolean;
   sassDirty?: boolean;
+}
+
+const PTX_LINE_SEARCH_RADIUS = 50;
+
+function findClosestPtxLines(
+  map: PtxSourceMap,
+  targetLine: number,
+  maxLine: number
+): {
+  lines: number[] | null;
+  matchedSourceLine: number | null;
+} {
+  if (map[targetLine]) {
+    return { lines: map[targetLine] ?? null, matchedSourceLine: targetLine };
+  }
+
+  for (let offset = 1; offset <= PTX_LINE_SEARCH_RADIUS; offset++) {
+    const lower = targetLine - offset;
+    if (lower > 0 && map[lower]) {
+      return { lines: map[lower] ?? null, matchedSourceLine: lower };
+    }
+    const upper = targetLine + offset;
+    if (upper <= maxLine && map[upper]) {
+      return { lines: map[upper] ?? null, matchedSourceLine: upper };
+    }
+  }
+
+  return { lines: null, matchedSourceLine: null };
 }
 
 function setupMonaco(monaco: Monaco) {
@@ -331,6 +361,75 @@ function setupMonaco(monaco: Monaco) {
     ],
   });
 
+  // Register PTX language
+  monaco.languages.register({ id: "ptx" });
+  monaco.languages.setMonarchTokensProvider("ptx", {
+    defaultToken: "",
+    tokenizer: {
+      root: [
+        // Comments
+        [/\/\/.*$/, "comment"],
+        [/\/\*/, "comment", "@comment"],
+
+        // Directives: .version, .target, .reg, .entry, .func, etc.
+        [
+          /\.(version|target|address_size|visible|entry|func|param|reg|const|global|local|shared|tex|surf|sampler|array|struct|union|align|section|file|loc|pragma|extern|weak|common|b8|b16|b32|b64|u8|u16|u32|u64|s8|s16|s32|s64|f16|f32|f64|pred)\b/,
+          "keyword.directive",
+        ],
+
+        // PTX instructions (common ones)
+        [
+          /\b(add|sub|mul|mad|div|rem|abs|neg|min|max|setp|set|selp|slct|cvt|mov|shl|shr|and|or|xor|not|clz|popc|bfind|fma|rcp|sqrt|rsqrt|sin|cos|lg2|ex2|tanh|sad|dp4a|dp2a|ld|st|prefetch|prefetchu|isspacep|cvta|cp|atom|red|bar|barrier|bra|call|ret|brkpt|nop|exit|trap|vote|activemask|alloca|bfe|bfi|bfind|brev|clz|cos|ex2|fma|isspacep|lg2|mad24|mul24|popc|prmt|rcp|red|rem|rsqrt|sad|sin|sqrt|tanh|testp|tex|tld4|trap|vabsdiff|vadd|vadd2|vadd4|vmad|vmax|vmin|vset|vshl|vshr|vsub|vsub2|vsub4)\b/,
+          "keyword.instruction",
+        ],
+
+        // Predicates: @%p0, @!%p1
+        [/@!?%p\d+/, "keyword.predicate"],
+
+        // Registers: %r1, %rd2, %f3, %p1, %bar0, etc.
+        [/%[a-zA-Z]*\d+/, "variable.register"],
+
+        // Labels (jump targets): $L1:, $L2:
+        [/\$[a-zA-Z_][a-zA-Z0-9_]*\s*:/, "label"],
+
+        // Types: .f32, .u64, .b16, etc.
+        [
+          /\.(b8|b16|b32|b64|u8|u16|u32|u64|s8|s16|s32|s64|f16|f32|f64|pred)\b/,
+          "type",
+        ],
+
+        // Strings
+        [/"([^"\\]|\\.)*$/, "string.invalid"],
+        [/"/, "string", "@string"],
+
+        // Numbers (hex, decimal, float)
+        [/\b0[xX][0-9a-fA-F]+\b/, "number.hex"],
+        [/\b\d+\.\d+([eE][\-+]?\d+)?[fF]?\b/, "number.float"],
+        [/\b\d+\b/, "number"],
+
+        // Operators
+        [/[{}()\[\]]/, "@brackets"],
+        [/[<>=%&|+\-*/~^]+/, "operator"],
+
+        // Identifiers
+        [/[a-zA-Z_][a-zA-Z0-9_]*/, "identifier"],
+      ],
+
+      comment: [
+        [/[^/*]+/, "comment"],
+        [/\/\*/, "comment", "@push"],
+        [/\*\//, "comment", "@pop"],
+        [/[/*]/, "comment"],
+      ],
+
+      string: [
+        [/[^"\\]+/, "string"],
+        [/\\./, "string.escape"],
+        [/"/, "string", "@pop"],
+      ],
+    },
+  });
+
   monaco.languages.setMonarchTokensProvider("cpp", {
     defaultToken: "",
 
@@ -406,6 +505,13 @@ const pulseAnimation = keyframes`
   100% { opacity: 0.6; }
 `;
 
+type EditorContentOptions = {
+  onMount?: (
+    editorInstance: MonacoEditor.IStandaloneCodeEditor,
+    monacoInstance: Monaco
+  ) => void;
+};
+
 const CodeEditor = ({
   code,
   setCode,
@@ -419,8 +525,137 @@ const CodeEditor = ({
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
   const [isSplitViewOpen, setIsSplitViewOpen] = useState(false);
+  const codeEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const ptxEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const codeCursorDisposableRef = useRef<{ dispose: () => void } | null>(null);
+  const pendingPtxLinesRef = useRef<{
+    hasValue: boolean;
+    lines: number[] | null;
+  }>({
+    hasValue: false,
+    lines: null,
+  });
+  const ptxDecorationsRef = useRef<string[]>([]);
+  const [currentCodeLine, setCurrentCodeLine] = useState<number | null>(null);
+  const [ptxSourceMap, setPtxSourceMap] = useState<PtxSourceMap | null>(null);
+  const [maxMappedSourceLine, setMaxMappedSourceLine] = useState(0);
+  const debugTag = "[CodeEditor PTX]";
 
   const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
+
+  const highlightPtxLines = useCallback(
+    (lineNumbers: number[] | null) => {
+      const editorInstance = ptxEditorRef.current;
+      if (!editorInstance) {
+        pendingPtxLinesRef.current = { hasValue: true, lines: lineNumbers };
+        // console.log(
+        //   `${debugTag} PTX editor not ready, queueing lines`,
+        //   lineNumbers
+        // );
+        return;
+      }
+
+      pendingPtxLinesRef.current = { hasValue: false, lines: null };
+
+      const decorations =
+        lineNumbers?.map((line) => ({
+          range: {
+            startLineNumber: line,
+            startColumn: 1,
+            endLineNumber: line,
+            endColumn: 1,
+          },
+          options: {
+            isWholeLine: true,
+            className: "ptx-highlight-line",
+            linesDecorationsClassName: "ptx-gutter-highlight",
+          },
+        })) ?? [];
+
+      ptxDecorationsRef.current = editorInstance.deltaDecorations(
+        ptxDecorationsRef.current,
+        decorations
+      );
+
+      if (lineNumbers && lineNumbers.length > 0) {
+        const firstLine = lineNumbers[0];
+        if (firstLine !== undefined) {
+          editorInstance.revealLineInCenter(firstLine);
+        }
+      }
+
+      // if (lineNumbers && lineNumbers.length > 0) {
+      //   console.log(`${debugTag} Highlighting PTX lines:`, lineNumbers);
+      // } else {
+      //   console.log(`${debugTag} Clearing PTX highlights`);
+      // }
+    },
+    [debugTag]
+  );
+
+  const handleCodeEditorMount = useCallback(
+    (
+      editorInstance: MonacoEditor.IStandaloneCodeEditor,
+      _monacoInstance?: Monaco
+    ) => {
+      codeEditorRef.current = editorInstance;
+      codeCursorDisposableRef.current?.dispose();
+      const updateCursorLine = () => {
+        const position = editorInstance.getPosition();
+        const lineNumber = position?.lineNumber ?? null;
+        setCurrentCodeLine(lineNumber);
+        // console.log(`${debugTag} Cursor moved to line`, lineNumber);
+      };
+
+      codeCursorDisposableRef.current =
+        editorInstance.onDidChangeCursorPosition(() => {
+          updateCursorLine();
+        });
+      updateCursorLine();
+
+      editorInstance.onDidDispose(() => {
+        codeCursorDisposableRef.current?.dispose();
+        codeCursorDisposableRef.current = null;
+        codeEditorRef.current = null;
+        setCurrentCodeLine(null);
+        // console.log(`${debugTag} Code editor disposed`);
+      });
+    },
+    [debugTag]
+  );
+
+  const handlePtxEditorMount = useCallback(
+    (
+      editorInstance: MonacoEditor.IStandaloneCodeEditor,
+      _monacoInstance?: Monaco
+    ) => {
+      ptxEditorRef.current = editorInstance;
+      editorInstance.onDidDispose(() => {
+        ptxEditorRef.current = null;
+        ptxDecorationsRef.current = [];
+      });
+
+      if (pendingPtxLinesRef.current.hasValue) {
+        // console.log(
+        //   `${debugTag} PTX editor mounted; replaying queued highlights`,
+        //   pendingPtxLinesRef.current.lines
+        // );
+        highlightPtxLines(pendingPtxLinesRef.current.lines);
+      } else if (ptxSourceMap && currentCodeLine != null) {
+        // console.log(
+        //   `${debugTag} PTX editor mounted; applying map for line`,
+        //   currentCodeLine
+        // );
+        highlightPtxLines(ptxSourceMap[currentCodeLine] ?? null);
+      } else {
+        // console.log(
+        //   `${debugTag} PTX editor mounted; no map/cursor available yet`
+        // );
+        highlightPtxLines(null);
+      }
+    },
+    [highlightPtxLines, ptxSourceMap, currentCodeLine, debugTag]
+  );
 
   useEffect(() => {
     if (!enablePtxSassView && isSplitViewOpen) {
@@ -428,10 +663,77 @@ const CodeEditor = ({
     }
   }, [enablePtxSassView, isSplitViewOpen]);
 
+  useEffect(() => {
+    return () => {
+      codeCursorDisposableRef.current?.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!enablePtxSassView || !ptxContent) {
+      setPtxSourceMap(null);
+      highlightPtxLines(null);
+      // console.log(`${debugTag} PTX pane disabled or content missing`);
+      setMaxMappedSourceLine(0);
+      return;
+    }
+
+    // console.log(`${debugTag} Generating PTX map`);
+    const map = createPtxSourceMap(ptxContent);
+    const mapKeys = Object.keys(map).map((key) => Number(key));
+    const entryCount = mapKeys.length;
+    const maxLine = entryCount > 0 ? Math.max(...mapKeys) : 0;
+    // console.log(
+    //   `${debugTag} PTX map entries: ${entryCount}, max source line: ${maxLine}`
+    // );
+    setPtxSourceMap(map);
+    setMaxMappedSourceLine(maxLine);
+  }, [enablePtxSassView, ptxContent, highlightPtxLines, debugTag]);
+
+  useEffect(() => {
+    if (!ptxSourceMap || currentCodeLine == null) {
+      highlightPtxLines(null);
+      // if (!ptxSourceMap) {
+      //   console.log(`${debugTag} Waiting for PTX map before highlighting`);
+      // } else {
+      //   console.log(`${debugTag} Cursor unset; skipping PTX highlight`);
+      // }
+      return;
+    }
+
+    const { lines, matchedSourceLine } = findClosestPtxLines(
+      ptxSourceMap,
+      currentCodeLine,
+      maxMappedSourceLine
+    );
+    if (lines) {
+      if (matchedSourceLine !== currentCodeLine) {
+        // console.log(
+        //   `${debugTag} Source line ${currentCodeLine} mapped via nearby line ${matchedSourceLine}`
+        // );
+      } else {
+        // console.log(`${debugTag} Source line ${currentCodeLine} maps directly`);
+      }
+      // console.log(`${debugTag} Highlighting PTX lines:`, lines);
+    } else {
+      // console.log(
+      //   `${debugTag} No PTX lines found within ±${PTX_LINE_SEARCH_RADIUS} lines`
+      // );
+    }
+    highlightPtxLines(lines);
+  }, [
+    ptxSourceMap,
+    currentCodeLine,
+    highlightPtxLines,
+    debugTag,
+    maxMappedSourceLine,
+  ]);
+
   const editorContent = (
     content: string,
     language: string,
-    readOnly: boolean
+    readOnly: boolean,
+    extraOptions?: EditorContentOptions
   ) => (
     <>
       {isEditorLoading && (
@@ -487,7 +789,10 @@ const CodeEditor = ({
         onChange={(value) => !readOnly && isEditable && setCode(value ?? "")}
         language={language}
         beforeMount={setupMonaco}
-        onMount={() => setIsEditorLoading(false)}
+        onMount={(editorInstance, monacoInstance) => {
+          setIsEditorLoading(false);
+          extraOptions?.onMount?.(editorInstance, monacoInstance);
+        }}
         loading={null}
         options={{
           minimap: { enabled: false },
@@ -512,7 +817,8 @@ const CodeEditor = ({
           : selectedLanguage === "mojo"
             ? "mojo"
             : "python",
-        !isEditable
+        !isEditable,
+        { onMount: handleCodeEditorMount }
       )}
       {hasPtxSassContent && !isSplitViewOpen && (
         <Button
@@ -644,7 +950,9 @@ const CodeEditor = ({
           {enablePtxSassView && (
             <TabPanel p={0} h="100%">
               {ptxContent ? (
-                editorContent(ptxContent, "cpp", true)
+                editorContent(ptxContent, "ptx", true, {
+                  onMount: handlePtxEditorMount,
+                })
               ) : (
                 <Box
                   h="100%"
@@ -743,55 +1051,68 @@ const CodeEditor = ({
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
-    <Box
-      w="100%"
-      h="100%"
-      bg="brand.secondary"
-      borderRadius="xl"
-      overflow="hidden"
-      position="relative"
-    >
-      {isSplitViewOpen && enablePtxSassView ? (
-        <Box
-          id="code-editor-split-container"
-          display="flex"
-          h="100%"
-          position="relative"
-        >
-          {/* Left Panel - Code Editor */}
-          <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
-            {codeEditorPanel}
-          </Box>
-
-          {/* Minimal Divider */}
+    <>
+      <Box
+        w="100%"
+        h="100%"
+        bg="brand.secondary"
+        borderRadius="xl"
+        overflow="hidden"
+        position="relative"
+      >
+        {isSplitViewOpen && enablePtxSassView ? (
           <Box
-            position="absolute"
-            left={`${splitRatio}%`}
-            transform="translateX(-50%)"
-            width="1px"
-            height="100%"
-            bg="#2A2A2A"
-            cursor="col-resize"
-            zIndex={2}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={handleMouseDown}
-            _hover={{
-              bg: "#4EC9B0",
-              width: "2px",
-              opacity: 0.6,
-            }}
-            transition="all 0.15s ease"
-          />
+            id="code-editor-split-container"
+            display="flex"
+            h="100%"
+            position="relative"
+          >
+            {/* Left Panel - Code Editor */}
+            <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
+              {codeEditorPanel}
+            </Box>
 
-          {/* Right Panel - PTX/SASS */}
-          <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
-            {ptxSassPanel}
+            {/* Minimal Divider */}
+            <Box
+              position="absolute"
+              left={`${splitRatio}%`}
+              transform="translateX(-50%)"
+              width="1px"
+              height="100%"
+              bg="#2A2A2A"
+              cursor="col-resize"
+              zIndex={2}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={handleMouseDown}
+              _hover={{
+                bg: "#4EC9B0",
+                width: "2px",
+                opacity: 0.6,
+              }}
+              transition="all 0.15s ease"
+            />
+
+            {/* Right Panel - PTX/SASS */}
+            <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
+              {ptxSassPanel}
+            </Box>
           </Box>
-        </Box>
-      ) : (
-        codeEditorPanel
-      )}
-    </Box>
+        ) : (
+          codeEditorPanel
+        )}
+      </Box>
+      <style jsx global>{`
+        .ptx-highlight-line {
+          background-color: rgba(79, 193, 255, 0.28) !important;
+          border-left: 3px solid rgba(79, 193, 255, 0.9);
+          padding-left: 4px;
+        }
+
+        .ptx-gutter-highlight {
+          border-left: 3px solid #4fc1ff;
+        }
+      `}</style>
+    </>
   );
 };
 
