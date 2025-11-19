@@ -11,6 +11,7 @@ export function createPtxSourceMap(ptxContent: string): PtxSourceMap {
   const sourceMap: PtxSourceMap = {};
   const fileTable: Record<number, string> = {};
   const preferredFiles = new Set<number>();
+  let primaryFileId: number | null = null;
 
   let currentFileId: number | null = null;
   let currentSourceLine: number | null = null;
@@ -31,8 +32,19 @@ export function createPtxSourceMap(ptxContent: string): PtxSourceMap {
         return;
       }
       fileTable[fileId] = filePath;
-      if (filePath.endsWith(".cu") || filePath.endsWith(".cuh")) {
+      const normalizedPath = filePath.toLowerCase();
+      if (primaryFileId === null) {
+        primaryFileId = fileId;
+      }
+
+      const isCudaFile =
+        normalizedPath.endsWith(".cu") ||
+        normalizedPath.endsWith(".cuh") ||
+        normalizedPath.includes(".cu.");
+
+      if (isCudaFile) {
         preferredFiles.add(fileId);
+        primaryFileId = fileId;
       }
       return;
     }
@@ -45,17 +57,23 @@ export function createPtxSourceMap(ptxContent: string): PtxSourceMap {
     }
 
     // Only map instructions associated with the primary CUDA file.
-    if (
-      currentSourceLine != null &&
-      currentFileId != null &&
-      (preferredFiles.has(currentFileId) ||
-        fileTable[currentFileId]?.endsWith(".cu"))
-    ) {
-      if (!sourceMap[currentSourceLine]) {
-        sourceMap[currentSourceLine] = [];
-      }
-      sourceMap[currentSourceLine]?.push(index + 1);
+    if (currentSourceLine == null || currentFileId == null) {
+      return;
     }
+
+    const isPreferred =
+      preferredFiles.size > 0
+        ? preferredFiles.has(currentFileId)
+        : primaryFileId === null || primaryFileId === currentFileId;
+
+    if (!isPreferred) {
+      return;
+    }
+
+    if (!sourceMap[currentSourceLine]) {
+      sourceMap[currentSourceLine] = [];
+    }
+    sourceMap[currentSourceLine]?.push(index + 1);
   });
 
   return sourceMap;

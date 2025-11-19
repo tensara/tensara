@@ -33,6 +33,34 @@ interface CodeEditorProps {
   sassDirty?: boolean;
 }
 
+const PTX_LINE_SEARCH_RADIUS = 50;
+
+function findClosestPtxLines(
+  map: PtxSourceMap,
+  targetLine: number,
+  maxLine: number
+): {
+  lines: number[] | null;
+  matchedSourceLine: number | null;
+} {
+  if (map[targetLine]) {
+    return { lines: map[targetLine] ?? null, matchedSourceLine: targetLine };
+  }
+
+  for (let offset = 1; offset <= PTX_LINE_SEARCH_RADIUS; offset++) {
+    const lower = targetLine - offset;
+    if (lower > 0 && map[lower]) {
+      return { lines: map[lower] ?? null, matchedSourceLine: lower };
+    }
+    const upper = targetLine + offset;
+    if (upper <= maxLine && map[upper]) {
+      return { lines: map[upper] ?? null, matchedSourceLine: upper };
+    }
+  }
+
+  return { lines: null, matchedSourceLine: null };
+}
+
 function setupMonaco(monaco: Monaco) {
   monaco.editor.defineTheme("tensara-dark", {
     base: "vs-dark",
@@ -431,39 +459,30 @@ const CodeEditor = ({
   const codeEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const ptxEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const codeCursorDisposableRef = useRef<{ dispose: () => void } | null>(null);
-  const pendingPtxLinesRef = useRef<{ hasValue: boolean; lines: number[] | null }>({
+  const pendingPtxLinesRef = useRef<{
+    hasValue: boolean;
+    lines: number[] | null;
+  }>({
     hasValue: false,
     lines: null,
   });
   const ptxDecorationsRef = useRef<string[]>([]);
-  const [selectedCodeLines, setSelectedCodeLines] = useState<number[] | null>(null);
+  const [currentCodeLine, setCurrentCodeLine] = useState<number | null>(null);
   const [ptxSourceMap, setPtxSourceMap] = useState<PtxSourceMap | null>(null);
+  const [maxMappedSourceLine, setMaxMappedSourceLine] = useState(0);
+  const debugTag = "[CodeEditor PTX]";
 
   const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
-
-  const collectPtxLines = useCallback(
-    (map: PtxSourceMap, codeLines: number[]): number[] | null => {
-      const collected = new Set<number>();
-      for (const line of codeLines) {
-        const mapped = map[line];
-        if (!mapped) continue;
-        for (const ptxLine of mapped) {
-          collected.add(ptxLine);
-        }
-      }
-      if (collected.size === 0) {
-        return null;
-      }
-      return Array.from(collected).sort((a, b) => a - b);
-    },
-    []
-  );
 
   const highlightPtxLines = useCallback(
     (lineNumbers: number[] | null) => {
       const editorInstance = ptxEditorRef.current;
       if (!editorInstance) {
         pendingPtxLinesRef.current = { hasValue: true, lines: lineNumbers };
+        // console.log(
+        //   `${debugTag} PTX editor not ready, queueing lines`,
+        //   lineNumbers
+        // );
         return;
       }
 
@@ -488,8 +507,14 @@ const CodeEditor = ({
         ptxDecorationsRef.current,
         decorations
       );
+
+      // if (lineNumbers && lineNumbers.length > 0) {
+      //   console.log(`${debugTag} Highlighting PTX lines:`, lineNumbers);
+      // } else {
+      //   console.log(`${debugTag} Clearing PTX highlights`);
+      // }
     },
-    []
+    [debugTag]
   );
 
   const handleCodeEditorMount = useCallback(
@@ -499,35 +524,28 @@ const CodeEditor = ({
     ) => {
       codeEditorRef.current = editorInstance;
       codeCursorDisposableRef.current?.dispose();
-      const updateSelection = () => {
-        const selection = editorInstance.getSelection();
-        if (!selection) {
-          setSelectedCodeLines(null);
-          return;
-        }
-        const start = Math.min(selection.startLineNumber, selection.endLineNumber);
-        const end = Math.max(selection.startLineNumber, selection.endLineNumber);
-        const lines: number[] = [];
-        for (let line = start; line <= end; line++) {
-          lines.push(line);
-        }
-        setSelectedCodeLines(lines);
+      const updateCursorLine = () => {
+        const position = editorInstance.getPosition();
+        const lineNumber = position?.lineNumber ?? null;
+        setCurrentCodeLine(lineNumber);
+        // console.log(`${debugTag} Cursor moved to line`, lineNumber);
       };
 
       codeCursorDisposableRef.current =
-        editorInstance.onDidChangeCursorSelection(() => {
-          updateSelection();
+        editorInstance.onDidChangeCursorPosition(() => {
+          updateCursorLine();
         });
-      updateSelection();
+      updateCursorLine();
 
       editorInstance.onDidDispose(() => {
         codeCursorDisposableRef.current?.dispose();
         codeCursorDisposableRef.current = null;
         codeEditorRef.current = null;
-        setSelectedCodeLines(null);
+        setCurrentCodeLine(null);
+        // console.log(`${debugTag} Code editor disposed`);
       });
     },
-    []
+    [debugTag]
   );
 
   const handlePtxEditorMount = useCallback(
@@ -541,15 +559,26 @@ const CodeEditor = ({
         ptxDecorationsRef.current = [];
       });
 
-      highlightPtxLines(
-        pendingPtxLinesRef.current.hasValue
-          ? pendingPtxLinesRef.current.lines
-          : selectedCodeLines && ptxSourceMap
-            ? collectPtxLines(ptxSourceMap, selectedCodeLines)
-            : null
-      );
+      if (pendingPtxLinesRef.current.hasValue) {
+        // console.log(
+        //   `${debugTag} PTX editor mounted; replaying queued highlights`,
+        //   pendingPtxLinesRef.current.lines
+        // );
+        highlightPtxLines(pendingPtxLinesRef.current.lines);
+      } else if (ptxSourceMap && currentCodeLine != null) {
+        // console.log(
+        //   `${debugTag} PTX editor mounted; applying map for line`,
+        //   currentCodeLine
+        // );
+        highlightPtxLines(ptxSourceMap[currentCodeLine] ?? null);
+      } else {
+        // console.log(
+        //   `${debugTag} PTX editor mounted; no map/cursor available yet`
+        // );
+        highlightPtxLines(null);
+      }
     },
-    [highlightPtxLines, selectedCodeLines, ptxSourceMap, collectPtxLines]
+    [highlightPtxLines, ptxSourceMap, currentCodeLine, debugTag]
   );
 
   useEffect(() => {
@@ -565,27 +594,63 @@ const CodeEditor = ({
   }, []);
 
   useEffect(() => {
-    if (!enablePtxSassView || !ptxContent || ptxDirty) {
+    if (!enablePtxSassView || !ptxContent) {
       setPtxSourceMap(null);
       highlightPtxLines(null);
+      // console.log(`${debugTag} PTX pane disabled or content missing`);
+      setMaxMappedSourceLine(0);
       return;
     }
 
-    setPtxSourceMap(createPtxSourceMap(ptxContent));
-  }, [enablePtxSassView, ptxContent, ptxDirty, highlightPtxLines]);
+    // console.log(`${debugTag} Generating PTX map`);
+    const map = createPtxSourceMap(ptxContent);
+    const mapKeys = Object.keys(map).map((key) => Number(key));
+    const entryCount = mapKeys.length;
+    const maxLine = entryCount > 0 ? Math.max(...mapKeys) : 0;
+    // console.log(
+    //   `${debugTag} PTX map entries: ${entryCount}, max source line: ${maxLine}`
+    // );
+    setPtxSourceMap(map);
+    setMaxMappedSourceLine(maxLine);
+  }, [enablePtxSassView, ptxContent, highlightPtxLines, debugTag]);
 
   useEffect(() => {
-    if (!ptxSourceMap || !selectedCodeLines || selectedCodeLines.length === 0) {
+    if (!ptxSourceMap || currentCodeLine == null) {
       highlightPtxLines(null);
+      // if (!ptxSourceMap) {
+      //   console.log(`${debugTag} Waiting for PTX map before highlighting`);
+      // } else {
+      //   console.log(`${debugTag} Cursor unset; skipping PTX highlight`);
+      // }
       return;
     }
 
-    highlightPtxLines(collectPtxLines(ptxSourceMap, selectedCodeLines));
+    const { lines, matchedSourceLine } = findClosestPtxLines(
+      ptxSourceMap,
+      currentCodeLine,
+      maxMappedSourceLine
+    );
+    if (lines) {
+      if (matchedSourceLine !== currentCodeLine) {
+        // console.log(
+        //   `${debugTag} Source line ${currentCodeLine} mapped via nearby line ${matchedSourceLine}`
+        // );
+      } else {
+        // console.log(`${debugTag} Source line ${currentCodeLine} maps directly`);
+      }
+      // console.log(`${debugTag} Highlighting PTX lines:`, lines);
+    } else {
+      // console.log(
+      //   `${debugTag} No PTX lines found within ±${PTX_LINE_SEARCH_RADIUS} lines`
+      // );
+    }
+    highlightPtxLines(lines);
   }, [
     ptxSourceMap,
-    selectedCodeLines,
+    currentCodeLine,
     highlightPtxLines,
-    collectPtxLines,
+    debugTag,
+    maxMappedSourceLine,
   ]);
 
   const editorContent = (
@@ -962,7 +1027,9 @@ const CodeEditor = ({
       </Box>
       <style jsx global>{`
         .ptx-highlight-line {
-          background-color: rgba(79, 193, 255, 0.15) !important;
+          background-color: rgba(79, 193, 255, 0.28) !important;
+          border-left: 3px solid rgba(79, 193, 255, 0.9);
+          padding-left: 4px;
         }
 
         .ptx-gutter-highlight {
