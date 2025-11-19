@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Box,
   Spinner,
@@ -14,6 +14,7 @@ import {
   ModalBody,
   ModalCloseButton,
   useDisclosure,
+  Link as ChakraLink,
 } from "@chakra-ui/react";
 import { useSession } from "next-auth/react";
 import superjson from "superjson";
@@ -21,6 +22,7 @@ import { useHotkey } from "~/hooks/useHotKey";
 
 import type { GetServerSideProps } from "next";
 import { type Problem, type Submission } from "@prisma/client";
+import NextLink from "next/link";
 
 import { Layout } from "~/components/layout";
 import MySubmissions from "~/components/problem/MySubmissions";
@@ -39,8 +41,13 @@ import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSampleStream } from "~/hooks/useSampleStream";
 
-import { validateCode } from "~/utils/starter";
+import {
+  SampleStatus,
+  SubmissionStatus,
+  type SampleStatusType,
+} from "~/types/submission";
 import { savePreferences } from "~/utils/localStorage";
+import { validateCode } from "~/utils/starter";
 
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import { createServerSideHelpers } from "@trpc/react-query/server";
@@ -159,6 +166,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
     sassContent: submissionSassContent,
     submissionId,
   } = useSubmissionStream(submissionsQuery.refetch);
+  const lastSampleStatusRef = useRef<SampleStatusType>(SampleStatus.IDLE);
+  const [wrongSubmissionStreak, setWrongSubmissionStreak] = useState(0);
 
   const [submissionPtxTimestamp, setSubmissionPtxTimestamp] =
     useState<number>(0);
@@ -192,6 +201,72 @@ export default function ProblemPage({ slug }: { slug: string }) {
       setSampleSassTimestamp(Date.now());
     }
   }, [sassContent]);
+
+  const showHelpToast = useCallback(() => {
+    const toastId = "need-help-toast";
+    if (toast.isActive(toastId)) return;
+    toast({
+      id: toastId,
+      duration: 7000,
+      isClosable: true,
+      position: "bottom-right",
+      render: () => (
+        <Box
+          bg="gray.900"
+          color="white"
+          px={4}
+          py={3}
+          borderRadius="md"
+          border="1px solid"
+          borderColor="whiteAlpha.200"
+          boxShadow="xl"
+        >
+          <Text fontWeight="semibold" mb={1}>
+            Need help?
+          </Text>
+          <Text fontSize="sm">
+            <ChakraLink
+              as={NextLink}
+              href="/blog"
+              color="teal.200"
+              textDecoration="underline"
+            >
+              Post a question on our blog
+            </ChakraLink>{" "}
+            to get tips from the community.
+          </Text>
+        </Box>
+      ),
+    });
+  }, [toast]);
+
+  useEffect(() => {
+    if (
+      status === SampleStatus.FAILED &&
+      lastSampleStatusRef.current !== SampleStatus.FAILED
+    ) {
+      setWrongSubmissionStreak((prev) => prev + 1);
+    }
+    lastSampleStatusRef.current = status;
+  }, [status, showHelpToast]);
+
+  useEffect(() => {
+    const status = metaResponse?.status;
+    if (!status) return;
+
+    if (status === SubmissionStatus.WRONG_ANSWER) {
+      setWrongSubmissionStreak((prev) => prev + 1);
+    } else {
+      setWrongSubmissionStreak(0);
+    }
+  }, [metaResponse]);
+
+  useEffect(() => {
+    if (wrongSubmissionStreak >= 3) {
+      showHelpToast();
+      setWrongSubmissionStreak(0);
+    }
+  }, [wrongSubmissionStreak, showHelpToast]);
 
   const handleSetCode = useCallback(
     (newCode: string) => {
