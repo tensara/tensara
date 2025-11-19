@@ -15,9 +15,11 @@ import {
 import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { FiX, FiAlertTriangle } from "react-icons/fi";
+import type { editor as MonacoEditor } from "monaco-editor";
+import { createPtxSourceMap, type PtxSourceMap } from "~/utils/ptx";
 
 interface CodeEditorProps {
   code: string;
@@ -406,6 +408,13 @@ const pulseAnimation = keyframes`
   100% { opacity: 0.6; }
 `;
 
+type EditorContentOptions = {
+  onMount?: (
+    editorInstance: MonacoEditor.IStandaloneCodeEditor,
+    monacoInstance: Monaco
+  ) => void;
+};
+
 const CodeEditor = ({
   code,
   setCode,
@@ -419,8 +428,129 @@ const CodeEditor = ({
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
   const [isSplitViewOpen, setIsSplitViewOpen] = useState(false);
+  const codeEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const ptxEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const codeCursorDisposableRef = useRef<{ dispose: () => void } | null>(null);
+  const pendingPtxLinesRef = useRef<{ hasValue: boolean; lines: number[] | null }>({
+    hasValue: false,
+    lines: null,
+  });
+  const ptxDecorationsRef = useRef<string[]>([]);
+  const [selectedCodeLines, setSelectedCodeLines] = useState<number[] | null>(null);
+  const [ptxSourceMap, setPtxSourceMap] = useState<PtxSourceMap | null>(null);
 
   const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
+
+  const collectPtxLines = useCallback(
+    (map: PtxSourceMap, codeLines: number[]): number[] | null => {
+      const collected = new Set<number>();
+      for (const line of codeLines) {
+        const mapped = map[line];
+        if (!mapped) continue;
+        for (const ptxLine of mapped) {
+          collected.add(ptxLine);
+        }
+      }
+      if (collected.size === 0) {
+        return null;
+      }
+      return Array.from(collected).sort((a, b) => a - b);
+    },
+    []
+  );
+
+  const highlightPtxLines = useCallback(
+    (lineNumbers: number[] | null) => {
+      const editorInstance = ptxEditorRef.current;
+      if (!editorInstance) {
+        pendingPtxLinesRef.current = { hasValue: true, lines: lineNumbers };
+        return;
+      }
+
+      pendingPtxLinesRef.current = { hasValue: false, lines: null };
+
+      const decorations =
+        lineNumbers?.map((line) => ({
+          range: {
+            startLineNumber: line,
+            startColumn: 1,
+            endLineNumber: line,
+            endColumn: 1,
+          },
+          options: {
+            isWholeLine: true,
+            className: "ptx-highlight-line",
+            linesDecorationsClassName: "ptx-gutter-highlight",
+          },
+        })) ?? [];
+
+      ptxDecorationsRef.current = editorInstance.deltaDecorations(
+        ptxDecorationsRef.current,
+        decorations
+      );
+    },
+    []
+  );
+
+  const handleCodeEditorMount = useCallback(
+    (
+      editorInstance: MonacoEditor.IStandaloneCodeEditor,
+      _monacoInstance?: Monaco
+    ) => {
+      codeEditorRef.current = editorInstance;
+      codeCursorDisposableRef.current?.dispose();
+      const updateSelection = () => {
+        const selection = editorInstance.getSelection();
+        if (!selection) {
+          setSelectedCodeLines(null);
+          return;
+        }
+        const start = Math.min(selection.startLineNumber, selection.endLineNumber);
+        const end = Math.max(selection.startLineNumber, selection.endLineNumber);
+        const lines: number[] = [];
+        for (let line = start; line <= end; line++) {
+          lines.push(line);
+        }
+        setSelectedCodeLines(lines);
+      };
+
+      codeCursorDisposableRef.current =
+        editorInstance.onDidChangeCursorSelection(() => {
+          updateSelection();
+        });
+      updateSelection();
+
+      editorInstance.onDidDispose(() => {
+        codeCursorDisposableRef.current?.dispose();
+        codeCursorDisposableRef.current = null;
+        codeEditorRef.current = null;
+        setSelectedCodeLines(null);
+      });
+    },
+    []
+  );
+
+  const handlePtxEditorMount = useCallback(
+    (
+      editorInstance: MonacoEditor.IStandaloneCodeEditor,
+      _monacoInstance?: Monaco
+    ) => {
+      ptxEditorRef.current = editorInstance;
+      editorInstance.onDidDispose(() => {
+        ptxEditorRef.current = null;
+        ptxDecorationsRef.current = [];
+      });
+
+      highlightPtxLines(
+        pendingPtxLinesRef.current.hasValue
+          ? pendingPtxLinesRef.current.lines
+          : selectedCodeLines && ptxSourceMap
+            ? collectPtxLines(ptxSourceMap, selectedCodeLines)
+            : null
+      );
+    },
+    [highlightPtxLines, selectedCodeLines, ptxSourceMap, collectPtxLines]
+  );
 
   useEffect(() => {
     if (!enablePtxSassView && isSplitViewOpen) {
@@ -428,10 +558,41 @@ const CodeEditor = ({
     }
   }, [enablePtxSassView, isSplitViewOpen]);
 
+  useEffect(() => {
+    return () => {
+      codeCursorDisposableRef.current?.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!enablePtxSassView || !ptxContent || ptxDirty) {
+      setPtxSourceMap(null);
+      highlightPtxLines(null);
+      return;
+    }
+
+    setPtxSourceMap(createPtxSourceMap(ptxContent));
+  }, [enablePtxSassView, ptxContent, ptxDirty, highlightPtxLines]);
+
+  useEffect(() => {
+    if (!ptxSourceMap || !selectedCodeLines || selectedCodeLines.length === 0) {
+      highlightPtxLines(null);
+      return;
+    }
+
+    highlightPtxLines(collectPtxLines(ptxSourceMap, selectedCodeLines));
+  }, [
+    ptxSourceMap,
+    selectedCodeLines,
+    highlightPtxLines,
+    collectPtxLines,
+  ]);
+
   const editorContent = (
     content: string,
     language: string,
-    readOnly: boolean
+    readOnly: boolean,
+    extraOptions?: EditorContentOptions
   ) => (
     <>
       {isEditorLoading && (
@@ -487,7 +648,10 @@ const CodeEditor = ({
         onChange={(value) => !readOnly && isEditable && setCode(value ?? "")}
         language={language}
         beforeMount={setupMonaco}
-        onMount={() => setIsEditorLoading(false)}
+        onMount={(editorInstance, monacoInstance) => {
+          setIsEditorLoading(false);
+          extraOptions?.onMount?.(editorInstance, monacoInstance);
+        }}
         loading={null}
         options={{
           minimap: { enabled: false },
@@ -512,7 +676,8 @@ const CodeEditor = ({
           : selectedLanguage === "mojo"
             ? "mojo"
             : "python",
-        !isEditable
+        !isEditable,
+        { onMount: handleCodeEditorMount }
       )}
       {hasPtxSassContent && !isSplitViewOpen && (
         <Button
@@ -644,7 +809,9 @@ const CodeEditor = ({
           {enablePtxSassView && (
             <TabPanel p={0} h="100%">
               {ptxContent ? (
-                editorContent(ptxContent, "cpp", true)
+                editorContent(ptxContent, "cpp", true, {
+                  onMount: handlePtxEditorMount,
+                })
               ) : (
                 <Box
                   h="100%"
@@ -743,55 +910,66 @@ const CodeEditor = ({
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
-    <Box
-      w="100%"
-      h="100%"
-      bg="brand.secondary"
-      borderRadius="xl"
-      overflow="hidden"
-      position="relative"
-    >
-      {isSplitViewOpen && enablePtxSassView ? (
-        <Box
-          id="code-editor-split-container"
-          display="flex"
-          h="100%"
-          position="relative"
-        >
-          {/* Left Panel - Code Editor */}
-          <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
-            {codeEditorPanel}
-          </Box>
-
-          {/* Minimal Divider */}
+    <>
+      <Box
+        w="100%"
+        h="100%"
+        bg="brand.secondary"
+        borderRadius="xl"
+        overflow="hidden"
+        position="relative"
+      >
+        {isSplitViewOpen && enablePtxSassView ? (
           <Box
-            position="absolute"
-            left={`${splitRatio}%`}
-            transform="translateX(-50%)"
-            width="1px"
-            height="100%"
-            bg="#2A2A2A"
-            cursor="col-resize"
-            zIndex={2}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={handleMouseDown}
-            _hover={{
-              bg: "#4EC9B0",
-              width: "2px",
-              opacity: 0.6,
-            }}
-            transition="all 0.15s ease"
-          />
+            id="code-editor-split-container"
+            display="flex"
+            h="100%"
+            position="relative"
+          >
+            {/* Left Panel - Code Editor */}
+            <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
+              {codeEditorPanel}
+            </Box>
 
-          {/* Right Panel - PTX/SASS */}
-          <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
-            {ptxSassPanel}
+            {/* Minimal Divider */}
+            <Box
+              position="absolute"
+              left={`${splitRatio}%`}
+              transform="translateX(-50%)"
+              width="1px"
+              height="100%"
+              bg="#2A2A2A"
+              cursor="col-resize"
+              zIndex={2}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={handleMouseDown}
+              _hover={{
+                bg: "#4EC9B0",
+                width: "2px",
+                opacity: 0.6,
+              }}
+              transition="all 0.15s ease"
+            />
+
+            {/* Right Panel - PTX/SASS */}
+            <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
+              {ptxSassPanel}
+            </Box>
           </Box>
-        </Box>
-      ) : (
-        codeEditorPanel
-      )}
-    </Box>
+        ) : (
+          codeEditorPanel
+        )}
+      </Box>
+      <style jsx global>{`
+        .ptx-highlight-line {
+          background-color: rgba(79, 193, 255, 0.15) !important;
+        }
+
+        .ptx-gutter-highlight {
+          border-left: 3px solid #4fc1ff;
+        }
+      `}</style>
+    </>
   );
 };
 

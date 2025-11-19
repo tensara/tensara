@@ -171,23 +171,30 @@ export default async function handler(
           try {
             const response_json = message.slice(6).trim();
             const parsed = JSON.parse(response_json) as {
-              status: string;
+              status?: string;
+              [key: string]: unknown;
             };
-            if (!parsed) {
+            const response_status = parsed?.status;
+            if (!response_status) {
               continue;
             }
-            const response_status = parsed.status;
 
             if (response_status === SubmissionStatus.COMPILING) {
               sendSSE(SubmissionStatus.COMPILING, {
                 status: SubmissionStatus.COMPILING,
               });
-            } else if (response_status === "SANDBOX_RUNNING") {
+              continue;
+            }
+
+            if (response_status === "SANDBOX_RUNNING") {
               sendSSE("SANDBOX_RUNNING", {
                 status: "SANDBOX_RUNNING",
               });
-            } else if (response_status === "SANDBOX_OUTPUT") {
-              const response = JSON.parse(response_json) as {
+              continue;
+            }
+
+            if (response_status === "SANDBOX_OUTPUT") {
+              const response = parsed as {
                 status: string;
                 stream: "stdout" | "stderr";
                 line: string;
@@ -195,8 +202,11 @@ export default async function handler(
               };
 
               sendSSE("SANDBOX_OUTPUT", response);
-            } else if (response_status === "SANDBOX_SUCCESS") {
-              const response = JSON.parse(response_json) as {
+              continue;
+            }
+
+            if (response_status === "SANDBOX_SUCCESS") {
+              const response = parsed as {
                 status: string;
                 stdout: string;
                 stderr: string;
@@ -211,8 +221,10 @@ export default async function handler(
 
               res.end();
               return;
-            } else if (response_status === "SANDBOX_ERROR") {
-              const response = JSON.parse(response_json) as {
+            }
+
+            if (response_status === "SANDBOX_ERROR") {
+              const response = parsed as {
                 status: string;
                 message: string;
                 stdout?: string;
@@ -230,8 +242,10 @@ export default async function handler(
 
               res.end();
               return;
-            } else if (response_status === "SANDBOX_TIMEOUT") {
-              const response = JSON.parse(response_json) as {
+            }
+
+            if (response_status === "SANDBOX_TIMEOUT") {
+              const response = parsed as {
                 status: string;
                 message: string;
                 details: string;
@@ -245,8 +259,19 @@ export default async function handler(
 
               res.end();
               return;
-            } else if (isSubmissionError(response_status)) {
-              const response = JSON.parse(response_json) as {
+            }
+
+            if (
+              response_status === SubmissionStatus.PTX ||
+              response_status === SubmissionStatus.SASS ||
+              response_status === SubmissionStatus.WARNING
+            ) {
+              sendSSE(response_status, parsed);
+              continue;
+            }
+
+            if (isSubmissionError(response_status)) {
+              const response = parsed as {
                 status: SubmissionErrorType;
                 error: string;
                 details: string;
@@ -258,9 +283,9 @@ export default async function handler(
 
               res.end();
               return;
-            } else {
-              sendSSE(response_status, {});
             }
+
+            sendSSE(response_status, parsed);
           } catch (e) {
             console.error("Failed to parse sandbox SSE data:", e);
             continue;
