@@ -24,7 +24,7 @@ export function createPtxSourceMap(ptxContent: string): PtxSourceMap {
       return;
     }
 
-    const fileMatch = trimmed.match(FILE_REGEX);
+    const fileMatch = FILE_REGEX.exec(trimmed);
     if (fileMatch) {
       const fileId = Number(fileMatch[1]);
       const filePath = fileMatch[2];
@@ -49,7 +49,7 @@ export function createPtxSourceMap(ptxContent: string): PtxSourceMap {
       return;
     }
 
-    const locMatch = trimmed.match(LOC_REGEX);
+    const locMatch = LOC_REGEX.exec(trimmed);
     if (locMatch) {
       currentFileId = Number(locMatch[1]);
       currentSourceLine = Number(locMatch[2]);

@@ -372,12 +372,16 @@ function setupMonaco(monaco: Monaco) {
         [/\/\*/, "comment", "@comment"],
 
         // Directives: .version, .target, .reg, .entry, .func, etc.
-        [/\.(version|target|address_size|visible|entry|func|param|reg|const|global|local|shared|tex|surf|sampler|array|struct|union|align|section|file|loc|pragma|extern|weak|common|b8|b16|b32|b64|u8|u16|u32|u64|s8|s16|s32|s64|f16|f32|f64|pred)\b/,
-          "keyword.directive"],
+        [
+          /\.(version|target|address_size|visible|entry|func|param|reg|const|global|local|shared|tex|surf|sampler|array|struct|union|align|section|file|loc|pragma|extern|weak|common|b8|b16|b32|b64|u8|u16|u32|u64|s8|s16|s32|s64|f16|f32|f64|pred)\b/,
+          "keyword.directive",
+        ],
 
         // PTX instructions (common ones)
-        [/\b(add|sub|mul|mad|div|rem|abs|neg|min|max|setp|set|selp|slct|cvt|mov|shl|shr|and|or|xor|not|clz|popc|bfind|fma|rcp|sqrt|rsqrt|sin|cos|lg2|ex2|tanh|sad|dp4a|dp2a|ld|st|prefetch|prefetchu|isspacep|cvta|cp|atom|red|bar|barrier|bra|call|ret|brkpt|nop|exit|trap|vote|activemask|alloca|bfe|bfi|bfind|brev|clz|cos|ex2|fma|isspacep|lg2|mad24|mul24|popc|prmt|rcp|red|rem|rsqrt|sad|sin|sqrt|tanh|testp|tex|tld4|trap|vabsdiff|vadd|vadd2|vadd4|vmad|vmax|vmin|vset|vshl|vshr|vsub|vsub2|vsub4)\b/,
-          "keyword.instruction"],
+        [
+          /\b(add|sub|mul|mad|div|rem|abs|neg|min|max|setp|set|selp|slct|cvt|mov|shl|shr|and|or|xor|not|clz|popc|bfind|fma|rcp|sqrt|rsqrt|sin|cos|lg2|ex2|tanh|sad|dp4a|dp2a|ld|st|prefetch|prefetchu|isspacep|cvta|cp|atom|red|bar|barrier|bra|call|ret|brkpt|nop|exit|trap|vote|activemask|alloca|bfe|bfi|bfind|brev|clz|cos|ex2|fma|isspacep|lg2|mad24|mul24|popc|prmt|rcp|red|rem|rsqrt|sad|sin|sqrt|tanh|testp|tex|tld4|trap|vabsdiff|vadd|vadd2|vadd4|vmad|vmax|vmin|vset|vshl|vshr|vsub|vsub2|vsub4)\b/,
+          "keyword.instruction",
+        ],
 
         // Predicates: @%p0, @!%p1
         [/@!?%p\d+/, "keyword.predicate"],
@@ -389,8 +393,10 @@ function setupMonaco(monaco: Monaco) {
         [/\$[a-zA-Z_][a-zA-Z0-9_]*\s*:/, "label"],
 
         // Types: .f32, .u64, .b16, etc.
-        [/\.(b8|b16|b32|b64|u8|u16|u32|u64|s8|s16|s32|s64|f16|f32|f64|pred)\b/,
-          "type"],
+        [
+          /\.(b8|b16|b32|b64|u8|u16|u32|u64|s8|s16|s32|s64|f16|f32|f64|pred)\b/,
+          "type",
+        ],
 
         // Strings
         [/"([^"\\]|\\.)*$/, "string.invalid"],
