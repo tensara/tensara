@@ -207,36 +207,17 @@ export default function ProblemPage({ slug }: { slug: string }) {
     if (toast.isActive(toastId)) return;
     toast({
       id: toastId,
-      duration: 7000,
-      isClosable: true,
-      position: "bottom-right",
-      render: () => (
-        <Box
-          bg="gray.900"
-          color="white"
-          px={4}
-          py={3}
-          borderRadius="md"
-          border="1px solid"
-          borderColor="whiteAlpha.200"
-          boxShadow="xl"
-        >
-          <Text fontWeight="semibold" mb={1}>
-            Need help?
-          </Text>
-          <Text fontSize="sm">
-            <ChakraLink
-              as={NextLink}
-              href="/blog"
-              color="teal.200"
-              textDecoration="underline"
-            >
-              Post a question on our blog
-            </ChakraLink>{" "}
-            to get tips from the community.
-          </Text>
-        </Box>
+      title: "Need help?",
+      description: (
+        <>
+          <ChakraLink as={NextLink} href="/blog" textDecoration="underline">
+            Post a question on our blog
+          </ChakraLink>{" "}
+          to get tips from the community.
+        </>
       ),
+      duration: 5000,
+      isClosable: true,
     });
   }, [toast]);
 
@@ -262,7 +243,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   }, [metaResponse]);
 
   useEffect(() => {
-    if (wrongSubmissionStreak >= 3) {
+    if (wrongSubmissionStreak >= 1) {
       showHelpToast();
       setWrongSubmissionStreak(0);
     }
