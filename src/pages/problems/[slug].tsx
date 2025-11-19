@@ -243,7 +243,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   }, [metaResponse]);
 
   useEffect(() => {
-    if (wrongSubmissionStreak >= 1) {
+    if (wrongSubmissionStreak >= 3) {
       showHelpToast();
       setWrongSubmissionStreak(0);
     }
