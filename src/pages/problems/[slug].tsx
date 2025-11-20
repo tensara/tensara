@@ -46,7 +46,11 @@ import {
   SubmissionStatus,
   type SampleStatusType,
 } from "~/types/submission";
-import { savePreferences } from "~/utils/localStorage";
+import {
+  savePreferences,
+  loadVimModePreference,
+  saveVimModePreference,
+} from "~/utils/localStorage";
 import { validateCode } from "~/utils/starter";
 
 import { createInnerTRPCContext } from "~/server/api/trpc";
@@ -140,6 +144,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   } = useCodePersistence(slug, problem as Problem);
 
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
+  const [isVimModeEnabled, setIsVimModeEnabled] = useState(false);
 
   // Update GPU type when saved preferences are loaded
   useEffect(() => {
@@ -147,6 +152,18 @@ export default function ProblemPage({ slug }: { slug: string }) {
       setSelectedGpuType(savedGpuType);
     }
   }, [savedGpuType]);
+
+  useEffect(() => {
+    const stored = loadVimModePreference();
+    if (stored !== null) {
+      setIsVimModeEnabled(stored);
+    }
+  }, []);
+
+  const handleVimModeChange = useCallback((enabled: boolean) => {
+    setIsVimModeEnabled(enabled);
+    saveVimModePreference(enabled);
+  }, []);
 
   // Submission stream logic
   const {
@@ -521,6 +538,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
               code={code}
               setCode={handleSetCode}
               selectedLanguage={selectedLanguage}
+              enableVimMode={isVimModeEnabled}
+              onToggleVimMode={handleVimModeChange}
               ptxContent={
                 submissionPtxTimestamp > samplePtxTimestamp
                   ? (submissionPtxContent ?? ptxContent)
