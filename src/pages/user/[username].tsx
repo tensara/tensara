@@ -33,7 +33,7 @@ import ActivityCalendar from "~/components/profile/ActivityCalendar";
 import { RecentSubmissionsList } from "~/components/profile/RecentSubmissions";
 import UserNotFoundAlert from "~/components/profile/UserNotFoundAlert";
 
-import { FiTrendingUp, FiList } from "react-icons/fi";
+import { FiTrendingUp } from "react-icons/fi";
 
 import { api } from "~/utils/api";
 
@@ -77,10 +77,9 @@ const VotePill = ({ count }: { count: number }) => (
     textAlign="center"
     px={2.5}
     py={1.5}
-    rounded="lg"
-    border="1px solid"
+    rounded="md"
+    border="0.5px solid"
     borderColor="gray.700"
-    bg="gray.800"
   >
     <Text fontSize="sm" fontWeight="700" color="white">
       {typeof count === "number" ? count : 0}
@@ -146,7 +145,8 @@ const BlogPostsList = ({
                 color="white"
                 fontWeight="600"
                 noOfLines={1}
-                _hover={{ color: "brand.primary" }}
+                _hover={{ color: "gray.300" }}
+                transition="color 0.5s"
                 cursor="pointer"
               >
                 {post.title}
@@ -190,6 +190,7 @@ export default function UserProfile() {
   if (!username) {
     return null; // Still loading the username parameter
   }
+  console.log("userData?.languagePercentage", userData?.languagePercentage);
 
   return (
     <Layout
@@ -282,46 +283,59 @@ export default function UserProfile() {
                 borderWidth="1px"
                 borderColor="brand.dark"
               >
-                <Tabs variant="unstyled">
+                <Tabs variant="unstyled" defaultIndex={0}>
                   <Flex
                     px={5}
                     py={4}
                     borderBottom="1px solid"
                     borderColor="brand.dark"
                     align="center"
-                    justify="space-between"
-                    flexWrap="wrap"
-                    gap={4}
                   >
-                    <HStack spacing={3}>
-                      <Icon as={FiList} color="brand.primary" boxSize={5} />
-                      <Heading size="md" color="white" fontWeight="semibold">
-                        Recent Submissions
-                      </Heading>
-                    </HStack>
-                    <TabList gap={4}>
+                    <TabList gap={1}>
                       <Tab
-                        px={0}
-                        pb={2}
+                        px={3}
+                        py={1}
                         fontWeight="semibold"
+                        fontSize="sm"
                         color="gray.400"
-                        borderBottom="2px solid transparent"
+                        borderRadius="md"
+                        transition="all 0.2s"
+                        _hover={{
+                          color: "white",
+                          bg: "whiteAlpha.100",
+                          transition: "all 0.5s",
+                        }}
                         _selected={{
                           color: "white",
-                          borderColor: "brand.primary",
+                          bg: "green.600",
+                          _hover: {
+                            opacity: 0.9,
+                            transition: "all 0.5s",
+                          },
                         }}
                       >
-                        Submissions
+                        Recent Submissions
                       </Tab>
                       <Tab
-                        px={0}
-                        pb={2}
+                        px={3}
+                        py={1}
                         fontWeight="semibold"
+                        fontSize="sm"
                         color="gray.400"
-                        borderBottom="2px solid transparent"
+                        borderRadius="md"
+                        transition="all 0.2s"
+                        _hover={{
+                          color: "white",
+                          bg: "whiteAlpha.100",
+                          transition: "all 0.5s",
+                        }}
                         _selected={{
                           color: "white",
-                          borderColor: "brand.primary",
+                          bg: "green.600",
+                          _hover: {
+                            opacity: 0.9,
+                            transition: "all 0.5s",
+                          },
                         }}
                       >
                         Blog Posts

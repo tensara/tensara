@@ -10,6 +10,7 @@ import {
   Skeleton,
   SimpleGrid,
   Text,
+  VStack,
 } from "@chakra-ui/react";
 import { FiBarChart2, FiHeart, FiFileText } from "react-icons/fi";
 
@@ -51,28 +52,49 @@ const UserLanguagesBox: React.FC<UserLanguagesBoxProps> = ({
           <Heading size="sm" color="white">
             Frameworks Used
           </Heading>
-          <Icon as={FiBarChart2} color="brand.primary" boxSize={5} />
+          <Icon as={FiBarChart2} color="gray.400" boxSize={5} />
         </Flex>
 
         <HStack spacing={2} flexWrap="wrap">
-          <Tag size="md" borderRadius="full" mb={2}>
-            <Box w="10px" h="10px" bg="purple.700" borderRadius="full" mr={2} />
-            <TagLabel>
-              {languagePercentage && languagePercentage.length > 0
-                ? `${languagePercentage[0]?.language} (${languagePercentage[0]?.percentage}%)`
-                : "N/A"}
-            </TagLabel>
-          </Tag>
-          <Tag size="md" borderRadius="full" mb={2}>
-            <Box w="10px" h="10px" bg="green.700" borderRadius="full" mr={2} />
-            <TagLabel>
-              {languagePercentage && languagePercentage.length > 1
-                ? `${languagePercentage[1]?.language} (${languagePercentage[1]?.percentage}%)`
-                : "N/A"}
-            </TagLabel>
-          </Tag>
+          {languagePercentage && languagePercentage.length > 0 ? (
+            [...languagePercentage]
+              .sort((a, b) => b.percentage - a.percentage)
+              .map((item, idx) => {
+                const colorPalette = [
+                  "purple.700",
+                  "green.700",
+                  "blue.600",
+                  "orange.500",
+                  "red.600",
+                  "cyan.600",
+                  "pink.600",
+                  "yellow.500",
+                  "teal.700",
+                  "gray.600",
+                ];
+                const color = colorPalette[idx % colorPalette.length];
+                return (
+                  <Tag key={item.language ?? idx} size="md" borderRadius="full">
+                    <Box
+                      w="10px"
+                      h="10px"
+                      bg={color}
+                      borderRadius="full"
+                      mr={2}
+                    />
+                    <TagLabel>
+                      {item.language} ({item.percentage}%)
+                    </TagLabel>
+                  </Tag>
+                );
+              })
+          ) : (
+            <Tag size="md" borderRadius="full" mb={2}>
+              <Box w="10px" h="10px" bg="gray.600" borderRadius="full" mr={2} />
+              <TagLabel>N/A</TagLabel>
+            </Tag>
+          )}
         </HStack>
-
         {showCommunityStats && (
           <Box mt={6}>
             <Flex justify="space-between" align="center" mb={3}>
@@ -81,44 +103,70 @@ const UserLanguagesBox: React.FC<UserLanguagesBoxProps> = ({
               </Heading>
             </Flex>
             <SimpleGrid columns={2} spacing={3}>
-              <Flex
-                bg="gray.800"
+              <VStack
                 borderRadius="lg"
-                p={3}
+                p={4}
                 borderWidth="1px"
                 borderColor="gray.700"
                 align="center"
-                gap={3}
+                spacing={2.5}
+                transition="all 0.5s"
+                _hover={{
+                  bg: "whiteAlpha.100",
+                  borderColor: "gray.600",
+                  transform: "translateY(-2px)",
+                }}
               >
-                <Icon as={FiFileText} color="brand.primary" boxSize={5} />
-                <Box>
-                  <Text color="white" fontSize="lg" fontWeight="bold">
-                    {communityStats?.totalPosts ?? 0}
-                  </Text>
-                  <Text color="whiteAlpha.700" fontSize="sm">
-                    Total Posts
-                  </Text>
-                </Box>
-              </Flex>
-              <Flex
-                bg="gray.800"
+                <Icon as={FiFileText} color="gray.400" boxSize={6} />
+                <Text
+                  color="white"
+                  fontSize="2xl"
+                  fontWeight="bold"
+                  lineHeight={1}
+                >
+                  {communityStats?.totalPosts ?? 0}
+                </Text>
+                <Text
+                  color="gray.400"
+                  fontSize="xs"
+                  fontWeight="medium"
+                  letterSpacing="wide"
+                >
+                  Total Posts
+                </Text>
+              </VStack>
+              <VStack
                 borderRadius="lg"
-                p={3}
+                p={4}
                 borderWidth="1px"
                 borderColor="gray.700"
                 align="center"
-                gap={3}
+                spacing={2.5}
+                transition="all 0.5s"
+                _hover={{
+                  bg: "whiteAlpha.100",
+                  borderColor: "gray.600",
+                  transform: "translateY(-2px)",
+                }}
               >
-                <Icon as={FiHeart} color="brand.primary" boxSize={5} />
-                <Box>
-                  <Text color="white" fontSize="lg" fontWeight="bold">
-                    {communityStats?.totalLikes ?? 0}
-                  </Text>
-                  <Text color="whiteAlpha.700" fontSize="sm">
-                    Total Likes
-                  </Text>
-                </Box>
-              </Flex>
+                <Icon as={FiHeart} color="gray.400" boxSize={6} />
+                <Text
+                  color="white"
+                  fontSize="2xl"
+                  fontWeight="bold"
+                  lineHeight={1}
+                >
+                  {communityStats?.totalLikes ?? 0}
+                </Text>
+                <Text
+                  color="gray.400"
+                  fontSize="xs"
+                  fontWeight="medium"
+                  letterSpacing="wide"
+                >
+                  Total Likes
+                </Text>
+              </VStack>
             </SimpleGrid>
           </Box>
         )}

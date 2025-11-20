@@ -146,8 +146,7 @@ export const RecentSubmissionsList: React.FC<RecentSubmissionsProps> = ({
               <Flex justify="flex-end">
                 <HStack
                   spacing={4}
-                  bg="gray.800"
-                  borderRadius="lg"
+                  borderRadius="md"
                   p={2}
                   borderWidth="1px"
                   borderColor="gray.700"
@@ -157,9 +156,8 @@ export const RecentSubmissionsList: React.FC<RecentSubmissionsProps> = ({
                     px={3}
                     pr={4}
                     py={1.5}
-                    borderRight="1px solid"
+                    borderRight="0.5px solid"
                     borderColor="gray.600"
-                    bg="gray.800"
                     minW="80px"
                     textAlign="center"
                   >
@@ -177,9 +175,8 @@ export const RecentSubmissionsList: React.FC<RecentSubmissionsProps> = ({
                     px={3}
                     pr={8}
                     py={1.5}
-                    borderRight="1px solid"
+                    borderRight="0.5px solid"
                     borderColor="gray.600"
-                    bg="gray.800"
                     minW="80px"
                     textAlign="center"
                   >
@@ -200,9 +197,8 @@ export const RecentSubmissionsList: React.FC<RecentSubmissionsProps> = ({
                     px={3}
                     py={1.5}
                     pr={8}
-                    borderRight="1px solid"
+                    borderRight="0.5px solid"
                     borderColor="gray.600"
-                    bg="gray.800"
                     minW="80px"
                     textAlign="center"
                   >
@@ -219,7 +215,6 @@ export const RecentSubmissionsList: React.FC<RecentSubmissionsProps> = ({
                     px={3}
                     py={1.5}
                     borderRadius="lg"
-                    bg="gray.800"
                     minW="80px"
                     textAlign="center"
                   >
