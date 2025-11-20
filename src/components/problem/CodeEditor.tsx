@@ -31,6 +31,8 @@ interface CodeEditorProps {
   enablePtxSassView?: boolean;
   ptxDirty?: boolean;
   sassDirty?: boolean;
+  enableVimMode?: boolean;
+  onToggleVimMode?: (enabled: boolean) => void;
 }
 
 const PTX_LINE_SEARCH_RADIUS = 50;
@@ -522,12 +524,16 @@ const CodeEditor = ({
   enablePtxSassView = false,
   ptxDirty,
   sassDirty,
+  enableVimMode = false,
+  onToggleVimMode,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
   const [isSplitViewOpen, setIsSplitViewOpen] = useState(false);
   const codeEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const ptxEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const codeCursorDisposableRef = useRef<{ dispose: () => void } | null>(null);
+  const vimModeAdapterRef = useRef<{ dispose: () => void } | null>(null);
+  const vimStatusContainerRef = useRef<HTMLDivElement | null>(null);
   const pendingPtxLinesRef = useRef<{
     hasValue: boolean;
     lines: number[] | null;
@@ -540,6 +546,50 @@ const CodeEditor = ({
   const [ptxSourceMap, setPtxSourceMap] = useState<PtxSourceMap | null>(null);
   const [maxMappedSourceLine, setMaxMappedSourceLine] = useState(0);
   const debugTag = "[CodeEditor PTX]";
+  const disposeVimMode = useCallback(() => {
+    vimModeAdapterRef.current?.dispose();
+    vimModeAdapterRef.current = null;
+    if (vimStatusContainerRef.current) {
+      vimStatusContainerRef.current.textContent = "";
+    }
+  }, []);
+
+  const initializeVimMode = useCallback(
+    async (editorInstance?: MonacoEditor.IStandaloneCodeEditor) => {
+      if (!enableVimMode) return;
+      const targetEditor = editorInstance ?? codeEditorRef.current;
+      if (!targetEditor || vimModeAdapterRef.current) return;
+      if (typeof window === "undefined") return;
+
+      try {
+        const monacoVimModule = await import("monaco-vim");
+        const { initVimMode } = monacoVimModule;
+        if (typeof initVimMode !== "function") {
+          console.warn("monaco-vim initVimMode is unavailable");
+          return;
+        }
+
+        const adapter = initVimMode(
+          targetEditor,
+          vimStatusContainerRef.current
+        );
+        vimModeAdapterRef.current = adapter;
+
+        if (isEditable && adapter?.getOption) {
+          const originalGetOption = adapter.getOption.bind(adapter);
+          adapter.getOption = (key: string) => {
+            if (key === "readOnly") {
+              return false;
+            }
+            return originalGetOption(key);
+          };
+        }
+      } catch (error) {
+        console.error("Failed to initialize Vim mode", error);
+      }
+    },
+    [enableVimMode, isEditable]
+  );
 
   const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
 
@@ -598,6 +648,7 @@ const CodeEditor = ({
       editorInstance: MonacoEditor.IStandaloneCodeEditor,
       _monacoInstance?: Monaco
     ) => {
+      disposeVimMode();
       codeEditorRef.current = editorInstance;
       codeCursorDisposableRef.current?.dispose();
       const updateCursorLine = () => {
@@ -606,6 +657,10 @@ const CodeEditor = ({
         setCurrentCodeLine(lineNumber);
         // console.log(`${debugTag} Cursor moved to line`, lineNumber);
       };
+
+      if (enableVimMode) {
+        void initializeVimMode(editorInstance);
+      }
 
       codeCursorDisposableRef.current =
         editorInstance.onDidChangeCursorPosition(() => {
@@ -618,10 +673,11 @@ const CodeEditor = ({
         codeCursorDisposableRef.current = null;
         codeEditorRef.current = null;
         setCurrentCodeLine(null);
+        disposeVimMode();
         // console.log(`${debugTag} Code editor disposed`);
       });
     },
-    [debugTag]
+    [debugTag, disposeVimMode, enableVimMode, initializeVimMode]
   );
 
   const handlePtxEditorMount = useCallback(
@@ -668,6 +724,20 @@ const CodeEditor = ({
       codeCursorDisposableRef.current?.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    if (enableVimMode) {
+      void initializeVimMode();
+    } else {
+      disposeVimMode();
+    }
+  }, [disposeVimMode, enableVimMode, initializeVimMode]);
+
+  useEffect(() => {
+    return () => {
+      disposeVimMode();
+    };
+  }, [disposeVimMode]);
 
   useEffect(() => {
     if (!enablePtxSassView || !ptxContent) {
@@ -820,33 +890,86 @@ const CodeEditor = ({
         !isEditable,
         { onMount: handleCodeEditorMount }
       )}
-      {hasPtxSassContent && !isSplitViewOpen && (
-        <Button
-          size="sm"
+      {enableVimMode && (
+        <Box
+          ref={vimStatusContainerRef}
+          position="absolute"
+          bottom="8px"
+          left="8px"
+          px={3}
+          py={1}
+          bg="rgba(26, 26, 26, 0.8)"
+          border="1px solid #2A2A2A"
           borderRadius="md"
+          fontSize="12px"
+          fontFamily="JetBrains Mono, monospace"
+          color="#CECECE"
+          pointerEvents="none"
+          minW="90px"
+        />
+      )}
+      {(isEditable && onToggleVimMode) ||
+      (hasPtxSassContent && !isSplitViewOpen) ? (
+        <Box
           position="absolute"
           top="8px"
           right="8px"
+          display="flex"
+          gap="8px"
           zIndex={10}
-          bg="#1A1A1A"
-          color="#858585"
-          border="1px solid"
-          borderColor="#2A2A2A"
-          _hover={{
-            bg: "#252525",
-            color: "#CCCCCC",
-            borderColor: "#3A3A3A",
-          }}
-          leftIcon={(ptxDirty ?? sassDirty) ? <FiAlertTriangle /> : undefined}
-          onClick={() => setIsSplitViewOpen(true)}
-          fontSize="14px"
-          fontWeight="500"
-          h="36px"
-          px={4}
+          pointerEvents="none"
         >
-          Show PTX/SASS
-        </Button>
-      )}
+          {isEditable && onToggleVimMode && (
+            <Button
+              size="sm"
+              borderRadius="md"
+              bg={enableVimMode ? "rgba(72, 187, 120, 0.16)" : "#1A1A1A"}
+              color={enableVimMode ? "#48BB78" : "#858585"}
+              border="1px solid"
+              borderColor={enableVimMode ? "#48BB78" : "#2A2A2A"}
+              _hover={{
+                bg: enableVimMode ? "rgba(72, 187, 120, 0.25)" : "#252525",
+                color: enableVimMode ? "#63D297" : "#CCCCCC",
+                borderColor: enableVimMode ? "#63D297" : "#3A3A3A",
+              }}
+              onClick={() => onToggleVimMode?.(!enableVimMode)}
+              fontSize="14px"
+              fontWeight="500"
+              h="36px"
+              px={4}
+              pointerEvents="auto"
+            >
+              Vim
+            </Button>
+          )}
+          {hasPtxSassContent && !isSplitViewOpen && (
+            <Button
+              size="sm"
+              borderRadius="md"
+              bg="#1A1A1A"
+              color="#858585"
+              border="1px solid"
+              borderColor="#2A2A2A"
+              _hover={{
+                bg: "#252525",
+                color: "#CCCCCC",
+                borderColor: "#3A3A3A",
+              }}
+              leftIcon={
+                (ptxDirty ?? sassDirty) ? <FiAlertTriangle /> : undefined
+              }
+              onClick={() => setIsSplitViewOpen(true)}
+              fontSize="14px"
+              fontWeight="500"
+              h="36px"
+              px={4}
+              pointerEvents="auto"
+            >
+              Show PTX/SASS
+            </Button>
+          )}
+        </Box>
+      ) : null}
     </Box>
   );
 

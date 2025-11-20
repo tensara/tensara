@@ -1,6 +1,7 @@
 const LOCAL_STORAGE_PREFIX = "problem_solution_";
 const PREFERENCES_PREFIX = "problem_preferences_";
 const BLOG_POST_SNAPSHOT_PREFIX = "blogPost_";
+const EDITOR_VIM_MODE_KEY = "editor_vim_mode";
 
 export const getSolutionKey = (
   slug: string,
@@ -53,6 +54,18 @@ export const loadPreferences = (slug: string): ProblemPreferences | null => {
   } catch {
     return null;
   }
+};
+
+export const saveVimModePreference = (enabled: boolean): void => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(EDITOR_VIM_MODE_KEY, enabled ? "true" : "false");
+};
+
+export const loadVimModePreference = (): boolean | null => {
+  if (typeof window === "undefined") return null;
+  const stored = localStorage.getItem(EDITOR_VIM_MODE_KEY);
+  if (stored == null) return null;
+  return stored === "true";
 };
 
 export interface BlogPostSnapshot {

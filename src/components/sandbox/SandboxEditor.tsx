@@ -1,5 +1,5 @@
 // sandbox/index.tsx
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -28,6 +28,10 @@ import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { useToast } from "@chakra-ui/react";
 import { useHotkey } from "~/hooks/useHotKey";
 import { SandboxStatus } from "~/types/submission";
+import {
+  loadVimModePreference,
+  saveVimModePreference,
+} from "~/utils/localStorage";
 
 // Type definitions for API responses
 interface ErrorResponse {
@@ -94,6 +98,7 @@ export default function Sandbox({
   const [sassContent, setSassContent] = useState<string | null>(null);
   const [ptxDirty, setPtxDirty] = useState(false);
   const [sassDirty, setSassDirty] = useState(false);
+  const [isVimModeEnabled, setIsVimModeEnabled] = useState(false);
 
   useHotkey("meta+enter", () => {
     if (isRunning) {
@@ -122,6 +127,18 @@ export default function Sandbox({
         abortControllerRef.current.abort();
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const stored = loadVimModePreference();
+    if (stored !== null) {
+      setIsVimModeEnabled(stored);
+    }
+  }, []);
+
+  const handleVimModeToggle = useCallback((enabled: boolean) => {
+    setIsVimModeEnabled(enabled);
+    saveVimModePreference(enabled);
   }, []);
 
   const addTerminalLine = (type: TerminalLine["type"], content: string) => {
@@ -687,7 +704,7 @@ export default function Sandbox({
                   </Button>
                 )}
               </HStack>
-              <HStack spacing={2}>
+              <HStack spacing={3}>
                 <Text
                   color="gray.400"
                   fontSize="sm"
@@ -765,6 +782,8 @@ export default function Sandbox({
                           sassContent={sassContent}
                           ptxDirty={ptxDirty}
                           sassDirty={sassDirty}
+                          enableVimMode={isVimModeEnabled}
+                          onToggleVimMode={handleVimModeToggle}
                         />
                       </Box>
                     ) : (
