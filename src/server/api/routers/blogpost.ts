@@ -426,7 +426,9 @@ export const blogpostRouter = createTRPCRouter({
       const post = await db.blogPost.findUnique({
         where: whereClause,
         include: {
-          author: { select: { id: true, name: true, image: true } },
+          author: {
+            select: { id: true, name: true, username: true, image: true },
+          },
           comments: {
             include: {
               author: { select: { id: true, name: true, image: true } },

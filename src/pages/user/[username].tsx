@@ -10,9 +10,16 @@ import {
   HStack,
   Icon,
   Flex,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Text,
 } from "@chakra-ui/react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
+import NextLink from "next/link";
 
 import { Layout } from "~/components/layout";
 
@@ -23,7 +30,7 @@ import {
   UserLanguagesBox,
 } from "~/components/profile/user";
 import ActivityCalendar from "~/components/profile/ActivityCalendar";
-import RecentSubmissions from "~/components/profile/RecentSubmissions";
+import { RecentSubmissionsList } from "~/components/profile/RecentSubmissions";
 import UserNotFoundAlert from "~/components/profile/UserNotFoundAlert";
 
 import { FiTrendingUp } from "react-icons/fi";
@@ -35,6 +42,126 @@ interface ActivityItem {
   date: string;
   count: number;
 }
+
+type BlogPostSummary = {
+  id: string;
+  title: string;
+  slug: string | null;
+  publishedAt: string;
+  votes: number;
+};
+
+function timeAgo(dateString: string) {
+  const seconds = Math.max(
+    1,
+    Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
+  );
+  const intervals: { seconds: number; label: string }[] = [
+    { seconds: 31536000, label: "y" },
+    { seconds: 2592000, label: "mo" },
+    { seconds: 86400, label: "d" },
+    { seconds: 3600, label: "h" },
+    { seconds: 60, label: "m" },
+  ];
+  for (const interval of intervals) {
+    if (seconds >= interval.seconds) {
+      return `${Math.floor(seconds / interval.seconds)}${interval.label}`;
+    }
+  }
+  return `${seconds}s`;
+}
+
+const VotePill = ({ count }: { count: number }) => (
+  <Box
+    minW="52px"
+    textAlign="center"
+    px={2.5}
+    py={1.5}
+    rounded="md"
+    border="0.5px solid"
+    borderColor="gray.700"
+  >
+    <Text fontSize="sm" fontWeight="700" color="white">
+      {typeof count === "number" ? count : 0}
+    </Text>
+    <Text fontSize="10px" color="gray.400" mt={-0.5}>
+      votes
+    </Text>
+  </Box>
+);
+
+const BlogPostsList = ({
+  posts,
+  isLoading,
+  username,
+}: {
+  posts?: BlogPostSummary[];
+  isLoading: boolean;
+  username?: string;
+}) => {
+  if (isLoading) {
+    return (
+      <VStack spacing={3} align="stretch">
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <Skeleton
+            key={idx}
+            height="54px"
+            startColor="gray.700"
+            endColor="gray.800"
+            borderRadius="md"
+          />
+        ))}
+      </VStack>
+    );
+  }
+
+  if (!posts?.length) {
+    return (
+      <Box py={6} textAlign="center">
+        <Text color="gray.400" fontSize="sm">
+          {username
+            ? `${username} hasn't published any blog posts yet.`
+            : "No blog posts found."}
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <VStack align="stretch" spacing={0}>
+      {posts.map((post, idx) => (
+        <Flex
+          key={post.id}
+          py={3}
+          borderBottom={idx === posts.length - 1 ? undefined : "1px solid"}
+          borderColor="gray.800"
+          align="center"
+          gap={3}
+          flexWrap="wrap"
+        >
+          <Box flex="1" minW={0}>
+            <NextLink href={`/blog/${post.slug ?? post.id}`} passHref>
+              <Text
+                color="white"
+                fontWeight="600"
+                noOfLines={1}
+                _hover={{ color: "gray.300" }}
+                transition="color 0.5s"
+                cursor="pointer"
+              >
+                {post.title}
+              </Text>
+            </NextLink>
+            <Text color="gray.500" fontSize="sm" noOfLines={1}>
+              {timeAgo(post.publishedAt)} ago
+            </Text>
+          </Box>
+          <VotePill count={post.votes} />
+        </Flex>
+      ))}
+    </VStack>
+  );
+};
 
 export default function UserProfile() {
   const router = useRouter();
@@ -63,6 +190,7 @@ export default function UserProfile() {
   if (!username) {
     return null; // Still loading the username parameter
   }
+  console.log("userData?.languagePercentage", userData?.languagePercentage);
 
   return (
     <Layout
@@ -99,6 +227,7 @@ export default function UserProfile() {
                 <UserLanguagesBox
                   languagePercentage={userData?.languagePercentage}
                   isLoading={isLoading}
+                  communityStats={userData?.communityStats}
                 />
               </VStack>
             </GridItem>
@@ -121,7 +250,7 @@ export default function UserProfile() {
                 borderColor="brand.dark"
                 position="relative"
               >
-                <Flex justify="space-between" align="center" mb={6}>
+                <Flex justify="space-between" align="center" mb={4}>
                   <HStack>
                     <Icon as={FiTrendingUp} color="brand.primary" boxSize={5} />
                     <Heading size="md" color="white">
@@ -129,7 +258,6 @@ export default function UserProfile() {
                     </Heading>
                   </HStack>
                 </Flex>
-
                 <Skeleton
                   isLoaded={!isLoading}
                   height={isLoading ? "200px" : "auto"}
@@ -146,11 +274,95 @@ export default function UserProfile() {
                 </Skeleton>
               </Box>
 
-              {/* Recent Submissions */}
-              <RecentSubmissions
-                submissions={userData?.recentSubmissions}
-                isLoading={isLoading}
-              />
+              {/* Recent Submissions & Blog Posts */}
+              <Box
+                bg="brand.secondary"
+                borderRadius="xl"
+                overflow="hidden"
+                boxShadow="lg"
+                borderWidth="1px"
+                borderColor="brand.dark"
+              >
+                <Tabs variant="unstyled" defaultIndex={0}>
+                  <Flex
+                    px={5}
+                    py={4}
+                    borderBottom="1px solid"
+                    borderColor="brand.dark"
+                    align="center"
+                  >
+                    <TabList gap={1}>
+                      <Tab
+                        px={3}
+                        py={1}
+                        fontWeight="semibold"
+                        fontSize="sm"
+                        color="gray.400"
+                        borderRadius="md"
+                        transition="all 0.2s"
+                        _hover={{
+                          color: "white",
+                          bg: "whiteAlpha.100",
+                          transition: "all 0.5s",
+                        }}
+                        _selected={{
+                          color: "white",
+                          bg: "green.600",
+                          _hover: {
+                            opacity: 0.9,
+                            transition: "all 0.5s",
+                          },
+                        }}
+                      >
+                        Recent Submissions
+                      </Tab>
+                      <Tab
+                        px={3}
+                        py={1}
+                        fontWeight="semibold"
+                        fontSize="sm"
+                        color="gray.400"
+                        borderRadius="md"
+                        transition="all 0.2s"
+                        _hover={{
+                          color: "white",
+                          bg: "whiteAlpha.100",
+                          transition: "all 0.5s",
+                        }}
+                        _selected={{
+                          color: "white",
+                          bg: "green.600",
+                          _hover: {
+                            opacity: 0.9,
+                            transition: "all 0.5s",
+                          },
+                        }}
+                      >
+                        Blog Posts
+                      </Tab>
+                    </TabList>
+                  </Flex>
+                  <TabPanels>
+                    <TabPanel px={0} pt={0}>
+                      <RecentSubmissionsList
+                        submissions={userData?.recentSubmissions}
+                        isLoading={isLoading}
+                      />
+                    </TabPanel>
+                    <TabPanel px={0} pt={0}>
+                      <Box px={5} py={4}>
+                        <BlogPostsList
+                          posts={userData?.blogPosts}
+                          isLoading={isLoading}
+                          username={
+                            typeof username === "string" ? username : undefined
+                          }
+                        />
+                      </Box>
+                    </TabPanel>
+                  </TabPanels>
+                </Tabs>
+              </Box>
             </GridItem>
           </Grid>
         )}
