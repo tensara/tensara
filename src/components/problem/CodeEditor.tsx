@@ -921,29 +921,24 @@ const CodeEditor = ({
           {isEditable && onToggleVimMode && (
             <Button
               size="sm"
-              h="32px"
+              h="30px"
               px={3}
-              borderRadius="md"
-              bg={
-                enableVimMode
-                  ? "rgba(34, 197, 94, 0.15)"
-                  : "rgba(255, 255, 255, 0.08)"
-              }
-              color={enableVimMode ? "rgb(34, 197, 94)" : "#B5B5B5"}
+              borderRadius="full"
+              bg={enableVimMode ? "rgba(72, 187, 120, 0.16)" : "transparent"}
+              color={enableVimMode ? "#48BB78" : "#9CA3AF"}
               border="1px solid"
-              borderColor={
-                enableVimMode ? "rgba(34, 197, 94, 0.5)" : "transparent"
-              }
-              fontSize="13px"
+              borderColor={enableVimMode ? "#48BB78" : "#2D2D2D"}
+              fontSize="12px"
               fontWeight="600"
+              letterSpacing="0.08em"
+              textTransform="uppercase"
               onClick={() => onToggleVimMode?.(!enableVimMode)}
               _hover={{
-                bg: enableVimMode
-                  ? "rgba(34, 197, 94, 0.25)"
-                  : "rgba(255, 255, 255, 0.15)",
+                bg: enableVimMode ? "rgba(72, 187, 120, 0.25)" : "#1C1C1C",
+                borderColor: enableVimMode ? "#63D297" : "#3A3A3A",
               }}
               _active={{
-                transform: "translateY(1px)",
+                transform: "translateY(0.5px)",
               }}
             >
               Vim
