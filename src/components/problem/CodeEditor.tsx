@@ -917,29 +917,27 @@ const CodeEditor = ({
           display="flex"
           gap="8px"
           zIndex={10}
+          pointerEvents="none"
         >
           {isEditable && onToggleVimMode && (
             <Button
               size="sm"
-              h="30px"
-              px={3}
-              borderRadius="full"
-              bg={enableVimMode ? "rgba(72, 187, 120, 0.16)" : "transparent"}
-              color={enableVimMode ? "#48BB78" : "#9CA3AF"}
+              borderRadius="md"
+              bg={enableVimMode ? "rgba(72, 187, 120, 0.16)" : "#1A1A1A"}
+              color={enableVimMode ? "#48BB78" : "#858585"}
               border="1px solid"
-              borderColor={enableVimMode ? "#48BB78" : "#2D2D2D"}
-              fontSize="12px"
-              fontWeight="600"
-              letterSpacing="0.08em"
-              textTransform="uppercase"
-              onClick={() => onToggleVimMode?.(!enableVimMode)}
+              borderColor={enableVimMode ? "#48BB78" : "#2A2A2A"}
               _hover={{
-                bg: enableVimMode ? "rgba(72, 187, 120, 0.25)" : "#1C1C1C",
+                bg: enableVimMode ? "rgba(72, 187, 120, 0.25)" : "#252525",
+                color: enableVimMode ? "#63D297" : "#CCCCCC",
                 borderColor: enableVimMode ? "#63D297" : "#3A3A3A",
               }}
-              _active={{
-                transform: "translateY(0.5px)",
-              }}
+              onClick={() => onToggleVimMode?.(!enableVimMode)}
+              fontSize="14px"
+              fontWeight="500"
+              h="36px"
+              px={4}
+              pointerEvents="auto"
             >
               Vim
             </Button>
@@ -965,6 +963,7 @@ const CodeEditor = ({
               fontWeight="500"
               h="36px"
               px={4}
+              pointerEvents="auto"
             >
               Show PTX/SASS
             </Button>
