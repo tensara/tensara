@@ -666,10 +666,6 @@ const CodeEditor = ({
         // console.log(`${debugTag} Cursor moved to line`, lineNumber);
       };
 
-      if (enableVimMode) {
-        void initializeVimMode(editorInstance);
-      }
-
       codeCursorDisposableRef.current =
         editorInstance.onDidChangeCursorPosition(() => {
           updateCursorLine();
@@ -740,7 +736,9 @@ const CodeEditor = ({
       return;
     }
     if (codeEditorInstance) {
-      void initializeVimMode(codeEditorInstance);
+      initializeVimMode(codeEditorInstance).catch((error) => {
+        console.error("Failed to toggle Vim mode", error);
+      });
     }
   }, [codeEditorInstance, disposeVimMode, enableVimMode, initializeVimMode]);
 
