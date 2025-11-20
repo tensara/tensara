@@ -30,6 +30,8 @@ const UserLanguagesBox: React.FC<UserLanguagesBoxProps> = ({
   isLoading,
   communityStats,
 }) => {
+  const showCommunityStats = (communityStats?.totalPosts ?? 0) > 0;
+
   return (
     <Skeleton
       isLoaded={!isLoading}
@@ -71,53 +73,55 @@ const UserLanguagesBox: React.FC<UserLanguagesBoxProps> = ({
           </Tag>
         </HStack>
 
-        <Box mt={6}>
-          <Flex justify="space-between" align="center" mb={3}>
-            <Heading size="sm" color="white">
-              Community Stats
-            </Heading>
-          </Flex>
-          <SimpleGrid columns={2} spacing={3}>
-            <Flex
-              bg="gray.800"
-              borderRadius="lg"
-              p={3}
-              borderWidth="1px"
-              borderColor="gray.700"
-              align="center"
-              gap={3}
-            >
-              <Icon as={FiFileText} color="brand.primary" boxSize={5} />
-              <Box>
-                <Text color="white" fontSize="lg" fontWeight="bold">
-                  {communityStats?.totalPosts ?? 0}
-                </Text>
-                <Text color="whiteAlpha.700" fontSize="sm">
-                  Total Posts
-                </Text>
-              </Box>
+        {showCommunityStats && (
+          <Box mt={6}>
+            <Flex justify="space-between" align="center" mb={3}>
+              <Heading size="sm" color="white">
+                Community Stats
+              </Heading>
             </Flex>
-            <Flex
-              bg="gray.800"
-              borderRadius="lg"
-              p={3}
-              borderWidth="1px"
-              borderColor="gray.700"
-              align="center"
-              gap={3}
-            >
-              <Icon as={FiHeart} color="brand.primary" boxSize={5} />
-              <Box>
-                <Text color="white" fontSize="lg" fontWeight="bold">
-                  {communityStats?.totalLikes ?? 0}
-                </Text>
-                <Text color="whiteAlpha.700" fontSize="sm">
-                  Total Likes
-                </Text>
-              </Box>
-            </Flex>
-          </SimpleGrid>
-        </Box>
+            <SimpleGrid columns={2} spacing={3}>
+              <Flex
+                bg="gray.800"
+                borderRadius="lg"
+                p={3}
+                borderWidth="1px"
+                borderColor="gray.700"
+                align="center"
+                gap={3}
+              >
+                <Icon as={FiFileText} color="brand.primary" boxSize={5} />
+                <Box>
+                  <Text color="white" fontSize="lg" fontWeight="bold">
+                    {communityStats?.totalPosts ?? 0}
+                  </Text>
+                  <Text color="whiteAlpha.700" fontSize="sm">
+                    Total Posts
+                  </Text>
+                </Box>
+              </Flex>
+              <Flex
+                bg="gray.800"
+                borderRadius="lg"
+                p={3}
+                borderWidth="1px"
+                borderColor="gray.700"
+                align="center"
+                gap={3}
+              >
+                <Icon as={FiHeart} color="brand.primary" boxSize={5} />
+                <Box>
+                  <Text color="white" fontSize="lg" fontWeight="bold">
+                    {communityStats?.totalLikes ?? 0}
+                  </Text>
+                  <Text color="whiteAlpha.700" fontSize="sm">
+                    Total Likes
+                  </Text>
+                </Box>
+              </Flex>
+            </SimpleGrid>
+          </Box>
+        )}
       </Box>
     </Skeleton>
   );
