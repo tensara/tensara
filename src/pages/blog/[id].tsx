@@ -23,6 +23,7 @@ import {
   Divider,
   Collapse,
   useToast,
+  Link as ChakraLink,
 } from "@chakra-ui/react";
 import { api } from "~/utils/api";
 import { useSession, signIn } from "next-auth/react";
@@ -403,15 +404,34 @@ export default function BlogPost({ slug }: { slug: string }) {
                   left="50%"
                   transform="translateX(-50%)"
                 >
-                  <HStack spacing={2}>
-                    <Avatar
-                      size="xs"
-                      src={post.author?.image ?? undefined}
-                      name={post.author?.name ?? undefined}
-                      bg="green.600"
-                    />
-                    <Text>{post.author?.name}</Text>
-                  </HStack>
+                  {post.author?.username ? (
+                    <ChakraLink
+                      as={Link}
+                      href={`/user/${post.author.username}`}
+                      display="inline-flex"
+                      _hover={{ textDecoration: "none", color: "white" }}
+                    >
+                      <HStack spacing={2} cursor="pointer">
+                        <Avatar
+                          size="xs"
+                          src={post.author?.image ?? undefined}
+                          name={post.author?.name ?? undefined}
+                          bg="green.600"
+                        />
+                        <Text>{post.author?.name}</Text>
+                      </HStack>
+                    </ChakraLink>
+                  ) : (
+                    <HStack spacing={2}>
+                      <Avatar
+                        size="xs"
+                        src={post.author?.image ?? undefined}
+                        name={post.author?.name ?? undefined}
+                        bg="green.600"
+                      />
+                      <Text>{post.author?.name}</Text>
+                    </HStack>
+                  )}
                   <Text>·</Text>
                   <Text>
                     {new Date(post.createdAt).toLocaleDateString("en-US", {

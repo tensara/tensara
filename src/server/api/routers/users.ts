@@ -300,7 +300,47 @@ export const usersRouter = createTRPCRouter({
         };
       });
 
+      const blogPosts = await ctx.db.blogPost.findMany({
+        where: {
+          authorId: user.id,
+          status: "PUBLISHED",
+        },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          publishedAt: true,
+          createdAt: true,
+          _count: {
+            select: {
+              upvotes: true,
+            },
+          },
+        },
+        orderBy: {
+          publishedAt: "desc",
+        },
+        take: 5,
+      });
+
+      const [totalCommunityPosts, totalCommunityLikes] = await Promise.all([
+        ctx.db.blogPost.count({
+          where: {
+            authorId: user.id,
+            status: "PUBLISHED",
+          },
+        }),
+        ctx.db.postUpvote.count({
+          where: {
+            post: {
+              authorId: user.id,
+            },
+          },
+        }),
+      ]);
+
       return {
+        id: user.id,
         username: user.username,
         name: user.name,
         image: user.image,
@@ -322,6 +362,17 @@ export const usersRouter = createTRPCRouter({
           gpuType: sub.gpuType,
           language: sub.language,
         })),
+        blogPosts: blogPosts.map((post) => ({
+          id: post.id,
+          title: post.title,
+          slug: post.slug,
+          publishedAt: (post.publishedAt ?? post.createdAt).toISOString(),
+          votes: post._count.upvotes ?? 0,
+        })),
+        communityStats: {
+          totalPosts: totalCommunityPosts,
+          totalLikes: totalCommunityLikes,
+        },
         activityData,
         languagePercentage,
       };
