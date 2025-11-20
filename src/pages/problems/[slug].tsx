@@ -145,6 +145,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
   const [isVimModeEnabled, setIsVimModeEnabled] = useState(false);
+  const [hasLoadedVimPreference, setHasLoadedVimPreference] = useState(false);
 
   // Update GPU type when saved preferences are loaded
   useEffect(() => {
@@ -158,12 +159,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
     if (stored !== null) {
       setIsVimModeEnabled(stored);
     }
+    setHasLoadedVimPreference(true);
   }, []);
 
-  const handleVimModeChange = useCallback((enabled: boolean) => {
-    setIsVimModeEnabled(enabled);
-    saveVimModePreference(enabled);
-  }, []);
+  useEffect(() => {
+    if (!hasLoadedVimPreference) return;
+    saveVimModePreference(isVimModeEnabled);
+  }, [isVimModeEnabled, hasLoadedVimPreference]);
 
   // Submission stream logic
   const {
@@ -450,6 +452,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
     void handleRun();
   });
 
+  useHotkey("meta+shift+v", () => {
+    setIsVimModeEnabled((prev) => !prev);
+  });
+
   if (isLoading) {
     return (
       <Layout title="Loading...">
@@ -535,11 +541,12 @@ export default function ProblemPage({ slug }: { slug: string }) {
         <VerticalSplitPanel
           topContent={
             <CodeEditor
+              key={`problem-editor-${isVimModeEnabled ? "vim" : "std"}`}
               code={code}
               setCode={handleSetCode}
               selectedLanguage={selectedLanguage}
               enableVimMode={isVimModeEnabled}
-              onToggleVimMode={handleVimModeChange}
+              onToggleVimMode={setIsVimModeEnabled}
               ptxContent={
                 submissionPtxTimestamp > samplePtxTimestamp
                   ? (submissionPtxContent ?? ptxContent)

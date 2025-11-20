@@ -1,5 +1,5 @@
 // sandbox/index.tsx
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Box,
   Button,
@@ -99,6 +99,7 @@ export default function Sandbox({
   const [ptxDirty, setPtxDirty] = useState(false);
   const [sassDirty, setSassDirty] = useState(false);
   const [isVimModeEnabled, setIsVimModeEnabled] = useState(false);
+  const [hasLoadedVimPreference, setHasLoadedVimPreference] = useState(false);
 
   useHotkey("meta+enter", () => {
     if (isRunning) {
@@ -113,6 +114,9 @@ export default function Sandbox({
     }
     void runCode();
   });
+  useHotkey("meta+shift+v", () => {
+    setIsVimModeEnabled((prev) => !prev);
+  }, { enabled: hasLoadedVimPreference });
   useEffect(() => {
     // Auto-scroll terminal to bottom when new lines are added
     if (terminalRef.current) {
@@ -134,12 +138,13 @@ export default function Sandbox({
     if (stored !== null) {
       setIsVimModeEnabled(stored);
     }
+    setHasLoadedVimPreference(true);
   }, []);
 
-  const handleVimModeToggle = useCallback((enabled: boolean) => {
-    setIsVimModeEnabled(enabled);
-    saveVimModePreference(enabled);
-  }, []);
+  useEffect(() => {
+    if (!hasLoadedVimPreference) return;
+    saveVimModePreference(isVimModeEnabled);
+  }, [isVimModeEnabled, hasLoadedVimPreference]);
 
   const addTerminalLine = (type: TerminalLine["type"], content: string) => {
     const newLine: TerminalLine = {
@@ -773,6 +778,7 @@ export default function Sandbox({
                         animation="fadeIn 0.2s ease-out"
                       >
                         <CodeEditor
+                          key={`sandbox-editor-${isVimModeEnabled ? "vim" : "std"}`}
                           code={activeFile.content}
                           setCode={updateFile}
                           selectedLanguage="cuda"
@@ -783,7 +789,7 @@ export default function Sandbox({
                           ptxDirty={ptxDirty}
                           sassDirty={sassDirty}
                           enableVimMode={isVimModeEnabled}
-                          onToggleVimMode={handleVimModeToggle}
+                          onToggleVimMode={setIsVimModeEnabled}
                         />
                       </Box>
                     ) : (

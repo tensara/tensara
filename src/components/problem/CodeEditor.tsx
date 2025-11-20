@@ -532,8 +532,13 @@ const CodeEditor = ({
   const codeEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const ptxEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const codeCursorDisposableRef = useRef<{ dispose: () => void } | null>(null);
-  const vimModeAdapterRef = useRef<{ dispose: () => void } | null>(null);
+  const vimModeAdapterRef = useRef<{
+    dispose: () => void;
+    getOption?: (key: string) => unknown;
+  } | null>(null);
   const vimStatusContainerRef = useRef<HTMLDivElement | null>(null);
+  const [codeEditorInstance, setCodeEditorInstance] =
+    useState<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const pendingPtxLinesRef = useRef<{
     hasValue: boolean;
     lines: number[] | null;
@@ -555,10 +560,12 @@ const CodeEditor = ({
   }, []);
 
   const initializeVimMode = useCallback(
-    async (editorInstance?: MonacoEditor.IStandaloneCodeEditor) => {
+    async (editorInstance?: MonacoEditor.IStandaloneCodeEditor | null) => {
       if (!enableVimMode) return;
-      const targetEditor = editorInstance ?? codeEditorRef.current;
-      if (!targetEditor || vimModeAdapterRef.current) return;
+      const targetEditor =
+        editorInstance ?? codeEditorInstance ?? codeEditorRef.current;
+      if (!targetEditor) return;
+      if (vimModeAdapterRef.current) return;
       if (typeof window === "undefined") return;
 
       try {
@@ -588,7 +595,7 @@ const CodeEditor = ({
         console.error("Failed to initialize Vim mode", error);
       }
     },
-    [enableVimMode, isEditable]
+    [codeEditorInstance, enableVimMode, isEditable]
   );
 
   const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
@@ -650,6 +657,7 @@ const CodeEditor = ({
     ) => {
       disposeVimMode();
       codeEditorRef.current = editorInstance;
+      setCodeEditorInstance(editorInstance);
       codeCursorDisposableRef.current?.dispose();
       const updateCursorLine = () => {
         const position = editorInstance.getPosition();
@@ -672,6 +680,7 @@ const CodeEditor = ({
         codeCursorDisposableRef.current?.dispose();
         codeCursorDisposableRef.current = null;
         codeEditorRef.current = null;
+        setCodeEditorInstance(null);
         setCurrentCodeLine(null);
         disposeVimMode();
         // console.log(`${debugTag} Code editor disposed`);
@@ -726,12 +735,14 @@ const CodeEditor = ({
   }, []);
 
   useEffect(() => {
-    if (enableVimMode) {
-      void initializeVimMode();
-    } else {
+    if (!enableVimMode) {
       disposeVimMode();
+      return;
     }
-  }, [disposeVimMode, enableVimMode, initializeVimMode]);
+    if (codeEditorInstance) {
+      void initializeVimMode(codeEditorInstance);
+    }
+  }, [codeEditorInstance, disposeVimMode, enableVimMode, initializeVimMode]);
 
   useEffect(() => {
     return () => {
