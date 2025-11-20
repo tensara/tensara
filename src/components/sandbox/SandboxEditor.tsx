@@ -114,9 +114,13 @@ export default function Sandbox({
     }
     void runCode();
   });
-  useHotkey("meta+shift+v", () => {
-    setIsVimModeEnabled((prev) => !prev);
-  }, { enabled: hasLoadedVimPreference });
+  useHotkey(
+    "meta+shift+v",
+    () => {
+      setIsVimModeEnabled((prev) => !prev);
+    },
+    { enabled: hasLoadedVimPreference }
+  );
   useEffect(() => {
     // Auto-scroll terminal to bottom when new lines are added
     if (terminalRef.current) {
