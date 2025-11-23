@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   Box,
   HStack,
@@ -9,24 +9,35 @@ import {
 } from "@chakra-ui/react";
 import { FiTerminal, FiX, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 
-interface TerminalLine {
+export interface TerminalLine {
   id: string;
-  type: "stdout" | "stderr" | "info" | "success" | "error" | "compiling";
+  type:
+    | "stdout"
+    | "stderr"
+    | "info"
+    | "success"
+    | "error"
+    | "compiling"
+    | "warning";
   content: string;
   timestamp: number;
 }
 
 interface SandboxTerminalProps {
   isRunning: boolean;
+  lines: TerminalLine[];
+  status?: string;
+  emptyMessage?: string;
   onClear?: () => void;
 }
 
 export default function SandboxTerminal({
   isRunning,
+  lines,
+  status = "",
+  emptyMessage = "Terminal output will appear here...",
   onClear,
 }: SandboxTerminalProps) {
-  const [lines, setLines] = useState<TerminalLine[]>([]);
-  const [status, setStatus] = useState<string>("");
   const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,8 +47,6 @@ export default function SandboxTerminal({
   }, [lines]);
 
   const clearTerminal = () => {
-    setLines([]);
-    setStatus("");
     onClear?.();
   };
 
@@ -55,6 +64,8 @@ export default function SandboxTerminal({
         return "red.500";
       case "compiling":
         return "yellow.400";
+      case "warning":
+        return "yellow.300";
       default:
         return "gray.400";
     }
@@ -136,7 +147,7 @@ export default function SandboxTerminal({
       >
         {lines.length === 0 ? (
           <Text color="gray.600" fontStyle="italic">
-            Terminal output will appear here...
+            {emptyMessage}
           </Text>
         ) : (
           <VStack align="start" spacing={0.5} w="100%">

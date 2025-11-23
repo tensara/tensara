@@ -21,6 +21,7 @@ import {
 } from "react-icons/fi";
 import { FaExclamationCircle } from "react-icons/fa";
 import { FileExplorer } from "./FileExplorer";
+import SandboxTerminal, { type TerminalLine } from "./SandboxTerminal";
 import type { SandboxFile } from "~/types/misc";
 import { type ProgrammingLanguage } from "~/types/misc";
 import CodeEditor from "~/components/problem/CodeEditor";
@@ -51,21 +52,13 @@ interface SSEMessage {
   details?: string;
   error?: string;
   content?: string;
+  stdout?: string;
+  stderr?: string;
 }
 
-interface TerminalLine {
-  id: string;
-  type:
-    | "stdout"
-    | "stderr"
-    | "info"
-    | "success"
-    | "error"
-    | "compiling"
-    | "warning";
-  content: string;
-  timestamp: number;
-}
+const SANDBOX_OUTPUT_LIMIT_KB = 64;
+const MAX_TERMINAL_LINES = 400;
+const MAX_DISPLAY_STDIO_LINES = 30;
 
 export default function Sandbox({
   files,
@@ -91,11 +84,13 @@ export default function Sandbox({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([]);
+  const [terminalStatus, setTerminalStatus] = useState<string>("Idle");
+  const [_stdoutDisplayTruncated, setStdoutDisplayTruncated] = useState(false);
+  const stdoutDisplayTruncatedRef = useRef(false);
   const [isFileExplorerCollapsed, setIsFileExplorerCollapsed] = useState(true);
   // const [terminalStatus, setTerminalStatus] = useState<string>("");
   // const [gpuType, setGpuType] = useState("T4");
   const activeFile = files[activeIndex] ?? files[0];
-  const terminalRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [ptxContent, setPtxContent] = useState<string | null>(null);
   const [sassContent, setSassContent] = useState<string | null>(null);
@@ -128,13 +123,6 @@ export default function Sandbox({
     },
     { enabled: hasLoadedVimPreference }
   );
-  useEffect(() => {
-    // Auto-scroll terminal to bottom when new lines are added
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [terminalLines]);
-
   useEffect(() => {
     // Cleanup on unmount
     return () => {
@@ -185,14 +173,54 @@ export default function Sandbox({
     return () => window.removeEventListener("resize", measure);
   }, [editorMenuRef]);
 
+  const stdoutLineCountRef = useRef(0);
+
   const addTerminalLine = (type: TerminalLine["type"], content: string) => {
-    const newLine: TerminalLine = {
+    const line: TerminalLine = {
       id: `${Date.now()}-${Math.random()}`,
       type,
       content,
       timestamp: Date.now(),
     };
-    setTerminalLines((prev) => [...prev, newLine]);
+    setTerminalLines((prev) => {
+      let next = [...prev];
+
+      if (type === "stdout" || type === "stderr") {
+        if (stdoutLineCountRef.current >= MAX_DISPLAY_STDIO_LINES) {
+          if (!stdoutDisplayTruncatedRef.current) {
+            const notice: TerminalLine = {
+              id: `${Date.now()}-truncate`,
+              type: "warning",
+              content: `… output truncated after ${MAX_DISPLAY_STDIO_LINES} lines`,
+              timestamp: Date.now(),
+            };
+            next = [...next, notice];
+            setStdoutDisplayTruncated(true);
+            stdoutDisplayTruncatedRef.current = true;
+          }
+          return next;
+        }
+        stdoutLineCountRef.current += 1;
+      }
+
+      next = [...next, line];
+
+      if (next.length > MAX_TERMINAL_LINES) {
+        next = next.slice(next.length - MAX_TERMINAL_LINES);
+        if (!stdoutDisplayTruncatedRef.current) {
+          const notice: TerminalLine = {
+            id: `${Date.now()}-truncate`,
+            type: "warning",
+            content: `⚠️ Showing only the last ${MAX_TERMINAL_LINES} log lines.`,
+            timestamp: Date.now(),
+          };
+          next = [notice, ...next];
+          setStdoutDisplayTruncated(true);
+          stdoutDisplayTruncatedRef.current = true;
+        }
+      }
+      return next;
+    });
   };
 
   const runCode = async () => {
@@ -204,7 +232,17 @@ export default function Sandbox({
     }
 
     setIsRunning(true);
-    setTerminalLines([]);
+    setTerminalStatus("Starting...");
+    setStdoutDisplayTruncated(false);
+    stdoutDisplayTruncatedRef.current = false;
+    stdoutLineCountRef.current = 0;
+    const startLine: TerminalLine = {
+      id: `${Date.now()}-start`,
+      type: "info",
+      content: "🚀 Starting sandbox run...",
+      timestamp: Date.now(),
+    };
+    setTerminalLines([startLine]);
     setPtxContent(null);
     setSassContent(null);
     setPtxDirty(false);
@@ -246,6 +284,7 @@ export default function Sandbox({
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let receivedEvents = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -263,6 +302,9 @@ export default function Sandbox({
           if (line.startsWith("data:")) {
             try {
               const data = JSON.parse(line.slice(5)) as SSEMessage;
+              if (data.status) {
+                receivedEvents = true;
+              }
               handleSSEMessage(data.status ?? "", data);
             } catch (e) {
               console.error("Failed to parse SSE data:", e);
@@ -270,10 +312,19 @@ export default function Sandbox({
           }
         }
       }
+
+      if (!receivedEvents) {
+        setTerminalStatus("Error");
+        addTerminalLine(
+          "error",
+          "⚠️ Sandbox session ended before any output was received. Please try again."
+        );
+      }
     } catch (error: unknown) {
       if (error instanceof Error && error.name !== "AbortError") {
         console.error("Execution error:", error);
         addTerminalLine("error", `❌ Connection error: ${error.message}`);
+        setTerminalStatus("Error");
       }
     } finally {
       setIsRunning(false);
@@ -289,6 +340,7 @@ export default function Sandbox({
       abortControllerRef.current.abort();
       addTerminalLine("info", "🛑 Execution stopped by user");
       setIsRunning(false);
+      setTerminalStatus("Stopped");
     }
   };
 
@@ -296,11 +348,13 @@ export default function Sandbox({
     switch (event) {
       case "IN_QUEUE":
         // setTerminalStatus("In Queue");
+        setTerminalStatus("Queued");
         addTerminalLine("info", "⏳ Submission queued...");
         break;
 
       case "COMPILING":
         // setTerminalStatus("Compiling");
+        setTerminalStatus("Compiling");
         addTerminalLine(
           "compiling",
           `🔨 Compiling ${getLanguageDisplay(selectedLanguage)} code...`
@@ -309,6 +363,7 @@ export default function Sandbox({
 
       case "SANDBOX_RUNNING":
         // setTerminalStatus("Running");
+        setTerminalStatus("Running");
         addTerminalLine("info", "▶️  Executing program...");
         break;
 
@@ -322,6 +377,7 @@ export default function Sandbox({
 
       case "SANDBOX_SUCCESS":
         // setTerminalStatus("Success");
+        setTerminalStatus("Success");
         addTerminalLine(
           "success",
           `✅ Program completed successfully (exit code: ${data.return_code})`
@@ -330,6 +386,7 @@ export default function Sandbox({
 
       case "SANDBOX_ERROR":
         // setTerminalStatus("Error");
+        setTerminalStatus("Error");
         addTerminalLine(
           "error",
           `❌ Error: ${data.message ?? "Unknown error"}`
@@ -337,10 +394,43 @@ export default function Sandbox({
         if (data.details) {
           addTerminalLine("error", data.details);
         }
+        if (
+          data.message?.toLowerCase().includes("output exceeded") &&
+          !readOnly
+        ) {
+          toast({
+            title: "Output truncated",
+            description: `Sandbox only streams the first ${SANDBOX_OUTPUT_LIMIT_KB}KB of console output. Trim print statements and try again.`,
+            status: "warning",
+            duration: 6000,
+            isClosable: true,
+          });
+        }
+        break;
+
+      case "SANDBOX_OUTPUT_LIMIT":
+        setTerminalStatus("Error");
+        addTerminalLine(
+          "error",
+          `🚫 Output limit exceeded: ${data.message ?? "Sandbox truncated output"}`
+        );
+        if (data.details) {
+          addTerminalLine("warning", data.details);
+        }
+        toast({
+          title: "Sandbox output limit hit",
+          description:
+            data.details ??
+            `We stopped the job after streaming ${SANDBOX_OUTPUT_LIMIT_KB}KB of console output. Reduce logging and try again.`,
+          status: "warning",
+          duration: 6000,
+          isClosable: true,
+        });
         break;
 
       case "COMPILE_ERROR":
         // setTerminalStatus("Compile Error");
+        setTerminalStatus("Error");
         addTerminalLine(
           "error",
           `❌ Compile Error: ${data.message ?? "Unknown compile error"}`
@@ -352,10 +442,20 @@ export default function Sandbox({
 
       case "SANDBOX_TIMEOUT":
         // setTerminalStatus("Timeout");
+        setTerminalStatus("Timeout");
         addTerminalLine(
           "error",
           `⏱️ Execution timeout: ${data.message ?? "Unknown timeout"}`
         );
+        toast({
+          title: "Sandbox timed out",
+          description:
+            data.details ??
+            "Execution exceeded the sandbox time limit. Try reducing runtime or commenting out long loops.",
+          status: "warning",
+          duration: 6000,
+          isClosable: true,
+        });
         break;
       case SandboxStatus.PTX:
         setPtxContent(data.content ?? null);
@@ -377,6 +477,7 @@ export default function Sandbox({
       default:
         if (event.includes("ERROR")) {
           // setTerminalStatus("Error");
+          setTerminalStatus("Error");
           addTerminalLine(
             "error",
             `❌ ${data.error ?? data.message ?? "Unknown error"}`
@@ -414,27 +515,6 @@ export default function Sandbox({
     link.href = URL.createObjectURL(blob);
     link.download = file.name;
     link.click();
-  };
-
-  const getTerminalLineColor = (type: TerminalLine["type"]) => {
-    switch (type) {
-      case "stdout":
-        return "gray.300";
-      case "stderr":
-        return "red.400";
-      case "info":
-        return "blue.400";
-      case "success":
-        return "green.400";
-      case "error":
-        return "red.500";
-      case "compiling":
-        return "yellow.400";
-      case "warning":
-        return "yellow.300";
-      default:
-        return "gray.400";
-    }
   };
 
   return (
@@ -912,80 +992,21 @@ export default function Sandbox({
                     borderColor="brand.dark"
                     borderRadius="lg"
                   >
-                    <VStack h="100%" w="100%" spacing={0}>
-                      {/* Terminal Header */}
-                      <HStack
-                        w="100%"
-                        px={4}
-                        py={2}
-                        bg="#111111"
-                        borderBottom="1px solid"
-                        borderColor="brand.dark"
-                        justify="space-between"
-                        borderTopRadius="lg"
-                      >
-                        <Text color="white" fontSize="sm" fontWeight="500">
-                          Terminal
-                        </Text>
-                        <Button
-                          onClick={() => {
-                            setTerminalLines([]);
-                          }}
-                          bg="rgba(160, 174, 192, 0.1)"
-                          color="rgb(160, 174, 192)"
-                          size="sm"
-                          _hover={{
-                            bg: "rgba(160, 174, 192, 0.2)",
-                            transition: "all 0.5s ease",
-                          }}
-                          _active={{
-                            bg: "rgba(160, 174, 192, 0.25)",
-                            transition: "all 0.5s ease",
-                          }}
-                          transition="all 0.5s ease"
-                          px={4}
-                        >
-                          Clear
-                        </Button>
-                      </HStack>
-                      {/* Terminal Content */}
-                      <Box
-                        ref={terminalRef}
-                        flex={1}
-                        w="100%"
-                        overflowY="auto"
-                        px={4}
-                        py={3}
-                        fontFamily="JetBrains Mono, monospace"
-                        fontSize="13px"
-                      >
-                        {terminalLines.length === 0 ? (
-                          <Text color="gray.500" fontStyle="italic">
-                            user~
-                          </Text>
-                        ) : (
-                          <VStack align="start" spacing={0.5} w="100%">
-                            {terminalLines.map((line) => (
-                              <Box
-                                key={line.id}
-                                w="100%"
-                                fontFamily="JetBrains Mono, monospace"
-                                whiteSpace="pre-wrap"
-                                wordBreak="break-word"
-                                animation="slideIn 0.15s ease-out"
-                              >
-                                <Text
-                                  color={getTerminalLineColor(line.type)}
-                                  fontSize="13px"
-                                >
-                                  {line.content}
-                                </Text>
-                              </Box>
-                            ))}
-                          </VStack>
-                        )}
-                      </Box>
-                    </VStack>
+                    <SandboxTerminal
+                      isRunning={isRunning}
+                      lines={terminalLines}
+                      status={terminalStatus}
+                      emptyMessage="user~"
+                      onClear={() => {
+                        setTerminalLines([]);
+                        if (!isRunning) {
+                          setTerminalStatus("Idle");
+                        }
+                        setStdoutDisplayTruncated(false);
+                        stdoutDisplayTruncatedRef.current = false;
+                        stdoutLineCountRef.current = 0;
+                      }}
+                    />
                   </Box>
                 }
                 initialRatio={65}

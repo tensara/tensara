@@ -132,6 +132,7 @@ export default async function handler(
     });
 
     console.log("Starting sandbox process");
+    const upstreamController = new AbortController();
     const sandboxResponse = await fetch(env.MODAL_ENDPOINT + "/sandbox-T4", {
       method: "POST",
       headers: {
@@ -141,6 +142,7 @@ export default async function handler(
         code: submission.code,
         language: submission.language,
       }),
+      signal: upstreamController.signal,
     });
 
     if (!sandboxResponse.ok) {
@@ -164,6 +166,15 @@ export default async function handler(
       res.end();
       return;
     }
+
+    const cancelUpstream = async (reason: string) => {
+      upstreamController.abort();
+      try {
+        await reader.cancel(reason);
+      } catch (cancelError) {
+        console.warn("Failed to cancel sandbox stream:", cancelError);
+      }
+    };
 
     let partialMessage = "";
 
@@ -236,6 +247,33 @@ export default async function handler(
               return;
             }
 
+            if (response_status === "SANDBOX_OUTPUT_LIMIT") {
+              const response = parsed as {
+                status: string;
+                message: string;
+                stdout?: string;
+                stderr?: string;
+                details?: string;
+              };
+
+              await db.sandboxSubmission.update({
+                where: { id: submission.id },
+                data: {
+                  status: "FAILED",
+                  stdout_output: response.stdout,
+                  error_message: response.message,
+                  error_details: response.details,
+                },
+              });
+
+              sendSSE("SANDBOX_OUTPUT_LIMIT", response);
+
+              await cancelUpstream("sandbox-output-limit");
+
+              res.end();
+              return;
+            }
+
             if (response_status === "SANDBOX_ERROR") {
               const response = parsed as {
                 status: string;
@@ -248,7 +286,12 @@ export default async function handler(
 
               await db.sandboxSubmission.update({
                 where: { id: submission.id },
-                data: { status: "FAILED" },
+                data: {
+                  status: "FAILED",
+                  stdout_output: response.stdout,
+                  error_message: response.message,
+                  error_details: response.details,
+                },
               });
 
               sendSSE("SANDBOX_ERROR", response);
@@ -265,10 +308,16 @@ export default async function handler(
               };
               await db.sandboxSubmission.update({
                 where: { id: submission.id },
-                data: { status: "TIMEOUT" },
+                data: {
+                  status: "TIMEOUT",
+                  error_message: response.message,
+                  error_details: response.details,
+                },
               });
 
               sendSSE("SANDBOX_TIMEOUT", response);
+
+              await cancelUpstream("sandbox-timeout");
 
               res.end();
               return;
@@ -286,13 +335,35 @@ export default async function handler(
             if (isSubmissionError(response_status)) {
               const response = parsed as {
                 status: SubmissionErrorType;
-                error: string;
+                error?: string;
+                message?: string;
                 details: string;
               };
 
+              const isTimeout =
+                response_status === SubmissionError.TIME_LIMIT_EXCEEDED;
+
+              await db.sandboxSubmission.update({
+                where: { id: submission.id },
+                data: {
+                  status: isTimeout ? "TIMEOUT" : "FAILED",
+                  error_message: response.error ?? response.message,
+                  error_details: response.details,
+                },
+              });
+
               console.log("Sandbox error:", response);
 
-              sendSSE(response_status, response);
+              if (isTimeout) {
+                await cancelUpstream("sandbox-timeout-error");
+                sendSSE("SANDBOX_TIMEOUT", {
+                  status: "SANDBOX_TIMEOUT",
+                  message: response.message ?? "Time limit exceeded",
+                  details: response.details,
+                });
+              } else {
+                sendSSE(response_status, response);
+              }
 
               res.end();
               return;

@@ -358,6 +358,16 @@ async def sandbox(gpu: str, request: Request):
             "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", language
         )
         for event in stream:
+            if not event:
+                continue
+            status = event.get("status") if isinstance(event, dict) else None
+            if status == "TIME_LIMIT_EXCEEDED":
+                yield {
+                    "status": "SANDBOX_TIMEOUT",
+                    "message": event.get("message", "Sandbox time limit exceeded"),
+                    "details": event.get("details", ""),
+                }
+                return
             yield event
 
     stream = gen_wrapper(create_stream())

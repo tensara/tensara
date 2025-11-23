@@ -20,6 +20,7 @@ export const SubmissionStatus = {
   SANDBOX_SUCCESS: "SANDBOX_SUCCESS",
   SANDBOX_ERROR: "SANDBOX_ERROR",
   SANDBOX_TIMEOUT: "SANDBOX_TIMEOUT",
+  SANDBOX_OUTPUT_LIMIT: "SANDBOX_OUTPUT_LIMIT",
 } as const;
 
 // Submission Errors
@@ -147,6 +148,14 @@ export interface SandboxTimeoutResponse
   details: string;
 }
 
+export interface SandboxOutputLimitResponse
+  extends BaseResponse<"SANDBOX_OUTPUT_LIMIT"> {
+  message: string;
+  stdout?: string;
+  stderr?: string;
+  details?: string;
+}
+
 // Unified Union Type for API Response
 export type SubmissionResponse =
   | ErrorResponse
@@ -159,7 +168,8 @@ export type SubmissionResponse =
   | SandboxOutputResponse
   | SandboxSuccessResponse
   | SandboxErrorResponse
-  | SandboxTimeoutResponse;
+  | SandboxTimeoutResponse
+  | SandboxOutputLimitResponse;
 
 // Sample Run Status Constants
 export const SampleStatus = {
@@ -191,6 +201,7 @@ export const SandboxStatus = {
   SANDBOX_SUCCESS: "SANDBOX_SUCCESS",
   SANDBOX_ERROR: "SANDBOX_ERROR",
   SANDBOX_TIMEOUT: "SANDBOX_TIMEOUT",
+  SANDBOX_OUTPUT_LIMIT: "SANDBOX_OUTPUT_LIMIT",
 } as const;
 
 export type SandboxStatusType =
