@@ -3,6 +3,7 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import { combinedAuth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
+import { type ProgrammingLanguage } from "~/types/misc";
 import { SubmissionError, SubmissionStatus } from "~/types/submission";
 import type { SubmissionErrorType } from "~/types/submission";
 import { isSubmissionError } from "~/types/submission";
@@ -28,11 +29,20 @@ export default async function handler(
     return;
   }
 
-  const { code } = req.body as { code: string };
+  const { code, language } = req.body as { code: string; language?: ProgrammingLanguage };
+  const selectedLanguage = language ?? "cuda";
 
   if (!code) {
     res.status(400).json({
       error: "Missing required field: code",
+    });
+    return;
+  }
+
+  const supportedLanguages: ProgrammingLanguage[] = ["cuda", "mojo"];
+  if (!supportedLanguages.includes(selectedLanguage)) {
+    res.status(400).json({
+      error: "Unsupported language for sandbox",
     });
     return;
   }
@@ -90,7 +100,7 @@ export default async function handler(
   const submission = await db.sandboxSubmission.create({
     data: {
       code: code,
-      language: "cuda",
+      language: selectedLanguage,
       status: "IN_QUEUE",
       user: { connect: { id: session.user.id } },
     },

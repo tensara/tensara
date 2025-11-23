@@ -465,7 +465,7 @@ def run_benchmark(
 
 def run_sandbox(compiled_lib: bytes, solution_code: str):
     """
-    Run sandbox on compiled CUDA solution with real-time output streaming
+    Run sandbox on a compiled solution with real-time output streaming
     """
     try:
         if not compiled_lib:

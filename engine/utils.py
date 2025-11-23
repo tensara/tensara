@@ -253,12 +253,29 @@ def mojo_command(srcs: list[Path | str], out: Path | str):
     srcs = [str(src) for src in srcs]
     out = str(out)
 
-    cmd = ["mojo", "build"]
+    cmd = ["mojo", "build", "--optimization-level=3"]
 
     if str(out).endswith(".so"):
         cmd.append("--emit=shared-lib")
 
     cmd.extend(["-o", out] + srcs)
+
+    return cmd
+
+
+def mojo_command_executable(srcs: list[Path | str], out: Path | str):
+    """Get mojo command for building an executable.
+
+    This isolates flags for building an executable binary so they can be
+    adjusted separately from the shared-library build path.
+    """
+    srcs = [str(src) for src in srcs]
+    out = str(out)
+
+    # Use the build subcommand but avoid the shared-lib emit flag.
+    # If later needed, add executable-specific flags here (for example
+    # --emit=exe or runtime flags) without changing `mojo_command`.
+    cmd = ["mojo", "build", "--optimization-level=3", "-o", out] + srcs
 
     return cmd
 
@@ -377,9 +394,46 @@ def run_mojo_and_return_bytes(solution_code: str, output_name: str) -> bytes:
         src_path = path / "solution.mojo"
 
         cmd = mojo_command([src_path], out_path)
-        process = subprocess.run(cmd, capture_output=True, text=True)
+        try:
+            process = subprocess.run(cmd, capture_output=True, text=True)
+        except FileNotFoundError:
+            raise MojoError("'mojo' CLI not found in PATH; please install Mojo or run compilation in an environment with the Mojo toolchain.")
 
         # Check for compilation errors
+        if process.returncode != 0:
+            raise MojoError(process.stderr)
+
+    bytes_of_file = out_path.read_bytes()
+    out_path.unlink()
+    return bytes_of_file
+
+
+@hash_dict
+@lru_cache(maxsize=512)
+def run_mojo_and_return_executable(solution_code: str, output_name: str) -> bytes:
+    """Compile Mojo sources into an executable binary and return its bytes."""
+    reject_forbidden_patterns("mojo", solution_code)
+
+    output_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_name}.bin")
+    output_file.close()
+    out_path = Path(output_file.name)
+    out_path.unlink()
+    print("Compiling Mojo executable...")
+
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td)
+        print(f"Temporary directory created at {td}")
+
+        (path / "solution.mojo").write_text(solution_code)
+        src_path = path / "solution.mojo"
+        print(f"Source file written at {src_path}")
+
+        cmd = mojo_command_executable([src_path], out_path)
+        try:
+            process = subprocess.run(cmd, capture_output=True, text=True)
+        except FileNotFoundError:
+            raise MojoError("'mojo' CLI not found in PATH; please install Mojo or run compilation in an environment with the Mojo toolchain.")
+
         if process.returncode != 0:
             raise MojoError(process.stderr)
 

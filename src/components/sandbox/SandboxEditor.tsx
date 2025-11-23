@@ -17,14 +17,17 @@ import {
   FiChevronRight,
   FiChevronLeft,
   FiFile,
+  FiChevronDown,
 } from "react-icons/fi";
 import { FaExclamationCircle } from "react-icons/fa";
 import { FileExplorer } from "./FileExplorer";
 import type { SandboxFile } from "~/types/misc";
+import { type ProgrammingLanguage } from "~/types/misc";
 import CodeEditor from "~/components/problem/CodeEditor";
 import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
 import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { useToast } from "@chakra-ui/react";
 import { useHotkey } from "~/hooks/useHotKey";
 import { SandboxStatus } from "~/types/submission";
@@ -100,6 +103,8 @@ export default function Sandbox({
   const [sassDirty, setSassDirty] = useState(false);
   const [isVimModeEnabled, setIsVimModeEnabled] = useState(false);
   const [hasLoadedVimPreference, setHasLoadedVimPreference] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] =
+    useState<ProgrammingLanguage>("cuda");
 
   useHotkey("meta+enter", () => {
     if (isRunning) {
@@ -170,6 +175,10 @@ export default function Sandbox({
 
     setIsRunning(true);
     setTerminalLines([]);
+    setPtxContent(null);
+    setSassContent(null);
+    setPtxDirty(false);
+    setSassDirty(false);
     // setTerminalStatus("Starting...");
 
     // Create a new AbortController for this request
@@ -183,6 +192,7 @@ export default function Sandbox({
         },
         body: JSON.stringify({
           code: activeFile.content,
+          language: selectedLanguage,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -241,6 +251,9 @@ export default function Sandbox({
     }
   };
 
+  const getLanguageDisplay = (language: ProgrammingLanguage) =>
+    LANGUAGE_DISPLAY_NAMES[language] ?? language.toUpperCase();
+
   const stopExecution = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -258,7 +271,10 @@ export default function Sandbox({
 
       case "COMPILING":
         // setTerminalStatus("Compiling");
-        addTerminalLine("compiling", "🔨 Compiling CUDA code...");
+        addTerminalLine(
+          "compiling",
+          `🔨 Compiling ${getLanguageDisplay(selectedLanguage)} code...`
+        );
         break;
 
       case "SANDBOX_RUNNING":
@@ -337,6 +353,11 @@ export default function Sandbox({
           );
         }
     }
+  };
+
+  const getNewFileName = (index: number) => {
+    const ext = selectedLanguage === "mojo" ? "mojo" : "cu";
+    return `file${index}.${ext}`;
   };
 
   const updateFile = (content: string) => {
@@ -496,7 +517,7 @@ export default function Sandbox({
                             _hover={{ bg: "whiteAlpha.100" }}
                             borderRadius="md"
                             onClick={() => {
-                              const name = `file${files.length}.cu`;
+                              const name = getNewFileName(files.length);
                               setFiles([...files, { name, content: "" }]);
                               setActiveIndex(files.length);
                             }}
@@ -522,7 +543,7 @@ export default function Sandbox({
               {/* Hidden file input */}
               <input
                 type="file"
-                accept=".cu"
+                accept=".cu,.mojo,.cpp,.h,.txt"
                 ref={uploadRef}
                 style={{ display: "none" }}
                 onChange={(e) => {
@@ -609,7 +630,7 @@ export default function Sandbox({
                           borderRadius="md"
                           _hover={{ bg: "whiteAlpha.100" }}
                           onClick={() => {
-                            const name = `file${files.length}.cu`;
+                            const name = getNewFileName(files.length);
                             setFiles([...files, { name, content: "" }]);
                             setActiveIndex(files.length);
                           }}
@@ -714,6 +735,48 @@ export default function Sandbox({
                 )}
               </HStack>
               <HStack spacing={3}>
+                <Menu>
+                  <MenuButton
+                    size="sm"
+                    as={Button}
+                    rightIcon={<FiChevronDown size={12} color="#a1a1aa" />}
+                    bg="whiteAlpha.50"
+                    _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                    _active={{ bg: "whiteAlpha.150" }}
+                    _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                    color="white"
+                    w={{ base: "140px", md: "160px" }}
+                    fontWeight="normal"
+                    textAlign="left"
+                    justifyContent="flex-start"
+                    borderRadius="lg"
+                  >
+                    {getLanguageDisplay(selectedLanguage)}
+                  </MenuButton>
+                  <MenuList
+                    bg="brand.secondary"
+                    borderColor="gray.800"
+                    p={0}
+                    borderRadius="lg"
+                    minW="160px"
+                  >
+                    {(["cuda", "mojo"] satisfies ProgrammingLanguage[]).map(
+                      (lang) => (
+                        <MenuItem
+                          key={lang}
+                          onClick={() => setSelectedLanguage(lang)}
+                          bg="brand.secondary"
+                          _hover={{ bg: "gray.700" }}
+                          color="white"
+                          borderRadius="lg"
+                          fontSize="sm"
+                        >
+                          {getLanguageDisplay(lang)}
+                        </MenuItem>
+                      )
+                    )}
+                  </MenuList>
+                </Menu>
                 <Text
                   color="gray.400"
                   fontSize="sm"
@@ -785,7 +848,7 @@ export default function Sandbox({
                           key={`sandbox-editor-${isVimModeEnabled ? "vim" : "std"}`}
                           code={activeFile.content}
                           setCode={updateFile}
-                          selectedLanguage="cuda"
+                          selectedLanguage={selectedLanguage}
                           isEditable={!readOnly}
                           enablePtxSassView
                           ptxContent={ptxContent}
