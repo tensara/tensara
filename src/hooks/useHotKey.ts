@@ -52,7 +52,7 @@ export function useHotkey(
           try {
             e.stopImmediatePropagation();
           } catch {
-            /* stopImmediatePropagation may not be available in some environments */
+            /* stopImmediatePropagation may not ben available in some environments */
           }
           handlerRef.current();
         }
