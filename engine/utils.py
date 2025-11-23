@@ -397,7 +397,9 @@ def run_mojo_and_return_bytes(solution_code: str, output_name: str) -> bytes:
         try:
             process = subprocess.run(cmd, capture_output=True, text=True)
         except FileNotFoundError:
-            raise MojoError("'mojo' CLI not found in PATH; please install Mojo or run compilation in an environment with the Mojo toolchain.")
+            raise MojoError(
+                "'mojo' CLI not found in PATH; please install Mojo or run compilation in an environment with the Mojo toolchain."
+            )
 
         # Check for compilation errors
         if process.returncode != 0:
@@ -427,7 +429,9 @@ def run_mojo_and_return_executable(solution_code: str, output_name: str) -> byte
         try:
             process = subprocess.run(cmd, capture_output=True, text=True)
         except FileNotFoundError:
-            raise MojoError("'mojo' CLI not found in PATH; please install Mojo or run compilation in an environment with the Mojo toolchain.")
+            raise MojoError(
+                "'mojo' CLI not found in PATH; please install Mojo or run compilation in an environment with the Mojo toolchain."
+            )
 
         if process.returncode != 0:
             raise MojoError(process.stderr)
