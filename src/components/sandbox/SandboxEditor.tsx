@@ -105,6 +105,8 @@ export default function Sandbox({
   const [hasLoadedVimPreference, setHasLoadedVimPreference] = useState(false);
   const [selectedLanguage, setSelectedLanguage] =
     useState<ProgrammingLanguage>("cuda");
+  const editorMenuRef = useRef<HTMLButtonElement | null>(null);
+  const [editorMenuWidth, setEditorMenuWidth] = useState<number | null>(null);
 
   useHotkey("meta+enter", () => {
     if (isRunning) {
@@ -160,7 +162,7 @@ export default function Sandbox({
   // suffix `.🔥` as Mojo files. If the active file is not Mojo and the current
   // selection is `mojo`, revert to `cuda` so the editor reflects the file type.
   useEffect(() => {
-    if (!activeFile || !activeFile.name) return;
+    if (!activeFile?.name) return;
     const name = activeFile.name;
     const isMojo = name.toLowerCase().endsWith(".mojo") || name.endsWith(".🔥");
     if (isMojo) {
@@ -171,6 +173,17 @@ export default function Sandbox({
       setSelectedLanguage((prev) => (prev === "mojo" ? "cuda" : prev));
     }
   }, [activeFile?.name]);
+
+  useEffect(() => {
+    const measure = () => {
+      if (editorMenuRef.current) {
+        setEditorMenuWidth(editorMenuRef.current.offsetWidth || null);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [editorMenuRef]);
 
   const addTerminalLine = (type: TerminalLine["type"], content: string) => {
     const newLine: TerminalLine = {
@@ -756,6 +769,7 @@ export default function Sandbox({
                   <MenuButton
                     size="sm"
                     as={Button}
+                    ref={editorMenuRef}
                     rightIcon={<FiChevronDown size={12} color="#a1a1aa" />}
                     bg="whiteAlpha.50"
                     _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
@@ -775,7 +789,8 @@ export default function Sandbox({
                     borderColor="gray.800"
                     p={0}
                     borderRadius="lg"
-                    minW="160px"
+                    minW="0"
+                    w={editorMenuWidth ? `${editorMenuWidth}px` : undefined}
                   >
                     {(["cuda", "mojo"] satisfies ProgrammingLanguage[]).map(
                       (lang) => (

@@ -1,6 +1,8 @@
 import { api } from "~/utils/api";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import type { ProgrammingLanguage } from "~/types/misc";
+import { Select } from "@chakra-ui/react";
 import {
   VStack,
   Heading,
@@ -28,6 +30,7 @@ import { Layout } from "~/components/layout";
 import { format } from "date-fns";
 import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
 import { FiMoreVertical, FiPlus } from "react-icons/fi";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { useSession, signIn } from "next-auth/react";
 import { type TRPCClientError } from "@trpc/client";
 import type { AppRouter } from "~/server/api/root";
@@ -48,6 +51,9 @@ export default function SandboxHome() {
   const [name, setName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
+  const [newWorkspaceLanguage, setNewWorkspaceLanguage] =
+    useState<ProgrammingLanguage>("cuda");
+  const newWorkspaceMenuRef = useRef<HTMLButtonElement | null>(null);
 
   const {
     isOpen: isModalOpen,
@@ -56,6 +62,23 @@ export default function SandboxHome() {
   } = useDisclosure();
 
   const { data: workspaces, isLoading } = api.workspace.list.useQuery();
+
+  const getLanguageDisplay = (language: ProgrammingLanguage) =>
+    LANGUAGE_DISPLAY_NAMES[language] ?? language.toUpperCase();
+
+  useEffect(() => {
+    function updateWidth() {
+      newWorkspaceMenuRef.current as unknown as HTMLElement | null;
+    }
+
+    if (isModalOpen) {
+      // measure once when modal opens
+      updateWidth();
+      window.addEventListener("resize", updateWidth);
+      return () => window.removeEventListener("resize", updateWidth);
+    }
+    // reset when modal closes
+  }, [isModalOpen]);
 
   const createWorkspace = api.workspace.create.useMutation({
     onSuccess: async (data) => {
@@ -122,7 +145,8 @@ export default function SandboxHome() {
 
   const handleCreate = () => {
     if (!name.trim()) return;
-    createWorkspace.mutate({ name });
+    // pass language along; server can ignore it if not supported.
+    createWorkspace.mutate({ name, language: newWorkspaceLanguage });
     setName("");
   };
 
@@ -360,21 +384,46 @@ export default function SandboxHome() {
             <ModalHeader color="white">Create Workspace</ModalHeader>
             <ModalCloseButton color="white" />
             <ModalBody>
-              <Input
-                placeholder="Enter workspace name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleCreate();
-                    closeModal();
-                  }
-                }}
-                bg="brand.dark"
-                color="white"
-                _hover={{ bg: "brand.dark" }}
-                _focus={{ bg: "brand.dark" }}
-              />
+              <VStack align="stretch" spacing={3}>
+                <Input
+                  placeholder="Enter workspace name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleCreate();
+                      closeModal();
+                    }
+                  }}
+                  bg="brand.dark"
+                  color="white"
+                  _hover={{ bg: "brand.dark" }}
+                  _focus={{ bg: "brand.dark" }}
+                />
+                <Box>
+                  <Text fontSize="sm" color="gray.300" mb={1}>
+                    Default Language
+                  </Text>
+                  <Select
+                    size="sm"
+                    bg="whiteAlpha.50"
+                    color="white"
+                    value={newWorkspaceLanguage}
+                    onChange={(e) =>
+                      setNewWorkspaceLanguage(
+                        e.target.value as ProgrammingLanguage
+                      )
+                    }
+                    borderRadius="lg"
+                  >
+                    {(["cuda", "mojo"] as ProgrammingLanguage[]).map((lang) => (
+                      <option key={lang} value={lang}>
+                        {getLanguageDisplay(lang)}
+                      </option>
+                    ))}
+                  </Select>
+                </Box>
+              </VStack>
             </ModalBody>
             <ModalFooter>
               <Button

@@ -29,7 +29,10 @@ export default async function handler(
     return;
   }
 
-  const { code, language } = req.body as { code: string; language?: ProgrammingLanguage };
+  const { code, language } = req.body as {
+    code: string;
+    language?: ProgrammingLanguage;
+  };
   const selectedLanguage = language ?? "cuda";
 
   if (!code) {

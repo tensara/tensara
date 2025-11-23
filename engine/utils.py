@@ -418,16 +418,11 @@ def run_mojo_and_return_executable(solution_code: str, output_name: str) -> byte
     output_file.close()
     out_path = Path(output_file.name)
     out_path.unlink()
-    print("Compiling Mojo executable...")
 
     with tempfile.TemporaryDirectory() as td:
         path = Path(td)
-        print(f"Temporary directory created at {td}")
-
         (path / "solution.mojo").write_text(solution_code)
         src_path = path / "solution.mojo"
-        print(f"Source file written at {src_path}")
-
         cmd = mojo_command_executable([src_path], out_path)
         try:
             process = subprocess.run(cmd, capture_output=True, text=True)
