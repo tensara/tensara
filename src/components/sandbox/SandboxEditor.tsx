@@ -155,6 +155,23 @@ export default function Sandbox({
     saveVimModePreference(isVimModeEnabled);
   }, [isVimModeEnabled, hasLoadedVimPreference]);
 
+  // If the active file's extension indicates Mojo, switch the language selector
+  // to `mojo`. We treat files ending with `.mojo` or with the special emoji
+  // suffix `.🔥` as Mojo files. If the active file is not Mojo and the current
+  // selection is `mojo`, revert to `cuda` so the editor reflects the file type.
+  useEffect(() => {
+    if (!activeFile || !activeFile.name) return;
+    const name = activeFile.name;
+    const isMojo = name.toLowerCase().endsWith(".mojo") || name.endsWith(".🔥");
+    if (isMojo) {
+      setSelectedLanguage("mojo");
+    } else {
+      // Only change away from mojo if the selector is currently mojo so we
+      // don't override an explicit user choice for other languages.
+      setSelectedLanguage((prev) => (prev === "mojo" ? "cuda" : prev));
+    }
+  }, [activeFile?.name]);
+
   const addTerminalLine = (type: TerminalLine["type"], content: string) => {
     const newLine: TerminalLine = {
       id: `${Date.now()}-${Math.random()}`,
