@@ -51,7 +51,7 @@ export function useHotkey(
           e.stopPropagation();
           try {
             e.stopImmediatePropagation();
-          } catch (_) {
+          } catch {
             /* stopImmediatePropagation may not be available in some environments */
           }
           handlerRef.current();
