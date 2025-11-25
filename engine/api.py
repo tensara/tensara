@@ -35,7 +35,9 @@ runtime_image = (
     .env({"PATH": "/root/.local/bin:$PATH"})
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
-    .run_commands("uv pip install --system modular==25.4.0")
+    .run_commands(""
+    "uv pip install --system mojo \
+  --extra-index-url https://modular.gateway.scarf.sh/simple/")
     # install torch separately with CUDA 12.8
     .run_commands(
         "uv pip install --system torch==2.9.0 --index-url https://download.pytorch.org/whl/cu128"
