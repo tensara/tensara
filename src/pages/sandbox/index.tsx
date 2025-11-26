@@ -406,7 +406,8 @@ export default function SandboxHome() {
                   </Text>
                   <Select
                     size="sm"
-                    bg="whiteAlpha.50"
+                    border="none"
+                    bg="brand.dark"
                     color="white"
                     value={newWorkspaceLanguage}
                     onChange={(e) =>
@@ -415,6 +416,7 @@ export default function SandboxHome() {
                       )
                     }
                     borderRadius="lg"
+                    h="40px"
                   >
                     {(["cuda", "mojo"] as ProgrammingLanguage[]).map((lang) => (
                       <option key={lang} value={lang}>
@@ -437,6 +439,7 @@ export default function SandboxHome() {
                 fontWeight="semibold"
                 fontSize="sm"
                 px={4}
+                h="40px"
                 _hover={{
                   bg: "rgba(34, 197, 94, 0.2)",
                   transition: "all 0.5s ease",

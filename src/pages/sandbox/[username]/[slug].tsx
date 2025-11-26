@@ -142,7 +142,6 @@ export default function SandboxSlug() {
       <Box
         w="100%"
         h="100%"
-        bg="brand.secondary"
         borderRadius="xl"
         overflow="hidden"
         position="relative"

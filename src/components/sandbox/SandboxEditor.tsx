@@ -226,13 +226,14 @@ export default function Sandbox({
   const runCode = async () => {
     if (!activeFile || isRunning) return;
 
+    setIsRunning(true);
+    setTerminalStatus("Starting...");
+
     // Save to database before running
     if (onBeforeRun) {
       await onBeforeRun();
     }
 
-    setIsRunning(true);
-    setTerminalStatus("Starting...");
     setStdoutDisplayTruncated(false);
     stdoutDisplayTruncatedRef.current = false;
     stdoutLineCountRef.current = 0;
@@ -828,7 +829,7 @@ export default function Sandbox({
                       }
                     }}
                     leftIcon={<Icon as={FiShare2} />}
-                    borderRadius="lg"
+                    borderRadius="md"
                     bg="rgba(234, 179, 8, 0.1)"
                     color="rgb(234, 179, 8)"
                     _hover={{
@@ -847,6 +848,7 @@ export default function Sandbox({
               <HStack spacing={3}>
                 <Menu>
                   <MenuButton
+                    borderRadius="md"
                     size="sm"
                     as={Button}
                     ref={editorMenuRef}
@@ -860,7 +862,6 @@ export default function Sandbox({
                     fontWeight="normal"
                     textAlign="left"
                     justifyContent="flex-start"
-                    borderRadius="lg"
                   >
                     {getLanguageDisplay(selectedLanguage)}
                   </MenuButton>
@@ -903,6 +904,7 @@ export default function Sandbox({
                   {GPU_DISPLAY_NAMES.T4}
                 </Text>
                 <Button
+                  borderRadius="md"
                   onClick={isRunning ? stopExecution : runCode}
                   bg={isRunning ? "red.500" : "rgba(34, 197, 94, 0.1)"}
                   color={isRunning ? "white" : "rgb(34, 197, 94)"}

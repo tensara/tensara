@@ -1,13 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  Box,
-  HStack,
-  Text,
-  VStack,
-  Spinner,
-  IconButton,
-} from "@chakra-ui/react";
-import { FiTerminal, FiX, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
+import { Box, HStack, Text, VStack, Button } from "@chakra-ui/react";
 
 export interface TerminalLine {
   id: string;
@@ -32,9 +24,7 @@ interface SandboxTerminalProps {
 }
 
 export default function SandboxTerminal({
-  isRunning,
   lines,
-  status = "",
   emptyMessage = "Terminal output will appear here...",
   onClear,
 }: SandboxTerminalProps) {
@@ -71,51 +61,43 @@ export default function SandboxTerminal({
     }
   };
 
-  const getStatusIcon = () => {
-    if (isRunning) {
-      return <Spinner size="sm" color="blue.400" />;
-    }
-    if (status === "Success") {
-      return <FiCheckCircle color="rgb(34, 197, 94)" />;
-    }
-    if (status === "Error" || status === "Timeout") {
-      return <FiAlertCircle color="rgb(239, 68, 68)" />;
-    }
-    return <FiTerminal color="gray.400" />;
-  };
-
   return (
-    <VStack h="100%" w="100%" spacing={0} bg="#0d0d0d">
+    <VStack h="100%" w="100%" spacing={0} borderRadius="md">
       {/* Terminal Header */}
       <HStack
         w="100%"
         px={4}
         py={2}
-        bg="#1a1a1a"
         borderBottom="1px solid"
-        borderColor="gray.800"
+        borderColor="whiteAlpha.50"
         justify="space-between"
+        borderTopRadius="md"
       >
-        <HStack spacing={2}>
-          {getStatusIcon()}
-          <Text color="gray.300" fontSize="sm" fontWeight="medium">
-            Terminal
-          </Text>
-          {status && (
-            <Text color="gray.500" fontSize="xs">
-              • {status}
-            </Text>
-          )}
-        </HStack>
-        <IconButton
-          icon={<FiX />}
-          aria-label="Clear terminal"
-          size="sm"
-          variant="ghost"
+        <Text color="white" fontSize="sm" fontWeight="500">
+          Terminal
+        </Text>
+        <Button
+          onClick={() => {
+            clearTerminal();
+          }}
+          bg="whiteAlpha.100"
           color="gray.400"
-          onClick={clearTerminal}
-          _hover={{ color: "gray.200", bg: "whiteAlpha.100" }}
-        />
+          size="sm"
+          fontSize="xs"
+          _hover={{
+            bg: "whiteAlpha.200",
+            transition: "all 0.5s ease",
+          }}
+          _active={{
+            bg: "whiteAlpha.200",
+            transition: "all 0.5s ease",
+          }}
+          transition="all 0.5s ease"
+          px={4}
+          borderRadius="md"
+        >
+          Clear
+        </Button>
       </HStack>
 
       {/* Terminal Content */}
