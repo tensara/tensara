@@ -62,7 +62,10 @@ def binary_runner(
 
     if language == "mojo" and compiled_lib is None:
         try:
-            compiled_lib = utils.run_mojo_and_return_bytes(solution_code, type)
+            if type == "sandbox":
+                compiled_lib = utils.run_mojo_and_return_executable(solution_code, type)
+            else:
+                compiled_lib = utils.run_mojo_and_return_bytes(solution_code, type)
         except utils.MojoError as e:
             yield {
                 "status": "COMPILE_ERROR",
@@ -302,12 +305,32 @@ async def sandbox(gpu: str, request: Request):
         return 404
 
     solution_code = req["code"]
+    language = req.get("language", "cuda")
 
     def create_stream():
         yield {"status": "COMPILING"}
 
         try:
-            compiled_lib = utils.run_nvcc_and_return_executable(gpu, solution_code)
+            if language == "cuda":
+                compiled_lib = utils.run_nvcc_and_return_executable(gpu, solution_code)
+                for event in utils.yield_ptx_sass(gpu, solution_code):
+                    yield event
+            elif language == "mojo":
+                # Attempt a local compile if Mojo is available; if not, fall back
+                # to letting the remote worker perform compilation by passing
+                # `compiled_lib=None` (binary_runner will compile inside the
+                # modal runtime when it sees a Mojo submission with no compiled bytes).
+                try:
+                    compiled_lib = utils.run_mojo_and_return_executable(solution_code, "sandbox")
+                except utils.MojoError:
+                    compiled_lib = None
+            else:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": f"Unsupported language for sandbox: {language}",
+                }
+                return
         except utils.NVCCError as e:
             yield {
                 "status": "COMPILE_ERROR",
@@ -315,15 +338,36 @@ async def sandbox(gpu: str, request: Request):
                 "details": e.args[0],
             }
             return
-
-        for event in utils.yield_ptx_sass(gpu, solution_code):
-            yield event
+        except utils.MojoError as e:
+            yield {
+                "status": "COMPILE_ERROR",
+                "message": "Compilation Failed",
+                "details": e.args[0],
+            }
+            return
+        except Exception as e:
+            yield {
+                "status": "COMPILE_ERROR",
+                "message": "Unexpected Compilation Error",
+                "details": str(e),
+            }
+            return
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", "cuda"
+            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", language
         )
         for event in stream:
+            if not event:
+                continue
+            status = event.get("status") if isinstance(event, dict) else None
+            if status == "TIME_LIMIT_EXCEEDED":
+                yield {
+                    "status": "SANDBOX_TIMEOUT",
+                    "message": event.get("message", "Sandbox time limit exceeded"),
+                    "details": event.get("details", ""),
+                }
+                return
             yield event
 
     stream = gen_wrapper(create_stream())

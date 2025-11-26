@@ -8,6 +8,7 @@ import {
   MenuList,
   MenuItem,
   Input,
+  Image,
 } from "@chakra-ui/react";
 import { FiFile, FiMoreVertical } from "react-icons/fi";
 import { useState } from "react";
@@ -39,6 +40,22 @@ export function FileExplorer({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
 
+  const getFileIcon = (fileName: string) => {
+    if (fileName.endsWith(".cu")) {
+      return (
+        <Image
+          src="/cuda-icon.svg"
+          alt="CUDA"
+          boxSize="16px"
+          objectFit="contain"
+        />
+      );
+    } else if (fileName.endsWith(".mojo")) {
+      return <Text>🔥</Text>;
+    }
+    return <FiFile />;
+  };
+
   return (
     <VStack align="start" w="100%" spacing={1}>
       {files.map((file: SandboxFile, i: number) => (
@@ -52,7 +69,7 @@ export function FileExplorer({
           _hover={{ bg: "whiteAlpha.50", cursor: "pointer" }}
           onClick={() => onOpen(i)}
         >
-          <FiFile />
+          {getFileIcon(file.name)}
           {editingIndex === i ? (
             <Input
               value={editName}

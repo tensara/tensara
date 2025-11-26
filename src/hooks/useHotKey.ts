@@ -44,7 +44,16 @@ export function useHotkey(
 
       if (metaOk && ctrlOk && altOk && shiftOk) {
         if (e.key.toLowerCase() === key) {
+          // Prevent default action and stop propagation so editors
+          // (e.g. Monaco) do not also handle this key and insert
+          // a newline or other default behavior.
           e.preventDefault();
+          e.stopPropagation();
+          try {
+            e.stopImmediatePropagation();
+          } catch {
+            /* stopImmediatePropagation may not ben available in some environments */
+          }
           handlerRef.current();
         }
       }

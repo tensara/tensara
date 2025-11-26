@@ -36,7 +36,13 @@ export const workspaceRouter = createTRPCRouter({
   }),
 
   create: protectedProcedure
-    .input(z.object({ name: z.string().min(3) }))
+    .input(
+      z.object({
+        name: z.string().min(3),
+        // optional language field; default to CUDA when not provided
+        language: z.enum(["cuda", "python", "mojo", "cute"]),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       try {
         const slug = slugify(input.name, { lower: true, strict: true });
@@ -51,27 +57,31 @@ export const workspaceRouter = createTRPCRouter({
           });
         }
 
+        // Determine initial files based on requested language
+        const lang = input.language ?? "cuda";
+
+        const files =
+          lang === "mojo"
+            ? [
+                {
+                  name: "main.mojo",
+                  content: `def main() -> int:\n    print("Hello, world!")\n    return 0\n`,
+                },
+              ]
+            : [
+                {
+                  name: "main.cu",
+                  content: `#include <stdio.h>\n\n__global__ void hello() {\n    printf("Hello, world!\\n");\n}\n\nint main() {\n    hello<<<1, 1>>>();\n    cudaDeviceSynchronize();\n    return 0;\n}`,
+                },
+              ];
+
         const workspace = await ctx.db.workspace.create({
           data: {
             name: input.name,
             slug,
             userId: ctx.session.user.id,
-            files: [
-              {
-                name: "main.cu",
-                content: `#include <stdio.h>\n
-__global__ void hello() {
-    printf("Hello, world!\\n");
-}
-
-int main() {
-    hello<<<1, 1>>>();
-    cudaDeviceSynchronize();
-    return 0;
-}`,
-              },
-            ],
-            main: "main.cu",
+            files,
+            main: files[0]!.name,
           },
         });
 

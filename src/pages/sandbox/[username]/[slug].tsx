@@ -56,24 +56,33 @@ export default function SandboxSlug() {
   const [files, setFiles] = useState<File[]>([]);
   const [main, setMain] = useState("");
   const [hasUserEdited, setHasUserEdited] = useState(false);
+  const [hasInitializedWorkspace, setHasInitializedWorkspace] = useState(false);
 
   const getStorageKey = () => `workspace_${data?.id}_files`;
   const getMainStorageKey = () => `workspace_${data?.id}_main`;
 
   useEffect(() => {
-    if (data && !hasUserEdited) {
-      const storedFiles = localStorage.getItem(getStorageKey());
-      const storedMain = localStorage.getItem(getMainStorageKey());
+    setHasInitializedWorkspace(false);
+  }, [data?.id]);
 
-      if (storedFiles && storedMain) {
-        setFiles(JSON.parse(storedFiles) as File[]);
-        setMain(storedMain);
-      } else {
-        setFiles(data.files as File[]);
-        setMain(data.main ?? "");
-      }
+  useEffect(() => {
+    if (!data || hasUserEdited || hasInitializedWorkspace) {
+      return;
     }
-  }, [data, hasUserEdited]);
+
+    const storedFiles = localStorage.getItem(getStorageKey());
+    const storedMain = localStorage.getItem(getMainStorageKey());
+
+    if (storedFiles && storedMain) {
+      setFiles(JSON.parse(storedFiles) as File[]);
+      setMain(storedMain);
+    } else {
+      setFiles(data.files as File[]);
+      setMain(data.main ?? "");
+    }
+
+    setHasInitializedWorkspace(true);
+  }, [data, hasUserEdited, hasInitializedWorkspace]);
 
   useEffect(() => {
     if (data && files.length > 0) {
@@ -133,7 +142,6 @@ export default function SandboxSlug() {
       <Box
         w="100%"
         h="100%"
-        bg="brand.secondary"
         borderRadius="xl"
         overflow="hidden"
         position="relative"

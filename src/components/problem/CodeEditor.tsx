@@ -361,6 +361,26 @@ function setupMonaco(monaco: Monaco) {
       { open: '"', close: '"' },
       { open: "'", close: "'" },
     ],
+    // Basic indentation rules: increase indent after lines that end with
+    // a colon (e.g. function/if/for blocks) or an opening brace. Decrease
+    // for common dedent keywords. We also provide an onEnterRule to
+    // automatically indent when pressing Enter after a block-open line.
+    indentationRules: {
+      increaseIndentPattern: /.*:\s*$|.*\{\s*$/,
+      decreaseIndentPattern: /^\s*(?:elif|else|except|finally)\b.*:\s*$|^\s*\}/,
+    },
+    onEnterRules: [
+      {
+        // Indent after a line that ends with ':' (Python-like blocks)
+        beforeText: /.*:\s*$/,
+        action: { indentAction: monaco.languages.IndentAction.Indent },
+      },
+      {
+        // If the previous line opens a brace, indent as well
+        beforeText: /.*\{\s*$/,
+        action: { indentAction: monaco.languages.IndentAction.Indent },
+      },
+    ],
   });
 
   // Register PTX language
