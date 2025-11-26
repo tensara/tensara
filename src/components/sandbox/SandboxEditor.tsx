@@ -9,6 +9,7 @@ import {
   IconButton,
   Icon,
   Heading,
+  Tooltip,
 } from "@chakra-ui/react";
 import {
   FiPlus,
@@ -903,43 +904,53 @@ export default function Sandbox({
                 >
                   {GPU_DISPLAY_NAMES.T4}
                 </Text>
-                <Button
-                  borderRadius="md"
-                  onClick={isRunning ? stopExecution : runCode}
-                  bg={isRunning ? "red.500" : "rgba(34, 197, 94, 0.1)"}
-                  color={isRunning ? "white" : "rgb(34, 197, 94)"}
-                  size="sm"
-                  _hover={{
-                    bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.2)",
-                    transition: "all 0.5s ease",
-                  }}
-                  _active={{
-                    bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.25)",
-                    transition: "all 0.5s ease",
-                  }}
-                  px={4}
-                  isLoading={isRunning}
-                  transition="all 0.5s ease"
-                  position="relative"
-                  _before={
-                    isRunning
-                      ? {
-                          content: '""',
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          borderRadius: "md",
-                          bg: "red.400",
-                          opacity: 0.3,
-                          animation: "pulse 2s infinite",
-                        }
-                      : {}
-                  }
+                <Tooltip
+                  label="⌘ + ⏎"
+                  placement="bottom"
+                  bg="transparent"
+                  color="gray.400"
+                  fontSize="xs"
+                  hasArrow
+                  offset={[0, 0]}
                 >
-                  {isRunning ? "Stop" : "Run"}
-                </Button>
+                  <Button
+                    borderRadius="md"
+                    onClick={isRunning ? stopExecution : runCode}
+                    bg={isRunning ? "red.500" : "rgba(34, 197, 94, 0.1)"}
+                    color={isRunning ? "white" : "rgb(34, 197, 94)"}
+                    size="sm"
+                    _hover={{
+                      bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.2)",
+                      transition: "all 0.5s ease",
+                    }}
+                    _active={{
+                      bg: isRunning ? "red.600" : "rgba(34, 197, 94, 0.25)",
+                      transition: "all 0.5s ease",
+                    }}
+                    px={4}
+                    isLoading={isRunning}
+                    transition="all 0.5s ease"
+                    position="relative"
+                    _before={
+                      isRunning
+                        ? {
+                            content: '""',
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            borderRadius: "md",
+                            bg: "red.400",
+                            opacity: 0.3,
+                            animation: "pulse 2s infinite",
+                          }
+                        : {}
+                    }
+                  >
+                    {isRunning ? "Stop" : "Run"}
+                  </Button>
+                </Tooltip>
               </HStack>
             </HStack>
 
