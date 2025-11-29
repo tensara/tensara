@@ -473,6 +473,30 @@ def cast_to_ctype(data, argtypes, language="cuda"):
     else:
         return data
 
+def cast_to_mojo(data, argtypes, ctx, dtype):
+    from mojo_runtime import LayoutTensor, RuntimeLayout
+
+    casted = []
+
+    for value, argtype in zip(data, argtypes):
+
+        if isinstance(value, torch.Tensor):
+            dims = list(value.shape)
+            numel = value.numel()
+
+            dev_buf = ctx.enqueue_create_buffer[dtype](numel)
+            ctx.enqueue_copy(dev_buf, value)
+
+            layout = RuntimeLayout.row_major(dims)
+
+            lt = LayoutTensor[dtype](dev_buf, layout)
+            casted.append(lt)
+            continue
+
+        # Scalars
+        casted.append(value)
+
+    return casted
 
 def cast_to_cute(data):
     """Cast data to CuTe tensors"""
