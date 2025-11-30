@@ -11,7 +11,14 @@ RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
 
-PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl"]
+PIP_PACKAGES = [
+    "numpy",
+    "fastapi",
+    "triton",
+    "simplejson",
+    "nvidia-cutlass-dsl",
+    "modular-max",
+]
 UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
 APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]

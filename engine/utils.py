@@ -17,6 +17,7 @@ import queue
 import math
 from numbers import Integral
 import numpy as np
+import weakref
 
 JS_MAX_SAFE = 2**53 - 1
 
@@ -473,6 +474,7 @@ def cast_to_ctype(data, argtypes, language="cuda"):
     else:
         return data
 
+
 def cast_to_cute(data):
     """Cast data to CuTe tensors"""
     from cutlass.cute.runtime import from_dlpack
@@ -481,6 +483,69 @@ def cast_to_cute(data):
     for tensor in data:
         if isinstance(tensor, torch.Tensor):
             data_casted.append(from_dlpack(tensor, assumed_align=16))
+        else:
+            data_casted.append(tensor)
+    return data_casted
+
+
+_MOJO_TENSOR_REFS = []
+
+
+def _cleanup_dead_mojo_refs():
+    """Drop tensor owners whose layout tensors were freed."""
+    if not _MOJO_TENSOR_REFS:
+        return
+
+    alive = []
+    for ref, owner in _MOJO_TENSOR_REFS:
+        if ref is None or ref() is not None:
+            alive.append((ref, owner))
+
+    _MOJO_TENSOR_REFS[:] = alive
+
+
+def _retain_mojo_tensor_reference(layout_tensor, tensor_owner):
+    """Ensure runtime tensors stay alive as long as the layout tensor exists."""
+    try:
+        setattr(layout_tensor, "_tensor_owner", tensor_owner)
+        return
+    except Exception:
+        pass
+
+    try:
+        ref = weakref.ref(layout_tensor)
+    except TypeError:
+        ref = None
+
+    _MOJO_TENSOR_REFS.append((ref, tensor_owner))
+    _cleanup_dead_mojo_refs()
+
+
+def _tensor_to_layout_tensor(tensor, max_tensor_cls, torch_dlpack_module):
+    """Convert a torch.Tensor to a Mojo LayoutTensor via MAX runtime."""
+    if not tensor.is_cuda:
+        tensor = tensor.to("cuda", non_blocking=True)
+    if not tensor.is_contiguous():
+        tensor = tensor.contiguous()
+
+    dlpack_tensor = torch_dlpack_module.to_dlpack(tensor)
+    runtime_tensor = max_tensor_cls.from_dlpack(dlpack_tensor)
+    layout_tensor = runtime_tensor.to_layout_tensor()
+    _retain_mojo_tensor_reference(layout_tensor, runtime_tensor)
+    return layout_tensor
+
+
+def cast_to_mojo(data):
+    """Cast data to Mojo LayoutTensors using the MAX Python runtime."""
+    from max.driver import Tensor as MaxDriverTensor
+    from torch.utils import dlpack as torch_dlpack
+
+    data_casted = []
+    for tensor in data:
+        if isinstance(tensor, torch.Tensor):
+            data_casted.append(
+                _tensor_to_layout_tensor(tensor, MaxDriverTensor, torch_dlpack)
+            )
         else:
             data_casted.append(tensor)
     return data_casted
@@ -762,28 +827,44 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         raise ValueError(f"Unsupported language: {language}")
 
 
+def _make_ctypes_parameters(
+    solution_func, input_tensors, actual_output, extra_params, language
+):
+    input_ptrs = cast_to_ctype(
+        input_tensors, solution_func.argtypes[: len(input_tensors)], language
+    )
+    output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
+    extra_argtypes = solution_func.argtypes[-len(extra_params) :] if extra_params else []
+    extra_params_casted = cast_to_ctype(extra_params, extra_argtypes, language)
+    return input_ptrs + [output_ptr] + extra_params_casted
+
+
 def make_parameters(language: str, solution_func, input_tensors, actual_output, problem, test_case):
-    if language == "cuda" or language == "mojo":
-        input_ptrs = cast_to_ctype(
-            input_tensors, solution_func.argtypes[: len(input_tensors)], language
+    extra_params = list(problem.get_extra_params(test_case))
+
+    if language == "cuda":
+        return _make_ctypes_parameters(
+            solution_func, input_tensors, actual_output, extra_params, language
         )
-        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
-        extra_params = problem.get_extra_params(test_case)
-        extra_params_casted = cast_to_ctype(
-            extra_params, solution_func.argtypes[-len(extra_params) :], language
-        )
-        return input_ptrs + [output_ptr] + extra_params_casted
+    elif language == "mojo":
+        try:
+            mojo_inputs = cast_to_mojo(input_tensors)
+            mojo_output = cast_to_mojo([actual_output])
+            mojo_extra = cast_to_mojo(extra_params)
+            return mojo_inputs + mojo_output + mojo_extra
+        except ImportError:
+            return _make_ctypes_parameters(
+                solution_func, input_tensors, actual_output, extra_params, language
+            )
     elif language == "cute":
         from cutlass.cute.runtime import from_dlpack
 
         input_ptrs = cast_to_cute(input_tensors)
         output_ptr = from_dlpack(actual_output, assumed_align=16)
-        extra_params = problem.get_extra_params(test_case)
         extra_params_casted = cast_to_cute(extra_params)
         return input_ptrs + [output_ptr] + extra_params_casted
     else:
-        extra_params = problem.get_extra_params(test_case)
-        return list(input_tensors) + [actual_output] + list(extra_params)
+        return list(input_tensors) + [actual_output] + extra_params
 
 
 class SystemOutputCapture:
