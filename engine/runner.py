@@ -181,7 +181,14 @@ def run_checker(
 
 @utils.subproc_generator(timeout=60)
 def run_sample_case(
-    problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_func=None, param_names=None
+    problem_name,
+    problem_def,
+    solution_code,
+    compiled_lib,
+    dtype,
+    language,
+    param_func=None,
+    param_names=None,
 ):
     """
     Run the sample test case of a problem and return result + output.
@@ -198,7 +205,9 @@ def run_sample_case(
         expected_output = problem.reference_solution(*input_tensors).cpu()
         actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
         solution_callable = (
-            utils.maybe_specialize_mojo_op(solution_func, input_tensors, actual_output, problem, sample)
+            utils.maybe_specialize_mojo_op(
+                solution_func, input_tensors, actual_output, problem, sample
+            )
             if language == "mojo"
             else solution_func
         )

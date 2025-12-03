@@ -89,7 +89,13 @@ def binary_runner(
         gen = runner.run_sandbox(compiled_lib, solution_code)
     elif type == "sample":
         gen = runner.run_sample_case(
-            problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_names=param_names
+            problem_name,
+            problem_def,
+            solution_code,
+            compiled_lib,
+            dtype,
+            language,
+            param_names=param_names,
         )
     else:
         try:
@@ -162,7 +168,6 @@ async def checker(gpu: str, request: Request):
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
     param_names = req["parameters"]
-    
 
     def create_stream():
         yield {"status": "COMPILING"}
@@ -203,7 +208,14 @@ async def checker(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "checker", checker_compiled, solution_code, problem_name, problem_def, dtype, language, param_names
+            "checker",
+            checker_compiled,
+            solution_code,
+            problem_name,
+            problem_def,
+            dtype,
+            language,
+            param_names,
         )
         for event in stream:
             yield event
@@ -225,6 +237,7 @@ async def benchmark(gpu: str, request: Request):
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
     param_names = req["parameters"]
+
     def create_stream():
         if language == "cuda":
             try:
@@ -274,7 +287,7 @@ async def sample_runner(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
         return 404
-    
+
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]

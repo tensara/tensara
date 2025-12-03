@@ -248,6 +248,7 @@ def reject_forbidden_patterns(language: str, source: str):
         if msg:
             raise MojoError(msg)
 
+
 # Should be deleted by the end of PR
 def mojo_command(srcs: list[Path | str], out: Path | str):
     """Get mojo command for the given source files and output file"""
@@ -483,9 +484,7 @@ def cast_to_cute(data):
     data_casted = []
     for tensor in data:
         if isinstance(tensor, torch.Tensor):
-            data_casted.append(
-                _tensor_to_layout_tensor(tensor, MaxDriverTensor, torch_dlpack)
-            )
+            data_casted.append(_tensor_to_layout_tensor(tensor, MaxDriverTensor, torch_dlpack))
         else:
             data_casted.append(tensor)
     return data_casted
@@ -939,7 +938,6 @@ def maybe_specialize_mojo_op(solution_func, input_tensors, actual_output, proble
                 "[MOJO DEBUG] compile params are positional; provide parameter names in the request "
                 "payload (parameters) or compile_param_names to map them."
             )
-        
 
     print(
         f"[MOJO DEBUG] maybe_specialize_mojo_op compile_params={compile_params} "
@@ -971,7 +969,9 @@ def make_parameters(language: str, solution_func, input_tensors, actual_output, 
         # Mojo compile-time params are applied via op[...] before calling; runtime call is tensors only.
         # Order matches the example: output first, then inputs.
         params = [actual_output] + list(input_tensors)
-        print(f"[MOJO DEBUG] make_parameters runtime params (output first): {[p.shape if hasattr(p, 'shape') else type(p) for p in params]}")
+        print(
+            f"[MOJO DEBUG] make_parameters runtime params (output first): {[p.shape if hasattr(p, 'shape') else type(p) for p in params]}"
+        )
         return params
     elif language == "cute":
         from cutlass.cute.runtime import from_dlpack
