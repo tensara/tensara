@@ -40,6 +40,8 @@ type ProblemLeaderboardEntry = {
   runtime: number | null;
   createdAt: Date;
   gpuType: string | null;
+  language: string | null;
+  isPublic: boolean;
 };
 
 // Warm up cache on server start
@@ -533,6 +535,7 @@ async function computeProblemLeaderboardData(
       gpuType: true,
       language: true,
       createdAt: true,
+      isPublic: true,
       user: {
         select: {
           username: true,
@@ -581,6 +584,7 @@ async function computeProblemLeaderboardData(
       createdAt: sub.createdAt,
       gpuType: sub.gpuType,
       language: sub.language,
+      isPublic: sub.isPublic,
     }));
 }
 
