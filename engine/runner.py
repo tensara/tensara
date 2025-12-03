@@ -19,7 +19,13 @@ MAX_SANDBOX_OUTPUT_BYTES = 64 * 1024  # Cap console streaming to 64 KiB for resp
 
 
 def run_checker(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str,
+    problem_def: str,
+    solution_func,
+    dtype: str,
+    language: str,
+    param_func=None,
+    param_names=None,
 ) -> Iterator[str]:
     """
     Check a submitted solution against the reference implementation
@@ -42,6 +48,9 @@ def run_checker(
         problem = utils.load_problem_module(problem_name, problem_def)
 
         test_cases = problem.generate_test_cases(dtype)
+        if param_names:
+            for tc in test_cases:
+                tc["parameters"] = param_names
         total_tests = len(test_cases)
         test_results = []
         passed_tests = 0
@@ -70,15 +79,25 @@ def run_checker(
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
+            solution_callable = (
+                utils.maybe_specialize_mojo_op(
+                    solution_func, input_tensors, actual_output, problem, test_case
+                )
+                if language == "mojo"
+                else solution_func
+            )
+            if language == "mojo":
+                print(f"[MOJO DEBUG] run_checker callable={solution_callable}")
+
             if param_func is None:
                 parameters = utils.make_parameters(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, solution_callable, input_tensors, actual_output, problem, test_case
                 )
             else:
                 parameters = param_func(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, solution_callable, input_tensors, actual_output, problem, test_case
                 )
-            solution_func(*parameters)
+            solution_callable(*parameters)
 
             torch.cuda.synchronize()
 
@@ -162,7 +181,7 @@ def run_checker(
 
 @utils.subproc_generator(timeout=60)
 def run_sample_case(
-    problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_func=None
+    problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_func=None, param_names=None
 ):
     """
     Run the sample test case of a problem and return result + output.
@@ -173,21 +192,31 @@ def run_sample_case(
         solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
 
         sample = problem.generate_sample(dtype)
+        if param_names:
+            sample["parameters"] = param_names
         input_tensors = sample["create_inputs"]()
         expected_output = problem.reference_solution(*input_tensors).cpu()
         actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
+        solution_callable = (
+            utils.maybe_specialize_mojo_op(solution_func, input_tensors, actual_output, problem, sample)
+            if language == "mojo"
+            else solution_func
+        )
+        if language == "mojo":
+            print(f"[MOJO DEBUG] run_sample_case callable={solution_callable}")
+
         if param_func is None:
             parameters = utils.make_parameters(
-                language, solution_func, input_tensors, actual_output, problem, sample
+                language, solution_callable, input_tensors, actual_output, problem, sample
             )
         else:
             parameters = param_func(
-                language, solution_func, input_tensors, actual_output, problem, sample
+                language, solution_callable, input_tensors, actual_output, problem, sample
             )
 
-        if language in ("cuda", "mojo"):
+        if language == "cuda":
             with utils.SystemOutputCapture() as capture:
-                solution_func(*parameters)
+                solution_callable(*parameters)
 
             captured_stdout = capture.stdout_content
             captured_stderr = capture.stderr_content
@@ -195,7 +224,7 @@ def run_sample_case(
             stdout_buf = io.StringIO()
             stderr_buf = io.StringIO()
             with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
-                solution_func(*parameters)
+                solution_callable(*parameters)
 
             captured_stdout = stdout_buf.getvalue()
             captured_stderr = stderr_buf.getvalue()
@@ -219,7 +248,13 @@ def run_sample_case(
 
 
 def run_sanity_check(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str,
+    problem_def: str,
+    solution_func,
+    dtype: str,
+    language: str,
+    param_func=None,
+    param_names=None,
 ):
     """
     Run sanity check on compiled CUDA solution
@@ -229,6 +264,9 @@ def run_sanity_check(
         problem = utils.load_problem_module(problem_name, problem_def)
 
         test_cases = problem.generate_test_cases(dtype)
+        if param_names:
+            for tc in test_cases:
+                tc["parameters"] = param_names
         total_tests = len(test_cases)
 
         start_time = time.time()
@@ -255,15 +293,25 @@ def run_sanity_check(
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
+            solution_callable = (
+                utils.maybe_specialize_mojo_op(
+                    solution_func, input_tensors, actual_output, problem, test_case
+                )
+                if language == "mojo"
+                else solution_func
+            )
+            if language == "mojo":
+                print(f"[MOJO DEBUG] run_sanity_check callable={solution_callable}")
+
             if param_func is None:
                 parameters = utils.make_parameters(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, solution_callable, input_tensors, actual_output, problem, test_case
                 )
             else:
                 parameters = param_func(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, solution_callable, input_tensors, actual_output, problem, test_case
                 )
-            solution_func(*parameters)
+            solution_callable(*parameters)
 
             torch.cuda.synchronize()
 
@@ -332,7 +380,13 @@ def run_sanity_check(
 
 
 def run_benchmark(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str,
+    problem_def: str,
+    solution_func,
+    dtype: str,
+    language: str,
+    param_func=None,
+    param_names=None,
 ):
     """
     Run benchmark on compiled CUDA solution
@@ -355,6 +409,9 @@ def run_benchmark(
 
         # Get test cases from the problem
         test_cases = problem.generate_test_cases(dtype)
+        if param_names:
+            for tc in test_cases:
+                tc["parameters"] = param_names
         total_tests = len(test_cases)
 
         # Initialize statistics

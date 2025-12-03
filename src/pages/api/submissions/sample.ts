@@ -54,7 +54,7 @@ export default async function handler(
 
   const problem = await db.problem.findUnique({
     where: { slug: problemSlug! },
-    select: { definition: true },
+    select: { definition: true, parameters: true },
   });
   if (!problem) {
     res.status(404).json({ error: "Problem not found" });
@@ -112,8 +112,10 @@ export default async function handler(
     solution_code: code,
     problem: problemSlug,
     problem_def: problem.definition,
+    parameters: problem.parameters,
     gpu_type: gpuType,
     dtype: "float32",
+
     language,
   };
 

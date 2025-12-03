@@ -9,6 +9,7 @@ import runner
 DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
+MODULAR_INDEX = "https://modular.gateway.scarf.sh/simple/"
 
 
 PIP_PACKAGES = [
@@ -17,7 +18,6 @@ PIP_PACKAGES = [
     "triton",
     "simplejson",
     "nvidia-cutlass-dsl",
-    "modular-max",
 ]
 UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
@@ -30,6 +30,8 @@ devel_image = (
     .env({"PATH": "/root/.local/bin:$PATH"})
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
+    .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
+    .run_commands(f"uv pip install --system max --extra-index-url {MODULAR_INDEX}")
     .run_commands("uv pip install --system torch==2.9.0")
     .add_local_python_source(*LOCAL_SOURCE)
 )
@@ -42,9 +44,8 @@ runtime_image = (
     .env({"PATH": "/root/.local/bin:$PATH"})
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
-   .run_commands(""
-    "uv pip install --system mojo \
-  --extra-index-url https://modular.gateway.scarf.sh/simple/")  
+    .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
+    .run_commands(f"uv pip install --system max --extra-index-url {MODULAR_INDEX}")
     # install torch separately with CUDA 12.8
     .run_commands(
         "uv pip install --system torch==2.9.0 --index-url https://download.pytorch.org/whl/cu128"
@@ -66,28 +67,29 @@ def binary_runner(
     problem_def: str,
     dtype: str,
     language: str,
+    param_names=None,
 ):
     gen = None
 
     if language == "mojo" and compiled_lib is None:
-        try:
-            if type == "sandbox":
+        if type == "sandbox":
+            try:
                 compiled_lib = utils.run_mojo_and_return_executable(solution_code, type)
-            else:
-                compiled_lib = utils.run_mojo_and_return_bytes(solution_code, type)
-        except utils.MojoError as e:
-            yield {
-                "status": "COMPILE_ERROR",
-                "message": "Compilation Failed",
-                "details": e.args[0],
-            }
-            return
+            except utils.MojoError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": e.args[0],
+                }
+                return
+        else:
+            compiled_lib = None
 
     if type == "sandbox":
         gen = runner.run_sandbox(compiled_lib, solution_code)
     elif type == "sample":
         gen = runner.run_sample_case(
-            problem_name, problem_def, solution_code, compiled_lib, dtype, language
+            problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_names=param_names
         )
     else:
         try:
@@ -105,11 +107,17 @@ def binary_runner(
             # this should not be reached
             raise ValueError("This code path should not be reached")
         elif type == "checker":
-            gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
+            gen = runner.run_checker(
+                problem_name, problem_def, solution_func, dtype, language, param_names=param_names
+            )
         elif type == "benchmark":
-            gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, language)
+            gen = runner.run_benchmark(
+                problem_name, problem_def, solution_func, dtype, language, param_names=param_names
+            )
         elif type == "sanity_check":
-            gen = runner.run_sanity_check(problem_name, problem_def, solution_func, dtype, language)
+            gen = runner.run_sanity_check(
+                problem_name, problem_def, solution_func, dtype, language, param_names=param_names
+            )
         else:
             raise ValueError(f"Unknown binary type: {type}")
 
@@ -153,6 +161,8 @@ async def checker(gpu: str, request: Request):
     dtype = req["dtype"]
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
+    param_names = req["parameters"]
+    
 
     def create_stream():
         yield {"status": "COMPILING"}
@@ -193,7 +203,7 @@ async def checker(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "checker", checker_compiled, solution_code, problem_name, problem_def, dtype, language
+            "checker", checker_compiled, solution_code, problem_name, problem_def, dtype, language, param_names
         )
         for event in stream:
             yield event
@@ -214,7 +224,7 @@ async def benchmark(gpu: str, request: Request):
 
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
-
+    param_names = req["parameters"]
     def create_stream():
         if language == "cuda":
             try:
@@ -250,6 +260,7 @@ async def benchmark(gpu: str, request: Request):
             problem_def,
             dtype,
             language,
+            param_names,
         )
         for event in stream:
             yield event
@@ -263,12 +274,13 @@ async def sample_runner(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
         return 404
-
+    
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
     dtype = req["dtype"]
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
+    param_names = req["parameters"]
 
     def create_stream():
         yield {"status": "COMPILING"}
@@ -298,7 +310,14 @@ async def sample_runner(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "sample", sample_compiled, solution_code, problem_name, problem_def, dtype, language
+            "sample",
+            sample_compiled,
+            solution_code,
+            problem_name,
+            problem_def,
+            dtype,
+            language,
+            param_names,
         )
         for event in stream:
             yield event

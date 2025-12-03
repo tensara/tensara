@@ -87,6 +87,7 @@ export default async function handler(
     select: {
       id: true,
       definition: true,
+      parameters: true,
     },
   });
 
@@ -161,6 +162,7 @@ export default async function handler(
     solution_code: submission.code,
     problem: submission.problem.slug,
     problem_def: submission.problem.definition,
+    parameters: submission.problem.parameters,
     gpu_type: submission.gpuType,
     dtype: "float32",
     language: submission.language,
