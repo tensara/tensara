@@ -885,55 +885,61 @@ def maybe_specialize_mojo_op(solution_func, input_tensors, actual_output, proble
     compile_params = None
     print(test_case)
 
+    def _extract_param_names(params, k):
+        """
+        Extract the last k parameter names from a list of strings/dicts.
+        Returns None if we cannot confidently extract names.
+        """
+        if params is None or k <= 0 or len(params) < k:
+            return None
+        tail = params[-k:]
+        names = []
+        for p in tail:
+            if isinstance(p, dict):
+                name = p.get("name")
+            else:
+                name = p
+            if not name:
+                return None
+            names.append(name)
+        print("OOAAA")
+        print(names)
+        return names
+
+    # 1) Explicit compile_params wins.
     if isinstance(test_case, dict):
         compile_params = test_case.get("compile_params")
 
+    # 2) Derive from problem extras if not provided.
     if compile_params is None:
         try:
             extra_params = problem.get_extra_params(test_case)
         except Exception:
             extra_params = None
 
-        # Helper to extract param names from a mixed list (strings or dicts with "name")
-        def _extract_param_names(params, k):
-            if not params or k <= 0 or len(params) < k:
-                return None
-            tail = params[-k:]
-            names = []
-            for p in tail:
-                if isinstance(p, dict):
-                    name = p.get("name")
-                else:
-                    name = p
-                if not name:
-                    return None
-                names.append(name)
-            return names
-
-        if isinstance(extra_params, dict):
-            compile_params = extra_params
-        elif isinstance(extra_params, (list, tuple)):
-            names = None
-            if isinstance(test_case, dict):
-                # Prefer the parameters list coming from the request payload;
-                # the last k entries correspond to extra params.
-                params_list = test_case.get("parameters")
-                names = _extract_param_names(params_list, len(extra_params))
-                if names is None:
-                    names = test_case.get("compile_param_names")
+    extra_params = list(extra_params)
+    if len(extra_params) == 0:
+        compile_params = None  # Nothing to specialize on
+    else:
+        names = None
+        if isinstance(test_case, dict):
+            params_list = test_case.get("parameters")
+            names = _extract_param_names(params_list, len(extra_params))
             if names is None:
-                names = getattr(problem, "compile_param_names", None)
-            if names and len(names) == len(extra_params):
-                compile_params = dict(zip(names, extra_params))
-            else:
-                # Fall back to positional compile-time params; op implementations must accept them in order.
-                compile_params = tuple(extra_params)
-                print(
-                    "[MOJO DEBUG] compile params are positional; provide parameter names in the request "
-                    "payload (parameters) or compile_param_names to map them."
-                )
+                names = test_case.get("compile_param_names")
+        if names is None:
+            names = getattr(problem, "compile_param_names", None)
+
+        if names and len(names) == len(extra_params):
+            compile_params = dict(zip(names, extra_params))
         else:
-            compile_params = extra_params
+            # Fall back to positional only when unavoidable and there is at least one param.
+            compile_params = tuple(extra_params)
+            print(
+                "[MOJO DEBUG] compile params are positional; provide parameter names in the request "
+                "payload (parameters) or compile_param_names to map them."
+            )
+        
 
     print(
         f"[MOJO DEBUG] maybe_specialize_mojo_op compile_params={compile_params} "
