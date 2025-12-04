@@ -484,7 +484,7 @@ def cast_to_cute(data):
     data_casted = []
     for tensor in data:
         if isinstance(tensor, torch.Tensor):
-            data_casted.append(_tensor_to_layout_tensor(tensor, MaxDriverTensor, torch_dlpack))
+            data_casted.append(from_dlpack(tensor, assumed_align=16)) 
         else:
             data_casted.append(tensor)
     return data_casted
