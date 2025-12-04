@@ -6,7 +6,7 @@ import torch
 class Problem(ABC):
     """Base class for defining problems."""
 
-    def __init__(self, name: str, time_limit: int = 100):
+    def __init__(self, name: str, time_limit: int = 1000):
         """
         Initialize a problem.
 

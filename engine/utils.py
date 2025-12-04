@@ -17,6 +17,7 @@ import queue
 import math
 from numbers import Integral
 import numpy as np
+import shutil
 
 JS_MAX_SAFE = 2**53 - 1
 
@@ -248,6 +249,7 @@ def reject_forbidden_patterns(language: str, source: str):
             raise MojoError(msg)
 
 
+# Should be deleted by the end of PR
 def mojo_command(srcs: list[Path | str], out: Path | str):
     """Get mojo command for the given source files and output file"""
     srcs = [str(src) for src in srcs]
@@ -362,6 +364,7 @@ def run_nvcc_and_return_bytes(gpu: str, solution_code: str, output_name: str) ->
     return bytes_of_file
 
 
+# Should be deleted by the end of PR
 # since mojo doesn't have GPU specific flags, we don't need gpu type as parameter
 @hash_dict
 @lru_cache(maxsize=512)  # each binary is ~1MB, so 512MB cache
@@ -481,10 +484,108 @@ def cast_to_cute(data):
     data_casted = []
     for tensor in data:
         if isinstance(tensor, torch.Tensor):
-            data_casted.append(from_dlpack(tensor, assumed_align=16))
+            data_casted.append(from_dlpack(tensor, assumed_align=16)) 
         else:
             data_casted.append(tensor)
     return data_casted
+
+
+def load_mojo_custom_op(source: str, op_name: str = "solution"):
+    """
+    Build and load a Mojo custom op using max.torch.CustomOpLibrary.
+
+    This relies on max.torch to handle compilation and marshaling of torch.Tensors
+    to Mojo InputTensor/OutputTensor parameters.
+    """
+    tmp_dir = tempfile.TemporaryDirectory(prefix="mojo-op-")
+    src_dir = Path(tmp_dir.name)
+    src_path = src_dir / "solution.mojo"
+    src_path.write_text(source)
+    # Ensure directory is a valid package root
+    (src_dir / "__init__.mojo").write_text("\n")
+
+    try:
+        from max.torch import CustomOpLibrary
+    except Exception as exc:
+        shutil.rmtree(tmp_dir.name, ignore_errors=True)
+        raise MojoError(
+            "max.torch is required to run Mojo submissions; ensure the MAX tooling is installed."
+        ) from exc
+
+    # Build a .mojopkg so CustomOpLibrary sees a valid kernel package
+    pkg_path = src_dir / "solution.mojopkg"
+    build_proc = subprocess.run(
+        ["mojo", "package", str(src_dir), "-o", str(pkg_path)],
+        capture_output=True,
+        text=True,
+    )
+    if build_proc.returncode != 0:
+        shutil.rmtree(tmp_dir.name, ignore_errors=True)
+        raise MojoError(f"Failed to build Mojo package: {build_proc.stderr}")
+
+    try:
+        op_library = CustomOpLibrary(pkg_path)
+    except Exception as exc:
+        shutil.rmtree(tmp_dir.name, ignore_errors=True)
+        raise MojoError(f"Failed to compile Mojo custom op: {exc}") from exc
+
+    try:
+        base_op = getattr(op_library, op_name)
+    except AttributeError as exc:
+        shutil.rmtree(tmp_dir.name, ignore_errors=True)
+        raise MojoError(
+            f"No Mojo custom op named '{op_name}' found. Did you annotate it with @register(\"{op_name}\")?"
+        ) from exc
+
+    try:
+        compiled_base_op = torch.compile(base_op)
+    except Exception as exc:
+        shutil.rmtree(tmp_dir.name, ignore_errors=True)
+        raise MojoError(f"torch.compile failed for Mojo custom op '{op_name}': {exc}") from exc
+
+    print(f"[MOJO DEBUG] load_mojo_custom_op: built op '{op_name}' from {pkg_path}")
+
+    class MojoOpWrapper:
+        """
+        Wraps a Mojo CustomOp so callers can either:
+        - call it directly (no compile-time params) and run through torch.compile
+        - index into it like ops.conv1d[...] to set compile-time params, still torch.compile'd
+        """
+
+        def __init__(self, base, compiled_base):
+            self._base = base
+            self._compiled_base = compiled_base
+            self._compiled_cache = {}
+
+        def __call__(self, *args, **kwargs):
+            return self._compiled_base(*args, **kwargs)
+
+        @staticmethod
+        def _cache_key(params):
+            try:
+                if isinstance(params, dict):
+                    # Sort keys so order doesn't matter
+                    return ("dict", tuple(sorted(params.items())))
+                if isinstance(params, (list, tuple)):
+                    return ("seq", tuple(params))
+                return ("raw", params)
+            except TypeError:
+                return ("repr", repr(params))
+
+        def __getitem__(self, params):
+            key = self._cache_key(params)
+            if key not in self._compiled_cache:
+                specialized = self._base[params]
+                self._compiled_cache[key] = torch.compile(specialized)
+                print(f"[MOJO DEBUG] specializing op with params={params}")
+            return self._compiled_cache[key]
+
+    wrapper = MojoOpWrapper(base_op, compiled_base_op)
+    wrapper._base_op = base_op
+    wrapper._op_library = op_library  # prevent GC
+    wrapper._tmp_dir = tmp_dir  # keep TemporaryDirectory alive
+    wrapper._source_path = src_path
+    return wrapper
 
 
 def load_problem_module(problem_type: str, problem_def: str = None) -> Problem:
@@ -568,20 +669,28 @@ def run_dynamic_benchmark(
     Returns:
         benchmark_result: Dictionary with benchmark results
     """
+    solution_callable = (
+        maybe_specialize_mojo_op(solution_func, input_tensors, actual_output, problem, test_case)
+        if language == "mojo"
+        else solution_func
+    )
+    if language == "mojo":
+        print(f"[MOJO DEBUG] run_dynamic_benchmark callable={solution_callable}")
+
     # Prepare pointers for CUDA
     if param_func is None:
         parameters = make_parameters(
-            language, solution_func, input_tensors, actual_output, problem, test_case
+            language, solution_callable, input_tensors, actual_output, problem, test_case
         )
     else:
         parameters = param_func(
-            language, solution_func, input_tensors, actual_output, problem, test_case
+            language, solution_callable, input_tensors, actual_output, problem, test_case
         )
 
     if language == "cute":
         import cutlass.cute as cute
 
-        solution_func = cute.compile(solution_func, *parameters)
+        solution_callable = cute.compile(solution_callable, *parameters)
 
     # Calculate FLOPS for this test case
     has_flops = problem.supports_flops()
@@ -595,7 +704,7 @@ def run_dynamic_benchmark(
     end_event = torch.cuda.Event(enable_timing=True)
 
     start_event.record()
-    solution_func(*parameters)
+    solution_callable(*parameters)
     end_event.record()
     torch.cuda.synchronize()
 
@@ -626,7 +735,7 @@ def run_dynamic_benchmark(
         start_event.record()
 
         # Run the kernel
-        solution_func(*parameters)
+        solution_callable(*parameters)
 
         # End timing
         end_event.record()
@@ -732,11 +841,9 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         return cuda_lib.solution
 
     elif language == "mojo":
-        mojo_lib = read_bytes_as_lib(compiled)
-        func_sig = problem.get_function_signature()
-        mojo_lib.solution.argtypes = func_sig["argtypes"]
-        mojo_lib.solution.restype = func_sig["restype"]
-        return mojo_lib.solution
+        op = load_mojo_custom_op(solution_code)
+        print(f"[MOJO DEBUG] make_solution_func -> {op}")
+        return op
 
     elif language == "python" or language == "cute":
         # Run Python/Triton AST checks to reject forbidden patterns
@@ -763,28 +870,118 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         raise ValueError(f"Unsupported language: {language}")
 
 
+def maybe_specialize_mojo_op(solution_func, input_tensors, actual_output, problem, test_case):
+    """
+    Specialize a Mojo CustomOp with compile-time parameters.
+    For Mojo we treat extra params as compile-time params.
+    Preference: test_case["compile_params"] if present, otherwise problem.get_extra_params(test_case).
+    If extra params are positional, try to map them using names from the request:
+    - test_case["parameters"] (take the last k names, where k = len(extra_params))
+    - test_case["compile_param_names"]
+    - problem.compile_param_names
+    """
+    print("[MOJO DEBUG] maybe_specialize_mojo_op called")
+    compile_params = None
+    print(test_case)
+
+    def _extract_param_names(params, k):
+        """
+        Extract the last k parameter names from a list of strings/dicts.
+        Returns None if we cannot confidently extract names.
+        """
+        if params is None or k <= 0 or len(params) < k:
+            return None
+        tail = params[-k:]
+        names = []
+        for p in tail:
+            if isinstance(p, dict):
+                name = p.get("name")
+            else:
+                name = p
+            if not name:
+                return None
+            names.append(name)
+        print("OOAAA")
+        print(names)
+        return names
+
+    # 1) Explicit compile_params wins.
+    if isinstance(test_case, dict):
+        compile_params = test_case.get("compile_params")
+
+    # 2) Derive from problem extras if not provided.
+    if compile_params is None:
+        try:
+            extra_params = problem.get_extra_params(test_case)
+        except Exception:
+            extra_params = None
+
+    extra_params = list(extra_params)
+    if len(extra_params) == 0:
+        compile_params = None  # Nothing to specialize on
+    else:
+        names = None
+        if isinstance(test_case, dict):
+            params_list = test_case.get("parameters")
+            names = _extract_param_names(params_list, len(extra_params))
+            if names is None:
+                names = test_case.get("compile_param_names")
+        if names is None:
+            names = getattr(problem, "compile_param_names", None)
+
+        if names and len(names) == len(extra_params):
+            compile_params = dict(zip(names, extra_params))
+        else:
+            # Fall back to positional only when unavoidable and there is at least one param.
+            compile_params = tuple(extra_params)
+            print(
+                "[MOJO DEBUG] compile params are positional; provide parameter names in the request "
+                "payload (parameters) or compile_param_names to map them."
+            )
+
+    print(
+        f"[MOJO DEBUG] maybe_specialize_mojo_op compile_params={compile_params} "
+        f"inputs_shapes={[t.shape if hasattr(t, 'shape') else type(t) for t in input_tensors]}"
+    )
+
+    if compile_params is not None:
+        try:
+            return solution_func[compile_params]
+        except Exception:
+            return solution_func
+
+    return solution_func
+
+
 def make_parameters(language: str, solution_func, input_tensors, actual_output, problem, test_case):
-    if language == "cuda" or language == "mojo":
+    extra_params = list(problem.get_extra_params(test_case))
+
+    if language == "cuda":
         input_ptrs = cast_to_ctype(
             input_tensors, solution_func.argtypes[: len(input_tensors)], language
         )
         output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
-        extra_params = problem.get_extra_params(test_case)
         extra_params_casted = cast_to_ctype(
             extra_params, solution_func.argtypes[-len(extra_params) :], language
         )
         return input_ptrs + [output_ptr] + extra_params_casted
+    elif language == "mojo":
+        # Mojo compile-time params are applied via op[...] before calling; runtime call is tensors only.
+        # Order matches the example: output first, then inputs.
+        params = [actual_output] + list(input_tensors)
+        print(
+            f"[MOJO DEBUG] make_parameters runtime params (output first): {[p.shape if hasattr(p, 'shape') else type(p) for p in params]}"
+        )
+        return params
     elif language == "cute":
         from cutlass.cute.runtime import from_dlpack
 
         input_ptrs = cast_to_cute(input_tensors)
         output_ptr = from_dlpack(actual_output, assumed_align=16)
-        extra_params = problem.get_extra_params(test_case)
         extra_params_casted = cast_to_cute(extra_params)
         return input_ptrs + [output_ptr] + extra_params_casted
     else:
-        extra_params = problem.get_extra_params(test_case)
-        return list(input_tensors) + [actual_output] + list(extra_params)
+        return list(input_tensors) + [actual_output] + extra_params
 
 
 class SystemOutputCapture:
