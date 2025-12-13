@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Box,
   Spinner,
@@ -14,13 +14,15 @@ import {
   ModalBody,
   ModalCloseButton,
   useDisclosure,
+  Link as ChakraLink,
 } from "@chakra-ui/react";
 import { useSession } from "next-auth/react";
 import superjson from "superjson";
+import { useHotkey } from "~/hooks/useHotKey";
 
 import type { GetServerSideProps } from "next";
 import { type Problem, type Submission } from "@prisma/client";
-import { type Parameter } from "~/types/problem";
+import NextLink from "next/link";
 
 import { Layout } from "~/components/layout";
 import MySubmissions from "~/components/problem/MySubmissions";
@@ -39,9 +41,17 @@ import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
 import { useSampleStream } from "~/hooks/useSampleStream";
 
-import { validateCode, generateStarterCode } from "~/utils/starter";
-import { savePreferences } from "~/utils/localStorage";
-import { type ProgrammingLanguage } from "~/types/misc";
+import {
+  SampleStatus,
+  SubmissionStatus,
+  type SampleStatusType,
+} from "~/types/submission";
+import {
+  savePreferences,
+  loadVimModePreference,
+  saveVimModePreference,
+} from "~/utils/localStorage";
+import { validateCode } from "~/utils/starter";
 
 import { createInnerTRPCContext } from "~/server/api/trpc";
 import { createServerSideHelpers } from "@trpc/react-query/server";
@@ -134,6 +144,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
   } = useCodePersistence(slug, problem as Problem);
 
   const [selectedGpuType, setSelectedGpuType] = useState("T4");
+  const [isVimModeEnabled, setIsVimModeEnabled] = useState(false);
+  const [hasLoadedVimPreference, setHasLoadedVimPreference] = useState(false);
 
   // Update GPU type when saved preferences are loaded
   useEffect(() => {
@@ -141,6 +153,19 @@ export default function ProblemPage({ slug }: { slug: string }) {
       setSelectedGpuType(savedGpuType);
     }
   }, [savedGpuType]);
+
+  useEffect(() => {
+    const stored = loadVimModePreference();
+    if (stored !== null) {
+      setIsVimModeEnabled(stored);
+    }
+    setHasLoadedVimPreference(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedVimPreference) return;
+    saveVimModePreference(isVimModeEnabled);
+  }, [isVimModeEnabled, hasLoadedVimPreference]);
 
   // Submission stream logic
   const {
@@ -160,6 +185,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
     sassContent: submissionSassContent,
     submissionId,
   } = useSubmissionStream(submissionsQuery.refetch);
+  const lastSampleStatusRef = useRef<SampleStatusType>(SampleStatus.IDLE);
+  const [wrongSubmissionStreak, setWrongSubmissionStreak] = useState(0);
 
   const [submissionPtxTimestamp, setSubmissionPtxTimestamp] =
     useState<number>(0);
@@ -193,6 +220,53 @@ export default function ProblemPage({ slug }: { slug: string }) {
       setSampleSassTimestamp(Date.now());
     }
   }, [sassContent]);
+
+  const showHelpToast = useCallback(() => {
+    const toastId = "need-help-toast";
+    if (toast.isActive(toastId)) return;
+    toast({
+      id: toastId,
+      title: "Need help?",
+      description: (
+        <>
+          <ChakraLink as={NextLink} href="/blog" textDecoration="underline">
+            Post a question on our blog
+          </ChakraLink>{" "}
+          to get tips from the community.
+        </>
+      ),
+      duration: 5000,
+      isClosable: true,
+    });
+  }, [toast]);
+
+  useEffect(() => {
+    if (
+      status === SampleStatus.FAILED &&
+      lastSampleStatusRef.current !== SampleStatus.FAILED
+    ) {
+      setWrongSubmissionStreak((prev) => prev + 1);
+    }
+    lastSampleStatusRef.current = status;
+  }, [status, showHelpToast]);
+
+  useEffect(() => {
+    const status = metaResponse?.status;
+    if (!status) return;
+
+    if (status === SubmissionStatus.WRONG_ANSWER) {
+      setWrongSubmissionStreak((prev) => prev + 1);
+    } else {
+      setWrongSubmissionStreak(0);
+    }
+  }, [metaResponse]);
+
+  useEffect(() => {
+    if (wrongSubmissionStreak >= 3) {
+      showHelpToast();
+      setWrongSubmissionStreak(0);
+    }
+  }, [wrongSubmissionStreak, showHelpToast]);
 
   const handleSetCode = useCallback(
     (newCode: string) => {
@@ -262,23 +336,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
     selectedGpuType,
     hasLoadedPreferences,
   ]);
-
-  // Handle GPU type change with code replacement
-  const handleGpuTypeChange = useCallback(
-    (newGpuType: string, newLanguage: ProgrammingLanguage) => {
-      // Generate new starter code for the new language
-      if (problem?.parameters) {
-        const newStarterCode = generateStarterCode(
-          problem.parameters as unknown as Parameter[],
-          newLanguage,
-          selectedDataType
-        );
-        setCode(newStarterCode);
-        setSelectedLanguage(newLanguage);
-      }
-    },
-    [problem, selectedDataType, setCode, setSelectedLanguage]
-  );
 
   // Handle submission
   const handleSubmit = useCallback(() => {
@@ -365,56 +422,40 @@ export default function ProblemPage({ slug }: { slug: string }) {
     toast,
   ]);
 
-  // Keyboard shortcuts:
-  // - Cmd+Enter => submit
-  // - Cmd+' (Quote) => run sample
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      // Only respond to plain Meta (Cmd) + key (no Ctrl/Alt)
-      if (!e.metaKey || e.ctrlKey || e.altKey) return;
+  // Cmd+Enter to submit
+  useHotkey("meta+enter", () => {
+    if (isSubmitting) {
+      toast({
+        title: "Already submitting",
+        description: "Please wait for the submission to complete",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    void handleSubmit();
+  });
 
-      // Cmd+Enter -> submit
-      if (e.key === "Enter") {
-        if (isSubmitting) {
-          toast({
-            title: "Already submitting",
-            description: "Please wait for the submission to complete",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-          return;
-        } else {
-          e.preventDefault();
-          void handleSubmit();
-          return;
-        }
-      }
+  // Cmd+' to run sample
+  useHotkey("meta+'", () => {
+    if (isRunning) {
+      toast({
+        title: "Already running",
+        description: "Please wait for the sample run to complete",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    void handleRun();
+  });
 
-      // Cmd+' (Quote) -> run sample
-      // Some keyboards report "'" as the key, some report code === "Quote"
-      if (e.key === "'" || e.code === "Quote") {
-        if (isRunning) {
-          toast({
-            title: "Already running",
-            description: "Please wait for the sample run to complete",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-          return;
-        } else {
-          e.preventDefault();
-          void handleRun();
-          return;
-        }
-      }
-    };
+  useHotkey("meta+shift+v", () => {
+    setIsVimModeEnabled((prev) => !prev);
+  });
 
-    const opts: AddEventListenerOptions = { capture: true };
-    window.addEventListener("keydown", onKeyDown, opts);
-    return () => window.removeEventListener("keydown", onKeyDown, opts);
-  }, [handleSubmit, handleRun, isSubmitting, isRunning]);
   if (isLoading) {
     return (
       <Layout title="Loading...">
@@ -495,15 +536,17 @@ export default function ProblemPage({ slug }: { slug: string }) {
         isSubmitting={isSubmitting}
         onRun={handleRun}
         isRunning={isRunning}
-        onGpuTypeChange={handleGpuTypeChange}
       />
       <Box flex={1} w="100%" minH={0}>
         <VerticalSplitPanel
           topContent={
             <CodeEditor
+              key={`problem-editor-${isVimModeEnabled ? "vim" : "std"}`}
               code={code}
               setCode={handleSetCode}
               selectedLanguage={selectedLanguage}
+              enableVimMode={isVimModeEnabled}
+              onToggleVimMode={setIsVimModeEnabled}
               ptxContent={
                 submissionPtxTimestamp > samplePtxTimestamp
                   ? (submissionPtxContent ?? ptxContent)

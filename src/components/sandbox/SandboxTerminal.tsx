@@ -1,32 +1,33 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  Box,
-  HStack,
-  Text,
-  VStack,
-  Spinner,
-  IconButton,
-} from "@chakra-ui/react";
-import { FiTerminal, FiX, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
+import { useEffect, useRef } from "react";
+import { Box, HStack, Text, VStack, Button } from "@chakra-ui/react";
 
-interface TerminalLine {
+export interface TerminalLine {
   id: string;
-  type: "stdout" | "stderr" | "info" | "success" | "error" | "compiling";
+  type:
+    | "stdout"
+    | "stderr"
+    | "info"
+    | "success"
+    | "error"
+    | "compiling"
+    | "warning";
   content: string;
   timestamp: number;
 }
 
 interface SandboxTerminalProps {
   isRunning: boolean;
+  lines: TerminalLine[];
+  status?: string;
+  emptyMessage?: string;
   onClear?: () => void;
 }
 
 export default function SandboxTerminal({
-  isRunning,
+  lines,
+  emptyMessage = "Terminal output will appear here...",
   onClear,
 }: SandboxTerminalProps) {
-  const [lines, setLines] = useState<TerminalLine[]>([]);
-  const [status, setStatus] = useState<string>("");
   const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,8 +37,6 @@ export default function SandboxTerminal({
   }, [lines]);
 
   const clearTerminal = () => {
-    setLines([]);
-    setStatus("");
     onClear?.();
   };
 
@@ -55,56 +54,50 @@ export default function SandboxTerminal({
         return "red.500";
       case "compiling":
         return "yellow.400";
+      case "warning":
+        return "yellow.300";
       default:
         return "gray.400";
     }
   };
 
-  const getStatusIcon = () => {
-    if (isRunning) {
-      return <Spinner size="sm" color="blue.400" />;
-    }
-    if (status === "Success") {
-      return <FiCheckCircle color="rgb(34, 197, 94)" />;
-    }
-    if (status === "Error" || status === "Timeout") {
-      return <FiAlertCircle color="rgb(239, 68, 68)" />;
-    }
-    return <FiTerminal color="gray.400" />;
-  };
-
   return (
-    <VStack h="100%" w="100%" spacing={0} bg="#0d0d0d">
+    <VStack h="100%" w="100%" spacing={0} borderRadius="md">
       {/* Terminal Header */}
       <HStack
         w="100%"
         px={4}
         py={2}
-        bg="#1a1a1a"
         borderBottom="1px solid"
-        borderColor="gray.800"
+        borderColor="whiteAlpha.50"
         justify="space-between"
+        borderTopRadius="md"
       >
-        <HStack spacing={2}>
-          {getStatusIcon()}
-          <Text color="gray.300" fontSize="sm" fontWeight="medium">
-            Terminal
-          </Text>
-          {status && (
-            <Text color="gray.500" fontSize="xs">
-              • {status}
-            </Text>
-          )}
-        </HStack>
-        <IconButton
-          icon={<FiX />}
-          aria-label="Clear terminal"
-          size="sm"
-          variant="ghost"
+        <Text color="white" fontSize="sm" fontWeight="500">
+          Terminal
+        </Text>
+        <Button
+          onClick={() => {
+            clearTerminal();
+          }}
+          bg="whiteAlpha.100"
           color="gray.400"
-          onClick={clearTerminal}
-          _hover={{ color: "gray.200", bg: "whiteAlpha.100" }}
-        />
+          size="sm"
+          fontSize="xs"
+          _hover={{
+            bg: "whiteAlpha.200",
+            transition: "all 0.5s ease",
+          }}
+          _active={{
+            bg: "whiteAlpha.200",
+            transition: "all 0.5s ease",
+          }}
+          transition="all 0.5s ease"
+          px={4}
+          borderRadius="md"
+        >
+          Clear
+        </Button>
       </HStack>
 
       {/* Terminal Content */}
@@ -136,7 +129,7 @@ export default function SandboxTerminal({
       >
         {lines.length === 0 ? (
           <Text color="gray.600" fontStyle="italic">
-            Terminal output will appear here...
+            {emptyMessage}
           </Text>
         ) : (
           <VStack align="start" spacing={0.5} w="100%">

@@ -182,7 +182,6 @@ const ActivityCalendar: React.FC<ActivityCalendarProps> = ({
             color="white"
             borderRadius="lg"
             borderColor="gray.600"
-            borderWidth="1px"
             fontWeight="medium"
             _hover={{ borderColor: "blue.300", bg: "gray.650" }}
             _active={{ bg: "gray.650" }}

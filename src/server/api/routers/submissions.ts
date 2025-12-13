@@ -40,6 +40,8 @@ type ProblemLeaderboardEntry = {
   runtime: number | null;
   createdAt: Date;
   gpuType: string | null;
+  language: string | null;
+  isPublic: boolean;
 };
 
 // Warm up cache on server start
@@ -139,6 +141,7 @@ export const submissionsRouter = createTRPCRouter({
             select: {
               title: true,
               slug: true,
+              difficulty: true,
             },
           },
           user: {
@@ -255,6 +258,121 @@ export const submissionsRouter = createTRPCRouter({
       );
       problemLeaderboardCache.set(cacheKey, data);
       return data;
+    }),
+  getForBlogPost: protectedProcedure
+    .input(
+      z.object({
+        submissionId: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const submission = await ctx.db.submission.findUnique({
+        where: { id: input.submissionId },
+        include: {
+          problem: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              difficulty: true,
+              description: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      if (!submission) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Submission not found",
+        });
+      }
+
+      // Check access - user must own it OR it must be public
+      const hasAccess =
+        submission.isPublic ||
+        (ctx.session.user && ctx.session.user.id === submission.userId);
+
+      if (!hasAccess) {
+        // Return without code if no access
+        const { code: _, ...submissionWithoutCode } = submission;
+        return submissionWithoutCode;
+      }
+
+      return submission;
+    }),
+
+  getMultipleForComparison: protectedProcedure
+    .input(
+      z.object({
+        submissionIds: z.array(z.string()).min(1).max(10),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const submissions = await ctx.db.submission.findMany({
+        where: {
+          id: { in: input.submissionIds },
+          OR: [{ isPublic: true }, { userId: ctx.session.user.id }],
+        },
+        include: {
+          problem: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              difficulty: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return submissions;
+    }),
+
+  getUserRecentAcceptedSubmissions: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(10),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const submissions = await ctx.db.submission.findMany({
+        where: {
+          userId: ctx.session.user.id,
+          status: "ACCEPTED",
+        },
+        include: {
+          problem: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              difficulty: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+      });
+
+      return submissions;
     }),
 });
 
@@ -417,6 +535,7 @@ async function computeProblemLeaderboardData(
       gpuType: true,
       language: true,
       createdAt: true,
+      isPublic: true,
       user: {
         select: {
           username: true,
@@ -465,6 +584,7 @@ async function computeProblemLeaderboardData(
       createdAt: sub.createdAt,
       gpuType: sub.gpuType,
       language: sub.language,
+      isPublic: sub.isPublic,
     }));
 }
 

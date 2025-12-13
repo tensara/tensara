@@ -15,6 +15,9 @@ import io
 import contextlib
 
 
+MAX_SANDBOX_OUTPUT_BYTES = 64 * 1024  # Cap console streaming to 64 KiB for responsiveness
+
+
 def run_checker(
     problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
 ) -> Iterator[str]:
@@ -465,7 +468,7 @@ def run_benchmark(
 
 def run_sandbox(compiled_lib: bytes, solution_code: str):
     """
-    Run sandbox on compiled CUDA solution with real-time output streaming
+    Run sandbox on a compiled solution with real-time output streaming
     """
     try:
         if not compiled_lib:
@@ -484,6 +487,12 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
             f.write(compiled_lib)
             f.flush()
             compiled_lib_path = f.name
+
+        def cleanup_compiled_binary():
+            try:
+                os.unlink(compiled_lib_path)
+            except OSError:
+                pass
 
         try:
             os.chmod(compiled_lib_path, 0o755)
@@ -526,6 +535,8 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
             all_stdout = []
             all_stderr = []
             timeout = 4 * 60
+            output_bytes = 0
+            output_limit_hit = False
 
             while len(streams_finished) < 2:
                 if time.time() - start_time > timeout:
@@ -535,10 +546,7 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
                         "message": "Binary execution timed out",
                         "details": f"Execution exceeded {timeout} second timeout",
                     }
-                    try:
-                        os.unlink(compiled_lib_path)
-                    except OSError:
-                        pass
+                    cleanup_compiled_binary()
                     return
 
                 try:
@@ -560,6 +568,14 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
                         "timestamp": time.time(),
                     }
 
+                    if stream_name in ("stdout", "stderr"):
+                        prospective_total = output_bytes + len(line.encode("utf-8")) + 1
+                        if prospective_total > MAX_SANDBOX_OUTPUT_BYTES:
+                            output_limit_hit = True
+                            process.kill()
+                            break
+                        output_bytes = prospective_total
+
                 except queue.Empty:
                     if process.poll() is not None:
                         continue
@@ -573,14 +589,21 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
             return_code = process.wait()
 
             # Clean up temporary file
-            try:
-                os.unlink(compiled_lib_path)
-            except OSError:
-                pass
+            cleanup_compiled_binary()
 
             # Yield final result
             full_stdout = "\n".join(all_stdout)
             full_stderr = "\n".join(all_stderr)
+
+            if output_limit_hit:
+                yield {
+                    "status": "SANDBOX_OUTPUT_LIMIT",
+                    "message": f"Sandbox output exceeded limit of {MAX_SANDBOX_OUTPUT_BYTES // 1024} KB",
+                    "stdout": full_stdout,
+                    "stderr": full_stderr,
+                    "details": "Execution stopped because the program produced too much console output.",
+                }
+                return
 
             if return_code == 0:
                 yield {
@@ -599,10 +622,7 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
                 }
 
         except PermissionError:
-            try:
-                os.unlink(compiled_lib_path)
-            except OSError:
-                pass
+            cleanup_compiled_binary()
 
             yield {
                 "status": "SANDBOX_ERROR",
@@ -611,10 +631,7 @@ def run_sandbox(compiled_lib: bytes, solution_code: str):
             }
 
         except Exception as e:
-            try:
-                os.unlink(compiled_lib_path)
-            except OSError:
-                pass
+            cleanup_compiled_binary()
 
             yield {
                 "status": "SANDBOX_ERROR",

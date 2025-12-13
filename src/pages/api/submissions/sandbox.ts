@@ -3,6 +3,7 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import { combinedAuth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
+import { type ProgrammingLanguage } from "~/types/misc";
 import { SubmissionError, SubmissionStatus } from "~/types/submission";
 import type { SubmissionErrorType } from "~/types/submission";
 import { isSubmissionError } from "~/types/submission";
@@ -28,7 +29,11 @@ export default async function handler(
     return;
   }
 
-  const { code, gpuType } = req.body as { code: string; gpuType?: string };
+  const { code, language } = req.body as {
+    code: string;
+    language?: ProgrammingLanguage;
+  };
+  const selectedLanguage = language ?? "cuda";
 
   if (!code) {
     res.status(400).json({
@@ -37,8 +42,13 @@ export default async function handler(
     return;
   }
 
-  // Default to T4 if no GPU type specified
-  const selectedGpuType = gpuType ?? "T4";
+  const supportedLanguages: ProgrammingLanguage[] = ["cuda", "mojo"];
+  if (!supportedLanguages.includes(selectedLanguage)) {
+    res.status(400).json({
+      error: "Unsupported language for sandbox",
+    });
+    return;
+  }
 
   const rateLimit = await checkRateLimit(session.user.id);
   if (!rateLimit.allowed) {
@@ -93,7 +103,7 @@ export default async function handler(
   const submission = await db.sandboxSubmission.create({
     data: {
       code: code,
-      language: "cuda",
+      language: selectedLanguage,
       status: "IN_QUEUE",
       user: { connect: { id: session.user.id } },
     },
@@ -122,30 +132,17 @@ export default async function handler(
     });
 
     console.log("Starting sandbox process");
-
-    // Route AMD GPUs to new dstack endpoint, others to Modal
-    const isAMDGPU = selectedGpuType.startsWith("MI");
-    const endpoint = isAMDGPU
-      ? `http://localhost:${process.env.PORT || 3000}/api/amd/submit`
-      : env.MODAL_ENDPOINT + "/sandbox-" + selectedGpuType;
-
-    const sandboxResponse = await fetch(endpoint, {
+    const upstreamController = new AbortController();
+    const sandboxResponse = await fetch(env.MODAL_ENDPOINT + "/sandbox-T4", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        solution_code: submission.code,
         code: submission.code,
         language: submission.language,
-        problem: "sandbox",
-        problem_def: "Sandbox execution",
-        gpu_type: selectedGpuType,
-        dtype: "float32",
-        ...(isAMDGPU && {
-          endpoint: "sandbox",
-        }),
       }),
+      signal: upstreamController.signal,
     });
 
     if (!sandboxResponse.ok) {
@@ -170,6 +167,15 @@ export default async function handler(
       return;
     }
 
+    const cancelUpstream = async (reason: string) => {
+      upstreamController.abort();
+      try {
+        await reader.cancel(reason);
+      } catch (cancelError) {
+        console.warn("Failed to cancel sandbox stream:", cancelError);
+      }
+    };
+
     let partialMessage = "";
 
     try {
@@ -189,23 +195,30 @@ export default async function handler(
           try {
             const response_json = message.slice(6).trim();
             const parsed = JSON.parse(response_json) as {
-              status: string;
+              status?: string;
+              [key: string]: unknown;
             };
-            if (!parsed) {
+            const response_status = parsed?.status;
+            if (!response_status) {
               continue;
             }
-            const response_status = parsed.status;
 
             if (response_status === SubmissionStatus.COMPILING) {
               sendSSE(SubmissionStatus.COMPILING, {
                 status: SubmissionStatus.COMPILING,
               });
-            } else if (response_status === "SANDBOX_RUNNING") {
+              continue;
+            }
+
+            if (response_status === "SANDBOX_RUNNING") {
               sendSSE("SANDBOX_RUNNING", {
                 status: "SANDBOX_RUNNING",
               });
-            } else if (response_status === "SANDBOX_OUTPUT") {
-              const response = JSON.parse(response_json) as {
+              continue;
+            }
+
+            if (response_status === "SANDBOX_OUTPUT") {
+              const response = parsed as {
                 status: string;
                 stream: "stdout" | "stderr";
                 line: string;
@@ -213,8 +226,11 @@ export default async function handler(
               };
 
               sendSSE("SANDBOX_OUTPUT", response);
-            } else if (response_status === "SANDBOX_SUCCESS") {
-              const response = JSON.parse(response_json) as {
+              continue;
+            }
+
+            if (response_status === "SANDBOX_SUCCESS") {
+              const response = parsed as {
                 status: string;
                 stdout: string;
                 stderr: string;
@@ -229,8 +245,37 @@ export default async function handler(
 
               res.end();
               return;
-            } else if (response_status === "SANDBOX_ERROR") {
-              const response = JSON.parse(response_json) as {
+            }
+
+            if (response_status === "SANDBOX_OUTPUT_LIMIT") {
+              const response = parsed as {
+                status: string;
+                message: string;
+                stdout?: string;
+                stderr?: string;
+                details?: string;
+              };
+
+              await db.sandboxSubmission.update({
+                where: { id: submission.id },
+                data: {
+                  status: "FAILED",
+                  stdout_output: response.stdout,
+                  error_message: response.message,
+                  error_details: response.details,
+                },
+              });
+
+              sendSSE("SANDBOX_OUTPUT_LIMIT", response);
+
+              await cancelUpstream("sandbox-output-limit");
+
+              res.end();
+              return;
+            }
+
+            if (response_status === "SANDBOX_ERROR") {
+              const response = parsed as {
                 status: string;
                 message: string;
                 stdout?: string;
@@ -241,44 +286,90 @@ export default async function handler(
 
               await db.sandboxSubmission.update({
                 where: { id: submission.id },
-                data: { status: "FAILED" },
+                data: {
+                  status: "FAILED",
+                  stdout_output: response.stdout,
+                  error_message: response.message,
+                  error_details: response.details,
+                },
               });
 
               sendSSE("SANDBOX_ERROR", response);
 
               res.end();
               return;
-            } else if (response_status === "SANDBOX_TIMEOUT") {
-              const response = JSON.parse(response_json) as {
+            }
+
+            if (response_status === "SANDBOX_TIMEOUT") {
+              const response = parsed as {
                 status: string;
                 message: string;
                 details: string;
               };
               await db.sandboxSubmission.update({
                 where: { id: submission.id },
-                data: { status: "TIMEOUT" },
+                data: {
+                  status: "TIMEOUT",
+                  error_message: response.message,
+                  error_details: response.details,
+                },
               });
 
               sendSSE("SANDBOX_TIMEOUT", response);
 
+              await cancelUpstream("sandbox-timeout");
+
               res.end();
               return;
-            } else if (isSubmissionError(response_status)) {
-              const response = JSON.parse(response_json) as {
+            }
+
+            if (
+              response_status === SubmissionStatus.PTX ||
+              response_status === SubmissionStatus.SASS ||
+              response_status === SubmissionStatus.WARNING
+            ) {
+              sendSSE(response_status, parsed);
+              continue;
+            }
+
+            if (isSubmissionError(response_status)) {
+              const response = parsed as {
                 status: SubmissionErrorType;
-                error: string;
+                error?: string;
+                message?: string;
                 details: string;
               };
 
+              const isTimeout =
+                response_status === SubmissionError.TIME_LIMIT_EXCEEDED;
+
+              await db.sandboxSubmission.update({
+                where: { id: submission.id },
+                data: {
+                  status: isTimeout ? "TIMEOUT" : "FAILED",
+                  error_message: response.error ?? response.message,
+                  error_details: response.details,
+                },
+              });
+
               console.log("Sandbox error:", response);
 
-              sendSSE(response_status, response);
+              if (isTimeout) {
+                await cancelUpstream("sandbox-timeout-error");
+                sendSSE("SANDBOX_TIMEOUT", {
+                  status: "SANDBOX_TIMEOUT",
+                  message: response.message ?? "Time limit exceeded",
+                  details: response.details,
+                });
+              } else {
+                sendSSE(response_status, response);
+              }
 
               res.end();
               return;
-            } else {
-              sendSSE(response_status, {});
             }
+
+            sendSSE(response_status, parsed);
           } catch (e) {
             console.error("Failed to parse sandbox SSE data:", e);
             continue;
