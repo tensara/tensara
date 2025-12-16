@@ -1,0 +1,372 @@
+"""
+dstack CLI Wrapper for Tensara AMD GPU Orchestration
+
+This module provides a RELIABLE interface using the dstack CLI directly.
+We bypass the Python SDK entirely because it has issues with command execution.
+
+The CLI approach is proven to work - it's what we used in successful test runs.
+"""
+
+import os
+import sys
+import json
+import time
+import yaml
+import logging
+import tempfile
+import subprocess
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass
+from enum import Enum
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+class TaskStatus(Enum):
+    """Task execution status"""
+    PENDING = "pending"
+    PROVISIONING = "provisioning"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    TERMINATED = "terminated"
+
+
+@dataclass
+class TaskResult:
+    """Result of a task execution"""
+    task_id: str
+    status: TaskStatus
+    output: Optional[str] = None
+    error: Optional[str] = None
+    cost_usd: Optional[float] = None
+    execution_time: Optional[float] = None
+
+
+class DStackCLIWrapper:
+    """
+    Wrapper around dstack CLI commands
+    
+    This is the WORKING approach - uses CLI commands directly instead of Python SDK.
+    """
+    
+    def __init__(self):
+        """Initialize the CLI wrapper"""
+        self.temp_dirs: List[Path] = []
+        logger.info("DStack CLI wrapper initialized")
+    
+    def submit_task(
+        self,
+        task_name: str,
+        gpu_type: str,
+        source_code: str,
+        harness_code: str,
+        problem_id: str,
+        submission_id: str,
+    ) -> str:
+        """
+        Submit a task using dstack CLI
+        
+        Args:
+            task_name: Name for the dstack run
+            gpu_type: GPU type (e.g., MI300X)
+            source_code: HIP kernel source code
+            harness_code: Benchmark harness code
+            problem_id: Problem identifier
+            submission_id: Submission identifier
+            
+        Returns:
+            Task ID (run name)
+        """
+        logger.info(f"Submitting task {task_name} via CLI")
+        
+        # Create temporary directory for this task
+        temp_dir = Path(tempfile.mkdtemp(prefix=f"tensara_{submission_id}_"))
+        self.temp_dirs.append(temp_dir)
+        logger.info(f"Created temp directory: {temp_dir}")
+        
+        # Write source files
+        solution_file = temp_dir / "solution.hip"
+        harness_file = temp_dir / "harness.hip"
+        
+        solution_file.write_text(source_code)
+        harness_file.write_text(harness_code)
+        logger.info(f"Wrote source files to {temp_dir}")
+        
+        # Create .dstack.yml configuration
+        # This matches the WORKING configuration from testing/rocm-dstack-hotaisle/.dstack.yml
+        dstack_config = {
+            'type': 'task',
+            'name': task_name,
+            'working_dir': '/workspace',
+            'idle_duration': '10m',  # Keep VM alive for 10 minutes after completion
+            'creation_policy': 'reuse-or-create',
+            'spot_policy': 'auto',
+            'resources': {
+                'gpu': {
+                    'name': gpu_type,
+                    'count': 1,
+                }
+            },
+            'backends': ['amddevcloud'],
+            'image': 'rocm/pytorch:latest',
+            'env': [
+                'ROCM_PATH=/opt/rocm',
+                'HIP_PLATFORM=amd',
+                f'GPU_TYPE={gpu_type}',
+                f'PROBLEM_ID={problem_id}',
+                f'SUBMISSION_ID={submission_id}',
+            ],
+            'files': [
+                './solution.hip',
+                './harness.hip',
+            ],
+            'commands': [
+                'echo "=== ROCm Environment ==="',
+                'rocm-smi --showproductname || echo "rocm-smi not available"',
+                'hipcc --version || echo "hipcc not available"',
+                'echo',
+                'echo "=== Compiling HIP Kernel + Harness ==="',
+                'hipcc solution.hip harness.hip -o benchmark -O3 || exit 1',
+                'echo "Compilation successful"',
+                'echo',
+                'echo "=== Running Benchmark ==="',
+                './benchmark 1024',
+                'echo',
+                'echo "=== Execution Complete ==="',
+            ],
+        }
+        
+        # Write .dstack.yml
+        config_file = temp_dir / ".dstack.yml"
+        with open(config_file, 'w') as f:
+            yaml.dump(dstack_config, f, default_flow_style=False, sort_keys=False)
+        logger.info(f"Wrote .dstack.yml configuration")
+        
+        # Submit task using dstack apply
+        # CRITICAL: Use relative path to avoid macOS /var vs /private/var symlink issues
+        # Use -y (skip confirmation) and -d (detach) flags
+        try:
+            logger.info(f"Executing: dstack apply -f .dstack.yml -y -d (in {temp_dir})")
+            result = subprocess.run(
+                ['dstack', 'apply', '-f', '.dstack.yml', '-y', '-d'],  # -y = no confirm, -d = detach
+                cwd=str(temp_dir),  # Run from temp directory
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"dstack apply failed: {result.stderr}")
+                raise RuntimeError(f"Failed to submit task: {result.stderr}")
+            
+            logger.info(f"Task submitted successfully: {task_name}")
+            logger.debug(f"dstack apply output: {result.stdout}")
+            
+            return task_name
+            
+        except subprocess.TimeoutExpired:
+            logger.error("dstack apply timed out after 60s")
+            raise RuntimeError("Task submission timed out")
+        except FileNotFoundError:
+            logger.error("dstack CLI not found in PATH")
+            raise RuntimeError("dstack CLI not installed or not in PATH")
+        except Exception as e:
+            logger.error(f"Failed to submit task: {e}")
+            raise
+    
+    def get_task_status(self, task_name: str) -> TaskResult:
+        """
+        Get current status of a task using dstack ps
+        
+        Args:
+            task_name: Task identifier (run name)
+            
+        Returns:
+            TaskResult with current status
+        """
+        try:
+            # Use dstack ps to get run status
+            result = subprocess.run(
+                ['dstack', 'ps', '--all'],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            
+            if result.returncode != 0:
+                logger.warning(f"dstack ps failed: {result.stderr}")
+                return TaskResult(
+                    task_id=task_name,
+                    status=TaskStatus.PENDING,
+                )
+            
+            # Parse output to find our task
+            # Output format:
+            # NAME                               BAC…  GPU    PRI…  STATUS      SUBMITTED    
+            # tensara-cmj7oqg230000w30f6z07prir  amd…  MI30…  $1.…  exited (0)  11 hours ago 
+            # Note: STATUS can be multi-word like "exited (1)" or single word like "running"
+            
+            lines = result.stdout.strip().split('\n')
+            for line in lines[1:]:  # Skip header
+                if task_name in line:
+                    # Don't split - use the full line string for matching
+                    line_lower = line.lower()
+                    
+                    # Map CLI status to our TaskStatus by checking the full line
+                    if 'running' in line_lower:
+                        status = TaskStatus.RUNNING
+                    elif 'exited (0)' in line_lower or 'done' in line_lower:
+                        status = TaskStatus.SUCCEEDED
+                    elif 'exited (' in line_lower or 'failed' in line_lower:
+                        # Any non-zero exit code is a failure
+                        status = TaskStatus.FAILED
+                    elif 'provisioning' in line_lower:
+                        status = TaskStatus.PROVISIONING
+                    elif 'pending' in line_lower:
+                        status = TaskStatus.PENDING
+                    else:
+                        status = TaskStatus.PENDING
+                    
+                    logger.debug(f"Task {task_name} status: {status.value} (from line: {line.strip()})")
+                    return TaskResult(
+                        task_id=task_name,
+                        status=status,
+                    )
+            
+            # Task not found in list - might be too new or already cleaned up
+            logger.debug(f"Task {task_name} not found in dstack ps output")
+            return TaskResult(
+                task_id=task_name,
+                status=TaskStatus.PENDING,
+            )
+            
+        except subprocess.TimeoutExpired:
+            logger.warning("dstack ps timed out")
+            return TaskResult(task_id=task_name, status=TaskStatus.PENDING)
+        except Exception as e:
+            logger.error(f"Failed to get task status: {e}")
+            return TaskResult(task_id=task_name, status=TaskStatus.PENDING)
+    
+    def get_task_logs(self, task_name: str, max_retries: int = 10, retry_delay: float = 2.0) -> str:
+        """
+        Get task logs using dstack logs CLI command
+        
+        Args:
+            task_name: Task identifier (run name)
+            max_retries: Number of retry attempts
+            retry_delay: Delay between retries in seconds
+            
+        Returns:
+            Task logs as string
+        """
+        logger.info(f"Retrieving logs for task {task_name} via CLI")
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempt {attempt + 1}/{max_retries}: Fetching logs via CLI...")
+                
+                result = subprocess.run(
+                    ['dstack', 'logs', task_name],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                
+                if result.returncode == 0 and result.stdout:
+                    logs = result.stdout
+                    logger.info(f"SUCCESS: Retrieved {len(logs)} characters of logs via CLI")
+                    return logs
+                else:
+                    logger.warning(f"Attempt {attempt + 1}: CLI returned empty logs or error")
+                    if attempt < max_retries - 1:
+                        logger.info(f"Waiting {retry_delay}s before retry...")
+                        time.sleep(retry_delay)
+                
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Attempt {attempt + 1}: CLI timed out")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+        
+        # All attempts failed
+        logger.error(f"Failed to retrieve logs for {task_name} after {max_retries} attempts")
+        return ""
+    
+    def wait_for_completion(
+        self,
+        task_name: str,
+        poll_interval: int = 5,
+        timeout: int = 600,
+        status_callback = None,
+    ) -> TaskResult:
+        """
+        Wait for task to complete
+        
+        Args:
+            task_name: Task identifier
+            poll_interval: Polling interval in seconds
+            timeout: Maximum wait time in seconds
+            status_callback: Optional callback function called on status changes
+            
+        Returns:
+            Final TaskResult
+        """
+        logger.info(f"Waiting for task {task_name} to complete (timeout={timeout}s)")
+        
+        start_time = time.time()
+        last_status = None
+        
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed > timeout:
+                logger.error(f"Task {task_name} timed out after {timeout}s")
+                return TaskResult(
+                    task_id=task_name,
+                    status=TaskStatus.FAILED,
+                    error="Task execution timeout",
+                )
+            
+            # Get current status
+            result = self.get_task_status(task_name)
+            
+            # Call status callback if status changed
+            if result.status != last_status:
+                last_status = result.status
+                logger.info(f"Task {task_name} status changed to: {result.status.value}")
+                if status_callback:
+                    status_callback(result.status)
+            
+            # Check if task is complete
+            if result.status in (TaskStatus.SUCCEEDED, TaskStatus.FAILED):
+                logger.info(f"Task {task_name} completed with status: {result.status.value}")
+                
+                # Fetch logs
+                output = self.get_task_logs(task_name)
+                result.output = output
+                
+                return result
+            
+            # Wait before next poll
+            time.sleep(poll_interval)
+    
+    def cleanup(self):
+        """Clean up temporary directories"""
+        for temp_dir in self.temp_dirs:
+            try:
+                import shutil
+                shutil.rmtree(temp_dir)
+                logger.debug(f"Cleaned up temp directory: {temp_dir}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up {temp_dir}: {e}")
+        
+        self.temp_dirs.clear()
+    
+    def __del__(self):
+        """Cleanup on destruction"""
+        self.cleanup()

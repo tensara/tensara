@@ -32,12 +32,39 @@ except ImportError:
         "dstack SDK not installed. Install with: pip install dstack"
     )
 
+# Import HIP harness generator
+try:
+    from hip_harness import generate_hip_benchmark_harness
+except ImportError:
+    # Fallback if hip_harness.py is not in path
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    from hip_harness import generate_hip_benchmark_harness
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+
+# Configure logging - send INFO to stdout, errors to stderr
+import sys as _sys
+
+class _InfoFilter(logging.Filter):
+    def filter(self, record):
+        return record.levelno <= logging.INFO
+
+class _ErrorFilter(logging.Filter):
+    def filter(self, record):
+        return record.levelno >= logging.WARNING
+
+_stdout_handler = logging.StreamHandler(_sys.stdout)
+_stdout_handler.setLevel(logging.INFO)
+_stdout_handler.addFilter(_InfoFilter())
+_stdout_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+_stderr_handler = logging.StreamHandler(_sys.stderr)
+_stderr_handler.setLevel(logging.WARNING)
+_stderr_handler.addFilter(_ErrorFilter())
+_stderr_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+logging.basicConfig(level=logging.INFO, handlers=[_stdout_handler, _stderr_handler])
 logger = logging.getLogger(__name__)
 
 
@@ -69,6 +96,8 @@ class TaskConfig:
     submission_id: str
     timeout: int = 600  # 10 minutes default
     profile: str = "mi210-standard"
+    problem_def: Optional[str] = None  # Problem definition JSON
+    dtype: str = "float32"  # Data type for benchmark harness
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -167,6 +196,11 @@ class DStackClient:
         
         # Store run references for cleanup
         self._active_runs: Dict[str, Any] = {}
+        
+        # Log buffers for streaming logs during execution
+        # CRITICAL: run.logs() only works while task is running
+        # We must stream and buffer logs in real-time, not after completion
+        self._log_buffers: Dict[str, List[str]] = {}
     
     def submit_task(
         self,
@@ -191,29 +225,48 @@ class DStackClient:
         logger.info(f"Submitting task for {config.problem_id}/{config.submission_id}")
         
         try:
+            # Generate HIP benchmark harness
+            logger.info(f"Generating benchmark harness for {config.problem_id}")
+            harness_code = generate_hip_benchmark_harness(
+                problem_slug=config.problem_id,
+                problem_def=config.problem_def,
+                dtype=config.dtype
+            )
+            
             # Prepare task using official SDK
             # Create commands to:
             # 1. Write the HIP source code to file
-            # 2. Compile with hipcc
-            # 3. Run the kernel
+            # 2. Write the benchmark harness to file
+            # 3. Compile both together with hipcc
+            # 4. Run the benchmark
             commands = [
-                # Write source code to file
+                # Write kernel source code to file
                 f"cat > solution.hip << 'EOFHIP'\n{config.source_code}\nEOFHIP",
+                # Write benchmark harness to file
+                f"cat > harness.hip << 'EOFHARNESS'\n{harness_code}\nEOFHARNESS",
                 # Check ROCm installation
                 "echo '=== ROCm Environment ==='",
                 "rocm-smi --showproductname || echo 'rocm-smi not available'",
                 "hipcc --version || echo 'hipcc not available'",
                 "echo",
-                # Compile the kernel
-                "echo '=== Compiling HIP Kernel ==='",
-                "hipcc solution.hip -o solution -O3 || exit 1",
+                # Compile kernel + harness together
+                "echo '=== Compiling HIP Kernel + Harness ==='",
+                "hipcc solution.hip harness.hip -o benchmark -O3 || exit 1",
                 "echo 'Compilation successful'",
                 "echo",
-                # Run the kernel
-                "echo '=== Running Kernel ==='",
-                "./solution 1024",  # Default matrix size
+                # Run the benchmark - CRITICAL FIX: Redirect output to file using tee
+                # This ensures output is captured both to stdout AND to a persistent file
+                # If container terminates before dstack captures stdout, we can still retrieve the file
+                "echo '=== Running Benchmark ==='",
+                "./benchmark 1024 2>&1 | tee /tmp/benchmark_output.txt",
+                "echo",
+                # Display the captured output explicitly (ensures it's in dstack logs)
+                "echo '=== Benchmark Output (from captured file) ==='",
+                "cat /tmp/benchmark_output.txt",
                 "echo",
                 "echo '=== Execution Complete ==='",
+                # Force filesystem sync to ensure file writes complete before container termination
+                "sync",
             ]
             
             # Create task using official SDK
@@ -241,8 +294,12 @@ class DStackClient:
                 creation_policy="reuse-or-create",
                 # Working directory for task execution
                 working_dir="/workspace",
-                # Serverless behavior - terminate immediately after completion
-                idle_duration="0s",
+                # CRITICAL FIX: Keep container alive for 10 minutes after completion
+                # This gives dstack plenty of time to flush and capture logs before VM termination
+                # Previously was "10s" which was too short - logs were still lost
+                # Cost impact: ~$0.96 per run (10min × MI300X rate of ~$5.76/hour)
+                # This extended duration ensures logs are captured reliably
+                idle_duration="10m",
                 # Use spot instances for cost savings
                 spot_policy="auto",
             )
@@ -256,14 +313,31 @@ class DStackClient:
             
             # Store run reference
             task_id = run.name
-            self._active_runs[task_id] = run
+            
+            # Wait a moment for task to be registered
+            time.sleep(1)
             
             logger.info(f"Task submitted successfully: {task_id}")
+            logger.info(f"Task {task_id} will be monitored via status polling")
             
-            result = TaskResult(
+            # Store run reference and initialize log buffer
+            self._active_runs[task_id] = run
+            # Create a buffer to accumulate logs during execution
+            self._log_buffers[task_id] = []
+            
+            if wait:
+                return self.wait_for_completion(task_id, poll_interval=5, timeout=timeout)
+            
+            return TaskResult(
                 task_id=task_id,
                 status=TaskStatus.PENDING,
-                created_at=datetime.utcnow(),
+                output=None,
+                error=None,
+                metrics=None,
+                cost_usd=0.0,
+                execution_time=0.0,
+                created_at=None,
+                completed_at=None,
             )
             
             # Wait for completion if requested
@@ -290,22 +364,21 @@ class DStackClient:
             DStackError: If status check fails
         """
         try:
-            # Get run from stored reference or list runs
-            run = self._active_runs.get(task_id)
-            
-            if not run:
-                # Try to find the run by listing
-                runs = self.client.runs.list()
-                for r in runs:
-                    if r.name == task_id:
-                        run = r
-                        self._active_runs[task_id] = run
-                        break
+            # CRITICAL FIX: Always refresh run status from API, don't use cached reference
+            # The cached run object has stale status
+            run = None
+            runs = self.client.runs.list()
+            for r in runs:
+                if r.name == task_id:
+                    run = r
+                    self._active_runs[task_id] = run  # Update cache with fresh data
+                    break
             
             if not run:
                 raise DStackError(f"Task {task_id} not found")
             
             # Map dstack run status to our TaskStatus
+            # run.status is a RunStatus enum, we need to use .value to get the string
             status_map = {
                 "submitted": TaskStatus.PENDING,
                 "pending": TaskStatus.PENDING,
@@ -317,49 +390,116 @@ class DStackClient:
                 "terminating": TaskStatus.TERMINATED,
             }
             
-            run_status = getattr(run, 'status', 'pending').lower()
+            # Extract the enum value (e.g., 'done', 'failed', 'running')
+            run_status_obj = getattr(run, 'status', None)
+            if run_status_obj and hasattr(run_status_obj, 'value'):
+                run_status = run_status_obj.value.lower()
+            else:
+                run_status = 'pending'
+            
             status = status_map.get(run_status, TaskStatus.PENDING)
             
-            # Get execution details
-            created_at = getattr(run, 'submitted_at', None)
-            completed_at = getattr(run, 'finished_at', None)
-            
-            # Calculate execution time
+            # Get execution details from internal _run object
+            # The public run object doesn't have timestamps, but _run does
+            created_at = None
+            completed_at = None
             execution_time = None
-            if created_at and completed_at:
-                try:
-                    execution_time = (completed_at - created_at).total_seconds()
-                except:
-                    pass
-            
-            # Calculate cost based on GPU time
             cost_usd = None
-            if execution_time:
-                # Try to extract GPU type from run environment
-                gpu_type = "MI210"  # Default
-                try:
-                    env = getattr(run, 'env', {})
-                    gpu_type = env.get('GPU_TYPE', 'MI210')
-                except:
-                    pass
-                
-                cost_usd = self._calculate_cost_from_time(gpu_type, execution_time)
-                if cost_usd:
-                    self.task_costs[task_id] = cost_usd
-                    self.total_cost += cost_usd
+            exit_status = None
+            termination_reason = None
             
-            # Get output/logs if available
+            try:
+                internal_run = getattr(run, '_run', None)
+                if internal_run:
+                    # Get timestamps
+                    created_at = getattr(internal_run, 'submitted_at', None)
+                    
+                    # Get termination reason (e.g., 'all_jobs_done', 'stopped_by_user')
+                    termination_reason = getattr(internal_run, 'termination_reason', None)
+                    
+                    # Get completion time from latest job submission
+                    latest_job = getattr(internal_run, 'latest_job_submission', None)
+                    if latest_job:
+                        completed_at = getattr(latest_job, 'finished_at', None)
+                        exit_status = getattr(latest_job, 'exit_status', None)
+                    
+                    # Calculate execution time
+                    if created_at and completed_at:
+                        execution_time = (completed_at - created_at).total_seconds()
+                    
+                    # Get cost directly from run (dstack tracks this)
+                    cost_usd = getattr(internal_run, 'cost', None)
+                    if cost_usd:
+                        self.task_costs[task_id] = cost_usd
+                        self.total_cost += cost_usd
+            except Exception as e:
+                logger.warning(f"Failed to extract run details: {e}")
+            
+            # CRITICAL FIX: Handle 'terminated'/'terminating' status properly
+            # When a task completes successfully, it goes: running → terminating → done
+            # We need to check exit status to distinguish success from failure
+            if run_status in ('terminating', 'terminated'):
+                if exit_status is not None:
+                    if exit_status == 0:
+                        # Exit code 0 = success
+                        status = TaskStatus.SUCCEEDED
+                        logger.debug(f"Task {task_id} terminated with exit code 0 (success)")
+                    else:
+                        # Non-zero exit code = failure
+                        status = TaskStatus.FAILED
+                        logger.debug(f"Task {task_id} terminated with exit code {exit_status} (failure)")
+                elif termination_reason == 'all_jobs_done':
+                    # Terminated because all jobs completed successfully
+                    status = TaskStatus.SUCCEEDED
+                    logger.debug(f"Task {task_id} terminated: all jobs done (success)")
+                else:
+                    # Still terminating or terminated for unknown reason, treat as running
+                    # Keep polling to see if it transitions to 'done' or 'failed'
+                    status = TaskStatus.RUNNING
+                    logger.debug(f"Task {task_id} is terminating (reason: {termination_reason}), continuing to poll...")
+            
+            # Stream logs during execution and retrieve buffered logs on completion
             output = None
             error = None
             
-            if status in (TaskStatus.SUCCEEDED, TaskStatus.FAILED):
+            # CRITICAL FIX: Stream logs while task is RUNNING
+            # The run.logs() iterator only works during execution, not after completion
+            if status == TaskStatus.RUNNING:
                 try:
-                    output = self.get_task_logs(task_id)
-                except:
-                    pass
+                    # Stream logs in real-time and append to buffer
+                    log_chunk_count = 0
+                    for log_chunk in run.logs():
+                        try:
+                            decoded = log_chunk.decode('utf-8', errors='ignore')
+                            self._log_buffers[task_id].append(decoded)
+                            log_chunk_count += 1
+                        except:
+                            self._log_buffers[task_id].append(str(log_chunk))
+                    
+                    if log_chunk_count > 0:
+                        logger.debug(f"Streamed {log_chunk_count} log chunks for task {task_id}")
+                except Exception as e:
+                    logger.debug(f"Log streaming error (non-fatal): {e}")
+            
+            # When task completes, return accumulated logs from buffer
+            if status in (TaskStatus.SUCCEEDED, TaskStatus.FAILED):
+                # Retrieve accumulated logs from buffer
+                if task_id in self._log_buffers and self._log_buffers[task_id]:
+                    output = ''.join(self._log_buffers[task_id])
+                    logger.info(f"Retrieved {len(output)} chars of buffered logs for completed task {task_id}")
+                else:
+                    logger.warning(f"No buffered logs found for task {task_id}, attempting direct fetch")
+                    try:
+                        output = self.get_task_logs(task_id)
+                    except:
+                        output = ""
                 
                 if status == TaskStatus.FAILED:
                     error = getattr(run, 'error_message', 'Task failed')
+                
+                # Clean up buffer after retrieval
+                if task_id in self._log_buffers:
+                    del self._log_buffers[task_id]
             
             return TaskResult(
                 task_id=task_id,
@@ -440,44 +580,114 @@ class DStackClient:
             logger.debug(f"Task {task_id} status: {result.status.value} (elapsed: {elapsed:.1f}s)")
             time.sleep(poll_interval)
     
-    def get_task_logs(self, task_id: str) -> str:
+    def get_task_logs(self, task_id: str, max_retries: int = 15, retry_delay: float = 3.0) -> str:
         """
-        Retrieve task execution logs
+        Retrieve task execution logs with retry mechanism and CLI fallback
+        
+        CRITICAL FIX: Logs may not be immediately available after task completion.
+        This method implements a robust retry strategy with multiple fallback methods.
+        
+        With idle_duration="10m", we have a 10-minute window to capture logs.
+        This retry strategy (15 attempts × 3s = 45s) provides multiple opportunities
+        to fetch logs within the first minute, well before the container terminates.
         
         Args:
-            task_id: Task identifier
+            task_id: Task identifier (run name)
+            max_retries: Maximum number of retry attempts (default: 15 = 45 seconds)
+            retry_delay: Delay between retries in seconds (default: 3.0)
             
         Returns:
-            Log output as string
+            Log output as string (may be empty if logs are unavailable)
             
         Raises:
-            DStackError: If log retrieval fails
+            DStackError: If log retrieval fails after all attempts
         """
-        try:
-            run = self._active_runs.get(task_id)
-            if not run:
+        logger.info(f"Retrieving logs for task {task_id} (max_retries={max_retries}, retry_delay={retry_delay}s)")
+        
+        # Strategy 1: Try SDK logs() method with retries
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempt {attempt + 1}/{max_retries}: Fetching logs via SDK...")
+                
+                # Get run reference (refresh from API to get latest state)
+                run = None
                 runs = self.client.runs.list()
                 for r in runs:
                     if r.name == task_id:
                         run = r
+                        self._active_runs[task_id] = run
                         break
-            
-            if not run:
-                raise DStackError(f"Task {task_id} not found")
-            
-            # Collect all logs
-            log_output = []
-            for log_chunk in run.logs():
+                
+                if not run:
+                    logger.warning(f"Task {task_id} not found in runs list")
+                    if attempt < max_retries - 1:
+                        logger.info(f"Waiting {retry_delay}s before retry...")
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        raise DStackError(f"Task {task_id} not found after {max_retries} attempts")
+                
+                # Try to get logs via SDK
+                log_output = []
                 try:
-                    log_output.append(log_chunk.decode('utf-8', errors='ignore'))
-                except:
-                    log_output.append(str(log_chunk))
+                    for log_chunk in run.logs():
+                        try:
+                            log_output.append(log_chunk.decode('utf-8', errors='ignore'))
+                        except:
+                            log_output.append(str(log_chunk))
+                except Exception as logs_error:
+                    logger.warning(f"SDK logs() method failed: {logs_error}")
+                    # Don't raise yet, we'll retry or try CLI fallback
+                
+                logs = ''.join(log_output)
+                
+                if logs and len(logs) > 0:
+                    logger.info(f"SUCCESS: Fetched {len(logs)} chars of logs via SDK on attempt {attempt + 1}")
+                    return logs
+                else:
+                    logger.warning(f"Attempt {attempt + 1}: SDK returned empty logs ({len(logs)} chars)")
+                    
+                    # If this is not the last attempt, wait and retry
+                    if attempt < max_retries - 1:
+                        logger.info(f"Waiting {retry_delay}s before retry (logs may not be flushed yet)...")
+                        time.sleep(retry_delay)
+                    
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Waiting {retry_delay}s before retry...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"All SDK attempts failed. Trying CLI fallback...")
+        
+        # Strategy 2: Fallback to dstack CLI
+        logger.info(f"Attempting CLI fallback: dstack logs {task_id}")
+        try:
+            import subprocess
+            result = subprocess.run(
+                ['dstack', 'logs', task_id],
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout for CLI command
+            )
             
-            return ''.join(log_output)
-            
+            if result.returncode == 0 and result.stdout:
+                logs = result.stdout
+                logger.info(f"SUCCESS: Fetched {len(logs)} chars of logs via CLI fallback")
+                return logs
+            else:
+                logger.warning(f"CLI fallback failed: returncode={result.returncode}, stderr={result.stderr}")
+        except FileNotFoundError:
+            logger.warning("dstack CLI not found in PATH - skipping CLI fallback")
+        except subprocess.TimeoutExpired:
+            logger.warning("CLI fallback timed out after 30s")
         except Exception as e:
-            logger.error(f"Failed to get task logs: {e}")
-            raise DStackError(f"Log retrieval failed: {e}") from e
+            logger.warning(f"CLI fallback failed: {e}")
+        
+        # Strategy 3: Last resort - return empty string with warning
+        logger.error(f"FAILED: Unable to retrieve logs for {task_id} after all attempts")
+        logger.error("This may indicate that logs were not captured or have expired")
+        return ""  # Return empty string instead of raising exception
     
     def terminate_task(self, task_id: str) -> bool:
         """

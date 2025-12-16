@@ -171,6 +171,9 @@ export default async function handler(
         console.log(
           `[Benchmark API] AMD runner completed successfully for submission ${submission.id}`
         );
+
+        // Give a moment for final SSE events to be flushed to client
+        await new Promise((resolve) => setTimeout(resolve, 500));
         res.end();
         return;
       } catch (error) {

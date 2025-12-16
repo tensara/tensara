@@ -58,11 +58,11 @@ export default async function handler(
     return;
   }
 
-  // Verify it's an AMD GPU
-  if (!payload.gpu_type.startsWith("MI")) {
+  // Verify it's MI300X (only supported GPU for now)
+  if (payload.gpu_type !== "MI300X") {
     res.status(400).json({
       error:
-        "This endpoint is only for AMD GPUs (MI210, MI250X, MI300A, MI300X)",
+        "Only MI300X GPU is currently supported. MI300X available at $1.99/hour via AMD DevCloud.",
     });
     return;
   }

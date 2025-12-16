@@ -1,0 +1,241 @@
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$✘!?]
+❯ ls
+matmul.hip                      README.md                       working_shell_output.txt
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$✘!?]
+❯ vim .dstack.yml
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$✘!?] took 9s
+❯ dstack apply -f .dstack.yml
+The working_dir is not set — using legacy default "/workflow". Future versions will default to the image's working
+directory.
+
+ Project          Tensara
+ User             someshkar
+ Configuration    .dstack.yml
+ Type             task
+ Resources        cpu=4.. mem=16GB.. disk=100GB.. MI300X:192GB:1
+ Spot policy      auto
+ Max price        -
+ Retry policy     -
+ Creation policy  reuse-or-create
+ Idle duration    10m
+ Max duration     -
+ Reservation      -
+
+ #  BACKEND             RESOURCES                                   INSTANCE TYPE               PRICE
+ 1  amddevcloud (atl1)  cpu=20 mem=240GB disk=720GB MI300X:192GB:1  gpu-mi300x1-192gb-devcloud  $1.99
+
+Submit a new run? [y/n]: y
+ NAME           BACKEND             GPU             PRICE  STATUS   SUBMITTED
+ polite-newt-1  amddevcloud (atl1)  MI300X:192GB:1  $1.99  running  01:31
+
+The run is using automatically created fleet ordinary-puma.
+Future dstack versions won't create fleets automatically.
+Create a fleet explicitly: https://dstack.ai/docs/concepts/fleets/
+
+
+polite-newt-1 provisioning completed (running)
+=== AMD MI300X Test ===
+GPU: MI300X (192GB VRAM, CDNA 3)
+Cost: $1.99/hour via AMD DevCloud grant
+
+=== ROCm Environment ===
+usage: rocm-smi [-h] [-V] [-d DEVICE [DEVICE ...]] [--alldevices] [--showhw] [-a] [-i] [-v] [-e [EVENT ...]]
+                [--showdriverversion] [--showtempgraph] [--showfwinfo [BLOCK ...]] [--showmclkrange] [--showmemvendo
+                [--showsclkrange] [--showproductname] [--showserial] [--showuniqueid] [--showvoltagerange] [--showbu
+                [--showpagesinfo] [--showpendingpages] [--showretiredpages] [--showunreservablepages] [-f] [-P] [-t]
+                [-u] [--showmemuse] [--showvoltage] [-b] [-c] [-g] [-l] [-M] [-m] [-o] [-p] [-S] [-s]
+                [--showmeminfo TYPE [TYPE ...]] [--showpids [VERBOSE]] [--showpidgpus [SHOWPIDGPUS ...]]
+                [--showreplaycount] [--showrasinfo [SHOWRASINFO ...]] [--showvc] [--showxgmierr] [--showtopo]
+                [--showtopoaccess] [--showtopoweight] [--showtopohops] [--showtopotype] [--showtoponuma]
+                [--showenergycounter] [--shownodesbw] [--showcomputepartition] [--showmemorypartition] [--showmetric
+                [-r] [--resetfans] [--resetprofile] [--resetpoweroverdrive] [--resetxgmierr] [--resetperfdeterminism
+                [--setclock TYPE LEVEL] [--setsclk LEVEL [LEVEL ...]] [--setmclk LEVEL [LEVEL ...]]
+                [--setpcie LEVEL [LEVEL ...]] [--setslevel SCLKLEVEL SCLK SVOLT] [--setmlevel MCLKLEVEL MCLK MVOLT]
+                [--setvc POINT SCLK SVOLT] [--setsrange SCLKMIN SCLKMAX] [--setextremum min|max sclk|mclk CLK]
+                [--setmrange MCLKMIN MCLKMAX] [--setfan LEVEL] [--setperflevel LEVEL] [--setoverdrive %]
+                [--setmemoverdrive %] [--setpoweroverdrive WATTS] [--setprofile SETPROFILE] [--setperfdeterminism SC
+                [--setcomputepartition {SPX,DPX,TPX,QPX,CPX,spx,dpx,tpx,qpx,cpx}]
+                [--setmemorypartition {NPS1,NPS2,NPS4,NPS8,nps1,nps2,nps4,nps8}] [--rasenable BLOCK ERRTYPE]
+                [--rasdisable BLOCK ERRTYPE] [--rasinject BLOCK] [--gpureset] [--load FILE | --save FILE]
+                [--autorespond RESPONSE] [--loglevel LEVEL] [--json] [--csv]
+rocm-smi: error: argument --showmeminfo: expected at least one argument
+rocm-smi not available
+HIP version: 7.1.52802-26aae437f6
+AMD clang version 20.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.1.1 25444 27682a16360e33e37c4f3
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/rocm-7.1.1/lib/llvm/bin
+Configuration file: /opt/rocm-7.1.1/lib/llvm/bin/clang++.cfg
+
+=== Compiling HIP Kernel ===
+Compilation successful
+
+=== Executing on MI300X ===
+/bin/sh: 1: time: not found
+Exited (127)
+Check dstack logs -d polite-newt-1 for more details.
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$✘!?] took 7m34s
+❯ dstack apply -f .dstack.yml
+ Project          Tensara
+ User             someshkar
+ Configuration    .dstack.yml
+ Type             task
+ Resources        cpu=4.. mem=16GB.. disk=100GB.. MI300X:192GB:1
+ Spot policy      auto
+ Max price        -
+ Retry policy     -
+ Creation policy  reuse-or-create
+ Idle duration    10m
+ Max duration     -
+ Reservation      -
+
+ #  BACKEND             RESOURCES                                   INSTANCE TYPE               PRICE
+ 1  amddevcloud (atl1)  cpu=20 mem=240GB disk=720GB MI300X:192GB:1  gpu-mi300x1-192gb-devcloud  $1.99
+
+Submit a new run? [y/n]: y
+ NAME         BACKEND             GPU             PRICE  STATUS   SUBMITTED
+ tame-goat-1  amddevcloud (atl1)  MI300X:192GB:1  $1.99  running  01:49
+
+The run is using automatically created fleet cuddly-newt.
+Future dstack versions won't create fleets automatically.
+Create a fleet explicitly: https://dstack.ai/docs/concepts/fleets/
+
+
+tame-goat-1 provisioning completed (running)
+=== AMD MI300X Test ===
+GPU MI300X - 192GB VRAM - CDNA 3
+Cost 1.99 per hour via AMD DevCloud grant
+
+=== ROCm Environment ===
+/opt/rocm/bin/rocm-smi
+
+
+============================ ROCm System Management Interface ============================
+WARNING: AMD GPU device(s) is/are in a low-power state. Check power control/runtime_status
+
+====================================== Product Info ======================================
+GPU[0]          : Card Series:          AMD Instinct MI300X VF
+GPU[0]          : Card Model:           0x74b5
+GPU[0]          : Card Vendor:          Advanced Micro Devices, Inc. [AMD/ATI]
+GPU[0]          : Card SKU:             M3000100
+GPU[0]          : Subsystem ID:         0x74a1
+GPU[0]          : Device Rev:           0x00
+GPU[0]          : Node ID:              1
+GPU[0]          : GUID:                 21947
+GPU[0]          : GFX Version:          gfx942
+==========================================================================================
+================================== End of ROCm SMI Log ===================================
+/opt/rocm/bin/hipcc
+HIP version: 7.1.52802-26aae437f6
+AMD clang version 20.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.1.1 25444 27682a16360e33e37c4f3
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/rocm-7.1.1/lib/llvm/bin
+Configuration file: /opt/rocm-7.1.1/lib/llvm/bin/clang++.cfg
+
+=== Compiling HIP Kernel ===
+Compilation successful
+
+=== Executing on MI300X ===
+=== HIP Matrix Multiplication ===
+Matrix dimensions: A(1024x1024) * B(1024x1024) = C(1024x1024)
+Tile size: 16x16
+Memory: 4.00MB per matrix
+
+Kernel execution: 0.61 ms
+Performance: 3526.73 GFLOPS
+
+Verifying result...
+Result: PASSED ✓
+
+=== Test Complete ===
+Exited (0)
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$✘!?] took 8m35s
+❯ dstack apply -f .dstack.yml
+ Project          Tensara
+ User             someshkar
+ Configuration    .dstack.yml
+ Type             task
+ Resources        cpu=4.. mem=16GB.. disk=100GB.. MI300X:192GB:1
+ Spot policy      auto
+ Max price        -
+ Retry policy     -
+ Creation policy  reuse-or-create
+ Idle duration    10m
+ Max duration     -
+ Reservation      -
+
+ #  BACKEND             RESOURCES                                   INSTANCE TYPE               PRICE
+ 1  amddevcloud (atl1)  cpu=20 mem=240GB disk=720GB MI300X:192GB:1  gpu-mi300x1-192gb-devcloud  $1.99  idle
+ 2  amddevcloud (atl1)  cpu=20 mem=240GB disk=720GB MI300X:192GB:1  gpu-mi300x1-192gb-devcloud  $1.99
+
+Submit a new run? [y/n]: y
+ NAME         BACKEND             GPU             PRICE  STATUS   SUBMITTED
+ nasty-fox-1  amddevcloud (atl1)  MI300X:192GB:1  $1.99  running  01:57
+
+The run is using automatically created fleet cuddly-newt.
+Future dstack versions won't create fleets automatically.
+Create a fleet explicitly: https://dstack.ai/docs/concepts/fleets/
+
+
+nasty-fox-1 provisioning completed (running)
+=== AMD MI300X Test ===
+GPU MI300X - 192GB VRAM - CDNA 3
+Cost 1.99 per hour via AMD DevCloud grant
+
+=== ROCm Environment ===
+/opt/rocm/bin/rocm-smi
+
+
+============================ ROCm System Management Interface ============================
+WARNING: AMD GPU device(s) is/are in a low-power state. Check power control/runtime_status
+
+====================================== Product Info ======================================
+GPU[0]          : Card Series:          AMD Instinct MI300X VF
+GPU[0]          : Card Model:           0x74b5
+GPU[0]          : Card Vendor:          Advanced Micro Devices, Inc. [AMD/ATI]
+GPU[0]          : Card SKU:             M3000100
+GPU[0]          : Subsystem ID:         0x74a1
+GPU[0]          : Device Rev:           0x00
+GPU[0]          : Node ID:              1
+GPU[0]          : GUID:                 21947
+GPU[0]          : GFX Version:          gfx942
+==========================================================================================
+================================== End of ROCm SMI Log ===================================
+/opt/rocm/bin/hipcc
+HIP version: 7.1.52802-26aae437f6
+AMD clang version 20.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.1.1 25444 27682a16360e33e37c4f3cc6adf9a620733f8fe1)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/rocm-7.1.1/lib/llvm/bin
+Configuration file: /opt/rocm-7.1.1/lib/llvm/bin/clang++.cfg
+
+=== Compiling HIP Kernel ===
+Compilation successful
+
+=== Executing on MI300X ===
+=== HIP Matrix Multiplication ===
+Matrix dimensions: A(1024x1024) * B(1024x1024) = C(1024x1024)
+Tile size: 16x16
+Memory: 4.00MB per matrix
+
+Kernel execution: 0.59 ms
+Performance: 3647.05 GFLOPS
+
+Verifying result...
+Result: PASSED ✓
+
+=== Test Complete ===
+Lost run connection. Timed out waiting for run final status. Check `dstack ps` to see if it's done or failed.
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$✘!?] took 2m12s
+❯ dstack ps
+ NAME         BACKEND             GPU             PRICE  STATUS      SUBMITTED
+ nasty-fox-1  amddevcloud (atl1)  MI300X:192GB:1  $1.99  exited (0)  2 mins ago
+
+tensara-app/testing/rocm-dstack-hotaisle on  amd [$✘!?] took 2s
+❯

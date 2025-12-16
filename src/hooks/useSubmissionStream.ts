@@ -132,6 +132,11 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       const status = (data as Partial<{ status: string }>)?.status ?? eventName;
       if (!status) return;
 
+      // Silently consume heartbeat events to keep connection alive
+      if (eventName === "heartbeat" || status === "heartbeat") {
+        return;
+      }
+
       console.log(`[SSE] Event received: ${eventName || status}`, {
         status,
         data: JSON.stringify(data).substring(0, 200),

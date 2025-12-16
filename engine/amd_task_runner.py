@@ -16,29 +16,47 @@ from typing import Dict, Any, Optional
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from dstack_runner import DStackClient, TaskConfig, TaskStatus
+from dstack_cli_wrapper import DStackCLIWrapper, TaskStatus
+from hip_harness import generate_hip_benchmark_harness
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
-)
+# Configure logging - send INFO to stdout so it doesn't appear as errors
+class InfoFilter(logging.Filter):
+    def filter(self, record):
+        return record.levelno == logging.INFO
+
+class ErrorFilter(logging.Filter):
+    def filter(self, record):
+        return record.levelno >= logging.WARNING
+
+# INFO and DEBUG go to stdout (normal logs)
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.INFO)
+stdout_handler.addFilter(InfoFilter())
+stdout_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# WARNING and ERROR go to stderr (actual errors)
+stderr_handler = logging.StreamHandler(sys.stderr)
+stderr_handler.setLevel(logging.WARNING)
+stderr_handler.addFilter(ErrorFilter())
+stderr_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+logging.basicConfig(level=logging.INFO, handlers=[stdout_handler, stderr_handler])
 logger = logging.getLogger(__name__)
 
 
 def send_sse(event: str, data: Dict[str, Any]) -> None:
     """
-    Send SSE event to stdout
+    Send SSE event to stdout with SSE_EVENT marker for filtering
     
     Args:
         event: Event name (matches frontend expected events)
         data: Event data as dictionary
     """
     logger.info(f"Sending SSE event: {event} - {json.dumps(data, indent=2)}")
-    print(f"event: {event}", flush=True)
-    print(f"data: {json.dumps(data)}", flush=True)
-    print("", flush=True)
+    # Use SSE_EVENT: prefix to distinguish from regular logs
+    print(f"SSE_EVENT:event: {event}", flush=True)
+    print(f"SSE_EVENT:data: {json.dumps(data)}", flush=True)
+    print("SSE_EVENT:", flush=True)
 
 
 def parse_kernel_output(output: str, endpoint: str) -> Dict[str, Any]:
@@ -82,24 +100,56 @@ def parse_kernel_output(output: str, endpoint: str) -> Dict[str, Any]:
         runtime_ms = None
         gflops = None
         
-        for line in output.split('\n'):
-            if 'Runtime:' in line and 'ms' in line:
-                try:
-                    runtime_ms = float(line.split('Runtime:')[1].split('ms')[0].strip())
-                except:
-                    pass
-            if 'GFLOPS:' in line or 'GFlops:' in line:
-                try:
-                    gflops = float(line.split(':')[1].strip())
-                except:
-                    pass
+        logger.info(f"Parsing benchmark output ({len(output)} chars)")
+        if len(output) > 0:
+            logger.info(f"Output preview (first 500 chars):\n{output[:500]}")
+            logger.info(f"Output preview (last 500 chars):\n{output[-500:]}")
+        else:
+            logger.error("Output is completely empty - cannot parse benchmark results!")
         
-        if runtime_ms or gflops:
-            results.update({
-                "runtime_ms": runtime_ms,
-                "gflops": gflops,
-                "parsed": True
-            })
+        for line in output.split('\n'):
+            line_lower = line.lower()
+            
+            # Parse runtime (case-insensitive)
+            if 'runtime:' in line_lower and 'ms' in line_lower:
+                try:
+                    # Try multiple parsing strategies
+                    if 'Runtime:' in line:
+                        value_str = line.split('Runtime:')[1].split('ms')[0].strip()
+                    else:
+                        value_str = line_lower.split('runtime:')[1].split('ms')[0].strip()
+                    runtime_ms = float(value_str)
+                    logger.info(f"✓ Successfully parsed runtime: {runtime_ms} ms from line: '{line.strip()}'")
+                except Exception as e:
+                    logger.warning(f"✗ Failed to parse runtime from line '{line}': {e}")
+            
+            # Parse GFLOPS (case-insensitive)
+            if 'gflops:' in line_lower or 'gflop/s:' in line_lower:
+                try:
+                    # Split on colon and take the value
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        gflops = float(parts[1].strip())
+                        logger.info(f"✓ Successfully parsed GFLOPS: {gflops} from line: '{line.strip()}'")
+                except Exception as e:
+                    logger.warning(f"✗ Failed to parse GFLOPS from line '{line}': {e}")
+        
+        # Always update results for benchmark endpoint, even if parsing failed
+        results.update({
+            "runtime_ms": runtime_ms if runtime_ms is not None else 0.0,
+            "gflops": gflops if gflops is not None else 0.0,
+            "parsed": runtime_ms is not None or gflops is not None
+        })
+        
+        if runtime_ms is None and gflops is None:
+            logger.error("=" * 80)
+            logger.error("PARSING FAILED: Could not extract benchmark results from output!")
+            logger.error("Looking for patterns:")
+            logger.error("  - 'Runtime: <number> ms' (case-insensitive)")
+            logger.error("  - 'GFLOPS: <number>' (case-insensitive)")
+            logger.error(f"Full output ({len(output)} chars):")
+            logger.error(output if output else "(empty)")
+            logger.error("=" * 80)
     
     return results
 
@@ -126,14 +176,16 @@ def execute_task(payload: Dict[str, Any]) -> int:
         # Extract payload fields
         solution_code = payload.get('solution_code', '')
         problem = payload.get('problem', 'unknown')
+        problem_def = payload.get('problem_def', '')
         gpu_type = payload.get('gpu_type', 'MI210')
         endpoint = payload.get('endpoint', 'checker')
+        dtype = payload.get('dtype', 'float32')
         
         # Use provided submission ID or generate one
         submission_id = payload.get('submission_id') or f"amd-{endpoint}-{int(time.time())}"
         
         logger.info("=" * 80)
-        logger.info(f"Starting AMD task execution")
+        logger.info(f"Starting AMD task execution via CLI wrapper")
         logger.info(f"Submission ID: {submission_id}")
         logger.info(f"GPU Type: {gpu_type}")
         logger.info(f"Endpoint: {endpoint}")
@@ -148,40 +200,37 @@ def execute_task(payload: Dict[str, Any]) -> int:
             "message": f"Submission queued for {gpu_type} GPU provisioning...",
         })
         
-        # Initialize dstack client
-        logger.info("Step 2: Initializing dstack client")
-        client = DStackClient()
-        logger.info("DStack client initialized successfully")
+        # Initialize dstack CLI wrapper
+        logger.info("Step 2: Initializing dstack CLI wrapper")
+        client = DStackCLIWrapper()
+        logger.info("DStack CLI wrapper initialized successfully")
         
-        # Verify client health
-        logger.info("Step 3: Verifying dstack client health")
-        if not client.health_check():
-            error_msg = "dstack client health check failed"
-            logger.error(f"Error occurred: {error_msg}")
-            raise Exception(error_msg)
-        logger.info("DStack client health check passed")
+        # Generate benchmark harness
+        logger.info("Step 3: Generating benchmark harness")
+        harness_code = generate_hip_benchmark_harness(
+            problem_slug=problem,
+            problem_def=problem_def,
+            dtype=dtype
+        )
+        logger.info(f"Generated harness code: {len(harness_code)} characters")
         
         send_sse("PROVISIONING", {
             "status": "PROVISIONING",
-            "message": "dstack client initialized, submitting task...",
+            "message": "Submitting task to dstack...",
         })
         
-        # Create task configuration
-        logger.info("Step 4: Creating task configuration")
-        config = TaskConfig(
+        # Submit task via CLI
+        logger.info(f"Step 4: Submitting task to dstack for submission {submission_id}")
+        task_name = f"tensara-{submission_id}"
+        
+        task_id = client.submit_task(
+            task_name=task_name,
             gpu_type=gpu_type,
             source_code=solution_code,
+            harness_code=harness_code,
             problem_id=problem,
             submission_id=submission_id,
-            timeout=600  # 10 minutes
         )
-        logger.info("Task configuration created successfully")
-        
-        logger.info(f"Step 5: Submitting task to dstack for submission {submission_id}")
-        
-        # Submit task (non-blocking)
-        result = client.submit_task(config, wait=False)
-        task_id = result.task_id
         
         logger.info(f"Task submitted successfully with task ID: {task_id}")
         
@@ -191,16 +240,24 @@ def execute_task(payload: Dict[str, Any]) -> int:
         })
         
         # Poll for status updates
-        logger.info("Step 6: Starting status polling loop")
+        logger.info("Step 5: Starting status polling loop")
         last_status = None
         poll_count = 0
         max_polls = 120  # 10 minutes max (5s intervals)
         compilation_sent = False
         checking_sent = False
+        last_heartbeat = time.time()
+        HEARTBEAT_INTERVAL = 15  # Send heartbeat every 15 seconds to keep SSE connection alive
         
         while poll_count < max_polls:
             time.sleep(5)
             poll_count += 1
+            
+            # Send heartbeat to keep SSE connection alive during long waits
+            current_time = time.time()
+            if current_time - last_heartbeat >= HEARTBEAT_INTERVAL:
+                send_sse("heartbeat", {"timestamp": int(current_time * 1000)})
+                last_heartbeat = current_time
             
             try:
                 result = client.get_task_status(task_id)
@@ -249,12 +306,19 @@ def execute_task(payload: Dict[str, Any]) -> int:
                     
                     elif result.status == TaskStatus.SUCCEEDED:
                         logger.info("=" * 80)
-                        logger.info("Task succeeded! Retrieving output...")
+                        logger.info("Task succeeded! Retrieving output via CLI...")
                         logger.info("=" * 80)
                         
-                        # Get output
-                        output = result.output or ""
-                        logger.info(f"Output received ({len(output)} characters)")
+                        # Fetch logs using CLI
+                        output = client.get_task_logs(task_id, max_retries=10, retry_delay=2.0)
+                        
+                        if not output or len(output) == 0:
+                            logger.error("ERROR: No logs were retrieved from task!")
+                            logger.error("This indicates that the task did not produce any output")
+                        else:
+                            logger.info(f"Successfully retrieved {len(output)} characters of logs")
+                        
+                        logger.info(f"Final output length: {len(output)} characters")
                         
                         # Parse output based on endpoint type
                         logger.info(f"Parsing output for endpoint type: {endpoint}")
@@ -274,16 +338,18 @@ def execute_task(payload: Dict[str, Any]) -> int:
                                 "output": parsed.get('output', ''),
                             })
                         elif endpoint == "benchmark":
-                            send_sse("BENCHMARKED", {
+                            benchmark_data = {
                                 "status": "BENCHMARKED",
                                 "message": "Benchmark completed successfully",
-                                "avg_runtime_ms": parsed.get('runtime_ms', 0),
-                                "avg_gflops": parsed.get('gflops'),
+                                "avg_runtime_ms": parsed.get('runtime_ms', 0.0),
+                                "avg_gflops": parsed.get('gflops', 0.0),
                                 "execution_time": result.execution_time,
                                 "cost_usd": result.cost_usd,
                                 "output": parsed.get('output', ''),
                                 "submission_id": submission_id,
-                            })
+                            }
+                            logger.info(f"Sending BENCHMARKED event with data: runtime_ms={benchmark_data['avg_runtime_ms']}, gflops={benchmark_data['avg_gflops']}")
+                            send_sse("BENCHMARKED", benchmark_data)
                         else:
                             send_sse("COMPLETED", {
                                 "status": "COMPLETED",
@@ -315,31 +381,19 @@ def execute_task(payload: Dict[str, Any]) -> int:
                         })
                         return 1
                     
-                    elif result.status == TaskStatus.TIMEOUT:
-                        logger.error("=" * 80)
-                        logger.error("Error occurred: Task execution timeout")
-                        logger.error("The task exceeded the maximum execution time of 10 minutes")
-                        logger.error("=" * 80)
-                        
-                        send_sse("ERROR", {
-                            "status": "ERROR",
-                            "error": "Task execution timeout",
-                            "details": "The task exceeded the maximum execution time of 10 minutes",
-                            "message": "Execution timeout",
-                            "submission_id": submission_id,
-                        })
-                        return 1
-                    
                     elif result.status == TaskStatus.TERMINATED:
+                        # Note: TERMINATED status should now only occur for actual failures
+                        # (manual termination, killed by user, etc.) because successful
+                        # terminations (exit code 0) are now mapped to SUCCEEDED in dstack_runner
                         logger.error("=" * 80)
-                        logger.error("Error occurred: Task was terminated")
+                        logger.error("Error occurred: Task was terminated unexpectedly")
                         logger.error(f"Termination reason: {result.error or 'Unknown'}")
                         logger.error("=" * 80)
                         
                         send_sse("ERROR", {
                             "status": "ERROR",
                             "error": "Task was terminated",
-                            "details": result.error or "Task was manually terminated",
+                            "details": result.error or "Task was manually terminated or killed",
                             "message": "Task terminated",
                             "submission_id": submission_id,
                         })

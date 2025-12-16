@@ -95,56 +95,73 @@ export async function executePythonRunner(
 
       for (const line of lines) {
         if (line.trim()) {
-          res.write(line + "\n");
+          // Filter and process only SSE events (lines starting with SSE_EVENT:)
+          if (line.startsWith("SSE_EVENT:")) {
+            // Strip the SSE_EVENT: prefix and write to response
+            const sseContent = line.substring("SSE_EVENT:".length);
+            res.write(sseContent + "\n");
 
-          // Parse SSE events to update database
-          if (payload.submission_id && payload.endpoint === "benchmark") {
-            try {
-              // Parse SSE event
-              if (
-                line.startsWith("event: BENCHMARKED") ||
-                line.startsWith("data: ")
-              ) {
-                const dataMatch = line.match(/^data: (.+)$/);
-                if (dataMatch && dataMatch[1]) {
-                  const eventData = JSON.parse(dataMatch[1]);
+            // Parse SSE events to update database
+            if (payload.submission_id && payload.endpoint === "benchmark") {
+              try {
+                // Parse SSE event (after stripping prefix)
+                if (
+                  sseContent.startsWith("event: BENCHMARKED") ||
+                  sseContent.startsWith("data: ")
+                ) {
+                  const dataMatch = sseContent.match(/^data: (.+)$/);
+                  if (dataMatch && dataMatch[1]) {
+                    const eventData = JSON.parse(dataMatch[1]);
 
-                  // Update database when benchmarking completes
-                  if (eventData.status === "BENCHMARKED") {
-                    await db.submission.update({
-                      where: { id: payload.submission_id },
-                      data: {
-                        status: SubmissionStatus.ACCEPTED,
-                        runtime: eventData.avg_runtime_ms,
-                        gflops: eventData.avg_gflops,
-                        passedTests: 1, // Dummy value for now
-                        totalTests: 1, // Dummy value for now
-                      },
-                    });
-                  } else if (eventData.status === "ERROR") {
-                    // Mark submission as error if benchmarking failed
-                    await db.submission.update({
-                      where: { id: payload.submission_id },
-                      data: {
-                        status: "ERROR",
-                        errorMessage: eventData.error || "Benchmarking failed",
-                        errorDetails: eventData.details || "",
-                      },
-                    });
-                    console.log(
-                      `[AMD Runner] Successfully updated submission ${payload.submission_id} to ERROR`
-                    );
+                    // Update database when benchmarking completes
+                    if (eventData.status === "BENCHMARKED") {
+                      console.log(
+                        `[AMD Runner] Updating submission ${payload.submission_id} with benchmark results:`,
+                        {
+                          runtime: eventData.avg_runtime_ms,
+                          gflops: eventData.avg_gflops,
+                        }
+                      );
+                      await db.submission.update({
+                        where: { id: payload.submission_id },
+                        data: {
+                          status: SubmissionStatus.ACCEPTED,
+                          runtime: eventData.avg_runtime_ms,
+                          gflops: eventData.avg_gflops,
+                          passedTests: 1, // Dummy value for now
+                          totalTests: 1, // Dummy value for now
+                        },
+                      });
+                      console.log(
+                        `[AMD Runner] Successfully updated submission ${payload.submission_id} with benchmark results`
+                      );
+                    } else if (eventData.status === "ERROR") {
+                      // Mark submission as error if benchmarking failed
+                      await db.submission.update({
+                        where: { id: payload.submission_id },
+                        data: {
+                          status: "ERROR",
+                          errorMessage:
+                            eventData.error || "Benchmarking failed",
+                          errorDetails: eventData.details || "",
+                        },
+                      });
+                      console.log(
+                        `[AMD Runner] Successfully updated submission ${payload.submission_id} to ERROR`
+                      );
+                    }
                   }
                 }
+              } catch (e) {
+                // Ignore parsing errors, continue streaming
+                console.error(
+                  `[AMD Runner] Database update error for submission ${payload.submission_id}:`,
+                  e
+                );
               }
-            } catch (e) {
-              // Ignore parsing errors, continue streaming
-              console.error(
-                `[AMD Runner] Database update error for submission ${payload.submission_id}:`,
-                e
-              );
             }
           }
+          // Non-SSE lines (Python logs) are not written to response, only logged to console
         }
       }
 

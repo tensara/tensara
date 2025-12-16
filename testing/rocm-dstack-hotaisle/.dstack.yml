@@ -1,51 +1,49 @@
 type: task
 
-# Keep instance warm for 5 minutes after task completion
-# This allows consecutive runs to reuse the same instance
-idle_duration: 5m
+working_dir: /workspace
 
-# Reuse existing instances when possible
+idle_duration: 10m
+
 creation_policy: reuse-or-create
 
-# Use spot instances for cost savings
 spot_policy: auto
 
 resources:
   gpu:
     name: MI300X
     count: 1
-  cpu: 2..
-  memory: 8GB..
+    memory: 192GB
+  cpu: 4..
+  memory: 16GB..
   disk: 100GB..
 
-# Backend configuration
 backends:
-  - hotaisle
+  - amddevcloud
 
-# ROCm-ready base image
 image: rocm/pytorch:latest
 
-# Environment variables for task execution
 env:
   - ROCM_PATH=/opt/rocm
   - HIP_PLATFORM=amd
+  - GPU_TYPE=MI300X
 
-# Upload the HIP source file
 files:
   - ./matmul.hip
 
-# Commands will be injected by dstack_runner.py
-# Default example commands for reference:
 commands:
+  - echo "=== AMD MI300X Test ==="
+  - echo "GPU MI300X - 192GB VRAM - CDNA 3"
+  - echo "Cost 1.99 per hour via AMD DevCloud grant"
+  - echo ""
   - echo "=== ROCm Environment ==="
-  - rocm-smi --showproductname || echo 'rocm-smi not available'
-  - hipcc --version || echo 'hipcc not available'
+  - which rocm-smi && rocm-smi --showproductname || echo "rocm-smi not found"
+  - which hipcc && hipcc --version || echo "hipcc not found"
   - echo ""
   - echo "=== Compiling HIP Kernel ==="
-  - hipcc matmul.hip -o matmul -O3 || exit 1
+  - hipcc matmul.hip -o matmul -O3
   - echo "Compilation successful"
   - echo ""
-  - echo "=== Running Kernel ==="
+  - echo "=== Executing on MI300X ==="
   - ./matmul 1024
   - echo ""
-  - echo "=== Execution Complete ==="
+  - echo "=== Test Complete ==="
