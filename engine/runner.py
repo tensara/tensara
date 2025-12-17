@@ -466,11 +466,126 @@ def run_benchmark(
         yield {"status": "ERROR", "message": str(e), "details": traceback.format_exc()}
 
 
-def run_sandbox(compiled_lib: bytes, solution_code: str):
+def run_sandbox(compiled_lib: bytes, solution_code: str, language: str):
     """
-    Run sandbox on a compiled solution with real-time output streaming
+    Run sandbox on a solution with real-time output streaming
     """
     try:
+        # CuTe DSL needs explicit arch/toolkit hints; default to the sandbox GPU (T4 -> sm_75)
+        if language == "cute":
+            target_sm_num = utils.GPU_COMPUTE_CAPABILITIES["T4"]
+            target_sm = f"sm_{target_sm_num}"
+            target_sm_compact = f"sm{target_sm_num}"
+            # Set both textual and numeric variants because the DSL checks differ in places.
+            # Use direct assignment to override any existing values.
+            cute_env = {
+                "CUTLASS_DSL_TARGET_SM": target_sm_num,
+                "CUTLASS_TARGET_SM": target_sm_num,
+                "TARGET_SM_ARCH": target_sm_num,
+                "TARGET_SM": target_sm_num,
+                "CUTLASS_DSL_TARGET_SM_STR": target_sm,
+                "CUTLASS_TARGET_SM_STR": target_sm,
+                "TARGET_SM_ARCH_STR": target_sm,
+                "TARGET_SM_STR": target_sm,
+                "CUTLASS_DSL_TARGET_SM_COMPACT": target_sm_compact,
+                "CUTLASS_TARGET_SM_COMPACT": target_sm_compact,
+                "TARGET_SM_ARCH_COMPACT": target_sm_compact,
+                "TARGET_SM_COMPACT": target_sm_compact,
+                "CUTE_TARGET_SM": target_sm_num,
+                "CUTE_TARGET_SM_STR": target_sm,
+                "GPU_ARCH": target_sm,
+                "CUDA_ARCHITECTURES": target_sm_num,
+                "CUDA_TOOLKIT_PATH": "/usr/local/cuda",
+            }
+            for k, v in cute_env.items():
+                os.environ[k] = str(v)
+
+        # Handle CuTE DSL separately
+        if language == "cute":
+            if not solution_code:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": "No solution code provided for CuTE DSL",
+                }
+                return
+
+            yield {
+                "status": "SANDBOX_RUNNING",
+            }
+
+            # Debugging: surface the arch/toolkit settings to the sandbox terminal
+            # if "cute_env" in locals():
+            #     yield {
+            try:
+                # Ensure CUDA context is initialized before CuTe JIT runs
+                import torch
+
+                if torch.cuda.is_available():
+                    torch.cuda.init()
+                    torch.cuda.set_device(0)
+                solution_func = utils.make_solution_func(
+                    language, solution_code, None, None, allowed_entrypoints=("solution", "main")
+                )
+            except AttributeError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "CuTe submission must define `solution` or `main`",
+                    "details": str(e),
+                }
+                return
+            except Exception as e:
+                yield {
+                    "status": "SANDBOX_ERROR",
+                    "message": str(e),
+                    "details": traceback.format_exc(),
+                }
+                return
+
+            start_time = time.time()
+            stdout_buf = io.StringIO()
+            stderr_buf = io.StringIO()
+
+            # some CuTe flows require a tensor to initialize context
+            _ = utils.cast_to_cute([torch.tensor([1, 2, 3], device="cuda")])
+
+            with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+                solution_func()  # Call without parameters for sandbox mode
+
+            captured_stdout = stdout_buf.getvalue()
+            captured_stderr = stderr_buf.getvalue()
+
+            # stream captured stdout/stderr line by line to mimic other languages
+            output_bytes = 0
+            for stream_name, text in (("stdout", captured_stdout), ("stderr", captured_stderr)):
+                for line in text.splitlines():
+                    prospective_total = output_bytes + len(line.encode("utf-8")) + 1
+                    if prospective_total > MAX_SANDBOX_OUTPUT_BYTES:
+                        yield {
+                            "status": "SANDBOX_OUTPUT_LIMIT",
+                            "message": f"Sandbox output exceeded limit of {MAX_SANDBOX_OUTPUT_BYTES // 1024} KB",
+                            "stdout": captured_stdout,
+                            "stderr": captured_stderr,
+                            "details": "Execution stopped because the program produced too much console output.",
+                        }
+                        return
+
+                    output_bytes = prospective_total
+                    yield {
+                        "status": "SANDBOX_OUTPUT",
+                        "stream": stream_name,
+                        "line": line,
+                        "timestamp": time.time(),
+                    }
+
+            yield {
+                "status": "SANDBOX_SUCCESS",
+                "stdout": captured_stdout,
+                "stderr": captured_stderr,
+                "return_code": 0,
+                "execution_time": time.time() - start_time,
+            }
+            return
         if not compiled_lib:
             yield {
                 "status": "COMPILE_ERROR",

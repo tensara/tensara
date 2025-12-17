@@ -146,21 +146,31 @@ export default function Sandbox({
     saveVimModePreference(isVimModeEnabled);
   }, [isVimModeEnabled, hasLoadedVimPreference]);
 
-  // If the active file's extension indicates Mojo, switch the language selector
-  // to `mojo`. We treat files ending with `.mojo` or with the special emoji
-  // suffix `.🔥` as Mojo files. If the active file is not Mojo and the current
-  // selection is `mojo`, revert to `cuda` so the editor reflects the file type.
+  // If the active file's extension indicates a specific language, switch the
+  // language selector to match. We auto-detect Mojo via `.mojo` or `.🔥` and
+  // CuTe via `.py` (Python-based DSL). When the active file no longer matches
+  // those extensions, revert back to CUDA if the selector was auto-set.
   useEffect(() => {
     if (!activeFile?.name) return;
     const name = activeFile.name;
     const isMojo = name.toLowerCase().endsWith(".mojo") || name.endsWith(".🔥");
+    const isCute = name.toLowerCase().endsWith(".py");
+
     if (isMojo) {
       setSelectedLanguage("mojo");
-    } else {
-      // Only change away from mojo if the selector is currently mojo so we
-      // don't override an explicit user choice for other languages.
-      setSelectedLanguage((prev) => (prev === "mojo" ? "cuda" : prev));
+      return;
     }
+
+    if (isCute) {
+      setSelectedLanguage("cute");
+      return;
+    }
+
+    // Only change away from auto-detected languages so we don't override an
+    // explicit user choice for other languages.
+    setSelectedLanguage((prev) =>
+      prev === "mojo" || prev === "cute" ? "cuda" : prev
+    );
   }, [activeFile?.name]);
 
   useEffect(() => {
@@ -489,7 +499,12 @@ export default function Sandbox({
   };
 
   const getNewFileName = (index: number) => {
-    const ext = selectedLanguage === "mojo" ? "mojo" : "cu";
+    const ext =
+      selectedLanguage === "mojo"
+        ? "mojo"
+        : selectedLanguage === "cute"
+          ? "py"
+          : "cu";
     return `file${index}.${ext}`;
   };
 
@@ -655,7 +670,7 @@ export default function Sandbox({
               {/* Hidden file input */}
               <input
                 type="file"
-                accept=".cu,.mojo,.cpp,.h,.txt"
+                accept=".cu,.mojo,.cpp,.h,.txt,.py"
                 ref={uploadRef}
                 style={{ display: "none" }}
                 onChange={(e) => {
@@ -874,21 +889,21 @@ export default function Sandbox({
                     minW="0"
                     w={editorMenuWidth ? `${editorMenuWidth}px` : undefined}
                   >
-                    {(["cuda", "mojo"] satisfies ProgrammingLanguage[]).map(
-                      (lang) => (
-                        <MenuItem
-                          key={lang}
-                          onClick={() => setSelectedLanguage(lang)}
-                          bg="brand.secondary"
-                          _hover={{ bg: "gray.700" }}
-                          color="white"
-                          borderRadius="lg"
-                          fontSize="sm"
-                        >
-                          {getLanguageDisplay(lang)}
-                        </MenuItem>
-                      )
-                    )}
+                    {(
+                      ["cuda", "mojo", "cute"] satisfies ProgrammingLanguage[]
+                    ).map((lang) => (
+                      <MenuItem
+                        key={lang}
+                        onClick={() => setSelectedLanguage(lang)}
+                        bg="brand.secondary"
+                        _hover={{ bg: "gray.700" }}
+                        color="white"
+                        borderRadius="lg"
+                        fontSize="sm"
+                      >
+                        {getLanguageDisplay(lang)}
+                      </MenuItem>
+                    ))}
                   </MenuList>
                 </Menu>
                 <Text

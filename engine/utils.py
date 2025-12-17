@@ -720,7 +720,13 @@ def subproc_generator(timeout=None):
     return _subproc_generator
 
 
-def make_solution_func(language: str, solution_code: str, compiled: bytes, problem: Problem):
+def make_solution_func(
+    language: str,
+    solution_code: str,
+    compiled: bytes,
+    problem: Problem,
+    allowed_entrypoints: tuple[str, ...] = ("solution",),
+):
     if language == "cuda":
         if not compiled:
             raise ValueError("Compiled bytes required for CUDA submissions")
@@ -757,7 +763,13 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         spec = importlib.util.spec_from_file_location(filename, temp_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        return module.solution
+
+        for entry in allowed_entrypoints:
+            func = getattr(module, entry, None)
+            if callable(func):
+                return func
+
+        raise AttributeError(f"Submission must define one of: {', '.join(allowed_entrypoints)}")
 
     else:
         raise ValueError(f"Unsupported language: {language}")

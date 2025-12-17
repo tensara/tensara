@@ -68,12 +68,19 @@ export const workspaceRouter = createTRPCRouter({
                   content: `def main() -> int:\n    print("Hello, world!")\n    return 0\n`,
                 },
               ]
-            : [
-                {
-                  name: "main.cu",
-                  content: `#include <stdio.h>\n\n__global__ void hello() {\n    printf("Hello, world!\\n");\n}\n\nint main() {\n    hello<<<1, 1>>>();\n    cudaDeviceSynchronize();\n    return 0;\n}`,
-                },
-              ];
+            : lang === "cute"
+              ? [
+                  {
+                    name: "main.py",
+                    content: `import cutlass\nimport cutlass.cute as cute\n\n# Define your CuTe entrypoint. Sandbox executes solution() without arguments.\n@cute.jit\ndef solution():\n    # TODO: implement your CuTe kernel here\n    pass\n\n\nif __name__ == \"__main__\":\n    solution()\n`,
+                  },
+                ]
+              : [
+                  {
+                    name: "main.cu",
+                    content: `#include <stdio.h>\n\n__global__ void hello() {\n    printf("Hello, world!\\n");\n}\n\nint main() {\n    hello<<<1, 1>>>();\n    cudaDeviceSynchronize();\n    return 0;\n}`,
+                  },
+                ];
 
         const workspace = await ctx.db.workspace.create({
           data: {
