@@ -1,3 +1,5 @@
+from fileinput import filename
+import importlib
 import subprocess
 import torch
 import gc
@@ -471,36 +473,6 @@ def run_sandbox(compiled_lib: bytes, solution_code: str, language: str):
     Run sandbox on a solution with real-time output streaming
     """
     try:
-        # CuTe DSL needs explicit arch/toolkit hints; default to the sandbox GPU (T4 -> sm_75)
-        if language == "cute":
-            target_sm_num = utils.GPU_COMPUTE_CAPABILITIES["T4"]
-            target_sm = f"sm_{target_sm_num}"
-            target_sm_compact = f"sm{target_sm_num}"
-            # Set both textual and numeric variants because the DSL checks differ in places.
-            # Use direct assignment to override any existing values.
-            cute_env = {
-                "CUTLASS_DSL_TARGET_SM": target_sm_num,
-                "CUTLASS_TARGET_SM": target_sm_num,
-                "TARGET_SM_ARCH": target_sm_num,
-                "TARGET_SM": target_sm_num,
-                "CUTLASS_DSL_TARGET_SM_STR": target_sm,
-                "CUTLASS_TARGET_SM_STR": target_sm,
-                "TARGET_SM_ARCH_STR": target_sm,
-                "TARGET_SM_STR": target_sm,
-                "CUTLASS_DSL_TARGET_SM_COMPACT": target_sm_compact,
-                "CUTLASS_TARGET_SM_COMPACT": target_sm_compact,
-                "TARGET_SM_ARCH_COMPACT": target_sm_compact,
-                "TARGET_SM_COMPACT": target_sm_compact,
-                "CUTE_TARGET_SM": target_sm_num,
-                "CUTE_TARGET_SM_STR": target_sm,
-                "GPU_ARCH": target_sm,
-                "CUDA_ARCHITECTURES": target_sm_num,
-                "CUDA_TOOLKIT_PATH": "/usr/local/cuda",
-            }
-            for k, v in cute_env.items():
-                os.environ[k] = str(v)
-
-        # Handle CuTE DSL separately
         if language == "cute":
             if not solution_code:
                 yield {
@@ -514,19 +486,31 @@ def run_sandbox(compiled_lib: bytes, solution_code: str, language: str):
                 "status": "SANDBOX_RUNNING",
             }
 
-            # Debugging: surface the arch/toolkit settings to the sandbox terminal
-            # if "cute_env" in locals():
-            #     yield {
             try:
-                # Ensure CUDA context is initialized before CuTe JIT runs
                 import torch
 
                 if torch.cuda.is_available():
                     torch.cuda.init()
                     torch.cuda.set_device(0)
-                solution_func = utils.make_solution_func(
-                    language, solution_code, None, None, allowed_entrypoints=("solution", "main")
-                )
+
+                def sol_func():
+                    filename = "cute_solution.py"
+                    utils.reject_forbidden_patterns("triton", solution_code)
+                    temp_dir = tempfile.mkdtemp()
+                    temp_path = os.path.join(temp_dir, filename)
+                    with open(temp_path, "w") as f:
+                        f.write(solution_code)
+
+                    spec = importlib.util.spec_from_file_location(filename, temp_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    func = getattr(module, "main", None)
+                    if callable(func):
+                        return func
+                    raise AttributeError("Submission must define a main function")
+
+                solution_func = sol_func()
+
             except AttributeError as e:
                 yield {
                     "status": "COMPILE_ERROR",
