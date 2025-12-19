@@ -72,7 +72,7 @@ export const workspaceRouter = createTRPCRouter({
               ? [
                   {
                     name: "main.py",
-                    content: `import cutlass\nimport cutlass.cute as cute\n\n# Define your CuTe entrypoint. Sandbox executes solution() without arguments.\n@cute.jit\ndef solution():\n    # TODO: implement your CuTe kernel here\n    pass\n\n\nif __name__ == \"__main__\":\n    solution()\n`,
+                    content: `import cutlass\nimport cutlass.cute as cute\n\n@cute.kernel\ndef hello_kernel():\n    tidx, tidy, _ = cute.arch.thread_idx()\n    bidx, bidy, _ = cute.arch.block_idx()\n\n    if tidx == 0 and tidy == 0 and bidx == 0 and bidy == 0:\n        print("Hello, world!\\n")\n\n@cute.jit\ndef main():\n    kernel = hello_kernel()\n    kernel.launch(\n        grid=(1, 1, 1),\n        block=(1, 1, 1),\n    )\n\n`,
                   },
                 ]
               : [
