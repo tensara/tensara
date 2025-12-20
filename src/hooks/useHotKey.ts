@@ -50,7 +50,11 @@ export function useHotkey(
 
       if (metaOk && ctrlOk && altOk && shiftOk) {
         const pressedKey = e.key.toLowerCase();
-        if (["meta", "ctrl", "alt", "shift", "control", "altgraph"].includes(pressedKey)) {
+        if (
+          ["meta", "ctrl", "alt", "shift", "control", "altgraph"].includes(
+            pressedKey
+          )
+        ) {
           return;
         }
         if (pressedKey === key) {
