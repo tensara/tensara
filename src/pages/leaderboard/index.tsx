@@ -455,7 +455,7 @@ const LeaderboardPage: NextPage = () => {
                                   borderRadius="md"
                                   fontSize="sm"
                                   fontWeight="bold"
-                                  fontFamily="mono"
+                                  style={{ fontVariantNumeric: "tabular-nums" }}
                                 >
                                   {formatRating(user.rating)}
                                 </Badge>
@@ -566,7 +566,9 @@ const LeaderboardPage: NextPage = () => {
                                   <Text
                                     color={medalColor}
                                     fontWeight="bold"
-                                    fontFamily="mono"
+                                    style={{
+                                      fontVariantNumeric: "tabular-nums",
+                                    }}
                                     fontSize="sm"
                                   >
                                     {formatRating(user.rating)}
@@ -831,8 +833,11 @@ const LeaderboardPage: NextPage = () => {
                                             <Text
                                               color={getMedalColor(index)}
                                               fontWeight="bold"
-                                              fontFamily="mono"
                                               fontSize="sm"
+                                              style={{
+                                                fontVariantNumeric:
+                                                  "tabular-nums",
+                                              }}
                                             >
                                               {formatPerformance(
                                                 submission.gflops
@@ -845,8 +850,11 @@ const LeaderboardPage: NextPage = () => {
                                             <Text
                                               color={getMedalColor(index)}
                                               fontWeight="bold"
-                                              fontFamily="mono"
                                               fontSize="sm"
+                                              style={{
+                                                fontVariantNumeric:
+                                                  "tabular-nums",
+                                              }}
                                             >
                                               {submission.runtime?.toFixed(2)}{" "}
                                               ms

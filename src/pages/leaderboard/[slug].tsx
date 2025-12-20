@@ -23,6 +23,7 @@ import {
   Menu,
   Icon,
   Tag,
+  Image,
 } from "@chakra-ui/react";
 import { useState, useEffect, useMemo } from "react";
 import { api } from "~/utils/api";
@@ -37,12 +38,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
-import {
-  FaChevronDown,
-  FaExternalLinkAlt,
-  FaEye,
-  FaLock,
-} from "react-icons/fa";
+import { FaChevronDown, FaExternalLinkAlt, FaCode } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { useSession } from "next-auth/react";
 
@@ -56,6 +52,74 @@ const BASELINE_USERNAMES: Record<string, string> = {
   torch_compile: "Torch Compile",
   torch_vanilla: "Vanilla Torch",
   tinygrad: "Tinygrad",
+};
+
+// Language logo component
+const LanguageLogo = ({ language }: { language: string | null }) => {
+  if (!language) return <Text color="gray.400">-</Text>;
+
+  const logoMap: Record<
+    string,
+    { src?: string; emoji?: string; color?: string; label: string }
+  > = {
+    cuda: {
+      src: "/cuda-icon.svg",
+      label: "CUDA C++",
+    },
+    python: {
+      src: "/triton-logo.png",
+      label: "Triton",
+    },
+    mojo: {
+      emoji: "🔥",
+      label: "Mojo",
+    },
+    cute: {
+      src: "/python-logo.png",
+      label: "CuTe DSL",
+    },
+  };
+
+  const logo = logoMap[language];
+
+  if (!logo) {
+    return (
+      <Tooltip label={LANGUAGE_DISPLAY_NAMES[language] ?? "Unknown"}>
+        <Text fontSize="sm" color="gray.400">
+          {language}
+        </Text>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip label={logo.label}>
+      <Flex align="center" justify="center">
+        {logo.src ? (
+          <Image
+            src={logo.src}
+            alt={logo.label}
+            boxSize="24px"
+            objectFit="contain"
+          />
+        ) : logo.emoji ? (
+          <Text fontSize="xl" lineHeight={1}>
+            {logo.emoji}
+          </Text>
+        ) : (
+          <Badge
+            colorScheme="blue"
+            fontSize="xs"
+            px={2}
+            py={1}
+            borderRadius="md"
+          >
+            {logo.label}
+          </Badge>
+        )}
+      </Flex>
+    </Tooltip>
+  );
 };
 
 type ProblemLeaderboardEntry = {
@@ -122,9 +186,9 @@ const formatPerformance = (gflops: number | null | undefined): string => {
 
   if (gflops >= 1000) {
     const tflops = (gflops / 1000).toFixed(2);
-    return `${parseFloat(tflops)}T`;
+    return `${tflops}T`;
   }
-  return `${parseFloat(gflops.toFixed(2))}G`;
+  return `${gflops.toFixed(2)}G`;
 };
 
 const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
@@ -304,10 +368,10 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
           </ChakraLink>
 
           <HStack justify="space-between" align="center">
-            <Heading size="lg">
+            <Heading size="lg" fontFamily="body">
               {problem?.title ? (
                 <HStack gap={4}>
-                  <Text>{problem.title}</Text>
+                  <Text fontFamily="body">{problem.title}</Text>
                   <ChakraLink href={`/problems/${problem.slug}`} isExternal>
                     <Icon
                       as={FaExternalLinkAlt}
@@ -370,24 +434,66 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
           </HStack>
 
           {combinedEntries && combinedEntries.length > 0 ? (
-            <Box overflowX="auto">
+            <Box overflowX="auto" fontFamily="body">
               <Table variant="simple">
                 <Thead borderBottom="1px solid" borderColor="whiteAlpha.100">
                   <Tr>
-                    <Th borderBottom="none">Rank</Th>
-                    <Th borderBottom="none">User</Th>
+                    <Th
+                      borderBottom="none"
+                      py={2}
+                      px={2}
+                      fontFamily="body"
+                      w="60px"
+                    >
+                      Rank
+                    </Th>
+                    <Th borderBottom="none" py={2} px={4} fontFamily="body">
+                      User
+                    </Th>
                     {hasAnyGflops && (
-                      <Th borderBottom="none" isNumeric>
+                      <Th
+                        borderBottom="none"
+                        isNumeric
+                        py={2}
+                        px={4}
+                        fontFamily="body"
+                      >
                         GFLOPS
                       </Th>
                     )}
-                    <Th borderBottom="none" isNumeric>
+                    <Th
+                      borderBottom="none"
+                      isNumeric
+                      py={2}
+                      px={4}
+                      fontFamily="body"
+                    >
                       Runtime (ms)
                     </Th>
-                    {selectedGpu === "all" && <Th borderBottom="none">GPU</Th>}
-                    <Th borderBottom="none">Language</Th>
-                    <Th borderBottom="none">Date</Th>
-                    <Th borderBottom="none">Code</Th>
+                    {selectedGpu === "all" && (
+                      <Th borderBottom="none" py={2} px={3} fontFamily="body">
+                        GPU
+                      </Th>
+                    )}
+                    <Th
+                      borderBottom="none"
+                      py={2}
+                      pl={4}
+                      pr={2}
+                      fontFamily="body"
+                      textAlign="left"
+                    >
+                      Date
+                    </Th>
+                    <Th
+                      borderBottom="none"
+                      py={2}
+                      pl={2}
+                      pr={3}
+                      fontFamily="body"
+                    >
+                      Language
+                    </Th>
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -432,15 +538,21 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                               : undefined
                         }
                       >
-                        <Td borderBottom="none">
+                        <Td
+                          borderBottom="none"
+                          py={2}
+                          px={2}
+                          fontFamily="body"
+                          w="60px"
+                        >
                           <Text
                             color={medalColor}
                             fontWeight={medalColor ? "bold" : "normal"}
                           >
-                            #{index + 1}
+                            {index + 1}
                           </Text>
                         </Td>
-                        <Td borderBottom="none">
+                        <Td borderBottom="none" py={2} px={4} fontFamily="body">
                           <Text
                             color={medalColor}
                             fontWeight={medalColor ? "bold" : "normal"}
@@ -460,22 +572,40 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           </Text>
                         </Td>
                         {hasAnyGflops && (
-                          <Td isNumeric borderBottom="none">
+                          <Td
+                            isNumeric
+                            borderBottom="none"
+                            py={2}
+                            px={4}
+                            fontFamily="body"
+                          >
                             <Text
                               color={medalColor}
-                              fontWeight="bold"
-                              fontFamily="mono"
-                              fontSize="sm"
+                              textAlign="right"
+                              display="block"
+                              style={{ fontVariantNumeric: "tabular-nums" }}
+                              fontWeight={index < 3 ? "bold" : "normal"}
                             >
                               {formatPerformance(entry.gflops)}
                             </Text>
                           </Td>
                         )}
-                        <Td isNumeric borderBottom="none">
+                        <Td
+                          isNumeric
+                          borderBottom="none"
+                          py={2}
+                          px={4}
+                          fontFamily="body"
+                        >
                           {entry.runtime?.toFixed(2) ?? "N/A"}
                         </Td>
                         {selectedGpu === "all" && (
-                          <Td borderBottom="none">
+                          <Td
+                            borderBottom="none"
+                            py={2}
+                            px={3}
+                            fontFamily="body"
+                          >
                             <Badge
                               bg={"whiteAlpha.200"}
                               color={"white"}
@@ -489,21 +619,14 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             </Badge>
                           </Td>
                         )}
-                        <Td borderBottom="none">
-                          {isBaseline ? (
-                            <Text>
-                              {BASELINE_DISPLAY_NAMES[
-                                entry.id.split("-")[1] ?? ""
-                              ] ?? "Unknown"}
-                            </Text>
-                          ) : (
-                            <Text>
-                              {LANGUAGE_DISPLAY_NAMES[entry.language ?? ""] ??
-                                "Unknown"}
-                            </Text>
-                          )}
-                        </Td>
-                        <Td borderBottom="none">
+                        <Td
+                          borderBottom="none"
+                          py={2}
+                          pl={4}
+                          pr={2}
+                          fontFamily="body"
+                          textAlign="left"
+                        >
                           {isBaseline ? (
                             <Text color="gray.400">-</Text>
                           ) : (
@@ -520,13 +643,30 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             </Tooltip>
                           )}
                         </Td>
-                        <Td borderBottom="none">
+                        <Td
+                          borderBottom="none"
+                          py={2}
+                          pl={2}
+                          pr={3}
+                          fontFamily="body"
+                        >
                           {isBaseline ? (
-                            <Text color="gray.400">-</Text>
-                          ) : entry.isPublic || isOwnSubmission ? (
-                            <FaEye color="#4CAF50" />
+                            <Text>
+                              {BASELINE_DISPLAY_NAMES[
+                                entry.id.split("-")[1] ?? ""
+                              ] ?? "Unknown"}
+                            </Text>
                           ) : (
-                            <FaLock color="#d4d4d8" />
+                            <HStack spacing={2} align="center">
+                              <LanguageLogo language={entry.language} />
+                              {(entry.isPublic || isOwnSubmission) && (
+                                <Tooltip label="Code is visible">
+                                  <Box>
+                                    <FaCode color="#4CAF50" size={14} />
+                                  </Box>
+                                </Tooltip>
+                              )}
+                            </HStack>
                           )}
                         </Td>
                       </Tr>
@@ -537,7 +677,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
             </Box>
           ) : (
             <Card p={6} bg="gray.700">
-              <Text>
+              <Text fontFamily="body">
                 No submissions found
                 {selectedGpu !== "all" &&
                   ` for ${GPU_DISPLAY_NAMES[selectedGpu]}`}
