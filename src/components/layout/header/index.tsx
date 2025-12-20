@@ -283,6 +283,7 @@ export function Header() {
                 fontSize="xl"
                 fontWeight="bold"
                 color="white"
+                fontFamily="DM Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif"
                 _hover={{ textDecoration: "none" }}
               >
                 tensara

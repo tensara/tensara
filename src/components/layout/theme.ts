@@ -3,18 +3,10 @@ import { extendTheme } from "@chakra-ui/react";
 // Here are 5 excellent font options - uncomment the one you want to try
 export const system = extendTheme({
   fonts: {
-    // Inter
-    // body: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif",
-    // heading: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif",
+    body: "Rethink Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
 
-    // DM Sans
-    body: "DM Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
     heading:
-      "DM Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-
-    // Onest
-    // body: "Onest, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-    // heading: "Onest, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "Space Grotesk, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
   },
   styles: {
     global: {
