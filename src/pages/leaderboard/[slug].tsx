@@ -368,10 +368,10 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
           </ChakraLink>
 
           <HStack justify="space-between" align="center">
-            <Heading size="lg" fontFamily="body">
+            <Heading size="lg">
               {problem?.title ? (
                 <HStack gap={4}>
-                  <Text fontFamily="body">{problem.title}</Text>
+                  <Text>{problem.title}</Text>
                   <ChakraLink href={`/problems/${problem.slug}`} isExternal>
                     <Icon
                       as={FaExternalLinkAlt}
@@ -388,7 +388,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
             </Heading>
             <HStack spacing={4}>
               <Button
-                size="sm"
+                size="md"
                 bg={showBaselines ? "whiteAlpha.200" : "whiteAlpha.50"}
                 _hover={{ bg: "whiteAlpha.100" }}
                 _active={{ bg: "whiteAlpha.150" }}
@@ -415,12 +415,12 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                 >
                   {GPU_DISPLAY_NAMES[selectedGpu]}
                 </MenuButton>
-                <MenuList bg="gray.800" borderColor="gray.800" p={0}>
+                <MenuList bg="brand.secondary" borderColor="gray.800" p={0}>
                   {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
                     <MenuItem
                       key={key}
                       onClick={() => setSelectedGpu(key)}
-                      bg="gray.800"
+                      bg="brand.secondary"
                       _hover={{ bg: "gray.700" }}
                       color="white"
                       borderRadius="md"
@@ -434,7 +434,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
           </HStack>
 
           {combinedEntries && combinedEntries.length > 0 ? (
-            <Box overflowX="auto" fontFamily="body">
+            <Box overflowX="auto">
               <Table variant="simple">
                 <Thead borderBottom="1px solid" borderColor="whiteAlpha.100">
                   <Tr>
@@ -442,12 +442,11 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                       borderBottom="none"
                       py={2}
                       px={2}
-                      fontFamily="body"
                       w="60px"
                     >
                       Rank
                     </Th>
-                    <Th borderBottom="none" py={2} px={4} fontFamily="body">
+                    <Th borderBottom="none" py={2} px={4}>
                       User
                     </Th>
                     {hasAnyGflops && (
@@ -456,7 +455,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                         isNumeric
                         py={2}
                         px={4}
-                        fontFamily="body"
                       >
                         GFLOPS
                       </Th>
@@ -466,12 +464,11 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                       isNumeric
                       py={2}
                       px={4}
-                      fontFamily="body"
                     >
                       Runtime (ms)
                     </Th>
                     {selectedGpu === "all" && (
-                      <Th borderBottom="none" py={2} px={3} fontFamily="body">
+                      <Th borderBottom="none" py={2} px={3}>
                         GPU
                       </Th>
                     )}
@@ -480,7 +477,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                       py={2}
                       pl={4}
                       pr={2}
-                      fontFamily="body"
                       textAlign="left"
                     >
                       Date
@@ -490,7 +486,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                       py={2}
                       pl={2}
                       pr={3}
-                      fontFamily="body"
                     >
                       Language
                     </Th>
@@ -542,7 +537,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           borderBottom="none"
                           py={2}
                           px={2}
-                          fontFamily="body"
                           w="60px"
                         >
                           <Text
@@ -552,7 +546,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             {index + 1}
                           </Text>
                         </Td>
-                        <Td borderBottom="none" py={2} px={4} fontFamily="body">
+                        <Td borderBottom="none" py={2} px={4}>
                           <Text
                             color={medalColor}
                             fontWeight={medalColor ? "bold" : "normal"}
@@ -577,7 +571,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             borderBottom="none"
                             py={2}
                             px={4}
-                            fontFamily="body"
                           >
                             <Text
                               color={medalColor}
@@ -595,7 +588,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           borderBottom="none"
                           py={2}
                           px={4}
-                          fontFamily="body"
                         >
                           {entry.runtime?.toFixed(2) ?? "N/A"}
                         </Td>
@@ -604,7 +596,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             borderBottom="none"
                             py={2}
                             px={3}
-                            fontFamily="body"
                           >
                             <Badge
                               bg={"whiteAlpha.200"}
@@ -624,7 +615,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           py={2}
                           pl={4}
                           pr={2}
-                          fontFamily="body"
                           textAlign="left"
                         >
                           {isBaseline ? (
@@ -648,7 +638,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           py={2}
                           pl={2}
                           pr={3}
-                          fontFamily="body"
                         >
                           {isBaseline ? (
                             <Text>
