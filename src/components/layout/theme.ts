@@ -1,7 +1,12 @@
-import { extendTheme } from "@chakra-ui/react";
+import { extendTheme, type ThemeConfig } from "@chakra-ui/react";
 
+const config: ThemeConfig = {
+  initialColorMode: "dark",
+  useSystemColorMode: false,
+};
 // Here are 5 excellent font options - uncomment the one you want to try
 export const system = extendTheme({
+  config,
   fonts: {
     body: "Rethink Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
 
