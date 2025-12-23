@@ -52,7 +52,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   FaExclamationCircle,
   FaFilter,
@@ -215,123 +215,103 @@ const LeaderboardPage: NextPage = () => {
             <Heading size="lg">Leaderboard</Heading>
 
             <Flex align="center" gap={4}>
-              <AnimatePresence>
-                {selectedTab === "problems" && !isMobile && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.2 }}
+              {selectedTab === "problems" && !isMobile && (
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                    bg="whiteAlpha.50"
+                    _hover={{
+                      bg: "whiteAlpha.100",
+                      borderColor: "gray.600",
+                    }}
+                    _active={{ bg: "whiteAlpha.150" }}
+                    _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                    color="white"
+                    w="200px"
+                    fontWeight="normal"
+                    textAlign="left"
+                    justifyContent="flex-start"
                   >
-                    <Menu>
-                      <MenuButton
-                        as={Button}
-                        rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-                        bg="whiteAlpha.50"
-                        _hover={{
-                          bg: "whiteAlpha.100",
-                          borderColor: "gray.600",
-                        }}
-                        _active={{ bg: "whiteAlpha.150" }}
-                        _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-                        color="white"
-                        w="200px"
-                        fontWeight="normal"
-                        textAlign="left"
-                        justifyContent="flex-start"
-                      >
-                        {GPU_DISPLAY_NAMES[selectedGpu]}
-                      </MenuButton>
-                      <MenuList
+                    {GPU_DISPLAY_NAMES[selectedGpu]}
+                  </MenuButton>
+                  <MenuList
+                    bg="brand.secondary"
+                    borderColor="gray.800"
+                    p={0}
+                    borderRadius="md"
+                    minW="200px"
+                  >
+                    {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
+                      <MenuItem
+                        key={key}
+                        onClick={() => setSelectedGpu(key)}
                         bg="brand.secondary"
-                        borderColor="gray.800"
-                        p={0}
+                        _hover={{ bg: "gray.700" }}
+                        color="white"
                         borderRadius="md"
-                        minW="200px"
+                        fontSize="sm"
                       >
+                        {value}
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </Menu>
+              )}
+              {selectedTab === "problems" && isMobile && (
+                <Popover placement="bottom">
+                  <PopoverTrigger>
+                    <IconButton
+                      aria-label="Filter by GPU"
+                      icon={<FaFilter />}
+                      colorScheme="blue"
+                      variant="outline"
+                      size="sm"
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    bg="gray.800"
+                    borderColor="whiteAlpha.300"
+                    w="150px"
+                  >
+                    <PopoverBody p={0}>
+                      <List spacing={0}>
                         {Object.entries(GPU_DISPLAY_NAMES).map(
-                          ([key, value]) => (
-                            <MenuItem
-                              key={key}
-                              onClick={() => setSelectedGpu(key)}
-                              bg="brand.secondary"
-                              _hover={{ bg: "gray.700" }}
-                              color="white"
-                              borderRadius="md"
-                              fontSize="sm"
-                            >
-                              {value}
-                            </MenuItem>
+                          ([key, value], index, arr) => (
+                            <>
+                              <ListItem
+                                key={key}
+                                px={3}
+                                fontSize="sm"
+                                py={2}
+                                onClick={() => setSelectedGpu(key)}
+                                cursor="pointer"
+                                bg={
+                                  selectedGpu === key ? "blue.900" : undefined
+                                }
+                                _hover={{
+                                  bg:
+                                    selectedGpu === key
+                                      ? "blue.800"
+                                      : "whiteAlpha.100",
+                                }}
+                                fontWeight={
+                                  selectedGpu === key ? "bold" : "normal"
+                                }
+                              >
+                                {value}
+                              </ListItem>
+                              {index < arr.length - 1 && (
+                                <Divider borderColor="whiteAlpha.200" />
+                              )}
+                            </>
                           )
                         )}
-                      </MenuList>
-                    </Menu>
-                  </motion.div>
-                )}
-                {selectedTab === "problems" && isMobile && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Popover placement="bottom">
-                      <PopoverTrigger>
-                        <IconButton
-                          aria-label="Filter by GPU"
-                          icon={<FaFilter />}
-                          colorScheme="blue"
-                          variant="outline"
-                          size="sm"
-                        />
-                      </PopoverTrigger>
-                      <PopoverContent
-                        bg="gray.800"
-                        borderColor="whiteAlpha.300"
-                        w="150px"
-                      >
-                        <PopoverBody p={0}>
-                          <List spacing={0}>
-                            {Object.entries(GPU_DISPLAY_NAMES).map(
-                              ([key, value], index, arr) => (
-                                <>
-                                  <ListItem
-                                    key={key}
-                                    px={3}
-                                    fontSize="sm"
-                                    py={2}
-                                    onClick={() => setSelectedGpu(key)}
-                                    cursor="pointer"
-                                    bg={
-                                      selectedGpu === key
-                                        ? "blue.900"
-                                        : undefined
-                                    }
-                                    _hover={{
-                                      bg:
-                                        selectedGpu === key
-                                          ? "blue.800"
-                                          : "whiteAlpha.100",
-                                    }}
-                                    fontWeight={
-                                      selectedGpu === key ? "bold" : "normal"
-                                    }
-                                  >
-                                    {value}
-                                  </ListItem>
-                                  {index < arr.length - 1 && (
-                                    <Divider borderColor="whiteAlpha.200" />
-                                  )}
-                                </>
-                              )
-                            )}
-                          </List>
-                        </PopoverBody>
-                      </PopoverContent>
-                    </Popover>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      </List>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Popover>
+              )}
               {/* Tab Selector */}
               <TabList
                 bg="whiteAlpha.50"
