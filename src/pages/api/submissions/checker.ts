@@ -123,23 +123,31 @@ export default async function handler(
     });
 
     console.log("Starting checker process");
-    const checkerResponse = await fetch(
-      env.MODAL_ENDPOINT + "/checker-" + (gpuType ?? "t4"),
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          solution_code: code,
-          problem: problem.slug,
-          problem_def: problem.definition,
-          gpu_type: gpuType,
-          dtype: "float32",
-          language: language,
-        }),
-      }
-    );
+
+    // Route AMD GPUs to new dstack endpoint, others to Modal
+    const isAMDGPU = gpuType?.startsWith("MI");
+    const endpoint = isAMDGPU
+      ? `http://localhost:${process.env.PORT || 3000}/api/amd/submit`
+      : env.MODAL_ENDPOINT + "/checker-" + (gpuType ?? "t4");
+
+    const checkerResponse = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(isAMDGPU && req.headers.cookie
+          ? { Cookie: req.headers.cookie }
+          : {}),
+      },
+      body: JSON.stringify({
+        solution_code: code,
+        problem: problem.slug,
+        problem_def: problem.definition,
+        gpu_type: gpuType,
+        dtype: "float32",
+        language: language,
+        ...(isAMDGPU && { endpoint: "checker" }),
+      }),
+    });
 
     if (!checkerResponse.ok) {
       const errorText = await checkerResponse.text();

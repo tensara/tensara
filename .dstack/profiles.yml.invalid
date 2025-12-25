@@ -1,0 +1,105 @@
+# dstack Configuration for Tensara AMD GPU Orchestration
+# 
+# NOTE: This file is for reference only. The official dstack SDK uses:
+# - ~/.dstack/config.yml for server/credentials configuration
+# - Task definitions in code (via dstack.api.Task)
+# 
+# To configure dstack with the official SDK:
+# 1. Run: dstack config
+# 2. Or create ~/.dstack/config.yml with:
+#
+# projects:
+#   - name: tensara
+#     backend: aws  # or gcp, azure, lambda, etc.
+#     default: true
+#
+# For credentials, the SDK uses standard cloud provider authentication:
+# - AWS: ~/.aws/credentials or AWS_* environment variables
+# - GCP: GOOGLE_APPLICATION_CREDENTIALS
+# - Azure: Azure CLI authentication
+#
+# Task configurations are now defined directly in Python code using:
+# from dstack.api import Task, Resources, GPU
+#
+# Example task definition:
+# task = Task(
+#     name="tensara-job",
+#     image="rocm/pytorch:latest",
+#     commands=["hipcc solution.hip -o solution", "./solution"],
+#     resources=Resources(gpu=GPU(memory="64GB", name="MI210")),
+#     env={"ROCM_PATH": "/opt/rocm"}
+# )
+
+version: "1.0"
+
+# Reference GPU specifications for AMD GPUs
+# These are used by the dstack_runner.py to map GPU types to requirements
+reference_gpus:
+  MI210:
+    memory: "64GB"
+    compute_units: 104
+    architecture: "CDNA2"
+    cost_per_hour: 3.00
+    
+  MI250X:
+    memory: "128GB"
+    compute_units: 220
+    architecture: "CDNA2"
+    cost_per_hour: 5.00
+    
+  MI300A:
+    memory: "192GB"
+    compute_units: 304
+    architecture: "CDNA3"
+    cost_per_hour: 7.00
+    
+  MI300X:
+    memory: "192GB"
+    compute_units: 304
+    architecture: "CDNA3"
+    cost_per_hour: 8.00
+
+# Recommended ROCm Docker images
+recommended_images:
+  - "rocm/pytorch:latest"
+  - "rocm/tensorflow:latest"
+  - "rocm/dev-ubuntu-22.04:latest"
+
+# Common ROCm environment variables
+rocm_environment:
+  ROCM_PATH: "/opt/rocm"
+  HIP_PLATFORM: "amd"
+  HSA_OVERRIDE_GFX_VERSION: "9.0.0"
+  AMD_LOG_LEVEL: "1"
+
+# Example task configuration (for reference)
+# This would be defined in Python code using the official SDK:
+#
+# from dstack.api import Task, Resources, GPU, Client
+# 
+# client = Client.from_config()
+# 
+# task = Task(
+#     name="tensara-matmul",
+#     image="rocm/pytorch:latest",
+#     commands=[
+#         "echo 'Starting ROCm task'",
+#         "rocm-smi --showproductname",
+#         "hipcc solution.hip -o solution -O3",
+#         "./solution 1024"
+#     ],
+#     resources=Resources(
+#         gpu=GPU(memory="64GB", name="MI210")
+#     ),
+#     env={
+#         "ROCM_PATH": "/opt/rocm",
+#         "HIP_PLATFORM": "amd"
+#     }
+# )
+# 
+# run = client.runs.submit(configuration=task, repo=None)
+# run.attach()
+# 
+# for log in run.logs():
+#     sys.stdout.buffer.write(log)
+#     sys.stdout.buffer.flush()

@@ -4,6 +4,7 @@ export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
   python: "Triton",
   mojo: "Mojo",
   cute: "CuTe DSL",
+  hip: "HIP C++",
 } as const;
 
 export const LANGUAGE_PROFILE_DISPLAY_NAMES: Record<string, string> = {
@@ -11,4 +12,5 @@ export const LANGUAGE_PROFILE_DISPLAY_NAMES: Record<string, string> = {
   python: "Triton",
   mojo: "Mojo",
   cute: "CuTe",
+  hip: "HIP",
 } as const;
