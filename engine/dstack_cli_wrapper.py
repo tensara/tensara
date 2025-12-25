@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 dstack CLI Wrapper for Tensara AMD GPU Orchestration
 
@@ -5,6 +6,9 @@ This module provides a RELIABLE interface using the dstack CLI directly.
 We bypass the Python SDK entirely because it has issues with command execution.
 
 The CLI approach is proven to work - it's what we used in successful test runs.
+
+CRITICAL UPDATE: Now includes fleet management for new dstack versions that require
+fleets to be created before task submission.
 """
 
 import os
@@ -19,6 +23,35 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
+
+# Import fleet manager for automatic fleet provisioning
+FLEET_MANAGER_AVAILABLE = False
+ensure_amd_fleet_ready = None
+
+def _import_fleet_manager():
+    """Dynamically import fleet manager to avoid circular imports"""
+    global FLEET_MANAGER_AVAILABLE, ensure_amd_fleet_ready
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "amd_fleet_manager", 
+            Path(__file__).parent / "amd_fleet_manager.py"
+        )
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            ensure_amd_fleet_ready = module.ensure_amd_fleet_ready
+            FLEET_MANAGER_AVAILABLE = True
+            logger.info("✅ Fleet manager imported successfully")
+        else:
+            raise ImportError("Failed to load fleet manager spec")
+    except Exception as e:
+        logger.warning(f"⚠️  Fleet manager not available: {e}")
+        def ensure_amd_fleet_ready_fallback(fleet_name: Optional[str] = None) -> bool:
+            logger.warning("Fleet manager not available - fleet may need to be created manually")
+            return True
+        ensure_amd_fleet_ready = ensure_amd_fleet_ready_fallback
+        FLEET_MANAGER_AVAILABLE = False
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -55,7 +88,15 @@ class DStackCLIWrapper:
     def __init__(self):
         """Initialize the CLI wrapper"""
         self.temp_dirs: List[Path] = []
+        
+        # Initialize fleet manager
+        _import_fleet_manager()
+        
         logger.info("DStack CLI wrapper initialized")
+        if FLEET_MANAGER_AVAILABLE:
+            logger.info("✅ Fleet management enabled")
+        else:
+            logger.warning("⚠️  Fleet management disabled - manual fleet creation may be required")
     
     def submit_task(
         self,
@@ -82,6 +123,19 @@ class DStackCLIWrapper:
         """
         logger.info(f"Submitting task {task_name} via CLI")
         
+        # CRITICAL: Ensure AMD fleet exists before task submission
+        # This is required for new dstack versions
+        if ensure_amd_fleet_ready:
+            logger.info("🔄 Ensuring AMD DevCloud fleet is ready...")
+            fleet_ready = ensure_amd_fleet_ready()
+            if not fleet_ready:
+                logger.error("❌ AMD fleet is not ready - task submission may fail")
+                logger.error("Please check AMD DevCloud configuration and fleet status")
+            else:
+                logger.info("✅ AMD fleet is ready for task submission")
+        else:
+            logger.warning("⚠️  Fleet manager not available - proceeding without fleet validation")
+        
         # Create temporary directory for this task
         temp_dir = Path(tempfile.mkdtemp(prefix=f"tensara_{submission_id}_"))
         self.temp_dirs.append(temp_dir)
@@ -97,20 +151,25 @@ class DStackCLIWrapper:
         
         # Create .dstack.yml configuration
         # This matches the WORKING configuration from testing/rocm-dstack-hotaisle/.dstack.yml
+        # CRITICAL: Added 'fleets' field for new dstack API to fix "no offers" errors
+        
+        # Get fleet name from environment
+        fleet_name = os.getenv('AMD_FLEET_NAME', 'amd-mi300x-fleet')
+        logger.info(f"Configuring task to use fleet: {fleet_name}")
+        
         dstack_config = {
             'type': 'task',
             'name': task_name,
             'working_dir': '/workspace',
             'idle_duration': '10m',  # Keep VM alive for 10 minutes after completion
-            'creation_policy': 'reuse-or-create',
-            'spot_policy': 'auto',
+            # NEW: Specify fleet to run on - this is the key fix for "no offers" errors
+            'fleets': [fleet_name],
             'resources': {
                 'gpu': {
                     'name': gpu_type,
                     'count': 1,
                 }
             },
-            'backends': ['amddevcloud'],
             'image': 'rocm/pytorch:latest',
             'env': [
                 'ROCM_PATH=/opt/rocm',
@@ -354,6 +413,40 @@ class DStackCLIWrapper:
             
             # Wait before next poll
             time.sleep(poll_interval)
+    
+    def terminate_task(self, task_name: str) -> bool:
+        """
+        Terminate a running task using dstack CLI
+        
+        Args:
+            task_name: Task identifier (run name)
+            
+        Returns:
+            True if termination successful
+        """
+        try:
+            logger.info(f"Terminating task {task_name}")
+            
+            result = subprocess.run(
+                ['dstack', 'stop', task_name],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            
+            if result.returncode == 0:
+                logger.info(f"✅ Successfully terminated task {task_name}")
+                return True
+            else:
+                logger.warning(f"⚠️  Failed to terminate task {task_name}: {result.stderr}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            logger.error(f"❌ Task termination timed out for {task_name}")
+            return False
+        except Exception as e:
+            logger.error(f"❌ Error terminating task {task_name}: {e}")
+            return False
     
     def cleanup(self):
         """Clean up temporary directories"""

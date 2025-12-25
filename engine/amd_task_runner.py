@@ -205,6 +205,9 @@ def execute_task(payload: Dict[str, Any]) -> int:
         client = DStackCLIWrapper()
         logger.info("DStack CLI wrapper initialized successfully")
         
+        # The fleet initialization is now handled automatically in the CLI wrapper
+        # When submit_task is called, it will ensure the AMD fleet exists
+        
         # Generate benchmark harness
         logger.info("Step 3: Generating benchmark harness")
         harness_code = generate_hip_benchmark_harness(

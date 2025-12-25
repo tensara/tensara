@@ -233,5 +233,8 @@ cython_debug/
 engine/skeleton/benchmark
 engine/skeleton/checker
 
+# Fleet manager temporary directories
+engine/fleet_*_*/
+
 # Test GH actions locally
 .actrc

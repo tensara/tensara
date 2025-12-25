@@ -18,6 +18,7 @@ import time
 import logging
 import hashlib
 import sys
+import subprocess
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
@@ -269,12 +270,33 @@ class DStackClient:
                 "sync",
             ]
             
-            # Create task using official SDK
+            # CRITICAL FIX: Use fleet-based submission for new dstack API
+            # The new dstack API (0.18+) requires tasks to run on pre-created fleets
+            # First ensure fleet exists using fleet manager
+            try:
+                from amd_fleet_manager import ensure_amd_fleet_ready
+                
+                fleet_name = os.getenv('AMD_FLEET_NAME', 'amd-mi300x-fleet')
+                logger.info(f"Ensuring fleet '{fleet_name}' exists before task submission...")
+                
+                fleet_ready = ensure_amd_fleet_ready(fleet_name)
+                if not fleet_ready:
+                    logger.warning(
+                        f"Fleet '{fleet_name}' could not be verified. Task may fail if fleet doesn't exist.\n"
+                        f"To create fleet manually: cd engine && python amd_fleet_manager.py ensure --fleet {fleet_name}"
+                    )
+                else:
+                    logger.info(f"✅ Fleet '{fleet_name}' is ready")
+            except ImportError as e:
+                logger.warning(f"Fleet manager not available: {e}. Proceeding without fleet validation.")
+                fleet_name = os.getenv('AMD_FLEET_NAME', 'amd-mi300x-fleet')
+            
+            # Create task using official SDK with fleet specification
             # Matches working CLI config from testing/rocm-dstack-hotaisle/.dstack.yml
             task = Task(
                 name=f"tensara-{config.submission_id}",
                 image="rocm/pytorch:latest",  # ROCm base image with HIP support
-                env={
+                env={  # type: ignore  # dstack accepts dict at runtime, converts to Env
                     "GPU_TYPE": config.gpu_type,
                     "SOURCE_HASH": config.source_hash(),
                     "PROBLEM_ID": config.problem_id,
@@ -283,29 +305,19 @@ class DStackClient:
                     "HIP_PLATFORM": "amd",
                 },
                 commands=commands,
+                # NEW: Specify fleet names to run on (this is the key fix for "no offers" errors)
+                fleets=[fleet_name],  # Use the pre-created fleet
                 resources=Resources(
                     gpu=GPU(
-                        name=config.gpu_type,
-                        count=1,  # Critical: explicit GPU count for resource matching
-                        # NOTE: Removed memory constraint to match CLI behavior
+                        name=[config.gpu_type],  # name expects a list of strings
                     ),
                 ),
-                # CRITICAL: Fleet creation policy - tells dstack whether to reuse or create fleets
-                creation_policy="reuse-or-create",
                 # Working directory for task execution
                 working_dir="/workspace",
-                # CRITICAL FIX: Keep container alive for 10 minutes after completion
-                # This gives dstack plenty of time to flush and capture logs before VM termination
-                # Previously was "10s" which was too short - logs were still lost
-                # Cost impact: ~$0.96 per run (10min × MI300X rate of ~$5.76/hour)
-                # This extended duration ensures logs are captured reliably
-                idle_duration="10m",
-                # Use spot instances for cost savings
-                spot_policy="auto",
             )
             
             # Submit the task using current API method
-            logger.info(f"Applying configuration for {task.name}")
+            logger.info(f"Applying configuration for {task.name} on fleet '{fleet_name}'")
             run = self.client.runs.apply_configuration(
                 configuration=task,
                 repo=None,  # No repo needed for inline tasks
@@ -326,7 +338,7 @@ class DStackClient:
             self._log_buffers[task_id] = []
             
             if wait:
-                return self.wait_for_completion(task_id, poll_interval=5, timeout=timeout)
+                return self.wait_for_completion(task_id, poll_interval=5, timeout=config.timeout)
             
             return TaskResult(
                 task_id=task_id,
@@ -663,7 +675,6 @@ class DStackClient:
         # Strategy 2: Fallback to dstack CLI
         logger.info(f"Attempting CLI fallback: dstack logs {task_id}")
         try:
-            import subprocess
             result = subprocess.run(
                 ['dstack', 'logs', task_id],
                 capture_output=True,
