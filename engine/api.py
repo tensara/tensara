@@ -75,7 +75,7 @@ def binary_runner(
             return
 
     if type == "sandbox":
-        gen = runner.run_sandbox(compiled_lib, solution_code)
+        gen = runner.run_sandbox(compiled_lib, solution_code, language)
     elif type == "sample":
         gen = runner.run_sample_case(
             problem_name, problem_def, solution_code, compiled_lib, dtype, language
@@ -324,6 +324,8 @@ async def sandbox(gpu: str, request: Request):
                     compiled_lib = utils.run_mojo_and_return_executable(solution_code, "sandbox")
                 except utils.MojoError:
                     compiled_lib = None
+            elif language == "cute":
+                compiled_lib = None
             else:
                 yield {
                     "status": "COMPILE_ERROR",
