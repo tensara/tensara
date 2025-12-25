@@ -27,8 +27,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
-# Import existing dstack runner
-from dstack_runner import DStackClient, TaskConfig, TaskResult, TaskStatus
+# Import existing dstack runner (SDK attempt)
+from dstack_runner_sdk_attempt import DStackClient, TaskConfig, TaskResult, TaskStatus
 
 logging.basicConfig(
     level=logging.INFO,

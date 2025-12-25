@@ -5,8 +5,8 @@ Provides simple interface for task submission
 
 import time
 from typing import Optional
-from vm_orchestrator import VMOrchestrator
-from dstack_runner import TaskConfig, TaskResult
+from vm_orchestrator_sdk_attempt import VMOrchestrator
+from dstack_runner_sdk_attempt import TaskConfig, TaskResult
 
 # Singleton instance
 _orchestrator: Optional[VMOrchestrator] = None
