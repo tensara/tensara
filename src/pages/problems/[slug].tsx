@@ -184,6 +184,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
     ptxContent: submissionPtxContent,
     sassContent: submissionSassContent,
     submissionId,
+    elapsedSeconds,
+    lastHeartbeat,
+    cancelSubmission,
   } = useSubmissionStream(submissionsQuery.refetch);
   const lastSampleStatusRef = useRef<SampleStatusType>(SampleStatus.IDLE);
   const [wrongSubmissionStreak, setWrongSubmissionStreak] = useState(0);
@@ -507,6 +510,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
             onBackToProblem={() => setViewType("problem")}
             onViewSubmissions={() => setViewType("submissions")}
             submissionId={submissionId}
+            elapsedSeconds={elapsedSeconds}
+            lastHeartbeat={lastHeartbeat}
+            onCancel={cancelSubmission}
           />
         ) : null;
       default:

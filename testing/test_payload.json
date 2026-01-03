@@ -1,0 +1,10 @@
+{
+  "solution_code": "__global__ void leaky_relu_kernel(float *input, float *output, int n, float alpha) {\n    int idx = blockIdx.x * blockDim.x + threadIdx.x;\n    if (idx < n) {\n        output[idx] = input[idx] > 0 ? input[idx] : alpha * input[idx];\n    }\n}",
+  "problem": "leaky_relu",
+  "problem_def": "{\"name\": \"Leaky ReLU\", \"description\": \"Implement leaky ReLU activation\"}",
+  "gpu_type": "MI300X",
+  "dtype": "float32",
+  "language": "hip",
+  "endpoint": "benchmark",
+  "submission_id": "test-restore-amd-gpu"
+}

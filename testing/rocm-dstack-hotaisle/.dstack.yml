@@ -1,0 +1,49 @@
+type: task
+
+working_dir: /workspace
+
+idle_duration: 10m
+
+creation_policy: reuse-or-create
+
+spot_policy: auto
+
+resources:
+  gpu:
+    name: MI300X
+    count: 1
+    memory: 192GB
+  cpu: 4..
+  memory: 16GB..
+  disk: 100GB..
+
+backends:
+  - amddevcloud
+
+image: rocm/pytorch:latest
+
+env:
+  - ROCM_PATH=/opt/rocm
+  - HIP_PLATFORM=amd
+  - GPU_TYPE=MI300X
+
+files:
+  - ./matmul.hip
+
+commands:
+  - echo "=== AMD MI300X Test ==="
+  - echo "GPU MI300X - 192GB VRAM - CDNA 3"
+  - echo "Cost 1.99 per hour via AMD DevCloud grant"
+  - echo ""
+  - echo "=== ROCm Environment ==="
+  - which rocm-smi && rocm-smi --showproductname || echo "rocm-smi not found"
+  - which hipcc && hipcc --version || echo "hipcc not found"
+  - echo ""
+  - echo "=== Compiling HIP Kernel ==="
+  - hipcc matmul.hip -o matmul -O3
+  - echo "Compilation successful"
+  - echo ""
+  - echo "=== Executing on MI300X ==="
+  - ./matmul 1024
+  - echo ""
+  - echo "=== Test Complete ==="

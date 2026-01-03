@@ -13,6 +13,7 @@ import type {
   SubmissionErrorType,
 } from "~/types/submission";
 import { db } from "~/server/db";
+import { executePythonRunner, cancelAmdSubmission } from "~/server/amd/runner";
 
 export default async function handler(
   req: NextApiRequest,
@@ -115,23 +116,132 @@ export default async function handler(
   }, 30000);
 
   try {
-    const benchmarkResponse = await fetch(
-      env.MODAL_ENDPOINT + "/benchmark_cli-" + (gpuType ?? "T4"),
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          solution_code: code,
-          problem: problem.slug,
-          problem_def: problem.definition,
-          gpu_type: gpuType,
-          dtype: "float32",
-          language: language,
-        }),
-      }
+    // Route AMD GPUs to new dstack endpoint, others to Modal
+    const isAMDGPU = gpuType?.startsWith("MI");
+    console.log(
+      `[Benchmark API] Processing submission for GPU type: ${gpuType}, isAMD: ${isAMDGPU}`
     );
+
+    // For AMD GPUs, create submission record and execute directly
+    if (isAMDGPU) {
+      console.log(
+        `[Benchmark API] Creating AMD submission for problem ${problemSlug}`
+      );
+      const submission = await db.submission.create({
+        data: {
+          code,
+          language,
+          gpuType: gpuType || "MI210",
+          status: SubmissionStatus.BENCHMARKING,
+          problem: { connect: { id: problem.id } },
+          user: { connect: { id: session.user.id } },
+        },
+      });
+
+      console.log(
+        `[Benchmark API] Created submission with ID: ${submission.id}`
+      );
+
+      // Track client disconnect for cleanup (auto-cancel orphaned submissions)
+      let clientDisconnected = false;
+      req.on("close", () => {
+        if (clientDisconnected) return; // Prevent double-handling
+        clientDisconnected = true;
+
+        console.log(
+          `[Benchmark API] Client disconnected for AMD submission ${submission.id}`
+        );
+
+        // Cancel the AMD process (kills Python process + dstack task)
+        cancelAmdSubmission(submission.id);
+
+        // Delete the orphaned submission from DB (fire and forget)
+        db.submission
+          .delete({ where: { id: submission.id } })
+          .then(() => {
+            console.log(
+              `[Benchmark API] Deleted orphaned AMD submission ${submission.id}`
+            );
+          })
+          .catch((e) => {
+            // Might already be deleted or completed - that's fine
+            console.warn(
+              `[Benchmark API] Could not delete AMD submission ${submission.id}:`,
+              e
+            );
+          });
+      });
+
+      // Send submission ID to client
+      sendSSE(SubmissionStatus.IN_QUEUE, {
+        id: submission.id,
+        status: SubmissionStatus.IN_QUEUE,
+      });
+
+      // Execute Python runner directly (no HTTP call)
+      try {
+        console.log(
+          `[Benchmark API] Calling AMD runner for submission ${submission.id}`
+        );
+        await executePythonRunner(
+          {
+            solution_code: code,
+            problem: problem.slug,
+            problem_def: problem.definition ?? "",
+            gpu_type: gpuType,
+            dtype: "float32",
+            language: language,
+            endpoint: "benchmark",
+            submission_id: submission.id,
+          },
+          res
+        );
+
+        // Runner completed successfully
+        console.log(
+          `[Benchmark API] AMD runner completed successfully for submission ${submission.id}`
+        );
+
+        // Give a moment for final SSE events to be flushed to client
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        res.end();
+        return;
+      } catch (error) {
+        console.error(
+          `[Benchmark API] AMD runner error for submission ${submission.id}:`,
+          error
+        );
+        console.error(`[Benchmark API] Error details:`, {
+          message: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        sendSSE(SubmissionError.ERROR, {
+          error: error instanceof Error ? error.message : "Unknown error",
+          message: "AMD task execution failed",
+          details: error instanceof Error ? error.stack : undefined,
+        });
+        res.end();
+        return;
+      }
+    }
+
+    // For non-AMD GPUs, use Modal endpoint
+    const endpoint = env.MODAL_ENDPOINT + "/benchmark_cli-" + (gpuType ?? "T4");
+
+    const benchmarkResponse = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        solution_code: code,
+        problem: problem.slug,
+        problem_def: problem.definition,
+        gpu_type: gpuType,
+        dtype: "float32",
+        language: language,
+      }),
+    });
 
     if (!benchmarkResponse.ok) {
       const errorText = await benchmarkResponse.text();

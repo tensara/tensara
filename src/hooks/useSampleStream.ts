@@ -130,6 +130,7 @@ export function useSampleStream() {
 
             switch (data.status) {
               case SampleStatus.IN_QUEUE:
+              case SampleStatus.PROVISIONING:
               case SampleStatus.COMPILING:
               case SampleStatus.RUNNING:
                 setStatus(data.status);

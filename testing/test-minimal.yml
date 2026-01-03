@@ -1,0 +1,19 @@
+type: task
+
+image: rocm/pytorch:latest
+
+backends:
+  - amddevcloud
+
+resources:
+  gpu:
+    name: MI300X
+    count: 1
+    memory: 192GB
+  cpu: 20
+  memory: 240GB
+  disk: 720GB
+
+commands:
+  - echo "Hello AMD GPU!"
+  - rocm-smi --showproductname || echo "rocm-smi not available"

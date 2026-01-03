@@ -8,6 +8,7 @@ export const GPU_DISPLAY_NAMES: Record<string, string> = {
   A10G: "NVIDIA A10G",
   L40S: "NVIDIA L40S",
   L4: "NVIDIA L4",
+  MI300X: "AMD MI300X",
 } as const;
 
 export const gpuTypes = Object.keys(GPU_DISPLAY_NAMES);
@@ -21,5 +22,6 @@ export const GPU_DISPLAY_ON_PROFILE = {
   A10G: "A10G",
   L40S: "L40S",
   L4: "L4",
+  MI300X: "MI300X",
   none: "N/A",
 } as const;

@@ -1,0 +1,44 @@
+type: fleet
+name: amd-mi300x-fleet
+
+# SSH fleet configuration for AMD DevCloud MI300X instances
+ssh_config:
+  user: ${AMD_DEVCLOUD_SSH_USER:-ubuntu}
+  identity_file: ${AMD_DEVCLOUD_SSH_KEY_PATH:-~/.ssh/amd_devcloud_rsa}
+  hosts:
+    # AMD DevCloud MI300X instances
+    # These will be populated from environment variables or discovered dynamically
+    # For now, using placeholder hostnames - will be updated with actual AMD endpoints
+    - ${AMD_DEVCLOUD_HOST_1:-amd-mi300x-01.devcloud.amd.com}
+    - ${AMD_DEVCLOUD_HOST_2:-amd-mi300x-02.devcloud.amd.com}
+    - ${AMD_DEVCLOUD_HOST_3:-amd-mi300x-03.devcloud.amd.com}
+
+# Resource specifications for MI300X
+resources:
+  gpu:
+    name: MI300X
+    count: 1
+    memory: 192GB
+  cpu: 8..32
+  memory: 64GB..
+  disk: 200GB..
+
+# Fleet configuration
+placement: cluster # Treat as cluster for multi-node workloads if needed
+idle_duration: 10m # Keep instances warm for 10 minutes
+spot_policy: auto # Use spot instances when available
+
+# Environment setup for ROCm
+env:
+  - ROCM_PATH=/opt/rocm
+  - HIP_PLATFORM=amd
+  - GPU_TYPE=MI300X
+  - HSA_OVERRIDE_GFX_VERSION=9.0.0
+  - AMD_LOG_LEVEL=1
+
+# Setup commands to ensure ROCm environment is ready
+setup:
+  - echo "=== AMD MI300X Fleet Setup ==="
+  - which rocm-smi && rocm-smi --showproductname || echo "Installing ROCm tools..."
+  - which hipcc && hipcc --version || echo "HIP compiler check..."
+  - echo "Fleet instance ready for AMD workloads"

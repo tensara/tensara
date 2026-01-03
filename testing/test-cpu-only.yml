@@ -1,0 +1,7 @@
+type: task
+
+image: ubuntu:22.04
+
+commands:
+  - echo "Hello World!"
+  - uname -a
