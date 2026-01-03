@@ -103,20 +103,30 @@ class DStackCLIWrapper:
         task_name: str,
         gpu_type: str,
         source_code: str,
-        harness_code: str,
         problem_id: str,
         submission_id: str,
+        problem_def: str = "",
+        dtype: str = "float32",
+        endpoint: str = "full",
     ) -> str:
         """
         Submit a task using dstack CLI
+        
+        This uses the new PyTorch-based amd_remote_runner.py which:
+        - Clones the problems repo from GitHub
+        - Uses PyTorch ROCm for drop-in CUDA compatibility
+        - Runs proper checker + benchmark phases (matching NVIDIA)
+        - Outputs JSON events for frontend parsing
         
         Args:
             task_name: Name for the dstack run
             gpu_type: GPU type (e.g., MI300X)
             source_code: HIP kernel source code
-            harness_code: Benchmark harness code
-            problem_id: Problem identifier
+            problem_id: Problem identifier (slug)
             submission_id: Submission identifier
+            problem_def: Optional inline problem definition
+            dtype: Data type (float32, float16, bfloat16)
+            endpoint: Execution mode - "checker", "benchmark", or "full"
             
         Returns:
             Task ID (run name)
@@ -141,28 +151,53 @@ class DStackCLIWrapper:
         self.temp_dirs.append(temp_dir)
         logger.info(f"Created temp directory: {temp_dir}")
         
-        # Write source files
-        solution_file = temp_dir / "solution.hip"
-        harness_file = temp_dir / "harness.hip"
+        # Create JSON payload for the remote runner
+        payload = {
+            "problem": problem_id,
+            "problem_def": problem_def,
+            "solution_code": source_code,
+            "dtype": dtype,
+            "endpoint": endpoint,
+            "submission_id": submission_id,
+        }
         
-        solution_file.write_text(source_code)
-        harness_file.write_text(harness_code)
-        logger.info(f"Wrote source files to {temp_dir}")
+        # Write payload to file (will be read by remote runner)
+        payload_file = temp_dir / "payload.json"
+        payload_file.write_text(json.dumps(payload))
+        logger.info(f"Wrote payload.json ({len(source_code)} chars of code)")
         
-        # Create .dstack.yml configuration
-        # This matches the WORKING configuration from testing/rocm-dstack-hotaisle/.dstack.yml
-        # CRITICAL: Added 'fleets' field for new dstack API to fix "no offers" errors
+        # Copy the remote runner script
+        runner_script = Path(__file__).parent / "amd_remote_runner.py"
+        if runner_script.exists():
+            (temp_dir / "amd_remote_runner.py").write_text(runner_script.read_text())
+            logger.info("Copied amd_remote_runner.py to temp directory")
+        else:
+            logger.error(f"Remote runner script not found: {runner_script}")
+            raise FileNotFoundError(f"amd_remote_runner.py not found at {runner_script}")
+        
+        # Copy the base Problem class - required for loading problem definitions on remote VM
+        # Problem definitions in tensara/problems import `from problem import Problem`,
+        # but the Problem class is defined in this repo (engine/problem.py), not the problems repo
+        problem_base_script = Path(__file__).parent / "problem.py"
+        if problem_base_script.exists():
+            (temp_dir / "problem.py").write_text(problem_base_script.read_text())
+            logger.info("Copied problem.py (base Problem class) to temp directory")
+        else:
+            logger.error(f"Problem base class not found: {problem_base_script}")
+            raise FileNotFoundError(f"problem.py not found at {problem_base_script}")
         
         # Get fleet name from environment
         fleet_name = os.getenv('AMD_FLEET_NAME', 'amd-mi300x-fleet')
         logger.info(f"Configuring task to use fleet: {fleet_name}")
         
+        # Create .dstack.yml configuration
+        # Uses PyTorch ROCm image with proper checker/benchmark flow
         dstack_config = {
             'type': 'task',
             'name': task_name,
             'working_dir': '/workspace',
-            'idle_duration': '10m',  # Keep VM alive for 10 minutes after completion
-            # NEW: Specify fleet to run on - this is the key fix for "no offers" errors
+            'idle_duration': '10m',  # Keep VM alive for 10 minutes for reuse
+            # Specify fleet to run on
             'fleets': [fleet_name],
             'resources': {
                 'gpu': {
@@ -170,7 +205,8 @@ class DStackCLIWrapper:
                     'count': 1,
                 }
             },
-            'image': 'rocm/pytorch:latest',
+            # Pinned ROCm + PyTorch image for stability
+            'image': 'rocm/pytorch:rocm6.2_ubuntu22.04_py3.10_pytorch_release_2.3.0',
             'env': [
                 'ROCM_PATH=/opt/rocm',
                 'HIP_PLATFORM=amd',
@@ -179,20 +215,23 @@ class DStackCLIWrapper:
                 f'SUBMISSION_ID={submission_id}',
             ],
             'files': [
-                './solution.hip',
-                './harness.hip',
+                './payload.json',
+                './amd_remote_runner.py',
+                './problem.py',  # Base Problem class for loading problem definitions
             ],
             'commands': [
                 'echo "=== ROCm Environment ==="',
-                'rocm-smi --showproductname || echo "rocm-smi not available"',
-                'hipcc --version || echo "hipcc not available"',
+                'rocm-smi --showproductname 2>/dev/null || echo "rocm-smi not available"',
+                'hipcc --version 2>/dev/null || echo "hipcc not available"',
+                'python3 -c "import torch; print(f\'PyTorch: {torch.__version__}, CUDA available: {torch.cuda.is_available()}\')"',
                 'echo',
-                'echo "=== Compiling HIP Kernel + Harness ==="',
-                'hipcc solution.hip harness.hip -o benchmark -O3 || exit 1',
-                'echo "Compilation successful"',
+                # Clone problems repo
+                'echo "=== Cloning Problems Repo ==="',
+                'if [ ! -d /workspace/problems ]; then git clone --depth 1 https://github.com/tensara/problems.git /workspace/problems; fi',
                 'echo',
-                'echo "=== Running Benchmark ==="',
-                './benchmark 1024',
+                # Run the remote runner with the payload
+                'echo "=== Running AMD Remote Runner ==="',
+                'python3 amd_remote_runner.py "$(cat payload.json)"',
                 'echo',
                 'echo "=== Execution Complete ==="',
             ],

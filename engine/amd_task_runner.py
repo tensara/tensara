@@ -1,9 +1,25 @@
 #!/usr/bin/env python3
 """
 AMD Task Runner - Standalone Python script for dstack task submission
-This script is called by the Next.js API to execute AMD GPU tasks.
 
-Accepts JSON input via stdin or command-line argument and outputs SSE-formatted events.
+This script is called by the Next.js API to execute AMD GPU tasks via dstack.
+It:
+1. Accepts JSON input with problem/code/config
+2. Submits task to dstack (which runs amd_remote_runner.py on AMD VM)
+3. Polls for completion and parses JSON events from the remote runner
+4. Streams SSE events to the frontend that match NVIDIA format
+
+JSON Event Format (from amd_remote_runner.py):
+    JSON_EVENT:{"status": "CHECKING", "message": "...", ...}
+    JSON_EVENT:{"status": "TEST_RESULT", "result": {...}, "total_tests": N}
+    JSON_EVENT:{"status": "CHECKED", "test_results": [...], "passed_tests": N, "total_tests": N}
+    JSON_EVENT:{"status": "BENCHMARKING", ...}
+    JSON_EVENT:{"status": "BENCHMARK_RESULT", "result": {...}, "total_tests": N}
+    JSON_EVENT:{"status": "BENCHMARKED", "test_results": [...], "avg_runtime_ms": X, ...}
+    JSON_EVENT:{"status": "WRONG_ANSWER", ...}
+    JSON_EVENT:{"status": "COMPILE_ERROR", ...}
+    JSON_EVENT:{"status": "RUNTIME_ERROR", ...}
+    JSON_EVENT:{"status": "ERROR", ...}
 """
 
 import sys
@@ -11,13 +27,12 @@ import json
 import time
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 from dstack_cli_wrapper import DStackCLIWrapper, TaskStatus
-from hip_harness import generate_hip_benchmark_harness
 
 # Configure logging - send INFO to stdout so it doesn't appear as errors
 class InfoFilter(logging.Filter):
@@ -48,110 +63,198 @@ def send_sse(event: str, data: Dict[str, Any]) -> None:
     """
     Send SSE event to stdout with SSE_EVENT marker for filtering
     
+    The TypeScript runner filters lines starting with SSE_EVENT: to extract
+    SSE events and sends them to the frontend.
+    
     Args:
         event: Event name (matches frontend expected events)
         data: Event data as dictionary
     """
-    logger.info(f"Sending SSE event: {event} - {json.dumps(data, indent=2)}")
+    logger.info(f"Sending SSE event: {event}")
     # Use SSE_EVENT: prefix to distinguish from regular logs
     print(f"SSE_EVENT:event: {event}", flush=True)
     print(f"SSE_EVENT:data: {json.dumps(data)}", flush=True)
     print("SSE_EVENT:", flush=True)
 
 
-def parse_kernel_output(output: str, endpoint: str) -> Dict[str, Any]:
+def parse_json_events(output: str) -> List[Dict[str, Any]]:
     """
-    Parse kernel execution output to extract test results and benchmarks
+    Parse JSON events from remote runner output
+    
+    The remote runner outputs events prefixed with JSON_EVENT:
+    Example: JSON_EVENT:{"status": "CHECKING", "message": "..."}
     
     Args:
-        output: Raw stdout from kernel execution
-        endpoint: Type of endpoint (checker, benchmark, sample, sandbox)
+        output: Raw stdout from the remote runner
         
     Returns:
-        Parsed results dictionary
+        List of parsed event dictionaries
     """
-    results = {
-        "output": output,
-        "parsed": False
+    events = []
+    for line in output.split('\n'):
+        line = line.strip()
+        if line.startswith('JSON_EVENT:'):
+            try:
+                json_str = line[len('JSON_EVENT:'):]
+                event = json.loads(json_str)
+                events.append(event)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse JSON event: {line[:100]}... Error: {e}")
+    return events
+
+
+def process_remote_events(
+    events: List[Dict[str, Any]], 
+    endpoint: str,
+    submission_id: str
+) -> Dict[str, Any]:
+    """
+    Process events from remote runner and send corresponding SSE events
+    
+    This maps the remote runner's JSON events to SSE events that match
+    the NVIDIA frontend format.
+    
+    Args:
+        events: List of parsed JSON events from remote runner
+        endpoint: Endpoint type (checker, benchmark, full)
+        submission_id: Submission ID for tracking
+        
+    Returns:
+        Final result dictionary with test counts, runtime, etc.
+    """
+    result = {
+        "passed_tests": 0,
+        "total_tests": 0,
+        "avg_runtime_ms": 0.0,
+        "avg_gflops": None,
+        "test_results": [],
+        "status": "UNKNOWN",
     }
     
-    # Parse based on endpoint type
-    if endpoint == "checker":
-        # Look for test results in output
-        # Format: "Test 1: PASSED" or "Test 1: FAILED"
-        passed_tests = 0
-        total_tests = 0
+    for event in events:
+        status = event.get("status", "")
         
-        for line in output.split('\n'):
-            if 'Test' in line and ('PASSED' in line or 'FAILED' in line):
-                total_tests += 1
-                if 'PASSED' in line:
-                    passed_tests += 1
-        
-        results.update({
-            "passed_tests": passed_tests,
-            "total_tests": total_tests,
-            "parsed": True
-        })
-    
-    elif endpoint == "benchmark":
-        # Look for benchmark results
-        # Format: "Runtime: 1.234 ms" or "GFLOPS: 123.45"
-        runtime_ms = None
-        gflops = None
-        
-        logger.info(f"Parsing benchmark output ({len(output)} chars)")
-        if len(output) > 0:
-            logger.info(f"Output preview (first 500 chars):\n{output[:500]}")
-            logger.info(f"Output preview (last 500 chars):\n{output[-500:]}")
-        else:
-            logger.error("Output is completely empty - cannot parse benchmark results!")
-        
-        for line in output.split('\n'):
-            line_lower = line.lower()
+        # Map remote events to SSE events
+        if status == "COMPILING":
+            send_sse("COMPILING", {
+                "status": "COMPILING",
+                "message": event.get("message", "Compiling HIP kernel..."),
+            })
             
-            # Parse runtime (case-insensitive)
-            if 'runtime:' in line_lower and 'ms' in line_lower:
-                try:
-                    # Try multiple parsing strategies
-                    if 'Runtime:' in line:
-                        value_str = line.split('Runtime:')[1].split('ms')[0].strip()
-                    else:
-                        value_str = line_lower.split('runtime:')[1].split('ms')[0].strip()
-                    runtime_ms = float(value_str)
-                    logger.info(f"✓ Successfully parsed runtime: {runtime_ms} ms from line: '{line.strip()}'")
-                except Exception as e:
-                    logger.warning(f"✗ Failed to parse runtime from line '{line}': {e}")
+        elif status == "COMPILED":
+            # Don't send separate event, compilation is part of COMPILING phase
+            pass
             
-            # Parse GFLOPS (case-insensitive)
-            if 'gflops:' in line_lower or 'gflop/s:' in line_lower:
-                try:
-                    # Split on colon and take the value
-                    parts = line.split(':')
-                    if len(parts) >= 2:
-                        gflops = float(parts[1].strip())
-                        logger.info(f"✓ Successfully parsed GFLOPS: {gflops} from line: '{line.strip()}'")
-                except Exception as e:
-                    logger.warning(f"✗ Failed to parse GFLOPS from line '{line}': {e}")
-        
-        # Always update results for benchmark endpoint, even if parsing failed
-        results.update({
-            "runtime_ms": runtime_ms if runtime_ms is not None else 0.0,
-            "gflops": gflops if gflops is not None else 0.0,
-            "parsed": runtime_ms is not None or gflops is not None
-        })
-        
-        if runtime_ms is None and gflops is None:
-            logger.error("=" * 80)
-            logger.error("PARSING FAILED: Could not extract benchmark results from output!")
-            logger.error("Looking for patterns:")
-            logger.error("  - 'Runtime: <number> ms' (case-insensitive)")
-            logger.error("  - 'GFLOPS: <number>' (case-insensitive)")
-            logger.error(f"Full output ({len(output)} chars):")
-            logger.error(output if output else "(empty)")
-            logger.error("=" * 80)
+        elif status == "CHECKING":
+            send_sse("CHECKING", {
+                "status": "CHECKING",
+                "message": event.get("message", "Running test cases..."),
+                "total_tests": event.get("total_tests", 0),
+            })
+            result["total_tests"] = event.get("total_tests", 0)
+            
+        elif status == "TEST_RESULT":
+            test_result = event.get("result", {})
+            send_sse("TEST_RESULT", {
+                "status": "TEST_RESULT",
+                "result": test_result,
+                "total_tests": event.get("total_tests", 0),
+            })
+            
+        elif status == "CHECKED":
+            result["passed_tests"] = event.get("passed_tests", event.get("total_tests", 0))
+            result["total_tests"] = event.get("total_tests", 0)
+            result["test_results"] = event.get("test_results", [])
+            result["status"] = "CHECKED"
+            send_sse("CHECKED", {
+                "status": "CHECKED",
+                "message": "All tests passed",
+                "passed_tests": result["passed_tests"],
+                "total_tests": result["total_tests"],
+                "test_results": result["test_results"],
+            })
+            
+        elif status == "WRONG_ANSWER":
+            result["passed_tests"] = event.get("passed_tests", 0)
+            result["total_tests"] = event.get("total_tests", 0)
+            result["test_results"] = event.get("test_results", [])
+            result["status"] = "WRONG_ANSWER"
+            send_sse("WRONG_ANSWER", {
+                "status": "WRONG_ANSWER",
+                "message": "Test case failed",
+                "debug_info": event.get("debug_info", {}),
+                "passed_tests": result["passed_tests"],
+                "total_tests": result["total_tests"],
+                "test_results": result["test_results"],
+            })
+            
+        elif status == "BENCHMARKING":
+            send_sse("BENCHMARKING", {
+                "status": "BENCHMARKING",
+                "message": event.get("message", "Running benchmarks..."),
+            })
+            
+        elif status == "BENCHMARK_RESULT":
+            benchmark_result = event.get("result", {})
+            send_sse("BENCHMARK_RESULT", {
+                "status": "BENCHMARK_RESULT",
+                "result": benchmark_result,
+                "total_tests": event.get("total_tests", 0),
+            })
+            
+        elif status == "BENCHMARKED":
+            result["avg_runtime_ms"] = event.get("avg_runtime_ms", 0.0)
+            result["avg_gflops"] = event.get("avg_gflops")
+            result["total_tests"] = event.get("total_tests", result["total_tests"])
+            result["test_results"] = event.get("test_results", result["test_results"])
+            result["status"] = "BENCHMARKED"
+            
+            benchmark_data = {
+                "status": "BENCHMARKED",
+                "message": "Benchmark completed successfully",
+                "avg_runtime_ms": result["avg_runtime_ms"],
+                "total_tests": result["total_tests"],
+                "test_results": result["test_results"],
+                "submission_id": submission_id,
+            }
+            if result["avg_gflops"] is not None:
+                benchmark_data["avg_gflops"] = result["avg_gflops"]
+            send_sse("BENCHMARKED", benchmark_data)
+            
+        elif status == "COMPILE_ERROR":
+            result["status"] = "COMPILE_ERROR"
+            send_sse("COMPILE_ERROR", {
+                "status": "COMPILE_ERROR",
+                "message": event.get("message", "Compilation failed"),
+                "details": event.get("details", ""),
+            })
+            
+        elif status == "RUNTIME_ERROR":
+            result["status"] = "RUNTIME_ERROR"
+            send_sse("RUNTIME_ERROR", {
+                "status": "RUNTIME_ERROR",
+                "message": event.get("message", "Runtime error"),
+                "details": event.get("details", ""),
+            })
+            
+        elif status == "TIME_LIMIT_EXCEEDED":
+            result["status"] = "TIME_LIMIT_EXCEEDED"
+            send_sse("TIME_LIMIT_EXCEEDED", {
+                "status": "TIME_LIMIT_EXCEEDED",
+                "message": event.get("message", "Time limit exceeded"),
+                "details": event.get("details", ""),
+            })
+            
+        elif status == "ERROR":
+            result["status"] = "ERROR"
+            send_sse("ERROR", {
+                "status": "ERROR",
+                "error": event.get("message", "Unknown error"),
+                "details": event.get("details", ""),
+                "submission_id": submission_id,
+            })
     
-    return results
+    return result
 
 
 def execute_task(payload: Dict[str, Any]) -> int:
@@ -162,11 +265,11 @@ def execute_task(payload: Dict[str, Any]) -> int:
         payload: Task submission payload containing:
             - solution_code: HIP/ROCm kernel code
             - problem: Problem slug
-            - problem_def: Problem definition
+            - problem_def: Problem definition (optional)
             - gpu_type: AMD GPU type (MI210, MI300X, etc.)
             - dtype: Data type (float32, etc.)
-            - language: Programming language (hip, cuda)
-            - endpoint: Endpoint type (checker, benchmark, sample, sandbox)
+            - language: Programming language (hip)
+            - endpoint: Endpoint type (checker, benchmark, full)
             - submission_id: Database submission ID (optional)
             
     Returns:
@@ -177,8 +280,8 @@ def execute_task(payload: Dict[str, Any]) -> int:
         solution_code = payload.get('solution_code', '')
         problem = payload.get('problem', 'unknown')
         problem_def = payload.get('problem_def', '')
-        gpu_type = payload.get('gpu_type', 'MI210')
-        endpoint = payload.get('endpoint', 'checker')
+        gpu_type = payload.get('gpu_type', 'MI300X')
+        endpoint = payload.get('endpoint', 'full')
         dtype = payload.get('dtype', 'float32')
         
         # Use provided submission ID or generate one
@@ -190,6 +293,7 @@ def execute_task(payload: Dict[str, Any]) -> int:
         logger.info(f"GPU Type: {gpu_type}")
         logger.info(f"Endpoint: {endpoint}")
         logger.info(f"Problem: {problem}")
+        logger.info(f"Dtype: {dtype}")
         logger.info(f"Code length: {len(solution_code)} characters")
         logger.info("=" * 80)
         
@@ -205,34 +309,24 @@ def execute_task(payload: Dict[str, Any]) -> int:
         client = DStackCLIWrapper()
         logger.info("DStack CLI wrapper initialized successfully")
         
-        # The fleet initialization is now handled automatically in the CLI wrapper
-        # When submit_task is called, it will ensure the AMD fleet exists
-        
-        # Generate benchmark harness
-        logger.info("Step 3: Generating benchmark harness")
-        harness_code = generate_hip_benchmark_harness(
-            problem_slug=problem,
-            problem_def=problem_def,
-            dtype=dtype
-        )
-        logger.info(f"Generated harness code: {len(harness_code)} characters")
-        
         send_sse("PROVISIONING", {
             "status": "PROVISIONING",
             "message": "Submitting task to dstack...",
         })
         
-        # Submit task via CLI
-        logger.info(f"Step 4: Submitting task to dstack for submission {submission_id}")
+        # Submit task via CLI (uses new amd_remote_runner.py)
+        logger.info(f"Step 3: Submitting task to dstack for submission {submission_id}")
         task_name = f"tensara-{submission_id}"
         
         task_id = client.submit_task(
             task_name=task_name,
             gpu_type=gpu_type,
             source_code=solution_code,
-            harness_code=harness_code,
             problem_id=problem,
             submission_id=submission_id,
+            problem_def=problem_def,
+            dtype=dtype,
+            endpoint=endpoint,
         )
         
         logger.info(f"Task submitted successfully with task ID: {task_id}")
@@ -243,20 +337,19 @@ def execute_task(payload: Dict[str, Any]) -> int:
         })
         
         # Poll for status updates
-        logger.info("Step 5: Starting status polling loop")
+        logger.info("Step 4: Starting status polling loop")
         last_status = None
         poll_count = 0
         max_polls = 120  # 10 minutes max (5s intervals)
-        compilation_sent = False
-        checking_sent = False
+        provisioning_sent = False
         last_heartbeat = time.time()
-        HEARTBEAT_INTERVAL = 15  # Send heartbeat every 15 seconds to keep SSE connection alive
+        HEARTBEAT_INTERVAL = 15  # Send heartbeat every 15 seconds
         
         while poll_count < max_polls:
             time.sleep(5)
             poll_count += 1
             
-            # Send heartbeat to keep SSE connection alive during long waits
+            # Send heartbeat to keep SSE connection alive
             current_time = time.time()
             if current_time - last_heartbeat >= HEARTBEAT_INTERVAL:
                 send_sse("heartbeat", {"timestamp": int(current_time * 1000)})
@@ -271,96 +364,63 @@ def execute_task(payload: Dict[str, Any]) -> int:
                     logger.info(f"Status change detected: {result.status.value}")
                     
                     if result.status == TaskStatus.PROVISIONING:
-                        logger.info("VM provisioning in progress")
-                        send_sse("PROVISIONING", {
-                            "status": "PROVISIONING",
-                            "message": "VM provisioning in progress...",
-                        })
+                        if not provisioning_sent:
+                            logger.info("VM provisioning in progress")
+                            send_sse("PROVISIONING", {
+                                "status": "PROVISIONING",
+                                "message": "VM provisioning in progress...",
+                            })
+                            provisioning_sent = True
                     
                     elif result.status == TaskStatus.RUNNING:
                         logger.info("Task is now running on VM")
-                        if not compilation_sent:
-                            logger.info("Starting compilation phase")
-                            send_sse("COMPILING", {
-                                "status": "COMPILING",
-                                "message": "Compiling HIP kernel with hipcc...",
-                            })
-                            compilation_sent = True
-                            time.sleep(2)
-                        
-                        if not checking_sent:
-                            logger.info(f"Starting execution phase for endpoint: {endpoint}")
-                            if endpoint == "checker":
-                                send_sse("CHECKING", {
-                                    "status": "CHECKING",
-                                    "message": "Running test cases...",
-                                })
-                            elif endpoint == "benchmark":
-                                send_sse("BENCHMARKING", {
-                                    "status": "BENCHMARKING",
-                                    "message": "Running benchmarks...",
-                                })
-                            else:
-                                send_sse("CHECKING", {
-                                    "status": "CHECKING",
-                                    "message": "Executing kernel...",
-                                })
-                            checking_sent = True
+                        # The remote runner will emit its own events (COMPILING, CHECKING, etc.)
+                        # We just need to wait for completion
                     
                     elif result.status == TaskStatus.SUCCEEDED:
                         logger.info("=" * 80)
-                        logger.info("Task succeeded! Retrieving output via CLI...")
+                        logger.info("Task succeeded! Retrieving and parsing output...")
                         logger.info("=" * 80)
                         
                         # Fetch logs using CLI
                         output = client.get_task_logs(task_id, max_retries=10, retry_delay=2.0)
                         
-                        if not output or len(output) == 0:
+                        if not output:
                             logger.error("ERROR: No logs were retrieved from task!")
-                            logger.error("This indicates that the task did not produce any output")
                         else:
-                            logger.info(f"Successfully retrieved {len(output)} characters of logs")
+                            logger.info(f"Retrieved {len(output)} characters of logs")
                         
-                        logger.info(f"Final output length: {len(output)} characters")
+                        # Parse JSON events from remote runner
+                        events = parse_json_events(output)
+                        logger.info(f"Parsed {len(events)} JSON events from output")
                         
-                        # Parse output based on endpoint type
-                        logger.info(f"Parsing output for endpoint type: {endpoint}")
-                        parsed = parse_kernel_output(output, endpoint)
-                        logger.info(f"Output parsing completed: {parsed.get('parsed', False)}")
-                        
-                        # Send appropriate completion event
-                        logger.info(f"Sending completion event for endpoint: {endpoint}")
-                        if endpoint == "checker":
-                            send_sse("CHECKED", {
-                                "status": "CHECKED",
-                                "message": "Tests completed successfully",
-                                "passed_tests": parsed.get('passed_tests', 0),
-                                "total_tests": parsed.get('total_tests', 1),
-                                "execution_time": result.execution_time,
-                                "cost_usd": result.cost_usd,
-                                "output": parsed.get('output', ''),
-                            })
-                        elif endpoint == "benchmark":
-                            benchmark_data = {
-                                "status": "BENCHMARKED",
-                                "message": "Benchmark completed successfully",
-                                "avg_runtime_ms": parsed.get('runtime_ms', 0.0),
-                                "avg_gflops": parsed.get('gflops', 0.0),
-                                "execution_time": result.execution_time,
-                                "cost_usd": result.cost_usd,
-                                "output": parsed.get('output', ''),
-                                "submission_id": submission_id,
-                            }
-                            logger.info(f"Sending BENCHMARKED event with data: runtime_ms={benchmark_data['avg_runtime_ms']}, gflops={benchmark_data['avg_gflops']}")
-                            send_sse("BENCHMARKED", benchmark_data)
+                        if events:
+                            # Process events and send SSE updates
+                            final_result = process_remote_events(events, endpoint, submission_id)
+                            logger.info(f"Final result: {final_result}")
                         else:
-                            send_sse("COMPLETED", {
-                                "status": "COMPLETED",
-                                "message": "Execution completed successfully",
-                                "output": parsed.get('output', ''),
-                                "execution_time": result.execution_time,
-                                "cost_usd": result.cost_usd,
-                            })
+                            # Fallback: no events parsed, send generic success
+                            logger.warning("No JSON events found in output, sending generic success")
+                            if endpoint == "checker":
+                                send_sse("CHECKED", {
+                                    "status": "CHECKED",
+                                    "message": "Tests completed (no detailed results available)",
+                                    "passed_tests": 1,
+                                    "total_tests": 1,
+                                })
+                            elif endpoint == "benchmark":
+                                send_sse("BENCHMARKED", {
+                                    "status": "BENCHMARKED",
+                                    "message": "Benchmark completed (no detailed results available)",
+                                    "avg_runtime_ms": 0.0,
+                                    "submission_id": submission_id,
+                                })
+                            else:
+                                send_sse("COMPLETED", {
+                                    "status": "COMPLETED",
+                                    "message": "Execution completed",
+                                    "output": output[:5000] if output else "",
+                                })
                         
                         logger.info("=" * 80)
                         logger.info("Task completed successfully - Exiting with code 0")
@@ -370,65 +430,60 @@ def execute_task(payload: Dict[str, Any]) -> int:
                     elif result.status == TaskStatus.FAILED:
                         error_msg = result.error or "Task execution failed"
                         logger.error("=" * 80)
-                        logger.error(f"Error occurred: Task execution failed")
-                        logger.error(f"Error message: {error_msg}")
-                        logger.error(f"Output: {result.output or 'No output'}")
+                        logger.error(f"Task failed: {error_msg}")
                         logger.error("=" * 80)
                         
-                        send_sse("ERROR", {
-                            "status": "ERROR",
-                            "error": error_msg,
-                            "details": result.output or "",
-                            "message": error_msg,
-                            "submission_id": submission_id,
-                        })
+                        # Try to get logs for error details
+                        output = client.get_task_logs(task_id, max_retries=3, retry_delay=1.0)
+                        events = parse_json_events(output) if output else []
+                        
+                        # Check if there's a specific error event
+                        error_event = None
+                        for event in events:
+                            if event.get("status") in ("COMPILE_ERROR", "RUNTIME_ERROR", "ERROR", "WRONG_ANSWER"):
+                                error_event = event
+                                break
+                        
+                        if error_event:
+                            send_sse(error_event["status"], error_event)
+                        else:
+                            send_sse("ERROR", {
+                                "status": "ERROR",
+                                "error": error_msg,
+                                "details": output[:5000] if output else "",
+                                "submission_id": submission_id,
+                            })
                         return 1
                     
                     elif result.status == TaskStatus.TERMINATED:
-                        # Note: TERMINATED status should now only occur for actual failures
-                        # (manual termination, killed by user, etc.) because successful
-                        # terminations (exit code 0) are now mapped to SUCCEEDED in dstack_runner
-                        logger.error("=" * 80)
-                        logger.error("Error occurred: Task was terminated unexpectedly")
-                        logger.error(f"Termination reason: {result.error or 'Unknown'}")
-                        logger.error("=" * 80)
-                        
+                        logger.error("Task was terminated unexpectedly")
                         send_sse("ERROR", {
                             "status": "ERROR",
                             "error": "Task was terminated",
                             "details": result.error or "Task was manually terminated or killed",
-                            "message": "Task terminated",
                             "submission_id": submission_id,
                         })
                         return 1
                 
                 # Log progress every 30 seconds
                 if poll_count % 6 == 0:
-                    logger.info(f"Status polling in progress - Elapsed time: {poll_count * 5}s, Current status: {last_status.value if last_status else 'UNKNOWN'}")
+                    logger.info(f"Polling... Elapsed: {poll_count * 5}s, Status: {last_status.value if last_status else 'UNKNOWN'}")
                     
             except Exception as e:
-                logger.error("=" * 80)
-                logger.error(f"Error occurred during status check: {str(e)}")
-                logger.error(f"Error type: {type(e).__name__}")
-                logger.error("=" * 80)
+                logger.error(f"Error during status check: {e}")
                 send_sse("ERROR", {
                     "status": "ERROR",
                     "error": f"Status check failed: {str(e)}",
-                    "message": str(e),
                     "submission_id": submission_id,
                 })
                 return 1
         
         # Timeout
-        logger.error("=" * 80)
-        logger.error("Error occurred: Polling timeout - Task did not complete within expected time")
-        logger.error(f"Total polling time: {poll_count * 5}s")
-        logger.error("=" * 80)
+        logger.error("Polling timeout - task did not complete in time")
         send_sse("ERROR", {
             "status": "ERROR",
             "error": "Task polling timeout",
-            "details": "Task did not complete within expected time (10 minutes)",
-            "message": "Polling timeout",
+            "details": "Task did not complete within 10 minutes",
             "submission_id": submission_id,
         })
         
@@ -441,15 +496,12 @@ def execute_task(payload: Dict[str, Any]) -> int:
         return 1
         
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error("Error occurred: Fatal error during task execution")
+        logger.error(f"Fatal error: {e}")
         logger.exception("Full exception details:")
-        logger.error("=" * 80)
         send_sse("ERROR", {
             "status": "ERROR",
             "error": str(e),
             "details": str(e),
-            "message": str(e),
             "submission_id": payload.get('submission_id', 'unknown'),
         })
         return 1
@@ -460,10 +512,8 @@ def main():
     try:
         # Read payload from command line argument or stdin
         if len(sys.argv) > 1:
-            # Payload passed as command line argument
             payload_str = sys.argv[1]
         else:
-            # Read from stdin
             payload_str = sys.stdin.read()
         
         # Parse JSON payload

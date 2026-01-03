@@ -3,16 +3,21 @@
  *
  * This module provides shared functionality for executing AMD GPU tasks via dstack.ai:
  * - Spawns Python runner (amd_task_runner.py) to execute tasks
- * - Streams SSE events back to the client
- * - Updates database when benchmarking completes
- * - Supports checker, benchmark, sample, and sandbox endpoints
+ * - Streams SSE events back to the client (matching NVIDIA format)
+ * - Updates database when checker/benchmark completes with real test counts
+ * - Supports checker, benchmark, and full (checker+benchmark) endpoints
+ *
+ * Event Format (matches NVIDIA):
+ *   IN_QUEUE -> PROVISIONING -> COMPILING -> CHECKING -> TEST_RESULT* -> CHECKED
+ *                                         -> BENCHMARKING -> BENCHMARK_RESULT* -> BENCHMARKED
+ *   Error events: COMPILE_ERROR, WRONG_ANSWER, RUNTIME_ERROR, ERROR
  */
 
 import { type NextApiResponse } from "next";
 import { spawn } from "child_process";
 import path from "path";
 import { db } from "~/server/db";
-import { SubmissionStatus } from "~/types/submission";
+import { SubmissionStatus, SubmissionError } from "~/types/submission";
 
 export interface TaskSubmissionPayload {
   solution_code: string;
@@ -21,8 +26,17 @@ export interface TaskSubmissionPayload {
   gpu_type: string;
   dtype: string;
   language: string;
-  endpoint?: string; // checker, benchmark, sample, sandbox
+  endpoint?: string; // checker, benchmark, full (default)
   submission_id?: string; // Database submission ID for persistence
+}
+
+// Track parsed results from events
+interface ParsedResults {
+  passedTests: number;
+  totalTests: number;
+  avgRuntimeMs: number;
+  avgGflops: number | null;
+  status: string;
 }
 
 /**
@@ -82,6 +96,15 @@ export async function executePythonRunner(
     let buffer = "";
     let hasOutput = false;
 
+    // Track results from events for database update
+    const parsedResults: ParsedResults = {
+      passedTests: 0,
+      totalTests: 0,
+      avgRuntimeMs: 0,
+      avgGflops: null,
+      status: "PENDING",
+    };
+
     // Handle stdout - Stream SSE events and update database
     pythonProcess.stdout.on("data", async (data: Buffer) => {
       hasOutput = true;
@@ -101,67 +124,109 @@ export async function executePythonRunner(
             const sseContent = line.substring("SSE_EVENT:".length);
             res.write(sseContent + "\n");
 
-            // Parse SSE events to update database
-            if (payload.submission_id && payload.endpoint === "benchmark") {
+            // Parse SSE events to track results and update database
+            if (payload.submission_id) {
               try {
-                // Parse SSE event (after stripping prefix)
-                if (
-                  sseContent.startsWith("event: BENCHMARKED") ||
-                  sseContent.startsWith("data: ")
-                ) {
-                  const dataMatch = sseContent.match(/^data: (.+)$/);
-                  if (dataMatch && dataMatch[1]) {
-                    const eventData = JSON.parse(dataMatch[1]);
+                const dataMatch = sseContent.match(/^data: (.+)$/);
+                if (dataMatch && dataMatch[1]) {
+                  const eventData = JSON.parse(dataMatch[1]);
+                  const status = eventData.status;
 
-                    // Update database when benchmarking completes
-                    if (eventData.status === "BENCHMARKED") {
-                      console.log(
-                        `[AMD Runner] Updating submission ${payload.submission_id} with benchmark results:`,
-                        {
-                          runtime: eventData.avg_runtime_ms,
-                          gflops: eventData.avg_gflops,
-                        }
-                      );
-                      await db.submission.update({
-                        where: { id: payload.submission_id },
-                        data: {
-                          status: SubmissionStatus.ACCEPTED,
-                          runtime: eventData.avg_runtime_ms,
-                          gflops: eventData.avg_gflops,
-                          passedTests: 1, // Dummy value for now
-                          totalTests: 1, // Dummy value for now
-                        },
-                      });
-                      console.log(
-                        `[AMD Runner] Successfully updated submission ${payload.submission_id} with benchmark results`
-                      );
-                    } else if (eventData.status === "ERROR") {
-                      // Mark submission as error if benchmarking failed
-                      await db.submission.update({
-                        where: { id: payload.submission_id },
-                        data: {
-                          status: "ERROR",
-                          errorMessage:
-                            eventData.error || "Benchmarking failed",
-                          errorDetails: eventData.details || "",
-                        },
-                      });
-                      console.log(
-                        `[AMD Runner] Successfully updated submission ${payload.submission_id} to ERROR`
-                      );
-                    }
+                  // Track checker results
+                  if (status === "CHECKED") {
+                    parsedResults.passedTests =
+                      eventData.passed_tests ?? eventData.total_tests ?? 0;
+                    parsedResults.totalTests = eventData.total_tests ?? 0;
+                    parsedResults.status = "CHECKED";
+                    console.log(
+                      `[AMD Runner] Checker completed: ${parsedResults.passedTests}/${parsedResults.totalTests} tests passed`
+                    );
+                  }
+
+                  // Track wrong answer (partial pass)
+                  if (status === "WRONG_ANSWER") {
+                    parsedResults.passedTests = eventData.passed_tests ?? 0;
+                    parsedResults.totalTests = eventData.total_tests ?? 0;
+                    parsedResults.status = "WRONG_ANSWER";
+                    console.log(
+                      `[AMD Runner] Wrong answer: ${parsedResults.passedTests}/${parsedResults.totalTests} tests passed`
+                    );
+
+                    // Update database immediately for wrong answer
+                    await db.submission.update({
+                      where: { id: payload.submission_id },
+                      data: {
+                        status: SubmissionStatus.WRONG_ANSWER,
+                        passedTests: parsedResults.passedTests,
+                        totalTests: parsedResults.totalTests,
+                      },
+                    });
+                  }
+
+                  // Track benchmark results
+                  if (status === "BENCHMARKED") {
+                    parsedResults.avgRuntimeMs = eventData.avg_runtime_ms ?? 0;
+                    parsedResults.avgGflops = eventData.avg_gflops ?? null;
+                    parsedResults.status = "BENCHMARKED";
+                    console.log(
+                      `[AMD Runner] Benchmark completed: ${parsedResults.avgRuntimeMs}ms, ${parsedResults.avgGflops} GFLOPS`
+                    );
+
+                    // Update database with real results
+                    await db.submission.update({
+                      where: { id: payload.submission_id },
+                      data: {
+                        status: SubmissionStatus.ACCEPTED,
+                        runtime: parsedResults.avgRuntimeMs,
+                        gflops: parsedResults.avgGflops,
+                        passedTests:
+                          parsedResults.passedTests || parsedResults.totalTests,
+                        totalTests:
+                          parsedResults.totalTests ||
+                          eventData.total_tests ||
+                          1,
+                      },
+                    });
+                    console.log(
+                      `[AMD Runner] Successfully updated submission ${payload.submission_id}`
+                    );
+                  }
+
+                  // Handle errors
+                  if (
+                    status === "ERROR" ||
+                    status === "COMPILE_ERROR" ||
+                    status === "RUNTIME_ERROR"
+                  ) {
+                    await db.submission.update({
+                      where: { id: payload.submission_id },
+                      data: {
+                        status:
+                          status === "COMPILE_ERROR"
+                            ? SubmissionError.COMPILE_ERROR
+                            : SubmissionError.RUNTIME_ERROR,
+                        errorMessage:
+                          eventData.error ||
+                          eventData.message ||
+                          "Execution failed",
+                        errorDetails: eventData.details || "",
+                      },
+                    });
+                    console.log(
+                      `[AMD Runner] Updated submission ${payload.submission_id} to ${status}`
+                    );
                   }
                 }
               } catch (e) {
                 // Ignore parsing errors, continue streaming
                 console.error(
-                  `[AMD Runner] Database update error for submission ${payload.submission_id}:`,
+                  `[AMD Runner] Event parsing error for submission ${payload.submission_id}:`,
                   e
                 );
               }
             }
           }
-          // Non-SSE lines (Python logs) are not written to response, only logged to console
+          // Non-SSE lines (Python logs) are not written to response, only logged
         }
       }
 

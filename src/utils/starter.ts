@@ -116,7 +116,7 @@ def solution(${paramStr}):
     return `#include <hip/hip_runtime.h>
 
 // Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
-extern "C" __global__ void solution(${paramStr}) {
+extern "C" void solution(${paramStr}) {
 }`;
   }
   return "";
