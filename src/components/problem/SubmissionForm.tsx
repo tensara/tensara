@@ -19,6 +19,7 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
+  Icon,
 } from "@chakra-ui/react";
 import { type DataType, type ProgrammingLanguage } from "~/types/misc";
 
@@ -26,10 +27,11 @@ import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
 import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
 
 import { IoRepeat } from "react-icons/io5";
-import { FaInfoCircle, FaChevronDown } from "react-icons/fa";
+import { FaInfoCircle, FaChevronDown, FaBolt } from "react-icons/fa";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
+import { isVmLikelyWarm } from "~/utils/amdVmStatus";
 
 interface SubmissionFormProps {
   selectedGpuType: string;
@@ -70,6 +72,23 @@ const SubmissionForm = ({
   const toast = useToast();
   const [isAmdWarningOpen, setIsAmdWarningOpen] = useState(false);
   const [pendingGpuType, setPendingGpuType] = useState<string | null>(null);
+  const [isWarmVm, setIsWarmVm] = useState(false);
+
+  // Check warm VM status on mount and when GPU type changes
+  useEffect(() => {
+    const isAmdGpu =
+      selectedGpuType === "MI300X" || selectedGpuType === "MI210";
+    if (isAmdGpu) {
+      setIsWarmVm(isVmLikelyWarm());
+      // Re-check every 30 seconds while AMD is selected
+      const interval = setInterval(() => {
+        setIsWarmVm(isVmLikelyWarm());
+      }, 30000);
+      return () => clearInterval(interval);
+    } else {
+      setIsWarmVm(false);
+    }
+  }, [selectedGpuType]);
 
   const handleGpuTypeClick = (gpuType: string) => {
     // If switching to AMD GPU and code is dirty, show warning
@@ -438,42 +457,70 @@ const SubmissionForm = ({
             Run
           </Button>
         </Tooltip>
-        <Tooltip
-          label="⌘ + ⏎"
-          placement="bottom"
-          bg="transparent"
-          color="gray.400"
-          fontSize="xs"
-          hasArrow
-          offset={[0, 0]}
-        >
-          <Button
-            bg="rgba(34, 197, 94, 0.1)"
-            color="rgb(34, 197, 94)"
-            size="md"
-            onClick={onSubmit}
-            isLoading={isSubmitting}
-            loadingText="Submit"
-            spinner={<></>}
-            disabled={isSubmitting}
-            borderRadius="lg"
-            height="40px"
-            fontSize="sm"
-            fontWeight="semibold"
-            px={{ base: 4, md: 6 }}
-            minW="80px"
-            _hover={{
-              bg: "rgba(34, 197, 94, 0.2)",
-              transform: "translateY(-1px)",
-            }}
-            _active={{
-              bg: "rgba(34, 197, 94, 0.25)",
-            }}
-            transition="all 0.2s"
+        <Box position="relative">
+          <Tooltip
+            label="⌘ + ⏎"
+            placement="bottom"
+            bg="transparent"
+            color="gray.400"
+            fontSize="xs"
+            hasArrow
+            offset={[0, 0]}
           >
-            Submit
-          </Button>
-        </Tooltip>
+            <Button
+              bg="rgba(34, 197, 94, 0.1)"
+              color="rgb(34, 197, 94)"
+              size="md"
+              onClick={onSubmit}
+              isLoading={isSubmitting}
+              loadingText="Submit"
+              spinner={<></>}
+              disabled={isSubmitting}
+              borderRadius="lg"
+              height="40px"
+              fontSize="sm"
+              fontWeight="semibold"
+              px={{ base: 4, md: 6 }}
+              minW="80px"
+              _hover={{
+                bg: "rgba(34, 197, 94, 0.2)",
+                transform: "translateY(-1px)",
+              }}
+              _active={{
+                bg: "rgba(34, 197, 94, 0.25)",
+              }}
+              transition="all 0.2s"
+            >
+              Submit
+            </Button>
+          </Tooltip>
+          {/* Warm VM indicator - subtle badge below submit button */}
+          {isWarmVm && (
+            <Tooltip
+              label="VM is warm from recent run - faster startup (~1 min)"
+              placement="bottom"
+              bg="gray.800"
+              color="white"
+              fontSize="xs"
+              hasArrow
+            >
+              <HStack
+                spacing={1}
+                justify="center"
+                position="absolute"
+                top="-18px"
+                left="50%"
+                transform="translateX(-50%)"
+                cursor="default"
+              >
+                <Icon as={FaBolt} boxSize={2} color="green.400" />
+                <Text fontSize="2xs" color="green.400" fontWeight="medium">
+                  Warm
+                </Text>
+              </HStack>
+            </Tooltip>
+          )}
+        </Box>
       </HStack>
 
       {/* AMD GPU Warning Modal */}

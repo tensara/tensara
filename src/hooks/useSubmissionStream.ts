@@ -14,7 +14,7 @@
  * Primary frontend state manager for Tensara’s live submission results.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useToast } from "@chakra-ui/react";
 import {
   type SubmissionStatusType,
@@ -30,6 +30,7 @@ import {
   SubmissionStatus,
   type AcceptedResponse,
 } from "~/types/submission";
+import { saveAmdRunTimestamp } from "~/utils/amdVmStatus";
 
 // Define a type mapping from status to response type
 type ResponseTypeMap = {
@@ -66,6 +67,47 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
   const [ptxContent, setPtxContent] = useState<string | null>(null);
   const [sassContent, setSassContent] = useState<string | null>(null);
 
+  // Track if current submission is AMD (for saving warm VM timestamp)
+  const isAmdSubmissionRef = useRef<boolean>(false);
+
+  // AMD provisioning elapsed time tracking
+  const [provisioningStartTime, setProvisioningStartTime] = useState<
+    number | null
+  >(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const elapsedIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Heartbeat tracking for connection status
+  const [lastHeartbeat, setLastHeartbeat] = useState<number | null>(null);
+
+  // AbortController for cancellation support
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Update elapsed seconds when provisioning
+  useEffect(() => {
+    if (provisioningStartTime !== null) {
+      // Start interval to update elapsed time
+      elapsedIntervalRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - provisioningStartTime) / 1000);
+        setElapsedSeconds(elapsed);
+      }, 1000);
+
+      return () => {
+        if (elapsedIntervalRef.current) {
+          clearInterval(elapsedIntervalRef.current);
+          elapsedIntervalRef.current = null;
+        }
+      };
+    } else {
+      // Clear interval when not provisioning
+      if (elapsedIntervalRef.current) {
+        clearInterval(elapsedIntervalRef.current);
+        elapsedIntervalRef.current = null;
+      }
+      setElapsedSeconds(0);
+    }
+  }, [provisioningStartTime]);
+
   // Type-safe accessor for metaResponse based on current metaStatus
   const getTypedResponse = useCallback(
     <T extends SubmissionStatusType | SubmissionErrorType>(
@@ -85,6 +127,13 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
 
   const handleStreamError = useCallback(
     (error: unknown): void => {
+      // Don't show error for intentional abort (user cancelled)
+      if (error instanceof Error && error.name === "AbortError") {
+        console.log("[SSE] Request aborted (user cancelled or timeout)");
+        setIsSubmitting(false);
+        return;
+      }
+
       console.error("[sse] Error:", error);
       setIsSubmitting(false);
 
@@ -132,8 +181,9 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       const status = (data as Partial<{ status: string }>)?.status ?? eventName;
       if (!status) return;
 
-      // Silently consume heartbeat events to keep connection alive
+      // Track heartbeat events for connection status, but don't log them
       if (eventName === "heartbeat" || status === "heartbeat") {
+        setLastHeartbeat(Date.now());
         return;
       }
 
@@ -180,12 +230,19 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         case "PROVISIONING":
           console.log(`[SSE] Status changed: ${metaStatus} → PROVISIONING`);
           setMetaStatus("PROVISIONING" as SubmissionStatusType);
+          // Start elapsed time tracking for AMD provisioning
+          if (provisioningStartTime === null) {
+            setProvisioningStartTime(Date.now());
+          }
           break;
 
         case "CHECKING":
         case "BENCHMARKING":
+        case "COMPILING":
           console.log(`[SSE] Status changed: ${metaStatus} → ${status}`);
           setMetaStatus(status as SubmissionStatusType);
+          // Clear provisioning timer when we move past provisioning
+          setProvisioningStartTime(null);
           break;
 
         case "TEST_RESULT":
@@ -231,6 +288,11 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           setMetaResponse(bench);
           refetchSubmissions();
 
+          // Save AMD warm VM timestamp on successful completion
+          if (isAmdSubmissionRef.current) {
+            saveAmdRunTimestamp();
+          }
+
           // Synthesize ACCEPTED for UI (works whether or not server sends it)
           const accepted: AcceptedResponse = {
             status: SubmissionStatus.ACCEPTED,
@@ -251,6 +313,10 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           setMetaStatus(SubmissionStatus.ACCEPTED);
           setMetaResponse(data as AcceptedResponse);
           refetchSubmissions();
+          // Save AMD warm VM timestamp on successful completion
+          if (isAmdSubmissionRef.current) {
+            saveAmdRunTimestamp();
+          }
           break;
 
         case "ERROR":
@@ -361,6 +427,10 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         const isAmdGpu =
           submissionData.gpuType === "MI300X" ||
           submissionData.gpuType === "MI210";
+
+        // Track if this is an AMD submission for saving warm VM timestamp
+        isAmdSubmissionRef.current = isAmdGpu;
+
         const endpoint = isAmdGpu
           ? "/api/submissions/benchmark"
           : "/api/submissions/direct-submit";
@@ -371,6 +441,13 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           language: submissionData.language,
           isAmdGpu,
         });
+
+        // Create AbortController for cancellation support
+        abortControllerRef.current = new AbortController();
+        const timeoutId = setTimeout(() => {
+          abortControllerRef.current?.abort();
+        }, 900000); // 15 minute timeout
+
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {
@@ -380,8 +457,11 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           cache: "no-store",
           credentials: "same-origin",
           keepalive: true,
-          signal: AbortSignal.timeout(900000),
+          signal: abortControllerRef.current.signal,
         });
+
+        // Clear timeout once response starts
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           if (response.status === 429) {
@@ -433,7 +513,61 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setBenchmarkResults([]);
     setTotalTests(0);
     setSubmissionId(null);
+    // Reset AMD provisioning state
+    setProvisioningStartTime(null);
+    setElapsedSeconds(0);
+    setLastHeartbeat(null);
   }, []);
+
+  /**
+   * Cancel the current submission
+   * - Aborts the fetch request
+   * - Calls the cancel API to clean up backend resources
+   * - Resets all state
+   * - Shows cancellation toast
+   */
+  const cancelSubmission = useCallback(async () => {
+    console.log("[SSE] Cancelling submission", submissionId);
+
+    // 1. Abort the fetch request (will trigger disconnect handler on server)
+    abortControllerRef.current?.abort();
+
+    // 2. Call cancel API if we have a submission ID
+    if (submissionId) {
+      try {
+        await fetch("/api/submissions/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ submissionId }),
+        });
+        console.log("[SSE] Cancel API called successfully");
+      } catch (e) {
+        console.warn("[SSE] Failed to call cancel API:", e);
+      }
+    }
+
+    // 3. Reset all state
+    setIsSubmitting(false);
+    setMetaStatus(null);
+    setMetaResponse(null);
+    setProvisioningStartTime(null);
+    setElapsedSeconds(0);
+    setLastHeartbeat(null);
+    setTestResults([]);
+    setBenchmarkResults([]);
+    setSubmissionId(null);
+    setIsBenchmarking(false);
+    setIsTestCaseTableOpen(false);
+
+    // 4. Show cancellation toast
+    toast({
+      title: "Submission Cancelled",
+      description: "Your submission has been cancelled.",
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+    });
+  }, [submissionId, toast]);
 
   return {
     isSubmitting,
@@ -452,5 +586,8 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     ptxContent,
     sassContent,
     submissionId,
+    elapsedSeconds,
+    lastHeartbeat,
+    cancelSubmission,
   };
 }

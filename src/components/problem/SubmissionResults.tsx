@@ -48,6 +48,7 @@ import NextLink from "next/link";
 
 import { getStatusIcon } from "~/constants/problem";
 import { useSplitPanel } from "./SplitPanel";
+import AmdProvisioningCard from "./AmdProvisioningCard";
 
 // Define more specific types for the response data - these match the types in src/types/submission.ts
 type ResponseTypeMap = {
@@ -77,14 +78,22 @@ interface SubmissionResultsProps {
   onBackToProblem: () => void;
   onViewSubmissions: () => void;
   submissionId?: string | null;
+  elapsedSeconds?: number;
+  lastHeartbeat?: number | null;
+  onCancel?: () => void;
 }
 
 const getStatusMessage = (
-  status: SubmissionStatusType | SubmissionErrorType
+  status: SubmissionStatusType | SubmissionErrorType,
+  elapsedSeconds?: number
 ): string => {
   switch (status) {
     case SubmissionStatus.IN_QUEUE:
       return "In queue";
+    case "PROVISIONING":
+      return elapsedSeconds !== undefined
+        ? `Provisioning AMD VM... (${elapsedSeconds}s)`
+        : "Provisioning AMD VM...";
     case SubmissionStatus.COMPILING:
       return "Compiling...";
     case SubmissionStatus.CHECKING:
@@ -127,6 +136,9 @@ const SubmissionResults = ({
   onBackToProblem,
   onViewSubmissions,
   submissionId,
+  elapsedSeconds,
+  lastHeartbeat,
+  onCancel,
 }: SubmissionResultsProps) => {
   const { splitRatio } = useSplitPanel();
   const useCompactLabels = splitRatio < 40;
@@ -167,42 +179,52 @@ const SubmissionResults = ({
           </Button>
         </HStack>
       </HStack>
-      <Box
-        bg={
-          metaStatus === "ACCEPTED"
-            ? "green.900"
-            : metaStatus === "IN_QUEUE" ||
-                metaStatus === "COMPILING" ||
-                metaStatus === "CHECKING" ||
-                metaStatus === "CHECKED" ||
-                metaStatus === "BENCHMARKING" ||
-                metaStatus === "BENCHMARKED"
-              ? "transparent"
-              : "red.900"
-        }
-        p={4}
-        borderRadius="xl"
-      >
-        <HStack spacing={3}>
-          {metaStatus === "IN_QUEUE" ||
-          metaStatus === "COMPILING" ||
-          metaStatus === "CHECKING" ||
-          metaStatus === "CHECKED" ||
-          metaStatus === "BENCHMARKING" ||
-          metaStatus === "BENCHMARKED" ? (
-            <Spinner size="sm" color="blue.200" />
-          ) : (
-            <Icon as={getStatusIcon(metaStatus)} boxSize={6} />
-          )}
-          <VStack align="start" spacing={0}>
-            <Text fontSize="lg" fontWeight="semibold">
-              {getStatusMessage(metaStatus)}
-            </Text>
-          </VStack>
-        </HStack>
-      </Box>
+
+      {/* Show AmdProvisioningCard when provisioning, otherwise show regular status */}
+      {metaStatus === "PROVISIONING" ? (
+        <AmdProvisioningCard
+          elapsedSeconds={elapsedSeconds ?? 0}
+          lastHeartbeat={lastHeartbeat}
+          onCancel={onCancel}
+        />
+      ) : (
+        <Box
+          bg={
+            metaStatus === "ACCEPTED"
+              ? "green.900"
+              : metaStatus === "IN_QUEUE" ||
+                  metaStatus === "COMPILING" ||
+                  metaStatus === "CHECKING" ||
+                  metaStatus === "CHECKED" ||
+                  metaStatus === "BENCHMARKING" ||
+                  metaStatus === "BENCHMARKED"
+                ? "transparent"
+                : "red.900"
+          }
+          p={4}
+          borderRadius="xl"
+        >
+          <HStack spacing={3}>
+            {metaStatus === "IN_QUEUE" ||
+            metaStatus === "COMPILING" ||
+            metaStatus === "CHECKING" ||
+            metaStatus === "CHECKED" ||
+            metaStatus === "BENCHMARKING" ||
+            metaStatus === "BENCHMARKED" ? (
+              <Spinner size="sm" color="blue.200" />
+            ) : (
+              <Icon as={getStatusIcon(metaStatus)} boxSize={6} />
+            )}
+            <VStack align="start" spacing={0}>
+              <Text fontSize="lg" fontWeight="semibold">
+                {getStatusMessage(metaStatus, elapsedSeconds)}
+              </Text>
+            </VStack>
+          </HStack>
+        </Box>
+      )}
       {/* Test Case Results Table */}
-      {testResults.length > 0 &&
+      {(testResults.length > 0 || benchmarkResults.length > 0) &&
         metaStatus !== SubmissionStatus.WRONG_ANSWER &&
         metaResponse && (
           <Box bg="whiteAlpha.50" borderRadius="xl" overflow="hidden">

@@ -13,7 +13,7 @@ import type {
   SubmissionErrorType,
 } from "~/types/submission";
 import { db } from "~/server/db";
-import { executePythonRunner } from "~/server/amd/runner";
+import { executePythonRunner, cancelAmdSubmission } from "~/server/amd/runner";
 
 export default async function handler(
   req: NextApiRequest,
@@ -141,6 +141,36 @@ export default async function handler(
       console.log(
         `[Benchmark API] Created submission with ID: ${submission.id}`
       );
+
+      // Track client disconnect for cleanup (auto-cancel orphaned submissions)
+      let clientDisconnected = false;
+      req.on("close", () => {
+        if (clientDisconnected) return; // Prevent double-handling
+        clientDisconnected = true;
+
+        console.log(
+          `[Benchmark API] Client disconnected for AMD submission ${submission.id}`
+        );
+
+        // Cancel the AMD process (kills Python process + dstack task)
+        cancelAmdSubmission(submission.id);
+
+        // Delete the orphaned submission from DB (fire and forget)
+        db.submission
+          .delete({ where: { id: submission.id } })
+          .then(() => {
+            console.log(
+              `[Benchmark API] Deleted orphaned AMD submission ${submission.id}`
+            );
+          })
+          .catch((e) => {
+            // Might already be deleted or completed - that's fine
+            console.warn(
+              `[Benchmark API] Could not delete AMD submission ${submission.id}:`,
+              e
+            );
+          });
+      });
 
       // Send submission ID to client
       sendSSE(SubmissionStatus.IN_QUEUE, {
