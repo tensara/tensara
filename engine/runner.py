@@ -38,6 +38,9 @@ def run_checker(
     """
 
     try:
+        # Reset random state for reproducible test generation
+        utils.reset_random_state()
+
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
 
@@ -168,6 +171,9 @@ def run_sample_case(
     Run the sample test case of a problem and return result + output.
     """
     try:
+        # Reset random state for reproducible test generation
+        utils.reset_random_state()
+
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
         solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
@@ -225,6 +231,9 @@ def run_sanity_check(
     Run sanity check on compiled CUDA solution
     """
     try:
+        # Reset random state for reproducible test generation
+        utils.reset_random_state()
+
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
 
@@ -348,6 +357,9 @@ def run_benchmark(
         Dictionary objects with benchmark status updates
     """
     try:
+        # Reset random state for reproducible test generation
+        utils.reset_random_state()
+
         dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
 

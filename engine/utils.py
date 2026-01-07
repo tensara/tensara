@@ -17,6 +17,8 @@ import queue
 import math
 from numbers import Integral
 import numpy as np
+import threading
+from collections import deque
 
 JS_MAX_SAFE = 2**53 - 1
 
@@ -38,6 +40,22 @@ GPU_COMPUTE_CAPABILITIES = {
 }
 
 
+# Container state tracking for diagnostics
+_CONTAINER_START_TIME = time.time()
+_REQUEST_COUNTER = 0
+
+
+def get_container_diagnostics() -> dict:
+    """Get container-level state for diagnostics."""
+    global _REQUEST_COUNTER
+    _REQUEST_COUNTER += 1
+    return {
+        "is_first_request": _REQUEST_COUNTER == 1,
+        "request_number": _REQUEST_COUNTER,
+        "container_uptime_s": round(time.time() - _CONTAINER_START_TIME, 2),
+    }
+
+
 class NVCCError(Exception):
     pass
 
@@ -50,6 +68,245 @@ def get_nvidia_smi():
     """Get nvidia-smi output"""
     process = subprocess.run(["nvidia-smi"], capture_output=True, text=True)
     return str(process.stdout)
+
+
+def get_gpu_diagnostics() -> dict:
+    """Query GPU state via nvidia-smi for diagnostics."""
+    result = subprocess.run(
+        [
+            "nvidia-smi",
+            "--query-gpu=temperature.gpu,temperature.memory,pstate,clocks.current.sm,clocks.current.memory,power.draw,power.limit,clocks_throttle_reasons.active,clocks_throttle_reasons.hw_thermal_slowdown,clocks_throttle_reasons.sw_thermal_slowdown,clocks_throttle_reasons.sw_power_cap,utilization.gpu,utilization.memory",
+            "--format=csv,noheader,nounits",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if result.returncode == 0:
+        parts = result.stdout.strip().split(", ")
+        if len(parts) >= 11:
+            # Helper to parse throttle reason fields (they can be "Active" or "Not Active" or "[Not Supported]")
+            def parse_throttle_reason(val):
+                val = val.strip()
+                if val == "[Not Supported]":
+                    return None
+                return val == "Active"
+            
+            for i in range(len(parts)):
+                if parts[i] == "N/A":
+                    parts[i] = 0
+
+            return {
+                "gpu_temp_c": int(parts[0]),
+                "gpu_mem_temp_c": int(parts[1]),
+                "gpu_pstate": parts[2].strip(),
+                "gpu_sm_clock_mhz": int(parts[3]),
+                "gpu_mem_clock_mhz": int(parts[4]),
+                "gpu_power_w": float(parts[5]),
+                "gpu_power_limit_w": float(parts[6]),
+                "gpu_throttle_active": parse_throttle_reason(parts[7]),
+                "gpu_throttle_hw_thermal": parse_throttle_reason(parts[8]),
+                "gpu_throttle_sw_thermal": parse_throttle_reason(parts[9]),
+                "gpu_throttle_sw_power_cap": parse_throttle_reason(parts[10]),
+                "gpu_utilization_pct": int(parts[11]),
+                "gpu_memory_utilization_pct": int(parts[12]),
+            }
+        # Fallback for older nvidia-smi versions that might not support all fields
+        elif len(parts) >= 6:
+            return {
+                "gpu_temp_c": int(parts[0]) if len(parts) > 0 else 0,
+                "gpu_sm_clock_mhz": int(parts[3]) if len(parts) > 3 else 0,
+                "gpu_mem_clock_mhz": int(parts[4]) if len(parts) > 4 else 0,
+                "gpu_power_w": float(parts[5]) if len(parts) > 5 else 0.0,
+                "gpu_utilization_pct": int(parts[11]) if len(parts) > 11 else 0,
+            }
+    return {}
+
+
+def get_gpu_clock_and_temp() -> tuple[int, int]:
+    """Get current SM clock (MHz) and temperature (C). Returns (0, 0) on error."""
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=clocks.current.sm,temperature.gpu", "--format=csv,noheader,nounits"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0:
+            parts = result.stdout.strip().split(", ")
+            return int(parts[0]), int(parts[1])
+    except Exception:
+        pass
+    return 0, 0
+
+
+class GPUMonitor:
+    """Monitor GPU metrics using pynvml in a separate thread during kernel execution."""
+    
+    def __init__(self, device_id=0, sample_interval_ms=1):
+        """
+        Initialize GPU monitor.
+        
+        Args:
+            device_id: GPU device ID to monitor
+            sample_interval_ms: Sampling interval in milliseconds
+        """
+        self.device_id = device_id
+        self.sample_interval = sample_interval_ms / 1000.0  # Convert to seconds
+        self.monitoring = False
+        self.samples = deque()
+        self.thread = None
+        self.handle = None
+        self.lock = threading.Lock()
+        self._init_pynvml()
+    
+    def _init_pynvml(self):
+        """Initialize pynvml library."""
+        try:
+            import pynvml  # type: ignore
+            pynvml.nvmlInit()
+            self.handle = pynvml.nvmlDeviceGetHandleByIndex(self.device_id)
+            self.pynvml = pynvml
+        except ImportError:
+            # pynvml not installed - set to None, methods will handle gracefully
+            self.handle = None
+            self.pynvml = None
+        except Exception:
+            # Fallback if pynvml fails to initialize
+            self.handle = None
+            self.pynvml = None
+    
+    def _monitor_loop(self):
+        """Main monitoring loop that runs in a separate thread."""
+        if not self.pynvml or not self.handle:
+            return
+        
+        while self.monitoring:
+            try:
+                # Get current timestamp
+                timestamp = time.time()
+                
+                # Query GPU metrics
+                try:
+                    # Get clock speeds
+                    sm_clock = self.pynvml.nvmlDeviceGetClockInfo(self.handle, self.pynvml.NVML_CLOCK_SM)
+                    mem_clock = self.pynvml.nvmlDeviceGetClockInfo(self.handle, self.pynvml.NVML_CLOCK_MEM)
+                    
+                    # Get temperature
+                    temp = self.pynvml.nvmlDeviceGetTemperature(self.handle, self.pynvml.NVML_TEMPERATURE_GPU)
+                    
+                    # Get power usage
+                    power = self.pynvml.nvmlDeviceGetPowerUsage(self.handle) / 1000.0  # Convert mW to W
+                    
+                    # Get utilization
+                    util = self.pynvml.nvmlDeviceGetUtilizationRates(self.handle)
+                    
+                    # Get performance state
+                    pstate = self.pynvml.nvmlDeviceGetPerformanceState(self.handle)
+                    
+                    # Get clock throttle reasons
+                    throttle_reasons = self.pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(self.handle)
+                    
+                    sample = {
+                        "timestamp": timestamp,
+                        "sm_clock_mhz": sm_clock,
+                        "mem_clock_mhz": mem_clock,
+                        "temp_c": temp,
+                        "power_w": power,
+                        "utilization_gpu_pct": util.gpu,
+                        "utilization_memory_pct": util.memory,
+                        "pstate": pstate,
+                        "throttle_reasons": throttle_reasons,
+                    }
+                    
+                    with self.lock:
+                        self.samples.append(sample)
+                        
+                except Exception as e:
+                    # If query fails, continue monitoring
+                    pass
+                
+                # Sleep for sample interval
+                time.sleep(self.sample_interval)
+                
+            except Exception:
+                # If monitoring loop fails, break out
+                break
+    
+    def start(self):
+        """Start monitoring in a separate thread."""
+        if not self.pynvml or not self.handle:
+            return
+        
+        if self.monitoring:
+            return  # Already monitoring
+        
+        self.monitoring = True
+        with self.lock:
+            self.samples.clear()
+        
+        self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.thread.start()
+    
+    def stop(self):
+        """Stop monitoring and return collected samples."""
+        if not self.monitoring:
+            return []
+        
+        self.monitoring = False
+        if self.thread:
+            self.thread.join(timeout=1.0)
+        
+        with self.lock:
+            samples = list(self.samples)
+            self.samples.clear()
+        
+        return samples
+    
+    def get_samples(self):
+        """Get current samples without stopping monitoring."""
+        with self.lock:
+            return list(self.samples)
+    
+    def get_stats_for_period(self, start_time, end_time, samples=None):
+        """
+        Get statistics for a specific time period.
+        
+        Args:
+            start_time: Start timestamp
+            end_time: End timestamp
+            samples: Optional list of samples to use instead of self.samples
+            
+        Returns:
+            Dictionary with statistics (min, max, mean) for each metric
+        """
+        if samples is None:
+            with self.lock:
+                samples_to_use = list(self.samples)
+        else:
+            samples_to_use = samples
+            
+        period_samples = [
+            s for s in samples_to_use 
+            if start_time <= s["timestamp"] <= end_time
+        ]
+        
+        if not period_samples:
+            return {}
+        
+        stats = {}
+        metrics = ["sm_clock_mhz", "mem_clock_mhz", "temp_c", "power_w", 
+                   "utilization_gpu_pct", "utilization_memory_pct"]
+        
+        for metric in metrics:
+            values = [s[metric] for s in period_samples if metric in s]
+            if values:
+                stats[f"{metric}_min"] = min(values)
+                stats[f"{metric}_max"] = max(values)
+                stats[f"{metric}_mean"] = statistics.mean(values) if len(values) > 1 else values[0]
+                stats[f"{metric}_samples"] = len(values)
+        
+        return stats
 
 
 def nvcc_command(gpu: str, srcs: list[Path | str], out: Path | str):
@@ -517,10 +774,159 @@ def load_problem_module(problem_type: str, problem_def: str = None) -> Problem:
         )
 
 
-def prepare_gpu():
+BENCHMARK_SEED = 42
+
+
+def reset_random_state(seed: int = BENCHMARK_SEED):
+    """
+    Reset all random state to ensure reproducible runs from the same "snapshot".
+    Call this at the start of any runner function before test case generation.
+    """
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # For multi-GPU
+    np.random.seed(seed)
+
+    # Disable cuDNN benchmark mode (autotuner) for deterministic behavior
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
+
+def lock_gpu_clocks(device_id=0):
+    """
+    Lock GPU clocks to maximum values for consistent benchmarking.
+    
+    Args:
+        device_id: GPU device ID to lock clocks for
+        
+    Returns:
+        tuple: (graphics_clock, memory_clock) in MHz, or (None, None) on failure
+    """
+    try:
+        # Get maximum clock speeds
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                f"--id={device_id}",
+                "--query-gpu=clocks.max.graphics,clocks.max.memory",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        
+        if result.returncode != 0:
+            print(f"Warning: Failed to query max clocks: {result.stderr}")
+            return None, None
+        
+        parts = result.stdout.strip().split(", ")
+        if len(parts) != 2:
+            print(f"Warning: Unexpected clock query output: {result.stdout}")
+            return None, None
+        
+        max_graphics_clock = int(parts[0])
+        max_memory_clock = int(parts[1])
+        
+        # Lock graphics clock
+        graphics_result = subprocess.run(
+            ["nvidia-smi", f"--id={device_id}", f"-lgc", str(max_graphics_clock)],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        
+        if graphics_result.returncode != 0:
+            print(f"Warning: Failed to lock graphics clock: {graphics_result.stderr}")
+            # Try to unlock if partial lock happened
+            subprocess.run(["nvidia-smi", f"--id={device_id}", "-rgc"], capture_output=True)
+            return None, None
+        
+        # Lock memory clock
+        memory_result = subprocess.run(
+            ["nvidia-smi", f"--id={device_id}", f"-lmc", str(max_memory_clock)],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        
+        if memory_result.returncode != 0:
+            print(f"Warning: Failed to lock memory clock: {memory_result.stderr}")
+            # Unlock graphics clock if memory lock failed
+            subprocess.run(["nvidia-smi", f"--id={device_id}", "-rgc"], capture_output=True)
+            return None, None
+        
+        print(f"Locked GPU clocks: graphics={max_graphics_clock}MHz, memory={max_memory_clock}MHz")
+        return max_graphics_clock, max_memory_clock
+        
+    except Exception as e:
+        print(f"Warning: Exception while locking GPU clocks: {e}")
+        return None, None
+
+
+def unlock_gpu_clocks(device_id=0):
+    """
+    Unlock GPU clocks and restore to default (automatic) behavior.
+    
+    Args:
+        device_id: GPU device ID to unlock clocks for
+    """
+    try:
+        # Unlock graphics clock
+        subprocess.run(
+            ["nvidia-smi", f"--id={device_id}", "-rgc"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        
+        # Unlock memory clock
+        subprocess.run(
+            ["nvidia-smi", f"--id={device_id}", "-rmc"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        
+        print(f"Unlocked GPU clocks for device {device_id}")
+    except Exception as e:
+        print(f"Warning: Exception while unlocking GPU clocks: {e}")
+
+
+class LockedGPUClocks:
+    """Context manager to lock GPU clocks and automatically unlock on exit."""
+    
+    def __init__(self, device_id=0, lock=True):
+        self.device_id = device_id
+        self.lock = lock
+        self.locked = False
+        self.graphics_clock = None
+        self.memory_clock = None
+    
+    def __enter__(self):
+        if self.lock:
+            self.graphics_clock, self.memory_clock = lock_gpu_clocks(self.device_id)
+            if self.graphics_clock is not None and self.memory_clock is not None:
+                self.locked = True
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.locked:
+            unlock_gpu_clocks(self.device_id)
+        return False  # Don't suppress exceptions
+
+
+def prepare_gpu(lock_clocks=True):
     """
     Prepare the GPU for consistent benchmarking with a simple warm-up.
+    
+    Args:
+        lock_clocks: If True, lock GPU clocks to maximum values
     """
+    # Lock GPU clocks to maximum for consistent benchmarking
+    if lock_clocks:
+        lock_gpu_clocks(device_id=0)
+    
     # Clear GPU caches
     torch.cuda.empty_cache()
 
@@ -533,6 +939,25 @@ def prepare_gpu():
     torch.cuda.empty_cache()
 
     time.sleep(0.5)
+
+
+# Pre-allocate L2 flush buffer using device's actual L2 cache size
+_L2_FLUSH_BUFFER = None
+
+
+# def flush_l2_cache():
+#     """
+#     Flush the GPU L2 cache by reading/writing a buffer sized to the device's L2 cache.
+#     This ensures consistent cache state before each benchmark iteration.
+#     """
+#     global _L2_FLUSH_BUFFER
+
+#     if _L2_FLUSH_BUFFER is None or _L2_FLUSH_BUFFER.device.type != "cuda":
+#         l2_size = torch.cuda.get_device_properties(0).l2_cache_size + 16
+#         _L2_FLUSH_BUFFER = torch.empty(l2_size, dtype=torch.uint8, device="cuda")
+
+#     _L2_FLUSH_BUFFER.zero_()
+#     torch.cuda.synchronize()
 
 
 def run_dynamic_benchmark(
@@ -548,6 +973,7 @@ def run_dynamic_benchmark(
     target_cv=0.02,
     long_kernel_threshold=1.0,
     param_func=None,
+    num_warmup_iterations=5,
 ):
     """
     Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
@@ -564,10 +990,16 @@ def run_dynamic_benchmark(
         max_iterations: Maximum number of iterations to run
         target_cv: Target coefficient of variation to achieve
         long_kernel_threshold: Time in seconds above which CV convergence is skipped
+        num_warmup_iterations: Number of warmup iterations to run (default 5)
 
     Returns:
         benchmark_result: Dictionary with benchmark results
     """
+    import json
+
+    # Collect container diagnostics at start
+    container_diag = get_container_diagnostics()
+
     # Prepare pointers for CUDA
     if param_func is None:
         parameters = make_parameters(
@@ -587,19 +1019,35 @@ def run_dynamic_benchmark(
     has_flops = problem.supports_flops()
     flops = problem.get_flops(test_case) if has_flops else None
 
-    # Warm up run
+    # === DIAGNOSTICS: GPU state before warmup ===
+    gpu_before = get_gpu_diagnostics()
+
+    # Prepare GPU (generic warmup)
     prepare_gpu()
     torch.cuda.synchronize()
 
-    start_event = torch.cuda.Event(enable_timing=True)
-    end_event = torch.cuda.Event(enable_timing=True)
+    # === WARMUP: Run kernel warmup iterations with timing ===
+    warmup_runtimes = []
+    for _ in range(num_warmup_iterations):
+        # Flush L2 cache before each warmup iteration for consistent cache state
+        # flush_l2_cache()
 
-    start_event.record()
-    solution_func(*parameters)
-    end_event.record()
-    torch.cuda.synchronize()
+        start_event = torch.cuda.Event(enable_timing=True)
+        end_event = torch.cuda.Event(enable_timing=True)
 
-    initial_runtime = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
+        start_event.record()
+        solution_func(*parameters)
+        end_event.record()
+        torch.cuda.synchronize()
+
+        warmup_time = start_event.elapsed_time(end_event) / 1000.0  # seconds
+        warmup_runtimes.append(warmup_time)
+
+    # === DIAGNOSTICS: GPU state after warmup ===
+    gpu_after_warmup = get_gpu_diagnostics()
+
+    # Use last warmup runtime to determine kernel characteristics
+    initial_runtime = warmup_runtimes[-1] if warmup_runtimes else 0.0
 
     # Determine if this is a long-running kernel and how many iterations to run
     is_long_kernel = initial_runtime >= long_kernel_threshold
@@ -611,38 +1059,96 @@ def run_dynamic_benchmark(
         # For short kernels, use CV-based convergence with max_iterations cap
         target_iterations = max_iterations
 
-    # Collect runtime measurements
-    runtimes = [initial_runtime]  # Include the initial runtime
-
+    # === MEASURED ITERATIONS ===
+    runtimes = []
     gflops_measurements = []
-    if has_flops and flops is not None and initial_runtime > 0:
-        gflops_measurements.append((flops / initial_runtime) / 1e9)
+    iteration_data_list = []  # List of iteration data dictionaries with complete monitor samples
+    
+    # Initialize GPU monitor for real-time metrics during kernel execution
+    gpu_monitor = None
+    try:
+        gpu_monitor = GPUMonitor(device_id=0, sample_interval_ms=1)
+    except Exception as e:
+        # Fallback if pynvml is not available or fails
+        print(f"Warning: GPU monitor initialization failed: {e}, using fallback method")
+        gpu_monitor = None
 
-    for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
+    for iteration in range(target_iterations):
+        # Flush L2 cache before each iteration for consistent cache state
+        # flush_l2_cache()
+
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
+        
+        # Start monitoring before kernel execution
+        monitor_samples = []
+        kernel_start_time = None
+        kernel_end_time = None
+        if gpu_monitor:
+            if gpu_monitor.pynvml is not None and gpu_monitor.handle is not None:
+                gpu_monitor.start()
+                # Small delay to ensure monitor thread has started
+                time.sleep(0.001)  # 1ms
+                kernel_start_time = time.time()
 
-        # Start timing
         start_event.record()
-
-        # Run the kernel
         solution_func(*parameters)
-
-        # End timing
         end_event.record()
         torch.cuda.synchronize()
-
-        elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
+        
+        # Stop monitoring and collect samples
+        elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # seconds
+        runtime_ms = round(elapsed_time * 1000, 2)
+        
+        # Collect and filter monitor samples for this iteration
+        kernel_samples = []
+        if gpu_monitor and kernel_start_time is not None:
+            kernel_end_time = time.time()
+            monitor_samples = gpu_monitor.stop()
+            
+            if monitor_samples:
+                # Filter samples to kernel execution period
+                kernel_samples = [
+                    s for s in monitor_samples 
+                    if kernel_start_time <= s["timestamp"] <= kernel_end_time
+                ]
+        
+        # Create iteration data structure with all monitoring data
+        if kernel_samples and kernel_start_time is not None:
+            # Calculate timestamps relative to kernel start (in milliseconds)
+            timestamps = [(s["timestamp"] - kernel_start_time) * 1000.0 for s in kernel_samples]
+            iteration_data = {
+                "runtime_ms": runtime_ms,
+                "temperatures": [s["temp_c"] for s in kernel_samples],
+                "sm_clocks": [s["sm_clock_mhz"] for s in kernel_samples],
+                "mem_clocks": [s["mem_clock_mhz"] for s in kernel_samples],
+                "power_draws": [s["power_w"] for s in kernel_samples],
+                "power_states": [s["pstate"] for s in kernel_samples],
+                "timestamps": timestamps,  # Timestamps relative to kernel start (ms)
+            }
+        else:
+            # No samples available
+            iteration_data = {
+                "runtime_ms": runtime_ms,
+                "temperatures": [],
+                "sm_clocks": [],
+                "mem_clocks": [],
+                "power_draws": [],
+                "power_states": [],
+                "timestamps": [],
+            }
+        
+        iteration_data_list.append(iteration_data)
+        
         runtimes.append(elapsed_time)
 
         # Calculate GFLOPS
         if has_flops and flops is not None and elapsed_time > 0:
-            gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
+            gflops = (flops / elapsed_time) / 1e9
             gflops_measurements.append(gflops)
 
         # Check if we've done enough iterations and the variance is low enough
-        # Only do this check for short kernels
-        if not is_long_kernel and iteration + 1 >= min_iterations:
+        if not is_long_kernel and len(runtimes) >= min_iterations:
             if has_flops and gflops_measurements:
                 mean_val = statistics.mean(gflops_measurements)
                 if len(gflops_measurements) > 1:
@@ -657,18 +1163,52 @@ def run_dynamic_benchmark(
                 if cv < target_cv:
                     break
 
+    # === DIAGNOSTICS: GPU state after benchmark ===
+    gpu_after_benchmark = get_gpu_diagnostics()
+
+    # === CALCULATE TIMING STATS ===
+    warmup_runtimes_ms = [r * 1000 for r in warmup_runtimes]
+    measured_runtimes_ms = [r * 1000 for r in runtimes]
+
+    warmup_mean_ms = statistics.mean(warmup_runtimes_ms) if warmup_runtimes_ms else 0.0
+    measured_mean_ms = statistics.mean(measured_runtimes_ms) if measured_runtimes_ms else 0.0
+
+    # CV of measured runtimes
+    if len(measured_runtimes_ms) > 1:
+        measured_stdev = statistics.stdev(measured_runtimes_ms)
+        cv = measured_stdev / measured_mean_ms if measured_mean_ms > 0 else 0.0
+    else:
+        cv = 0.0
+
+    # Min/max ratio
+    if measured_runtimes_ms:
+        min_max_ratio = max(measured_runtimes_ms) / min(measured_runtimes_ms) if min(measured_runtimes_ms) > 0 else 1.0
+    else:
+        min_max_ratio = 1.0
+
+    # First vs rest ratio
+    if len(measured_runtimes_ms) > 1:
+        first_vs_rest_ratio = measured_runtimes_ms[0] / statistics.mean(measured_runtimes_ms[1:]) if statistics.mean(measured_runtimes_ms[1:]) > 0 else 1.0
+    else:
+        first_vs_rest_ratio = 1.0
+
+    # Minimal logging output
+    print(f"[{test_id}] {test_case['name']}: {measured_mean_ms:.2f}ms (cv={cv:.3f})")
+
+    # === BUILD RESULT ===
     if len(runtimes) > 1:
         mean_runtime = statistics.mean(runtimes)
     else:
-        mean_runtime = runtimes[0]
+        mean_runtime = runtimes[0] if runtimes else 0.0
 
     benchmark_result = {
         "name": test_case["name"],
         "test_id": test_id,
         "runtime_ms": mean_runtime * 1000,
+        "iterations": iteration_data_list,  # Complete per-iteration monitoring data
     }
 
-    if gflops_measurements:  # only if non-empty
+    if gflops_measurements:
         mean_gflops = statistics.mean(gflops_measurements)
         benchmark_result["gflops"] = mean_gflops
 

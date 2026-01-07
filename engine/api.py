@@ -6,12 +6,12 @@ from pathlib import Path
 import utils
 import runner
 
-DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
-RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
+DEVEL_IMAGE_NAME = "nvidia/cuda:12.9.0-devel-ubuntu22.04"
+RUNTIME_IMAGE_NAME = "nvidia/cuda:12.9.0-runtime-ubuntu22.04"
 CURR_DIR = Path(__file__).parent
 
 
-PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl"]
+PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl", "pynvml"]
 UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
 APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
@@ -113,8 +113,9 @@ gpu_runners = {
         image=runtime_image,
         name=f"runner_{gpu}",
         gpu=gpu + "!" if gpu == "H100" else gpu,
-        enable_memory_snapshot=False if gpu == "B200" else True,
+        enable_memory_snapshot=False,
         serialized=True,
+        max_inputs=1,
     )(binary_runner)
     for gpu in utils.GPU_COMPUTE_CAPABILITIES.keys()
 }
