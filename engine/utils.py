@@ -460,7 +460,9 @@ def read_bytes_as_lib(compiled_lib: bytes):
     return lib
 
 
-def make_fresh_solution_func(language: str, solution_code: str, compiled_lib: bytes, problem: Problem):
+def make_fresh_solution_func(
+    language: str, solution_code: str, compiled_lib: bytes, problem: Problem
+):
     """
     Load a fresh copy of the solution with reset static/global state.
     Returns (solution_func, temp_path) - caller must clean up temp_path.
@@ -588,7 +590,9 @@ def run_dynamic_benchmark(
 
     def get_solution():
         if can_fresh_load:
-            func, path = make_fresh_solution_func(language, solution_code, compiled_lib_bytes, problem)
+            func, path = make_fresh_solution_func(
+                language, solution_code, compiled_lib_bytes, problem
+            )
             temp_paths.append(path)
             return func
         return solution_func
@@ -603,12 +607,17 @@ def run_dynamic_benchmark(
 
         current_func = get_solution()
         if param_func is None:
-            parameters = make_parameters(language, current_func, input_tensors, actual_output, problem, test_case)
+            parameters = make_parameters(
+                language, current_func, input_tensors, actual_output, problem, test_case
+            )
         else:
-            parameters = param_func(language, current_func, input_tensors, actual_output, problem, test_case)
+            parameters = param_func(
+                language, current_func, input_tensors, actual_output, problem, test_case
+            )
 
         if language == "cute":
             import cutlass.cute as cute
+
             current_func = cute.compile(current_func, *parameters)
 
         start_event = torch.cuda.Event(enable_timing=True)
@@ -621,7 +630,9 @@ def run_dynamic_benchmark(
 
         initial_runtime = start_event.elapsed_time(end_event) / 1000.0
         is_long_kernel = initial_runtime >= long_kernel_threshold
-        target_iterations = (min_iterations + max_iterations) // 2 if is_long_kernel else max_iterations
+        target_iterations = (
+            (min_iterations + max_iterations) // 2 if is_long_kernel else max_iterations
+        )
 
         runtimes = [initial_runtime]
         gflops_measurements = []
@@ -631,12 +642,17 @@ def run_dynamic_benchmark(
         for iteration in range(1, target_iterations):
             current_func = get_solution()
             if param_func is None:
-                parameters = make_parameters(language, current_func, input_tensors, actual_output, problem, test_case)
+                parameters = make_parameters(
+                    language, current_func, input_tensors, actual_output, problem, test_case
+                )
             else:
-                parameters = param_func(language, current_func, input_tensors, actual_output, problem, test_case)
+                parameters = param_func(
+                    language, current_func, input_tensors, actual_output, problem, test_case
+                )
 
             if language == "cute":
                 import cutlass.cute as cute
+
                 current_func = cute.compile(current_func, *parameters)
 
             start_event = torch.cuda.Event(enable_timing=True)
@@ -656,7 +672,11 @@ def run_dynamic_benchmark(
             if not is_long_kernel and iteration + 1 >= min_iterations:
                 if has_flops and len(gflops_measurements) > 1:
                     mean_val = statistics.mean(gflops_measurements)
-                    cv = statistics.stdev(gflops_measurements) / mean_val if mean_val > 0 else float("inf")
+                    cv = (
+                        statistics.stdev(gflops_measurements) / mean_val
+                        if mean_val > 0
+                        else float("inf")
+                    )
                     if cv < target_cv:
                         break
                 elif not has_flops and len(runtimes) > 1:
@@ -678,6 +698,7 @@ def run_dynamic_benchmark(
 
     finally:
         import shutil
+
         for path in temp_paths:
             try:
                 if os.path.isdir(path):
