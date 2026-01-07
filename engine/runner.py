@@ -19,7 +19,14 @@ MAX_SANDBOX_OUTPUT_BYTES = 64 * 1024  # Cap console streaming to 64 KiB for resp
 
 
 def run_checker(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str,
+    problem_def: str,
+    solution_func,
+    dtype: str,
+    language: str,
+    compiled_lib: bytes = None,
+    solution_code: str = None,
+    param_func=None,
 ) -> Iterator[str]:
     """
     Check a submitted solution against the reference implementation
@@ -31,11 +38,47 @@ def run_checker(
         solution_func: Callable function for the submitted solution
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
+        compiled_lib: Compiled library bytes for CUDA/Mojo (enables anti-cheat fresh loading)
+        solution_code: Source code for Python/Triton/CuTe (enables anti-cheat fresh loading)
         param_func: None for general submissions, non-None only for baseline submissions
 
     Returns:
         Iterator that yields JSON strings with test results
     """
+
+    # Track temp files/dirs for cleanup
+    temp_paths_to_cleanup = []
+    
+    # Determine if we can do fresh loading (prevents static variable cheats)
+    can_fresh_load = (
+        (language in ("cuda", "mojo") and compiled_lib is not None) or
+        (language in ("python", "cute") and solution_code is not None)
+    )
+    
+    def get_fresh_solution_func():
+        """Load a fresh copy of the solution function with reset static state."""
+        if language in ("cuda", "mojo") and compiled_lib is not None:
+            func, temp_path = utils.load_fresh_solution_func(compiled_lib, problem, language)
+            temp_paths_to_cleanup.append(temp_path)
+            return func
+        elif language in ("python", "cute") and solution_code is not None:
+            func, temp_dir = utils.load_fresh_python_solution(solution_code, language)
+            temp_paths_to_cleanup.append(temp_dir)
+            return func
+        else:
+            # Fallback to original solution_func (no fresh loading)
+            return solution_func
+    
+    def cleanup_temp_paths():
+        """Clean up all temp files and directories created during checker."""
+        for path in temp_paths_to_cleanup:
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                elif os.path.exists(path):
+                    os.unlink(path)
+            except OSError:
+                pass
 
     try:
         dtype = utils.DTYPE_MAP[dtype]
@@ -70,15 +113,18 @@ def run_checker(
             # Create actual_output with the same shape as expected_output
             actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
+            # Load fresh solution for each test case to prevent static variable cheats
+            current_solution_func = get_fresh_solution_func()
+
             if param_func is None:
                 parameters = utils.make_parameters(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, current_solution_func, input_tensors, actual_output, problem, test_case
                 )
             else:
                 parameters = param_func(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, current_solution_func, input_tensors, actual_output, problem, test_case
                 )
-            solution_func(*parameters)
+            current_solution_func(*parameters)
 
             torch.cuda.synchronize()
 
@@ -158,6 +204,10 @@ def run_checker(
             "message": str(e.__class__.__name__),
             "details": traceback.format_exc(),
         }
+    
+    finally:
+        # Always clean up temp files
+        cleanup_temp_paths()
 
 
 @utils.subproc_generator(timeout=60)
@@ -332,7 +382,14 @@ def run_sanity_check(
 
 
 def run_benchmark(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str,
+    problem_def: str,
+    solution_func,
+    dtype: str,
+    language: str,
+    compiled_lib: bytes = None,
+    solution_code: str = None,
+    param_func=None,
 ):
     """
     Run benchmark on compiled CUDA solution
@@ -343,6 +400,9 @@ def run_benchmark(
         solution_func: Callable function for the submitted solution
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
+        compiled_lib: Compiled library bytes for CUDA/Mojo (enables anti-cheat fresh loading)
+        solution_code: Source code for Python/Triton/CuTe (enables anti-cheat fresh loading)
+        param_func: Optional custom parameter function (for baseline benchmarks)
 
     Yields:
         Dictionary objects with benchmark status updates
@@ -383,6 +443,8 @@ def run_benchmark(
                     max_iterations=20,
                     target_cv=0.01,  # 1% target coefficient of variation
                     param_func=param_func,
+                    compiled_lib_bytes=compiled_lib,
+                    solution_code=solution_code,
                 )
 
                 benchmark_results.append(benchmark_result)
