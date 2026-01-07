@@ -460,57 +460,32 @@ def read_bytes_as_lib(compiled_lib: bytes):
     return lib
 
 
-def load_fresh_solution_func(compiled_lib_bytes: bytes, problem: Problem, language: str):
+def make_fresh_solution_func(language: str, solution_code: str, compiled_lib: bytes, problem: Problem):
     """
-    Load a fresh copy of the compiled library with reset static state.
-    
-    This is used to prevent cheating via static variables that persist across calls.
-    Each call creates a new temp file and loads it as a separate library instance,
-    ensuring all static variables are reset to their initial values.
-    
-    Returns:
-        tuple: (solution_func, temp_file_path) - caller must clean up temp file
+    Load a fresh copy of the solution with reset static/global state.
+    Returns (solution_func, temp_path) - caller must clean up temp_path.
     """
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".so")
-    temp_file.write(compiled_lib_bytes)
-    temp_file.close()
-    temp_path = temp_file.name
-
-    lib = ctypes.CDLL(temp_path)
-    func_sig = problem.get_function_signature()
-    lib.solution.argtypes = func_sig["argtypes"]
-    lib.solution.restype = func_sig["restype"]
-
-    return lib.solution, temp_path
-
-
-def load_fresh_python_solution(solution_code: str, language: str):
-    """
-    Load a fresh copy of a Python/Triton/CuTe module with reset global state.
-    
-    This is used to prevent cheating via global variables that persist across calls.
-    Each call creates a new temp directory with a unique module name to bypass
-    Python's import caching, ensuring all global variables are reset.
-    
-    Returns:
-        tuple: (solution_func, temp_dir_path) - caller must clean up temp dir
-    """
-    reject_forbidden_patterns("triton", solution_code)
-    
-    filename = "triton_solution.py" if language == "python" else "cute_solution.py"
-    temp_dir = tempfile.mkdtemp()
-    temp_path = os.path.join(temp_dir, filename)
-    
-    with open(temp_path, "w") as f:
-        f.write(solution_code)
-    
-    # Use unique module name to bypass importlib cache
-    module_name = f"{filename}_{id(temp_dir)}_{time.time_ns()}"
-    spec = importlib.util.spec_from_file_location(module_name, temp_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    
-    return module.solution, temp_dir
+    if language in ("cuda", "mojo"):
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".so")
+        temp_file.write(compiled_lib)
+        temp_file.close()
+        lib = ctypes.CDLL(temp_file.name)
+        func_sig = problem.get_function_signature()
+        lib.solution.argtypes = func_sig["argtypes"]
+        lib.solution.restype = func_sig["restype"]
+        return lib.solution, temp_file.name
+    else:  # python/cute
+        reject_forbidden_patterns("triton", solution_code)
+        filename = "triton_solution.py" if language == "python" else "cute_solution.py"
+        temp_dir = tempfile.mkdtemp()
+        temp_path = os.path.join(temp_dir, filename)
+        with open(temp_path, "w") as f:
+            f.write(solution_code)
+        module_name = f"{filename}_{id(temp_dir)}_{time.time_ns()}"
+        spec = importlib.util.spec_from_file_location(module_name, temp_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.solution, temp_dir
 
 
 def cast_to_ctype(data, argtypes, language="cuda"):
@@ -605,57 +580,105 @@ def run_dynamic_benchmark(
     solution_code=None,
 ):
     """
-    Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
-    If kernel execution time exceeds threshold, run fixed number of iterations instead.
-
-    To prevent cheating via static variables, each iteration loads a fresh copy of the
-    compiled library (for CUDA/Mojo) or Python module (for Python/Triton/CuTe).
-
-    Args:
-        solution_func: CUDA library with the solution function (used as fallback)
-        problem: Problem definition with verification methods
-        test_case: The specific test case to benchmark
-        input_tensors: Input tensors for the CUDA function
-        actual_output: Output tensor for the CUDA function
-        language: Programming language of the solution ("cuda", "mojo", "python", or "cute")
-        min_iterations: Minimum number of iterations to run
-        max_iterations: Maximum number of iterations to run
-        target_cv: Target coefficient of variation to achieve
-        long_kernel_threshold: Time in seconds above which CV convergence is skipped
-        param_func: Optional custom parameter function (for baseline benchmarks)
-        compiled_lib_bytes: Compiled library bytes for CUDA/Mojo (enables fresh loading)
-        solution_code: Source code for Python/Triton/CuTe (enables fresh loading)
-
-    Returns:
-        benchmark_result: Dictionary with benchmark results
+    Run a benchmark with dynamic stopping based on GFLOPS variance.
+    Reloads solution each iteration to prevent static variable cheats.
     """
-    # Track temp files/dirs for cleanup
-    temp_paths_to_cleanup = []
-    
-    # Determine if we can do fresh loading (prevents static variable cheats)
-    can_fresh_load = (
-        (language in ("cuda", "mojo") and compiled_lib_bytes is not None) or
-        (language in ("python", "cute") and solution_code is not None)
-    )
-    
-    def get_fresh_solution_func():
-        """Load a fresh copy of the solution function with reset static state."""
-        if language in ("cuda", "mojo") and compiled_lib_bytes is not None:
-            func, temp_path = load_fresh_solution_func(compiled_lib_bytes, problem, language)
-            temp_paths_to_cleanup.append(temp_path)
+    temp_paths = []
+    can_fresh_load = compiled_lib_bytes is not None or solution_code is not None
+
+    def get_solution():
+        if can_fresh_load:
+            func, path = make_fresh_solution_func(language, solution_code, compiled_lib_bytes, problem)
+            temp_paths.append(path)
             return func
-        elif language in ("python", "cute") and solution_code is not None:
-            func, temp_dir = load_fresh_python_solution(solution_code, language)
-            temp_paths_to_cleanup.append(temp_dir)
-            return func
+        return solution_func
+
+    try:
+        has_flops = problem.supports_flops()
+        flops = problem.get_flops(test_case) if has_flops else None
+
+        # Warmup
+        prepare_gpu()
+        torch.cuda.synchronize()
+
+        current_func = get_solution()
+        if param_func is None:
+            parameters = make_parameters(language, current_func, input_tensors, actual_output, problem, test_case)
         else:
-            # Fallback to original solution_func (no fresh loading)
-            return solution_func
-    
-    def cleanup_temp_paths():
-        """Clean up all temp files and directories created during benchmark."""
+            parameters = param_func(language, current_func, input_tensors, actual_output, problem, test_case)
+
+        if language == "cute":
+            import cutlass.cute as cute
+            current_func = cute.compile(current_func, *parameters)
+
+        start_event = torch.cuda.Event(enable_timing=True)
+        end_event = torch.cuda.Event(enable_timing=True)
+
+        start_event.record()
+        current_func(*parameters)
+        end_event.record()
+        torch.cuda.synchronize()
+
+        initial_runtime = start_event.elapsed_time(end_event) / 1000.0
+        is_long_kernel = initial_runtime >= long_kernel_threshold
+        target_iterations = (min_iterations + max_iterations) // 2 if is_long_kernel else max_iterations
+
+        runtimes = [initial_runtime]
+        gflops_measurements = []
+        if has_flops and flops and initial_runtime > 0:
+            gflops_measurements.append((flops / initial_runtime) / 1e9)
+
+        for iteration in range(1, target_iterations):
+            current_func = get_solution()
+            if param_func is None:
+                parameters = make_parameters(language, current_func, input_tensors, actual_output, problem, test_case)
+            else:
+                parameters = param_func(language, current_func, input_tensors, actual_output, problem, test_case)
+
+            if language == "cute":
+                import cutlass.cute as cute
+                current_func = cute.compile(current_func, *parameters)
+
+            start_event = torch.cuda.Event(enable_timing=True)
+            end_event = torch.cuda.Event(enable_timing=True)
+
+            start_event.record()
+            current_func(*parameters)
+            end_event.record()
+            torch.cuda.synchronize()
+
+            elapsed_time = start_event.elapsed_time(end_event) / 1000.0
+            runtimes.append(elapsed_time)
+
+            if has_flops and flops and elapsed_time > 0:
+                gflops_measurements.append((flops / elapsed_time) / 1e9)
+
+            if not is_long_kernel and iteration + 1 >= min_iterations:
+                if has_flops and len(gflops_measurements) > 1:
+                    mean_val = statistics.mean(gflops_measurements)
+                    cv = statistics.stdev(gflops_measurements) / mean_val if mean_val > 0 else float("inf")
+                    if cv < target_cv:
+                        break
+                elif not has_flops and len(runtimes) > 1:
+                    mean_val = statistics.mean(runtimes)
+                    cv = statistics.stdev(runtimes) / mean_val if mean_val > 0 else float("inf")
+                    if cv < target_cv:
+                        break
+
+        mean_runtime = statistics.mean(runtimes) if len(runtimes) > 1 else runtimes[0]
+        benchmark_result = {
+            "name": test_case["name"],
+            "test_id": test_id,
+            "runtime_ms": mean_runtime * 1000,
+        }
+        if gflops_measurements:
+            benchmark_result["gflops"] = statistics.mean(gflops_measurements)
+
+        return benchmark_result
+
+    finally:
         import shutil
-        for path in temp_paths_to_cleanup:
+        for path in temp_paths:
             try:
                 if os.path.isdir(path):
                     shutil.rmtree(path)
@@ -663,136 +686,6 @@ def run_dynamic_benchmark(
                     os.unlink(path)
             except OSError:
                 pass
-    
-    try:
-        # Calculate FLOPS for this test case
-        has_flops = problem.supports_flops()
-        flops = problem.get_flops(test_case) if has_flops else None
-
-        # Warm up run with fresh library
-        prepare_gpu()
-        torch.cuda.synchronize()
-        
-        # Load fresh solution for warmup
-        current_solution_func = get_fresh_solution_func()
-        
-        # Prepare parameters with the fresh function
-        if param_func is None:
-            parameters = make_parameters(
-                language, current_solution_func, input_tensors, actual_output, problem, test_case
-            )
-        else:
-            parameters = param_func(
-                language, current_solution_func, input_tensors, actual_output, problem, test_case
-            )
-
-        if language == "cute":
-            import cutlass.cute as cute
-            current_solution_func = cute.compile(current_solution_func, *parameters)
-
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
-
-        start_event.record()
-        current_solution_func(*parameters)
-        end_event.record()
-        torch.cuda.synchronize()
-
-        initial_runtime = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
-
-        # Determine if this is a long-running kernel and how many iterations to run
-        is_long_kernel = initial_runtime >= long_kernel_threshold
-
-        if is_long_kernel:
-            # For long kernels, use fixed number of iterations
-            target_iterations = (min_iterations + max_iterations) // 2
-        else:
-            # For short kernels, use CV-based convergence with max_iterations cap
-            target_iterations = max_iterations
-
-        # Collect runtime measurements
-        runtimes = [initial_runtime]  # Include the initial runtime
-
-        gflops_measurements = []
-        if has_flops and flops is not None and initial_runtime > 0:
-            gflops_measurements.append((flops / initial_runtime) / 1e9)
-
-        for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
-            # Load fresh solution for each iteration to prevent static variable cheats
-            current_solution_func = get_fresh_solution_func()
-            
-            # Prepare parameters with the fresh function
-            if param_func is None:
-                parameters = make_parameters(
-                    language, current_solution_func, input_tensors, actual_output, problem, test_case
-                )
-            else:
-                parameters = param_func(
-                    language, current_solution_func, input_tensors, actual_output, problem, test_case
-                )
-
-            if language == "cute":
-                import cutlass.cute as cute
-                current_solution_func = cute.compile(current_solution_func, *parameters)
-
-            start_event = torch.cuda.Event(enable_timing=True)
-            end_event = torch.cuda.Event(enable_timing=True)
-
-            # Start timing
-            start_event.record()
-
-            # Run the kernel
-            current_solution_func(*parameters)
-
-            # End timing
-            end_event.record()
-            torch.cuda.synchronize()
-
-            elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
-            runtimes.append(elapsed_time)
-
-            # Calculate GFLOPS
-            if has_flops and flops is not None and elapsed_time > 0:
-                gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
-                gflops_measurements.append(gflops)
-
-            # Check if we've done enough iterations and the variance is low enough
-            # Only do this check for short kernels
-            if not is_long_kernel and iteration + 1 >= min_iterations:
-                if has_flops and gflops_measurements:
-                    mean_val = statistics.mean(gflops_measurements)
-                    if len(gflops_measurements) > 1:
-                        stdev_val = statistics.stdev(gflops_measurements)
-                        cv = stdev_val / mean_val if mean_val > 0 else float("inf")
-                        if cv < target_cv:
-                            break
-                elif not has_flops and len(runtimes) > 1:
-                    mean_val = statistics.mean(runtimes)
-                    stdev_val = statistics.stdev(runtimes)
-                    cv = stdev_val / mean_val if mean_val > 0 else float("inf")
-                    if cv < target_cv:
-                        break
-
-        if len(runtimes) > 1:
-            mean_runtime = statistics.mean(runtimes)
-        else:
-            mean_runtime = runtimes[0]
-
-        benchmark_result = {
-            "name": test_case["name"],
-            "test_id": test_id,
-            "runtime_ms": mean_runtime * 1000,
-        }
-
-        if gflops_measurements:  # only if non-empty
-            mean_gflops = statistics.mean(gflops_measurements)
-            benchmark_result["gflops"] = mean_gflops
-
-        return benchmark_result
-    
-    finally:
-        # Always clean up temp files
-        cleanup_temp_paths()
 
 
 def convert_slug_to_module_name(slug: str) -> str:

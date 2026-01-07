@@ -96,15 +96,7 @@ def binary_runner(
             # this should not be reached
             raise ValueError("This code path should not be reached")
         elif type == "checker":
-            gen = runner.run_checker(
-                problem_name,
-                problem_def,
-                solution_func,
-                dtype,
-                language,
-                compiled_lib=compiled_lib,
-                solution_code=solution_code,
-            )
+            gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
         elif type == "benchmark":
             gen = runner.run_benchmark(
                 problem_name,
