@@ -128,7 +128,7 @@ def run_checker(
                 "total_tests": total_tests,
             }
 
-        if language == "python":
+        if language == "python" or language == "cutile":
             try:
                 temp_dir = os.path.dirname(solution_func.__code__.co_filename)
                 shutil.rmtree(temp_dir)
@@ -302,7 +302,7 @@ def run_sanity_check(
                 }
                 return
 
-        if language == "python":
+        if language == "python" or language == "cutile":
             try:
                 temp_dir = os.path.dirname(solution_func.__code__.co_filename)
                 shutil.rmtree(temp_dir)
@@ -429,7 +429,7 @@ def run_benchmark(
             avg_runtime_ms = 0
             avg_gflops = None
 
-        if language == "python":
+        if language == "python" or language == "cutile":
             try:
                 temp_dir = os.path.dirname(solution_func.__code__.co_filename)
                 shutil.rmtree(temp_dir)

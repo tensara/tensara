@@ -51,7 +51,7 @@ import triton.language as tl
 
 # Note: ${names.join(", ")} are all ${dataType} device tensors
 def solution(${paramStr}):
-  `;
+    `;
   }
   if (language === "mojo") {
     const names = parameters
@@ -72,7 +72,7 @@ from memory import UnsafePointer
 # Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
 @export
 fn solution(${paramStr}) raises:
-  `;
+    `;
   }
   if (language == "cute") {
     const names = parameters
@@ -93,7 +93,27 @@ import cutlass.cute as cute
 # Note: ${names.join(", ")} are all device tensors
 @cute.jit
 def solution(${paramStr}):
-  `;
+    `;
+  }
+  if (language === "cutile") {
+    const names = parameters
+      .map((parameter: Parameter) =>
+        parameter.pointer === "true" ? parameter.name : null
+      )
+      .filter(Boolean);
+    const paramStr = parameters
+      .map(
+        (parameter: Parameter) =>
+          `${parameter.name}${parameter.pointer === "true" ? "" : parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[dataType]}` : `: ${PYTHON_MISC_TYPES[parameter.type]}`}`
+      )
+      .join(", ");
+    return `import cuda.tile as ct
+import cupy
+
+# You can use cupy.cuda.get_current_stream() to get the current stream to launch cuTile kernels.
+# Note: ${names.join(", ")} are all ${dataType} device tensors
+def solution(${paramStr}):
+    `;
   }
   return "";
 };
@@ -104,7 +124,8 @@ def solution(${paramStr}):
 function mapSubmissionLanguage(lang: string): string {
   if (!lang) return lang;
   const l = lang.toLowerCase();
-  if (l === "triton" || l === "python" || l === "cute") return "python";
+  if (l === "triton" || l === "python" || l === "cute" || l === "cutile")
+    return "python";
   if (l === "cuda" || l === "c++" || l === "cpp") return "cuda";
   if (l === "mojo") return "mojo";
   return l;
@@ -166,7 +187,12 @@ export function validateCode(
   language: string
 ): { valid: boolean; error: string; details?: string } {
   // legacy validation checks (kept for backward compatibility and specific error messages)
-  if (language === "python" || language === "triton" || language === "cute") {
+  if (
+    language === "python" ||
+    language === "triton" ||
+    language === "cute" ||
+    language === "cutile"
+  ) {
     if (code.includes("torch.") || code.includes("import torch")) {
       return { valid: false, error: "You cannot use PyTorch in the code!" };
     }

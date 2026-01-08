@@ -98,21 +98,36 @@ const SubmissionForm = ({
             >
               {Object.entries(GPU_DISPLAY_NAMES)
                 .filter(([key]) => key !== "all")
-                .map(([key, value]) => (
-                  <MenuItem
-                    key={key}
-                    onClick={() => {
-                      setSelectedGpuType(key);
-                    }}
-                    bg="brand.secondary"
-                    _hover={{ bg: "gray.700" }}
-                    color="white"
-                    borderRadius="lg"
-                    fontSize="sm"
-                  >
-                    {value}
-                  </MenuItem>
-                ))}
+                .map(([key, value]) => {
+                  const isDisabledForCutile =
+                    selectedLanguage === "cutile" && key !== "B200";
+                  return (
+                    <Tooltip
+                      key={key}
+                      label="cuTile requires B200"
+                      isDisabled={!isDisabledForCutile}
+                      placement="right"
+                    >
+                      <MenuItem
+                        onClick={() => {
+                          setSelectedGpuType(key);
+                        }}
+                        bg="brand.secondary"
+                        _hover={{
+                          bg: isDisabledForCutile
+                            ? "brand.secondary"
+                            : "gray.700",
+                        }}
+                        color={isDisabledForCutile ? "gray.500" : "white"}
+                        borderRadius="lg"
+                        fontSize="sm"
+                        isDisabled={isDisabledForCutile}
+                      >
+                        {value}
+                      </MenuItem>
+                    </Tooltip>
+                  );
+                })}
             </MenuList>
           </Menu>
         </Box>
@@ -190,6 +205,29 @@ const SubmissionForm = ({
               >
                 CuTe DSL
               </MenuItem>
+              <Tooltip
+                label="Only available on B200"
+                isDisabled={selectedGpuType === "B200"}
+                placement="right"
+              >
+                <MenuItem
+                  key="cutile"
+                  onClick={() => setSelectedLanguage("cutile")}
+                  bg="brand.secondary"
+                  _hover={{
+                    bg:
+                      selectedGpuType === "B200"
+                        ? "gray.700"
+                        : "brand.secondary",
+                  }}
+                  color={selectedGpuType === "B200" ? "white" : "gray.500"}
+                  borderRadius="lg"
+                  fontSize="sm"
+                  isDisabled={selectedGpuType !== "B200"}
+                >
+                  cuTile Python
+                </MenuItem>
+              </Tooltip>
             </MenuList>
           </Menu>
         </Box>

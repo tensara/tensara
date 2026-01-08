@@ -13,10 +13,13 @@ elif [[ "$1" == "--mojo" ]]; then
 elif [[ "$1" == "--cute" ]]; then
   mode="cute"
   shift
+elif [[ "$1" == "--cutile" ]]; then
+  mode="cutile"
+  shift
 fi
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 [--python|--cuda|--mojo|--cute] <problem_name> [api_endpoint]"
+  echo "Usage: $0 [--python|--cuda|--mojo|--cute|--cutile] <problem_name> [api_endpoint]"
   echo "Example: $0 --cuda matrix_multiplication https://api.example.com/submit"
   exit 1
 fi
@@ -41,6 +44,10 @@ case $mode in
     solution_file="solution.py"
     language="cute"
     ;;
+  "cutile")
+    solution_file="solution.py"
+    language="cutile"
+    ;;  
 esac
 
 if [ ! -f "$solution_file" ]; then
