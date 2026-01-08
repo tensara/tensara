@@ -337,6 +337,23 @@ export default async function handler(
         return "CONTINUE";
       }
 
+      if (s === SubmissionStatus.WRONG_ANSWER) {
+        const err = evt as WrongAnswerResponse;
+        console.log("WRONG_ANSWER from benchmark", err);
+        await db.submission.update({
+          where: { id: submission.id },
+          data: {
+            status: SubmissionStatus.WRONG_ANSWER,
+            errorMessage:
+              err.debug_info?.message ?? "Failed benchmarking checksum",
+            passedTests,
+            totalTests: err.total_tests ?? totalTests,
+            errorDetails: JSON.stringify(err.debug_info ?? {}),
+          },
+        });
+        return "STOP";
+      }
+
       if (isSubmissionError(s)) {
         const err = evt as Partial<import("~/types/submission").ErrorResponse>;
         await db.submission.update({

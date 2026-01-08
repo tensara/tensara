@@ -385,6 +385,14 @@ def run_benchmark(
                     param_func=param_func,
                 )
 
+                if benchmark_result.get("status") == "WRONG_ANSWER":
+                    yield {
+                        "status": "WRONG_ANSWER",
+                        "debug_info": benchmark_result.get("debug_info", {}),
+                        "total_tests": total_tests,
+                    }
+                    return
+
                 benchmark_results.append(benchmark_result)
 
                 yield {
