@@ -124,7 +124,8 @@ def solution(${paramStr}):
 function mapSubmissionLanguage(lang: string): string {
   if (!lang) return lang;
   const l = lang.toLowerCase();
-  if (l === "triton" || l === "python" || l === "cute" || l === "cutile") return "python";
+  if (l === "triton" || l === "python" || l === "cute" || l === "cutile")
+    return "python";
   if (l === "cuda" || l === "c++" || l === "cpp") return "cuda";
   if (l === "mojo") return "mojo";
   return l;
@@ -186,7 +187,12 @@ export function validateCode(
   language: string
 ): { valid: boolean; error: string; details?: string } {
   // legacy validation checks (kept for backward compatibility and specific error messages)
-  if (language === "python" || language === "triton" || language === "cute" || language === "cutile") {
+  if (
+    language === "python" ||
+    language === "triton" ||
+    language === "cute" ||
+    language === "cutile"
+  ) {
     if (code.includes("torch.") || code.includes("import torch")) {
       return { valid: false, error: "You cannot use PyTorch in the code!" };
     }

@@ -99,7 +99,8 @@ const SubmissionForm = ({
               {Object.entries(GPU_DISPLAY_NAMES)
                 .filter(([key]) => key !== "all")
                 .map(([key, value]) => {
-                  const isDisabledForCutile = selectedLanguage === "cutile" && key !== "B200";
+                  const isDisabledForCutile =
+                    selectedLanguage === "cutile" && key !== "B200";
                   return (
                     <Tooltip
                       key={key}
@@ -112,7 +113,11 @@ const SubmissionForm = ({
                           setSelectedGpuType(key);
                         }}
                         bg="brand.secondary"
-                        _hover={{ bg: isDisabledForCutile ? "brand.secondary" : "gray.700" }}
+                        _hover={{
+                          bg: isDisabledForCutile
+                            ? "brand.secondary"
+                            : "gray.700",
+                        }}
                         color={isDisabledForCutile ? "gray.500" : "white"}
                         borderRadius="lg"
                         fontSize="sm"
@@ -209,7 +214,12 @@ const SubmissionForm = ({
                   key="cutile"
                   onClick={() => setSelectedLanguage("cutile")}
                   bg="brand.secondary"
-                  _hover={{ bg: selectedGpuType === "B200" ? "gray.700" : "brand.secondary" }}
+                  _hover={{
+                    bg:
+                      selectedGpuType === "B200"
+                        ? "gray.700"
+                        : "brand.secondary",
+                  }}
                   color={selectedGpuType === "B200" ? "white" : "gray.500"}
                   borderRadius="lg"
                   fontSize="sm"

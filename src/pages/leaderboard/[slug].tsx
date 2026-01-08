@@ -442,33 +442,18 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
               <Table variant="simple">
                 <Thead borderBottom="1px solid" borderColor="whiteAlpha.100">
                   <Tr>
-                    <Th
-                      borderBottom="none"
-                      py={2}
-                      px={2}
-                      w="60px"
-                    >
+                    <Th borderBottom="none" py={2} px={2} w="60px">
                       Rank
                     </Th>
                     <Th borderBottom="none" py={2} px={4}>
                       User
                     </Th>
                     {hasAnyGflops && (
-                      <Th
-                        borderBottom="none"
-                        isNumeric
-                        py={2}
-                        px={4}
-                      >
+                      <Th borderBottom="none" isNumeric py={2} px={4}>
                         GFLOPS
                       </Th>
                     )}
-                    <Th
-                      borderBottom="none"
-                      isNumeric
-                      py={2}
-                      px={4}
-                    >
+                    <Th borderBottom="none" isNumeric py={2} px={4}>
                       Runtime (ms)
                     </Th>
                     {selectedGpu === "all" && (
@@ -485,12 +470,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                     >
                       Date
                     </Th>
-                    <Th
-                      borderBottom="none"
-                      py={2}
-                      pl={2}
-                      pr={3}
-                    >
+                    <Th borderBottom="none" py={2} pl={2} pr={3}>
                       Language
                     </Th>
                   </Tr>
@@ -537,12 +517,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                               : undefined
                         }
                       >
-                        <Td
-                          borderBottom="none"
-                          py={2}
-                          px={2}
-                          w="60px"
-                        >
+                        <Td borderBottom="none" py={2} px={2} w="60px">
                           <Text
                             color={medalColor}
                             fontWeight={medalColor ? "bold" : "normal"}
@@ -570,12 +545,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           </Text>
                         </Td>
                         {hasAnyGflops && (
-                          <Td
-                            isNumeric
-                            borderBottom="none"
-                            py={2}
-                            px={4}
-                          >
+                          <Td isNumeric borderBottom="none" py={2} px={4}>
                             <Text
                               color={medalColor}
                               textAlign="right"
@@ -587,20 +557,11 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             </Text>
                           </Td>
                         )}
-                        <Td
-                          isNumeric
-                          borderBottom="none"
-                          py={2}
-                          px={4}
-                        >
+                        <Td isNumeric borderBottom="none" py={2} px={4}>
                           {entry.runtime?.toFixed(2) ?? "N/A"}
                         </Td>
                         {selectedGpu === "all" && (
-                          <Td
-                            borderBottom="none"
-                            py={2}
-                            px={3}
-                          >
+                          <Td borderBottom="none" py={2} px={3}>
                             <Badge
                               bg={"whiteAlpha.200"}
                               color={"white"}
@@ -637,12 +598,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             </Tooltip>
                           )}
                         </Td>
-                        <Td
-                          borderBottom="none"
-                          py={2}
-                          pl={2}
-                          pr={3}
-                        >
+                        <Td borderBottom="none" py={2} pl={2} pr={3}>
                           {isBaseline ? (
                             <Text>
                               {BASELINE_DISPLAY_NAMES[

@@ -130,7 +130,7 @@ def _scan_cuda_forbidden(source: str) -> str | None:
 
 
 def _scan_triton_python_forbidden(source: str, language: str = "python") -> str | None:
-    """ Scan Triton/CuTile source for forbidden builtins/imports/cupy/sort/topk """
+    """Scan Triton/CuTile source for forbidden builtins/imports/cupy/sort/topk"""
     if not isinstance(source, str):
         return None
 
@@ -205,7 +205,9 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
             # cupy restrictions
             if module == "cupy" or module.startswith("cupy."):
                 if is_cutile:
-                    self._set_error("Only 'import cupy' is allowed for CuTile. 'from cupy import ...' is forbidden.")
+                    self._set_error(
+                        "Only 'import cupy' is allowed for CuTile. 'from cupy import ...' is forbidden."
+                    )
                 else:
                     self._set_error("Import of 'cupy' is forbidden.")
 
@@ -233,7 +235,9 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
             if is_cutile and isinstance(node.func, ast.Attribute):
                 chain = self._get_attr_chain(node.func)
                 if chain and chain.startswith("cupy.") and chain != "cupy.cuda.get_current_stream":
-                    self._set_error(f"Forbidden cupy usage: '{chain}()'. Only 'cupy.cuda.get_current_stream()' is allowed.")
+                    self._set_error(
+                        f"Forbidden cupy usage: '{chain}()'. Only 'cupy.cuda.get_current_stream()' is allowed."
+                    )
 
             self.generic_visit(node)
 
