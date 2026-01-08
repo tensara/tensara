@@ -6,8 +6,8 @@ from pathlib import Path
 import utils
 import runner
 
-DEVEL_IMAGE_NAME = "nvidia/cuda:12.8.0-devel-ubuntu22.04"
-RUNTIME_IMAGE_NAME = "nvidia/cuda:12.8.0-runtime-ubuntu22.04"
+DEVEL_IMAGE_NAME = "nvidia/cuda:13.1.0-devel-ubuntu24.04"
+RUNTIME_IMAGE_NAME = "nvidia/cuda:13.1.0-runtime-ubuntu24.04"
 CURR_DIR = Path(__file__).parent
 
 
@@ -42,6 +42,23 @@ runtime_image = (
     )
     .add_local_python_source(*LOCAL_SOURCE)
 )
+
+
+def b200_image():
+    return (
+        modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.13")
+        .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
+        .env({"CC": "gcc"})
+        .env({"PATH": "/root/.local/bin:$PATH"})
+        .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
+        .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES + ["cuda-tile", "cupy-cuda13x"]))
+        .run_commands("uv pip install --system modular==25.4.0")
+        # install torch separately with CUDA 12.8
+        .run_commands(
+            "uv pip install --system torch==2.9.0 --index-url https://download.pytorch.org/whl/cu128"
+        )
+        .add_local_python_source(*LOCAL_SOURCE)
+    )
 
 
 app = modal.App("tensara", image=devel_image)
@@ -110,7 +127,7 @@ def binary_runner(
 
 gpu_runners = {
     gpu: app.function(
-        image=runtime_image,
+        image=b200_image() if gpu == "B200" else runtime_image,
         name=f"runner_{gpu}",
         gpu=gpu + "!" if gpu == "H100" else gpu,
         enable_memory_snapshot=False if gpu == "B200" else True,

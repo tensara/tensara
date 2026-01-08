@@ -129,7 +129,8 @@ def _scan_cuda_forbidden(source: str) -> str | None:
     return None
 
 
-def _scan_triton_python_forbidden(source: str) -> str | None:
+def _scan_triton_python_forbidden(source: str, language: str = "python") -> str | None:
+    """ Scan Triton/CuTile source for forbidden builtins/imports/cupy/sort/topk """
     if not isinstance(source, str):
         return None
 
@@ -138,63 +139,107 @@ def _scan_triton_python_forbidden(source: str) -> str | None:
     try:
         tree = ast.parse(source)
     except Exception:
-        # Can't parse -> be conservative
         return "Unable to parse Python source for safety checks — rejecting submission."
 
-    class Visitor(ast.NodeVisitor):
+    # Configuration
+    is_cutile = language == "cutile"
+    DANGEROUS_BUILTINS = {"eval", "exec", "open", "__import__"}
+    FORBIDDEN_METHODS = {"sort", "topk"}  # Methods forbidden on tl.* and torch.*
+    SORT_MODULES = {"triton.language", "torch"}  # Modules where sort/topk are forbidden
+
+    class ForbiddenPatternVisitor(ast.NodeVisitor):
         def __init__(self):
-            self.msg = None
+            self.error = None
+            self.aliases = {}  # Maps local name -> original module (e.g., "cp" -> "cupy")
+
+        def _resolve(self, name: str) -> str:
+            """Resolve an alias to its original module name."""
+            return self.aliases.get(name, name)
+
+        def _get_attr_chain(self, node) -> str | None:
+            """
+            Build the full dotted name for an attribute access, resolving aliases.
+            E.g., for `cp.cuda.get_current_stream`, if cp->cupy, returns "cupy.cuda.get_current_stream"
+            """
+            if isinstance(node, ast.Name):
+                return self._resolve(node.id)
+            if isinstance(node, ast.Attribute):
+                parent = self._get_attr_chain(node.value)
+                return f"{parent}.{node.attr}" if parent else None
+            return None
+
+        def _set_error(self, msg: str):
+            """Set error only if not already set (first error wins)."""
+            if self.error is None:
+                self.error = msg
+
+        def visit_Import(self, node: ast.Import):
+            """Handle `import X` and `import X as Y`."""
+            for alias in node.names:
+                # Track alias: "import cupy as cp" → aliases["cp"] = "cupy"
+                local_name = alias.asname or alias.name
+                self.aliases[local_name] = alias.name
+
+                # Check forbidden imports
+                if alias.name == "thrust":
+                    self._set_error("Import of 'thrust' is forbidden.")
+                if alias.name == "cupy" and not is_cutile:
+                    self._set_error("Import of 'cupy' is forbidden.")
+
+        def visit_ImportFrom(self, node: ast.ImportFrom):
+            """Handle `from X import Y` and `from X import Y as Z`."""
+            module = node.module or ""
+
+            # Track aliases: "from torch import nn as n" → aliases["n"] = "torch.nn"
+            for alias in node.names:
+                local_name = alias.asname or alias.name
+                self.aliases[local_name] = f"{module}.{alias.name}" if module else alias.name
+
+            # Check forbidden imports
+            if module == "thrust" or module.endswith(".thrust"):
+                self._set_error("Import of 'thrust' is forbidden.")
+
+            if module.endswith("builtin") and any(a.name == "sort" for a in node.names):
+                self._set_error("Importing builtin sort is forbidden.")
+
+            # cupy restrictions
+            if module == "cupy" or module.startswith("cupy."):
+                if is_cutile:
+                    self._set_error("Only 'import cupy' is allowed for CuTile. 'from cupy import ...' is forbidden.")
+                else:
+                    self._set_error("Import of 'cupy' is forbidden.")
 
         def visit_Attribute(self, node: ast.Attribute):
-            # e.g., tl.sort, torch.sort, torch.topk
-            try:
-                if isinstance(node.attr, str) and node.attr in ("sort", "topk"):
-                    if isinstance(node.value, ast.Name) and node.value.id in ("tl", "torch"):
-                        self.msg = f"Forbidden call to '{node.value.id}.{node.attr}' detected."
-            except Exception:
-                pass
+            """Check for forbidden method access like tl.sort, torch.topk."""
+            if node.attr in FORBIDDEN_METHODS and isinstance(node.value, ast.Name):
+                resolved = self._resolve(node.value.id)
+                # Check if it's a known sort module OR common alias
+                if resolved in SORT_MODULES or node.value.id in ("tl", "torch"):
+                    self._set_error(f"Forbidden call to '{node.value.id}.{node.attr}' detected.")
             self.generic_visit(node)
 
         def visit_Call(self, node: ast.Call):
-            # detect eval/exec/open/__import__
-            if isinstance(node.func, ast.Name) and node.func.id in (
-                "eval",
-                "exec",
-                "open",
-                "__import__",
-            ):
-                self.msg = f"Forbidden builtin '{node.func.id}' used in Python submission."
+            """Check for forbidden function calls."""
+            # 1. Dangerous builtins: eval(), exec(), open(), __import__()
+            if isinstance(node.func, ast.Name) and node.func.id in DANGEROUS_BUILTINS:
+                self._set_error(f"Forbidden builtin '{node.func.id}' used in Python submission.")
 
-            # detect importlib.*(...) calls
-            if (
-                isinstance(node.func, ast.Attribute)
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "importlib"
-            ):
-                self.msg = "Forbidden use of importlib detected."
+            # 2. importlib.* calls (handles aliases like `import importlib as il`)
+            if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+                if self._resolve(node.func.value.id) == "importlib":
+                    self._set_error("Forbidden use of importlib detected.")
+
+            # 3. CuTile cupy restrictions: only cupy.cuda.get_current_stream() allowed
+            if is_cutile and isinstance(node.func, ast.Attribute):
+                chain = self._get_attr_chain(node.func)
+                if chain and chain.startswith("cupy.") and chain != "cupy.cuda.get_current_stream":
+                    self._set_error(f"Forbidden cupy usage: '{chain}()'. Only 'cupy.cuda.get_current_stream()' is allowed.")
 
             self.generic_visit(node)
 
-        def visit_Import(self, node: ast.Import):
-            for alias in node.names:
-                if alias.name == "thrust":
-                    self.msg = "Import of 'thrust' is forbidden."
-
-        def visit_ImportFrom(self, node: ast.ImportFrom):
-            if node.module == "thrust" or (
-                isinstance(node.module, str) and node.module.endswith(".thrust")
-            ):
-                self.msg = "Import of 'thrust' is forbidden."
-            # detect 'from builtin.sort import sort' as a trick
-            if node.module and node.module.endswith("builtin"):
-                for alias in node.names:
-                    if alias.name == "sort":
-                        self.msg = "Importing builtin sort is forbidden."
-
-    v = Visitor()
-    v.visit(tree)
-
-    return v.msg
+    visitor = ForbiddenPatternVisitor()
+    visitor.visit(tree)
+    return visitor.error
 
 
 def _scan_mojo_forbidden(source: str) -> str | None:
@@ -237,8 +282,8 @@ def reject_forbidden_patterns(language: str, source: str):
         msg = _scan_cuda_forbidden(source)
         if msg:
             raise NVCCError(msg)
-    elif language == "python" or language == "triton":
-        msg = _scan_triton_python_forbidden(source)
+    elif language == "python" or language == "triton" or language == "cutile" or language == "cute":
+        msg = _scan_triton_python_forbidden(source, language)
         if msg:
             # reuse NVCCError for a consistent error type the runner knows how to handle
             raise NVCCError(msg)
@@ -738,12 +783,19 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         mojo_lib.solution.restype = func_sig["restype"]
         return mojo_lib.solution
 
-    elif language == "python" or language == "cute":
+    elif language == "python" or language == "cute" or language == "cutile":
         # Run Python/Triton AST checks to reject forbidden patterns
         if solution_code:
-            reject_forbidden_patterns("triton", solution_code)
+            pattern_lang = "cutile" if language == "cutile" else "triton"
+            reject_forbidden_patterns(pattern_lang, solution_code)
 
-        filename = "triton_solution.py" if language == "python" else "cute_solution.py"
+        if language == "cutile":
+            filename = "cutile_solution.py"
+        elif language == "cute":
+            filename = "cute_solution.py"
+        else:
+            filename = "triton_solution.py"
+
         if not solution_code:
             raise ValueError("Source code required for Triton submissions")
 
