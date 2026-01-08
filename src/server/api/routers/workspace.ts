@@ -40,7 +40,7 @@ export const workspaceRouter = createTRPCRouter({
       z.object({
         name: z.string().min(3),
         // optional language field; default to CUDA when not provided
-        language: z.enum(["cuda", "python", "mojo", "cute"]),
+        language: z.enum(["cuda", "python", "mojo", "cute", "cutile"]),
       })
     )
     .mutation(async ({ ctx, input }) => {
