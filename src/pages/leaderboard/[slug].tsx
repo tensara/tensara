@@ -75,8 +75,12 @@ const LanguageLogo = ({ language }: { language: string | null }) => {
       label: "Mojo",
     },
     cute: {
-      src: "/python-logo.png",
+      emoji: "🧩",
       label: "CuTe DSL",
+    },
+    cutile: {
+      emoji: "🧱",
+      label: "CuTile",
     },
   };
 

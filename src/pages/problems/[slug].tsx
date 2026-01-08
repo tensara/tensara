@@ -651,7 +651,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
                         height={height}
                         language="python"
                         value={problem.referenceSolution}
-                        theme="vs-dark"
+                        theme="tensara-dark"
                         options={{
                           readOnly: true,
                           minimap: { enabled: false },
