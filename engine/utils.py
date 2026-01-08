@@ -653,7 +653,6 @@ def run_dynamic_benchmark(
 
     warmup_checksum_after = actual_output.sum().item()
     if warmup_checksum_after == warmup_checksum_before:
-        print("MISMATCH FOUND IN WARMUP")
         return {
             "name": test_case["name"],
             "test_id": test_id,
@@ -701,7 +700,6 @@ def run_dynamic_benchmark(
 
         iter_checksum_after = actual_output.sum().item()
         if iter_checksum_after == iter_checksum_before:
-            print("MISMATCH FOUND")
             return {
                 "name": test_case["name"],
                 "test_id": test_id,
