@@ -640,6 +640,9 @@ def run_dynamic_benchmark(
     prepare_gpu()
     torch.cuda.synchronize()
 
+    actual_output.fill_(1.0)
+    warmup_checksum_before = actual_output.sum().item()
+
     start_event = torch.cuda.Event(enable_timing=True)
     end_event = torch.cuda.Event(enable_timing=True)
 
@@ -647,6 +650,17 @@ def run_dynamic_benchmark(
     solution_func(*parameters)
     end_event.record()
     torch.cuda.synchronize()
+
+    warmup_checksum_after = actual_output.sum().item()
+    if warmup_checksum_after == warmup_checksum_before:
+        return {
+            "name": test_case["name"],
+            "test_id": test_id,
+            "status": "WRONG_ANSWER",
+            "debug_info": {
+                "message": f"Mismatched checksum, solution did not modify output ({warmup_checksum_after} != {warmup_checksum_before})",
+            },
+        }
 
     initial_runtime = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
 
@@ -668,6 +682,9 @@ def run_dynamic_benchmark(
         gflops_measurements.append((flops / initial_runtime) / 1e9)
 
     for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
+        actual_output.fill_(1.0)
+        iter_checksum_before = actual_output.sum().item()
+
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
 
@@ -680,6 +697,17 @@ def run_dynamic_benchmark(
         # End timing
         end_event.record()
         torch.cuda.synchronize()
+
+        iter_checksum_after = actual_output.sum().item()
+        if iter_checksum_after == iter_checksum_before:
+            return {
+                "name": test_case["name"],
+                "test_id": test_id,
+                "status": "WRONG_ANSWER",
+                "debug_info": {
+                    "message": f"Mismatched checksum, solution did not modify output ({iter_checksum_after} != {iter_checksum_before})",
+                },
+            }
 
         elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
         runtimes.append(elapsed_time)

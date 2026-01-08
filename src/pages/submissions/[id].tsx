@@ -445,22 +445,26 @@ const SubmissionPage: NextPage<{
                             {debugInfo.message && (
                               <Text color="red.100">{debugInfo.message}</Text>
                             )}
-                            <Box>
-                              <Text color="red.200" fontSize="sm">
-                                Maximum Difference:
-                              </Text>
-                              <Text color="red.100">
-                                {debugInfo.max_difference ?? "NaN or inf"}
-                              </Text>
-                            </Box>
-                            <Box>
-                              <Text color="red.200" fontSize="sm">
-                                Mean Difference:
-                              </Text>
-                              <Text color="red.100">
-                                {debugInfo.mean_difference ?? "NaN or inf"}
-                              </Text>
-                            </Box>
+                            {debugInfo.max_difference && (
+                              <Box>
+                                <Text color="red.200" fontSize="sm">
+                                  Maximum Difference:
+                                </Text>
+                                <Text color="red.100">
+                                  {debugInfo.max_difference}
+                                </Text>
+                              </Box>
+                            )}
+                            {debugInfo.mean_difference && (
+                              <Box>
+                                <Text color="red.200" fontSize="sm">
+                                  Mean Difference:
+                                </Text>
+                                <Text color="red.100">
+                                  {debugInfo.mean_difference}
+                                </Text>
+                              </Box>
+                            )}
                             {debugInfo.sample_differences &&
                               Object.keys(debugInfo.sample_differences).length >
                                 0 && (
