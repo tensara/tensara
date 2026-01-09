@@ -824,12 +824,13 @@ def run_dynamic_benchmark(
     param_func=None,
 ):
     """
-    Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
-    If kernel execution time exceeds threshold, run fixed number of iterations instead.
-
+    Run a CUDA benchmark with dynamic stopping based on runtime variance.
+    Collects GPU metrics (temperature, clocks, power, etc.) during each iteration.
+    
     Args:
         solution_func: CUDA library with the solution function
         problem: Problem definition with verification methods
+        test_id: Test case ID (1-indexed)
         test_case: The specific test case to benchmark
         input_tensors: Input tensors for the CUDA function
         actual_output: Output tensor for the CUDA function
@@ -838,9 +839,17 @@ def run_dynamic_benchmark(
         max_iterations: Maximum number of iterations to run
         target_cv: Target coefficient of variation to achieve
         long_kernel_threshold: Time in seconds above which CV convergence is skipped
-
+        param_func: Optional custom parameter function
+    
     Returns:
-        benchmark_result: Dictionary with benchmark results
+        Dictionary with:
+        - name: Test case name
+        - test_id: Test ID
+        - avg_runtime_ms: Average runtime across all iterations
+        - avg_gflops: Average GFLOPS (if calculable)
+        - runs: List of per-iteration results with GPU metrics
+        
+        Or error dict with status="WRONG_ANSWER" on verification failure
     """
     # Prepare pointers for CUDA
     if param_func is None:
@@ -860,6 +869,9 @@ def run_dynamic_benchmark(
     # Calculate FLOPS for this test case
     has_flops = problem.supports_flops()
     flops = problem.get_flops(test_case) if has_flops else None
+
+    # Initialize GPU monitor (5ms sampling interval)
+    gpu_monitor = GPUMonitor(sample_interval_ms=5)
 
     # Warm up run
     prepare_gpu()
@@ -899,19 +911,22 @@ def run_dynamic_benchmark(
         # For short kernels, use CV-based convergence with max_iterations cap
         target_iterations = max_iterations
 
-    # Collect runtime measurements
-    runtimes = [initial_runtime]  # Include the initial runtime
-
+    # Collect per-run results
+    runs = []
+    runtimes = []
     gflops_measurements = []
-    if has_flops and flops is not None and initial_runtime > 0:
-        gflops_measurements.append((flops / initial_runtime) / 1e9)
-
-    for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
+    
+    # Now run measured iterations with GPU monitoring
+    for iteration in range(target_iterations):
         actual_output.fill_(1.0)
         iter_checksum_before = actual_output.sum().item()
 
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
+
+        # Start GPU monitoring
+        gpu_monitor.start()
+        run_start_time = time.time()
 
         # Start timing
         start_event.record()
@@ -922,6 +937,17 @@ def run_dynamic_benchmark(
         # End timing
         end_event.record()
         torch.cuda.synchronize()
+        
+        run_end_time = time.time()
+        
+        # Stop GPU monitoring and get samples
+        all_samples = gpu_monitor.stop()
+        
+        # Filter samples to this run's time window
+        run_samples = gpu_monitor.get_samples_for_period(run_start_time, run_end_time, all_samples)
+        
+        # Compute GPU stats for this run
+        gpu_stats = gpu_monitor.compute_stats(run_samples)
 
         iter_checksum_after = actual_output.sum().item()
         if iter_checksum_after == iter_checksum_before:
@@ -935,44 +961,47 @@ def run_dynamic_benchmark(
             }
 
         elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
+        elapsed_time_ms = elapsed_time * 1000
         runtimes.append(elapsed_time)
 
-        # Calculate GFLOPS
+        # Calculate GFLOPS for this run
+        run_gflops = None
         if has_flops and flops is not None and elapsed_time > 0:
-            gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
-            gflops_measurements.append(gflops)
+            run_gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
+            gflops_measurements.append(run_gflops)
+
+        # Record this run's results
+        runs.append({
+            "run_index": iteration,
+            "runtime_ms": elapsed_time_ms,
+            "gflops": run_gflops,
+            "gpu_samples": run_samples,
+            "gpu_metrics": gpu_stats,
+        })
 
         # Check if we've done enough iterations and the variance is low enough
         # Only do this check for short kernels
         if not is_long_kernel and iteration + 1 >= min_iterations:
-            if has_flops and gflops_measurements:
-                mean_val = statistics.mean(gflops_measurements)
-                if len(gflops_measurements) > 1:
-                    stdev_val = statistics.stdev(gflops_measurements)
-                    cv = stdev_val / mean_val if mean_val > 0 else float("inf")
-                    if cv < target_cv:
-                        break
-            elif not has_flops and len(runtimes) > 1:
+            if len(runtimes) > 1:
                 mean_val = statistics.mean(runtimes)
                 stdev_val = statistics.stdev(runtimes)
                 cv = stdev_val / mean_val if mean_val > 0 else float("inf")
                 if cv < target_cv:
                     break
 
-    if len(runtimes) > 1:
-        mean_runtime = statistics.mean(runtimes)
-    else:
-        mean_runtime = runtimes[0]
+    # Calculate averages
+    avg_runtime_ms = statistics.mean(runtimes) * 1000 if runtimes else 0
+    avg_gflops = statistics.mean(gflops_measurements) if gflops_measurements else None
 
     benchmark_result = {
         "name": test_case["name"],
         "test_id": test_id,
-        "runtime_ms": mean_runtime * 1000,
+        "avg_runtime_ms": avg_runtime_ms,
+        "runs": runs,
     }
 
-    if gflops_measurements:  # only if non-empty
-        mean_gflops = statistics.mean(gflops_measurements)
-        benchmark_result["gflops"] = mean_gflops
+    if avg_gflops is not None:
+        benchmark_result["avg_gflops"] = avg_gflops
 
     return benchmark_result
 
