@@ -33,7 +33,8 @@ async function getUserRating(
   let problemsProcessed = 0;
 
   // Get user's best submissions for each problem-GPU combination
-  const userBestSubmissions = await ctx.db.submission.groupBy({
+  // Use legacySubmission table since that's where all existing data lives
+  const userBestSubmissions = await ctx.db.legacySubmission.groupBy({
     by: ["problemId", "gpuType"],
     _max: { gflops: true },
     where: { userId: userId },
@@ -42,7 +43,7 @@ async function getUserRating(
   // Process each submission to calculate rating change
   for (const submission of userBestSubmissions) {
     const gpuType = submission.gpuType;
-    const gflops = submission._max.gflops;
+    const gflops = submission._max?.gflops;
     const problemId = submission.problemId;
 
     // Skip invalid submissions
@@ -61,7 +62,7 @@ async function getUserRating(
       ];
 
     // Find all submissions for this problem-GPU combination
-    const allSubmissionsForProblemGpu = await ctx.db.submission.findMany({
+    const allSubmissionsForProblemGpu = await ctx.db.legacySubmission.findMany({
       where: {
         problemId: problemId,
         gpuType: gpuType,
@@ -183,6 +184,19 @@ async function getUserRank(ctx: { db: PrismaClient }, userId: string) {
   return rank;
 }
 
+// Normalized best submission type for frontend
+type NormalizedBestSubmission = {
+  id: string;
+  gflops: number | null;
+  runtimeMs: number | null;
+  gpuType: string | null;
+  isLegacy: boolean;
+  problem: {
+    title: string;
+    slug: string;
+  };
+};
+
 export const usersRouter = createTRPCRouter({
   getByUsername: publicProcedure
     .input(z.object({ username: z.string() }))
@@ -205,25 +219,39 @@ export const usersRouter = createTRPCRouter({
         });
       }
 
-      // Get total submissions count
-      const submissionsCount = await ctx.db.submission.count({
-        where: { userId: user.id },
-      });
+      // Get total submissions count (from both tables)
+      const [newSubmissionsCount, legacySubmissionsCount] = await Promise.all([
+        ctx.db.submission.count({ where: { userId: user.id } }),
+        ctx.db.legacySubmission.count({ where: { userId: user.id } }),
+      ]);
+      const submissionsCount = newSubmissionsCount + legacySubmissionsCount;
 
-      // Get number of solved problems (distinct problems with accepted submissions)
+      // Get number of solved problems (distinct problems with accepted submissions from either table)
       const solvedProblems = await ctx.db.problem.count({
         where: {
-          submissions: {
-            some: {
-              userId: user.id,
-              status: "ACCEPTED",
+          OR: [
+            {
+              submissions: {
+                some: {
+                  userId: user.id,
+                  status: "ACCEPTED",
+                },
+              },
             },
-          },
+            {
+              legacySubmissions: {
+                some: {
+                  userId: user.id,
+                  status: "ACCEPTED",
+                },
+              },
+            },
+          ],
         },
       });
 
       //get the percentage of langauge used in solved problems
-      const solvedProblemsWithLanguage = await ctx.db.submission.groupBy({
+      const solvedProblemsWithLanguage = await ctx.db.legacySubmission.groupBy({
         by: ["language"],
         _count: {
           id: true,
@@ -234,28 +262,28 @@ export const usersRouter = createTRPCRouter({
         },
       });
       const totalSolvedProblems = solvedProblemsWithLanguage.reduce(
-        (acc, curr) => acc + curr._count.id,
+        (acc: number, curr: { _count: { id: number } }) => acc + curr._count.id,
         0
       );
-      const languagePercentage = solvedProblemsWithLanguage.map((language) => {
-        return {
-          language: LANGUAGE_PROFILE_DISPLAY_NAMES[language.language],
-          percentage: Number(
-            ((language._count.id / totalSolvedProblems) * 100).toFixed(2)
-          ),
-        };
-      });
+      const languagePercentage = solvedProblemsWithLanguage.map(
+        (language: { language: string; _count: { id: number } }) => {
+          return {
+            language: LANGUAGE_PROFILE_DISPLAY_NAMES[language.language],
+            percentage: Number(
+              ((language._count.id / totalSolvedProblems) * 100).toFixed(2)
+            ),
+          };
+        }
+      );
 
       // Find current user's rank
       const userRank = await getUserRank(ctx, user.id);
       const userRating = await getUserRating(ctx, user.id);
 
-      // Get recent submissions
-      const recentSubmissions = await ctx.db.submission.findMany({
+      // Get recent submissions from legacy table (since new table is empty)
+      const recentLegacySubmissions = await ctx.db.legacySubmission.findMany({
         where: {
           userId: user.id,
-          // Show all submissions for the viewed user
-          // Private details will be filtered in the response mapping
         },
         select: {
           id: true,
@@ -278,7 +306,7 @@ export const usersRouter = createTRPCRouter({
       });
 
       // Get all submission dates grouped by day
-      const submissionDates = await ctx.db.submission.groupBy({
+      const submissionDates = await ctx.db.legacySubmission.groupBy({
         by: ["createdAt"],
         where: {
           userId: user.id,
@@ -289,16 +317,18 @@ export const usersRouter = createTRPCRouter({
       });
 
       // Format the dates for the activity calendar
-      const activityData = submissionDates.map((day) => {
-        // Format date to YYYY-MM-DD
-        const date = new Date(day.createdAt);
-        const formattedDate = date.toISOString().split("T")[0];
+      const activityData = submissionDates.map(
+        (day: { createdAt: Date; _count: { id: number } }) => {
+          // Format date to YYYY-MM-DD
+          const date = new Date(day.createdAt);
+          const formattedDate = date.toISOString().split("T")[0];
 
-        return {
-          date: formattedDate,
-          count: day._count.id,
-        };
-      });
+          return {
+            date: formattedDate,
+            count: day._count.id,
+          };
+        }
+      );
 
       const blogPosts = await ctx.db.blogPost.findMany({
         where: {
@@ -351,24 +381,44 @@ export const usersRouter = createTRPCRouter({
           ranking: userRank,
           rating: userRating,
         },
-        recentSubmissions: recentSubmissions.map((sub) => ({
-          id: sub.id,
-          problemId: sub.problem.slug,
-          problemName: sub.problem.title,
-          date: sub.createdAt.toISOString().split("T")[0],
-          status: (sub.status ?? "pending").toLowerCase(),
-          runtime: sub.runtime ? `${sub.runtime.toFixed(2)}ms` : "N/A",
-          gflops: sub.gflops ? `${sub.gflops.toFixed(2)}` : "N/A",
-          gpuType: sub.gpuType,
-          language: sub.language,
-        })),
-        blogPosts: blogPosts.map((post) => ({
-          id: post.id,
-          title: post.title,
-          slug: post.slug,
-          publishedAt: (post.publishedAt ?? post.createdAt).toISOString(),
-          votes: post._count.upvotes ?? 0,
-        })),
+        recentSubmissions: recentLegacySubmissions.map(
+          (sub: {
+            id: string;
+            createdAt: Date;
+            status: string | null;
+            runtime: number | null;
+            gflops: number | null;
+            gpuType: string | null;
+            problem: { id: string; title: string; slug: string };
+            language: string;
+          }) => ({
+            id: sub.id,
+            problemId: sub.problem.slug,
+            problemName: sub.problem.title,
+            date: sub.createdAt.toISOString().split("T")[0],
+            status: (sub.status ?? "pending").toLowerCase(),
+            runtime: sub.runtime ? `${sub.runtime.toFixed(2)}ms` : "N/A",
+            gflops: sub.gflops ? `${sub.gflops.toFixed(2)}` : "N/A",
+            gpuType: sub.gpuType,
+            language: sub.language,
+          })
+        ),
+        blogPosts: blogPosts.map(
+          (post: {
+            id: string;
+            title: string;
+            slug: string;
+            publishedAt: Date | null;
+            createdAt: Date;
+            _count: { upvotes: number };
+          }) => ({
+            id: post.id,
+            title: post.title,
+            slug: post.slug,
+            publishedAt: (post.publishedAt ?? post.createdAt).toISOString(),
+            votes: post._count.upvotes ?? 0,
+          })
+        ),
         communityStats: {
           totalPosts: totalCommunityPosts,
           totalLikes: totalCommunityLikes,
@@ -381,21 +431,29 @@ export const usersRouter = createTRPCRouter({
     .input(
       z.object({
         limit: z.number().min(1).max(1000).default(100),
+        mode: z.enum(["legacy", "new"]).default("legacy"),
       })
     )
     .query(async ({ ctx, input }) => {
-      // Get users ordered by rating who have solved at least one problem
-      const users = await ctx.db.user.findMany({
-        where: {
-          submissions: {
-            some: {
-              status: "ACCEPTED",
-            },
-          },
-          rating: {
-            not: 0 || null,
+      const { limit, mode } = input;
+
+      // Build where clause based on mode
+      // Both modes query from legacySubmissions since new Submission table is empty
+      const whereClause = {
+        legacySubmissions: {
+          some: {
+            status: "ACCEPTED",
           },
         },
+        rating: {
+          not: null,
+          gt: 0,
+        },
+      };
+
+      // Get users ordered by rating
+      const users = await ctx.db.user.findMany({
+        where: whereClause,
         select: {
           id: true,
           name: true,
@@ -405,6 +463,11 @@ export const usersRouter = createTRPCRouter({
           rank: true,
           _count: {
             select: {
+              legacySubmissions: {
+                where: {
+                  status: "ACCEPTED",
+                },
+              },
               submissions: {
                 where: {
                   status: "ACCEPTED",
@@ -414,64 +477,139 @@ export const usersRouter = createTRPCRouter({
           },
         },
         orderBy: { rating: "desc" },
-        take: input.limit,
+        take: limit,
       });
 
       // For each user, get their solved problems count and best submission
       const enhancedUsers = await Promise.all(
-        users.map(async (user) => {
-          const solvedProblemsCount = await ctx.db.problem.count({
-            where: {
-              submissions: {
-                some: {
+        users.map(
+          async (user: {
+            id: string;
+            name: string | null;
+            username: string | null;
+            image: string | null;
+            rating: number | null;
+            rank: number | null;
+            _count: { legacySubmissions: number; submissions: number };
+          }) => {
+            // Count solved problems - always from legacy submissions since new table is empty
+            const solvedProblemsCount = await ctx.db.problem.count({
+              where: {
+                legacySubmissions: {
+                  some: {
+                    userId: user.id,
+                    status: "ACCEPTED",
+                  },
+                },
+              },
+            });
+
+            // Get best submission based on mode
+            let bestSubmission: NormalizedBestSubmission | null = null;
+
+            if (mode === "legacy") {
+              // Legacy mode: best = highest GFLOPS, return runtimeMs: null
+              const legacyBest = await ctx.db.legacySubmission.findFirst({
+                where: {
                   userId: user.id,
-                  status: "ACCEPTED",
+                  gflops: { not: null },
                 },
-              },
-            },
-          });
-
-          const bestSubmission = await ctx.db.submission.findFirst({
-            where: {
-              userId: user.id,
-              gflops: { not: null },
-            },
-            orderBy: {
-              gflops: "desc",
-            },
-            select: {
-              id: true,
-              gflops: true,
-              gpuType: true,
-              problem: {
+                orderBy: {
+                  gflops: "desc",
+                },
                 select: {
-                  title: true,
-                  slug: true,
+                  id: true,
+                  gflops: true,
+                  gpuType: true,
+                  problem: {
+                    select: {
+                      title: true,
+                      slug: true,
+                    },
+                  },
                 },
-              },
-            },
-          });
+              });
 
-          // Only include users who have a best submission
-          if (!bestSubmission) return null;
+              if (legacyBest) {
+                bestSubmission = {
+                  id: legacyBest.id,
+                  gflops: legacyBest.gflops,
+                  runtimeMs: null, // Don't show runtime in legacy mode
+                  gpuType: legacyBest.gpuType,
+                  isLegacy: true,
+                  problem: legacyBest.problem,
+                };
+              }
+            } else {
+              // New mode: best = lowest runtime, return gflops: null
+              // Query from legacySubmission since new table is empty
+              const runtimeBest = await ctx.db.legacySubmission.findFirst({
+                where: {
+                  userId: user.id,
+                  runtime: { not: null },
+                },
+                orderBy: {
+                  runtime: "asc", // Lower runtime is better
+                },
+                select: {
+                  id: true,
+                  runtime: true,
+                  gpuType: true,
+                  problem: {
+                    select: {
+                      title: true,
+                      slug: true,
+                    },
+                  },
+                },
+              });
 
-          return {
-            id: user.id,
-            username: user.username ?? "",
-            name: user.name ?? "",
-            image: user.image ?? "",
-            rating: user.rating ?? 0,
-            rank: user.rank ?? 9999,
-            submissionsCount: user._count.submissions,
-            solvedProblemsCount,
-            bestSubmission,
-          };
-        })
+              if (runtimeBest) {
+                bestSubmission = {
+                  id: runtimeBest.id,
+                  gflops: null, // Don't show GFLOPS in runtime mode
+                  runtimeMs: runtimeBest.runtime,
+                  gpuType: runtimeBest.gpuType,
+                  isLegacy: false, // Show as non-legacy (runtime-based)
+                  problem: runtimeBest.problem,
+                };
+              }
+            }
+
+            // Only include users who have a best submission
+            if (!bestSubmission) return null;
+
+            return {
+              id: user.id,
+              username: user.username ?? "",
+              name: user.name ?? "",
+              image: user.image ?? "",
+              rating: user.rating ?? 0,
+              rank: user.rank ?? 9999,
+              submissionsCount:
+                user._count.legacySubmissions + user._count.submissions,
+              solvedProblemsCount,
+              bestSubmission,
+            };
+          }
+        )
       );
 
       // Filter out null values and return only users with best submissions
       return enhancedUsers.filter(
-        (user): user is NonNullable<typeof user> => user !== null
+        (
+          user
+        ): user is {
+          id: string;
+          username: string;
+          name: string;
+          image: string;
+          rating: number;
+          rank: number;
+          submissionsCount: number;
+          solvedProblemsCount: number;
+          bestSubmission: NormalizedBestSubmission;
+        } => user !== null
       );
     }),
 });

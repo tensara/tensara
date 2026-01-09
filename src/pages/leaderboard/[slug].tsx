@@ -41,6 +41,12 @@ import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { FaChevronDown, FaExternalLinkAlt, FaCode } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { useSession } from "next-auth/react";
+import { LeaderboardMode, type LeaderboardModeType } from "~/types/submission";
+
+const LEADERBOARD_MODE_DISPLAY: Record<LeaderboardModeType, string> = {
+  legacy: "GFLOPS (Legacy)",
+  new: "Runtime",
+};
 
 const BASELINE_DISPLAY_NAMES: Record<string, string> = {
   torch_compile: "PyTorch",
@@ -135,6 +141,7 @@ type ProblemLeaderboardEntry = {
   gpuType: string | null;
   language: string | null;
   isPublic: boolean;
+  isLegacy?: boolean;
 };
 
 type BaselineResult = {
@@ -201,6 +208,9 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const [selectedGpu, setSelectedGpu] = useState<string>(
     (router.query.gpu as string) || "all"
   );
+  const [selectedMode, setSelectedMode] = useState<LeaderboardModeType>(
+    LeaderboardMode.LEGACY
+  );
   const [showBaselines, setShowBaselines] = useState(false);
 
   // Add this to get the current user data
@@ -230,7 +240,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   // Get leaderboard data from the new optimized endpoint
   const { data: leaderboardEntries = [], isLoading: isLeaderboardLoading } =
     api.submissions.getProblemLeaderboard.useQuery<ProblemLeaderboardEntry[]>(
-      { slug, gpuType: selectedGpu },
+      { slug, gpuType: selectedGpu, mode: selectedMode },
       {
         staleTime: 300000, // 5 minutes
         refetchOnMount: false,
@@ -303,23 +313,34 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
     const entries = showBaselines
       ? [...leaderboardEntries, ...baselineEntries]
       : leaderboardEntries;
+
+    // Sort based on selected mode
     return entries.sort((a, b) => {
-      if (a.gflops && !b.gflops) return -1;
-      if (!a.gflops && b.gflops) return 1;
-
-      if (a.gflops && b.gflops) {
-        return b.gflops - a.gflops;
+      if (selectedMode === LeaderboardMode.LEGACY) {
+        // Legacy mode: sort by GFLOPS DESC (higher is better)
+        if (a.gflops !== null && b.gflops !== null) {
+          return b.gflops - a.gflops;
+        }
+        if (a.gflops !== null) return -1;
+        if (b.gflops !== null) return 1;
+        return 0;
+      } else {
+        // New mode: sort by runtime ASC (lower is better)
+        if (a.runtime !== null && b.runtime !== null) {
+          return a.runtime - b.runtime;
+        }
+        if (a.runtime !== null) return -1;
+        if (b.runtime !== null) return 1;
+        return 0;
       }
-      return a.runtime! - b.runtime!;
     });
-  }, [baselineBenchmarks, leaderboardEntries, selectedGpu, showBaselines]);
-
-  const hasAnyGflops = useMemo(() => {
-    return (
-      combinedEntries?.some((entry) => entry.gflops && entry.gflops > 0) ??
-      false
-    );
-  }, [combinedEntries]);
+  }, [
+    baselineBenchmarks,
+    leaderboardEntries,
+    selectedGpu,
+    showBaselines,
+    selectedMode,
+  ]);
 
   if (isProblemLoading || isLeaderboardLoading) {
     return (
@@ -403,6 +424,43 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
               >
                 {showBaselines ? "Hide Baselines" : "Show Baselines"}
               </Button>
+              {/* Leaderboard Mode Dropdown */}
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                  bg="whiteAlpha.50"
+                  _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                  _active={{ bg: "whiteAlpha.150" }}
+                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                  color="white"
+                  w="170px"
+                  fontWeight="normal"
+                  textAlign="left"
+                  justifyContent="flex-start"
+                >
+                  {LEADERBOARD_MODE_DISPLAY[selectedMode]}
+                </MenuButton>
+                <MenuList bg="brand.secondary" borderColor="gray.800" p={0}>
+                  {Object.entries(LEADERBOARD_MODE_DISPLAY).map(
+                    ([key, value]) => (
+                      <MenuItem
+                        key={key}
+                        onClick={() =>
+                          setSelectedMode(key as LeaderboardModeType)
+                        }
+                        bg="brand.secondary"
+                        _hover={{ bg: "gray.700" }}
+                        color="white"
+                        borderRadius="md"
+                      >
+                        {value}
+                      </MenuItem>
+                    )
+                  )}
+                </MenuList>
+              </Menu>
+              {/* GPU Dropdown */}
               <Menu>
                 <MenuButton
                   as={Button}
@@ -448,13 +506,11 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                     <Th borderBottom="none" py={2} px={4}>
                       User
                     </Th>
-                    {hasAnyGflops && (
-                      <Th borderBottom="none" isNumeric py={2} px={4}>
-                        GFLOPS
-                      </Th>
-                    )}
+                    {/* Show primary metric column based on mode */}
                     <Th borderBottom="none" isNumeric py={2} px={4}>
-                      Runtime (ms)
+                      {selectedMode === LeaderboardMode.LEGACY
+                        ? "GFLOPS"
+                        : "Runtime (ms)"}
                     </Th>
                     {selectedGpu === "all" && (
                       <Th borderBottom="none" py={2} px={3}>
@@ -526,39 +582,52 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                           </Text>
                         </Td>
                         <Td borderBottom="none" py={2} px={4}>
-                          <Text
-                            color={medalColor}
-                            fontWeight={medalColor ? "bold" : "normal"}
-                          >
-                            {entry.username ?? "Anonymous"}
+                          <Flex align="center" gap={2}>
+                            <Text
+                              color={medalColor}
+                              fontWeight={medalColor ? "bold" : "normal"}
+                            >
+                              {entry.username ?? "Anonymous"}
+                            </Text>
                             {isBaseline && (
                               <Tag
                                 size="sm"
                                 variant="solid"
                                 colorScheme="blue"
                                 bg="blue.900"
-                                ml={2}
                               >
                                 Baseline
                               </Tag>
                             )}
-                          </Text>
+                            {/* Show Legacy badge in GFLOPS (legacy) mode */}
+                            {selectedMode === LeaderboardMode.LEGACY &&
+                              !isBaseline && (
+                                <Badge
+                                  bg="yellow.800"
+                                  color="yellow.200"
+                                  fontSize="xs"
+                                  px={2}
+                                  py={0.5}
+                                  borderRadius="md"
+                                >
+                                  Legacy
+                                </Badge>
+                              )}
+                          </Flex>
                         </Td>
-                        {hasAnyGflops && (
-                          <Td isNumeric borderBottom="none" py={2} px={4}>
-                            <Text
-                              color={medalColor}
-                              textAlign="right"
-                              display="block"
-                              style={{ fontVariantNumeric: "tabular-nums" }}
-                              fontWeight={index < 3 ? "bold" : "normal"}
-                            >
-                              {formatPerformance(entry.gflops)}
-                            </Text>
-                          </Td>
-                        )}
+                        {/* Show primary metric value based on mode */}
                         <Td isNumeric borderBottom="none" py={2} px={4}>
-                          {entry.runtime?.toFixed(2) ?? "N/A"}
+                          <Text
+                            color={medalColor}
+                            textAlign="right"
+                            display="block"
+                            style={{ fontVariantNumeric: "tabular-nums" }}
+                            fontWeight={index < 3 ? "bold" : "normal"}
+                          >
+                            {selectedMode === LeaderboardMode.LEGACY
+                              ? formatPerformance(entry.gflops)
+                              : (entry.runtime?.toFixed(2) ?? "N/A")}
+                          </Text>
                         </Td>
                         {selectedGpu === "all" && (
                           <Td borderBottom="none" py={2} px={3}>
@@ -627,7 +696,9 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
           ) : (
             <Card p={6} bg="gray.700">
               <Text fontFamily="body">
-                No submissions found
+                {selectedMode === LeaderboardMode.LEGACY
+                  ? "No GFLOPS-based submissions yet"
+                  : "No runtime-based submissions yet"}
                 {selectedGpu !== "all" &&
                   ` for ${GPU_DISPLAY_NAMES[selectedGpu]}`}
                 .

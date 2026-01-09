@@ -59,6 +59,12 @@ import {
   FaExternalLinkAlt,
   FaChevronDown,
 } from "react-icons/fa";
+import { LeaderboardMode, type LeaderboardModeType } from "~/types/submission";
+
+const LEADERBOARD_MODE_DISPLAY: Record<LeaderboardModeType, string> = {
+  legacy: "GFLOPS (Legacy)",
+  new: "Runtime",
+};
 
 type UserRanking = {
   id: string;
@@ -72,7 +78,9 @@ type UserRanking = {
   bestSubmission: {
     id: string;
     gflops: number | null;
+    runtimeMs: number | null;
     gpuType: string | null;
+    isLegacy: boolean;
     problem: {
       title: string;
       slug: string;
@@ -116,8 +124,11 @@ export const getServerSideProps: GetServerSideProps = async (_context) => {
     transformer: superjson,
   });
 
-  // Prefetch the player rankings
-  await helpers.users.getTopRankedPlayers.prefetch({ limit: 100 });
+  // Prefetch the player rankings with default mode
+  await helpers.users.getTopRankedPlayers.prefetch({
+    limit: 100,
+    mode: "legacy",
+  });
 
   // Prefetch ALL GPU types during server-side render
   await Promise.all(
@@ -136,6 +147,9 @@ export const getServerSideProps: GetServerSideProps = async (_context) => {
 const LeaderboardPage: NextPage = () => {
   const router = useRouter();
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
+  const [selectedMode, setSelectedMode] = useState<LeaderboardModeType>(
+    LeaderboardMode.LEGACY
+  );
   const [selectedTab, setSelectedTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
       const savedTab = localStorage.getItem("leaderboardTab");
@@ -156,7 +170,7 @@ const LeaderboardPage: NextPage = () => {
   // User rankings data
   const { data: rankedUsers, isLoading: isLoadingUsers } =
     api.users.getTopRankedPlayers.useQuery<UserRanking[]>(
-      { limit: 50 },
+      { limit: 50, mode: selectedMode },
       {
         staleTime: 300000, // 5 minutes
         refetchOnMount: false,
@@ -166,7 +180,7 @@ const LeaderboardPage: NextPage = () => {
 
   const { data: leaderboardData, isLoading: isLoadingProblems } =
     api.submissions.getBestSubmissionsByProblem.useQuery(
-      { gpuType: selectedGpu },
+      { gpuType: selectedGpu, mode: selectedMode },
       {
         placeholderData: (prev) => prev,
         refetchOnMount: false,
@@ -215,6 +229,55 @@ const LeaderboardPage: NextPage = () => {
             <Heading size="lg">Leaderboard</Heading>
 
             <Flex align="center" gap={4}>
+              {/* Leaderboard Mode Dropdown - shows for both tabs on desktop */}
+              {!isMobile && (
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
+                    bg="whiteAlpha.50"
+                    _hover={{
+                      bg: "whiteAlpha.100",
+                      borderColor: "gray.600",
+                    }}
+                    _active={{ bg: "whiteAlpha.150" }}
+                    _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                    color="white"
+                    w="170px"
+                    fontWeight="normal"
+                    textAlign="left"
+                    justifyContent="flex-start"
+                  >
+                    {LEADERBOARD_MODE_DISPLAY[selectedMode]}
+                  </MenuButton>
+                  <MenuList
+                    bg="brand.secondary"
+                    borderColor="gray.800"
+                    p={0}
+                    borderRadius="md"
+                    minW="170px"
+                  >
+                    {Object.entries(LEADERBOARD_MODE_DISPLAY).map(
+                      ([key, value]) => (
+                        <MenuItem
+                          key={key}
+                          onClick={() =>
+                            setSelectedMode(key as LeaderboardModeType)
+                          }
+                          bg="brand.secondary"
+                          _hover={{ bg: "gray.700" }}
+                          color="white"
+                          borderRadius="md"
+                          fontSize="sm"
+                        >
+                          {value}
+                        </MenuItem>
+                      )
+                    )}
+                  </MenuList>
+                </Menu>
+              )}
+              {/* GPU Dropdown - only shows for Problems tab on desktop */}
               {selectedTab === "problems" && !isMobile && (
                 <Menu>
                   <MenuButton
@@ -258,11 +321,12 @@ const LeaderboardPage: NextPage = () => {
                   </MenuList>
                 </Menu>
               )}
-              {selectedTab === "problems" && isMobile && (
+              {/* Mobile filter button */}
+              {isMobile && (
                 <Popover placement="bottom">
                   <PopoverTrigger>
                     <IconButton
-                      aria-label="Filter by GPU"
+                      aria-label="Filter options"
                       icon={<FaFilter />}
                       colorScheme="blue"
                       variant="outline"
@@ -272,42 +336,91 @@ const LeaderboardPage: NextPage = () => {
                   <PopoverContent
                     bg="gray.800"
                     borderColor="whiteAlpha.300"
-                    w="150px"
+                    w="180px"
                   >
                     <PopoverBody p={0}>
+                      {/* Mode Filter - shows for both tabs */}
+                      <Text
+                        fontSize="xs"
+                        color="whiteAlpha.600"
+                        px={3}
+                        pt={2}
+                        pb={1}
+                        fontWeight="semibold"
+                      >
+                        Mode
+                      </Text>
                       <List spacing={0}>
-                        {Object.entries(GPU_DISPLAY_NAMES).map(
+                        {Object.entries(LEADERBOARD_MODE_DISPLAY).map(
                           ([key, value], index, arr) => (
-                            <>
-                              <ListItem
-                                key={key}
-                                px={3}
-                                fontSize="sm"
-                                py={2}
-                                onClick={() => setSelectedGpu(key)}
-                                cursor="pointer"
-                                bg={
-                                  selectedGpu === key ? "blue.900" : undefined
-                                }
-                                _hover={{
-                                  bg:
-                                    selectedGpu === key
-                                      ? "blue.800"
-                                      : "whiteAlpha.100",
-                                }}
-                                fontWeight={
-                                  selectedGpu === key ? "bold" : "normal"
-                                }
-                              >
-                                {value}
-                              </ListItem>
-                              {index < arr.length - 1 && (
-                                <Divider borderColor="whiteAlpha.200" />
-                              )}
-                            </>
+                            <ListItem
+                              key={key}
+                              px={3}
+                              fontSize="sm"
+                              py={2}
+                              onClick={() =>
+                                setSelectedMode(key as LeaderboardModeType)
+                              }
+                              cursor="pointer"
+                              bg={selectedMode === key ? "blue.900" : undefined}
+                              _hover={{
+                                bg:
+                                  selectedMode === key
+                                    ? "blue.800"
+                                    : "whiteAlpha.100",
+                              }}
+                              fontWeight={
+                                selectedMode === key ? "bold" : "normal"
+                              }
+                            >
+                              {value}
+                            </ListItem>
                           )
                         )}
                       </List>
+                      {/* GPU Filter - only shows for Problems tab */}
+                      {selectedTab === "problems" && (
+                        <>
+                          <Divider borderColor="whiteAlpha.300" my={2} />
+                          <Text
+                            fontSize="xs"
+                            color="whiteAlpha.600"
+                            px={3}
+                            pb={1}
+                            fontWeight="semibold"
+                          >
+                            GPU
+                          </Text>
+                          <List spacing={0}>
+                            {Object.entries(GPU_DISPLAY_NAMES).map(
+                              ([key, value]) => (
+                                <ListItem
+                                  key={key}
+                                  px={3}
+                                  fontSize="sm"
+                                  py={2}
+                                  onClick={() => setSelectedGpu(key)}
+                                  cursor="pointer"
+                                  bg={
+                                    selectedGpu === key ? "blue.900" : undefined
+                                  }
+                                  _hover={{
+                                    bg:
+                                      selectedGpu === key
+                                        ? "blue.800"
+                                        : "whiteAlpha.100",
+                                  }}
+                                  fontWeight={
+                                    selectedGpu === key ? "bold" : "normal"
+                                  }
+                                >
+                                  {value}
+                                </ListItem>
+                              )
+                            )}
+                          </List>
+                        </>
+                      )}
                     </PopoverBody>
                   </PopoverContent>
                 </Popover>
@@ -603,23 +716,59 @@ const LeaderboardPage: NextPage = () => {
                                             {user.bestSubmission.gpuType}
                                           </Badge>
                                         )}
-                                        <Badge
-                                          bg="blackAlpha.400"
-                                          color="white.300"
-                                          px={2}
-                                          py={0.5}
-                                          borderRadius="md"
-                                          fontSize="xs"
-                                          fontWeight="medium"
-                                          minWidth="fit-content"
-                                        >
-                                          {user.bestSubmission.gflops !== null
-                                            ? user.bestSubmission.gflops >= 1000
-                                              ? `${(user.bestSubmission.gflops / 1000).toFixed(2)} T`
-                                              : `${user.bestSubmission.gflops.toFixed(2)} G`
-                                            : "0.00 G"}
-                                          {"FLOPS"}
-                                        </Badge>
+                                        {/* Show runtime as primary metric when available */}
+                                        {user.bestSubmission.runtimeMs !==
+                                        null ? (
+                                          <Badge
+                                            bg="blackAlpha.400"
+                                            color="white.300"
+                                            px={2}
+                                            py={0.5}
+                                            borderRadius="md"
+                                            fontSize="xs"
+                                            fontWeight="medium"
+                                            minWidth="fit-content"
+                                          >
+                                            {user.bestSubmission.runtimeMs.toFixed(
+                                              2
+                                            )}{" "}
+                                            ms
+                                          </Badge>
+                                        ) : (
+                                          <Badge
+                                            bg="blackAlpha.400"
+                                            color="white.300"
+                                            px={2}
+                                            py={0.5}
+                                            borderRadius="md"
+                                            fontSize="xs"
+                                            fontWeight="medium"
+                                            minWidth="fit-content"
+                                          >
+                                            {user.bestSubmission.gflops !== null
+                                              ? user.bestSubmission.gflops >=
+                                                1000
+                                                ? `${(user.bestSubmission.gflops / 1000).toFixed(2)} T`
+                                                : `${user.bestSubmission.gflops.toFixed(2)} G`
+                                              : "0.00 G"}
+                                            {"FLOPS"}
+                                          </Badge>
+                                        )}
+                                        {/* Show legacy badge for legacy submissions */}
+                                        {user.bestSubmission.isLegacy && (
+                                          <Badge
+                                            bg="yellow.800"
+                                            color="yellow.200"
+                                            px={2}
+                                            py={0.5}
+                                            borderRadius="md"
+                                            fontSize="xs"
+                                            fontWeight="medium"
+                                            minWidth="fit-content"
+                                          >
+                                            Legacy
+                                          </Badge>
+                                        )}
                                       </Flex>
                                     </Flex>
                                   ) : (
@@ -643,7 +792,11 @@ const LeaderboardPage: NextPage = () => {
                     borderColor="whiteAlpha.200"
                     borderWidth={1}
                   >
-                    <Text>No users found.</Text>
+                    <Text>
+                      {selectedMode === "new"
+                        ? "No runtime-based submissions yet. Users will appear here once they submit solutions with the new benchmarking system."
+                        : "No users found."}
+                    </Text>
                   </Box>
                 )}
               </motion.div>
@@ -741,11 +894,8 @@ const LeaderboardPage: NextPage = () => {
                                     </Th>
                                     <Th color="whiteAlpha.600">User</Th>
                                     <Th isNumeric color="whiteAlpha.600">
-                                      {topSubmissions.some(
-                                        (sub) => sub.gflops && sub.gflops > 0
-                                      )
-                                        ? "FLOPS"
-                                        : "Time"}
+                                      {/* Show "Time" as primary, with GFLOPS in tooltip */}
+                                      Time
                                     </Th>
                                   </Tr>
                                 </Thead>
@@ -781,7 +931,7 @@ const LeaderboardPage: NextPage = () => {
                                             GPU_DISPLAY_NAMES[
                                               submission.gpuType ?? ""
                                             ] ?? "Unknown GPU"
-                                          }`}
+                                          }${submission.isLegacy ? " | Legacy" : ""}`}
                                           hasArrow
                                         >
                                           <ChakraLink
@@ -803,11 +953,35 @@ const LeaderboardPage: NextPage = () => {
                                         </Tooltip>
                                       </Td>
                                       <Td isNumeric borderRightRadius="lg">
-                                        {submission.gflops !== null && (
+                                        {/* Show runtime as primary metric */}
+                                        {submission.runtime !== null ? (
                                           <Tooltip
-                                            label={`Runtime: ${submission.runtime?.toFixed(
-                                              2
-                                            )} ms`}
+                                            label={
+                                              submission.gflops !== null
+                                                ? `${formatPerformance(submission.gflops)}FLOPS`
+                                                : undefined
+                                            }
+                                            hasArrow
+                                            isDisabled={
+                                              submission.gflops === null
+                                            }
+                                          >
+                                            <Text
+                                              color={getMedalColor(index)}
+                                              fontWeight="bold"
+                                              fontSize="sm"
+                                              style={{
+                                                fontVariantNumeric:
+                                                  "tabular-nums",
+                                              }}
+                                            >
+                                              {submission.runtime.toFixed(2)} ms
+                                            </Text>
+                                          </Tooltip>
+                                        ) : submission.gflops !== null ? (
+                                          // Fallback for legacy submissions without runtime
+                                          <Tooltip
+                                            label="Legacy submission (GFLOPS only)"
                                             hasArrow
                                           >
                                             <Text
@@ -824,22 +998,11 @@ const LeaderboardPage: NextPage = () => {
                                               )}
                                             </Text>
                                           </Tooltip>
+                                        ) : (
+                                          <Text color="whiteAlpha.600">
+                                            N/A
+                                          </Text>
                                         )}
-                                        {submission.gflops === null &&
-                                          submission.runtime !== null && (
-                                            <Text
-                                              color={getMedalColor(index)}
-                                              fontWeight="bold"
-                                              fontSize="sm"
-                                              style={{
-                                                fontVariantNumeric:
-                                                  "tabular-nums",
-                                              }}
-                                            >
-                                              {submission.runtime?.toFixed(2)}{" "}
-                                              ms
-                                            </Text>
-                                          )}
                                       </Td>
                                     </Tr>
                                   ))}

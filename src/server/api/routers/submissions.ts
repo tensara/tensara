@@ -8,6 +8,7 @@ import {
 } from "~/server/api/trpc";
 import NodeCache from "node-cache";
 import { gpuTypes } from "~/constants/gpu";
+import { LeaderboardMode, type LeaderboardModeType } from "~/types/submission";
 
 // Create cache with 5 minute TTL
 const leaderboardCache = new NodeCache({ stdTTL: 300 });
@@ -29,6 +30,7 @@ type ProblemLeaderboard = {
     language: string | null;
     username: string | null;
     runtime: number | null;
+    isLegacy: boolean;
   }>;
 };
 
@@ -42,6 +44,7 @@ type ProblemLeaderboardEntry = {
   gpuType: string | null;
   language: string | null;
   isPublic: boolean;
+  isLegacy: boolean;
 };
 
 // Warm up cache on server start
@@ -50,13 +53,22 @@ async function warmupCache(ctx: { db: PrismaClient }) {
   const startTime = Date.now();
 
   try {
-    // Precompute for 'all' and each GPU type
+    // Precompute for each GPU type, for legacy and new modes
+    const modes: LeaderboardModeType[] = [
+      LeaderboardMode.LEGACY,
+      LeaderboardMode.NEW,
+    ];
+
     await Promise.all(
-      gpuTypes.map(async (gpuType) => {
-        console.log(`[CACHE WARMUP] Processing GPU: ${gpuType}`);
-        const data = await computeLeaderboardData(ctx, gpuType);
-        leaderboardCache.set(`leaderboard-${gpuType}`, data);
-      })
+      gpuTypes.flatMap((gpuType) =>
+        modes.map(async (mode) => {
+          console.log(
+            `[CACHE WARMUP] Processing GPU: ${gpuType}, Mode: ${mode}`
+          );
+          const data = await computeLeaderboardData(ctx, gpuType, mode);
+          leaderboardCache.set(`leaderboard-${gpuType}-${mode}`, data);
+        })
+      )
     );
 
     const duration = Date.now() - startTime;
@@ -149,6 +161,14 @@ export const submissionsRouter = createTRPCRouter({
               username: true,
             },
           },
+          testResults: {
+            include: {
+              runs: true,
+            },
+            orderBy: {
+              testId: "asc",
+            },
+          },
         },
       });
 
@@ -177,36 +197,38 @@ export const submissionsRouter = createTRPCRouter({
     .input(
       z.object({
         gpuType: z.string().optional().default("all"),
+        mode: z.enum(["legacy", "new"]).optional().default("legacy"),
       })
     )
     .query(async ({ ctx, input }) => {
-      const cacheKey = `leaderboard-${input.gpuType}`;
+      const mode = input.mode as LeaderboardModeType;
+      const cacheKey = `leaderboard-${input.gpuType}-${mode}`;
 
       // Check cache first
       const cachedData = leaderboardCache.get<ProblemLeaderboard[]>(cacheKey);
       if (cachedData) {
         // Log each request with its counter value
         console.log(
-          `[CACHE HIT] Leaderboard cache used for GPU: ${input.gpuType} (Request #${requestCounter})`
+          `[CACHE HIT] Leaderboard cache used for GPU: ${input.gpuType}, Mode: ${mode} (Request #${requestCounter})`
         );
 
         requestCounter++;
         if (requestCounter % 10 === 0) {
           console.log(
-            `[CACHE REFRESH] Triggering background refresh after ${requestCounter} requests for GPU: ${input.gpuType}`
+            `[CACHE REFRESH] Triggering background refresh after ${requestCounter} requests for GPU: ${input.gpuType}, Mode: ${mode}`
           );
-          void refreshLeaderboardCache(ctx, input.gpuType, cacheKey);
+          void refreshLeaderboardCache(ctx, input.gpuType, mode, cacheKey);
         }
         return cachedData;
       }
 
       // Cache miss - compute data and store in cache
       console.log(
-        `[CACHE MISS] Computing leaderboard data for GPU: ${input.gpuType}`
+        `[CACHE MISS] Computing leaderboard data for GPU: ${input.gpuType}, Mode: ${mode}`
       );
-      const data = await computeLeaderboardData(ctx, input.gpuType);
+      const data = await computeLeaderboardData(ctx, input.gpuType, mode);
       console.log(
-        `[CACHE STORE] Storing new leaderboard data for GPU: ${input.gpuType}`
+        `[CACHE STORE] Storing new leaderboard data for GPU: ${input.gpuType}, Mode: ${mode}`
       );
       leaderboardCache.set(cacheKey, data);
       return data;
@@ -217,27 +239,30 @@ export const submissionsRouter = createTRPCRouter({
       z.object({
         slug: z.string(),
         gpuType: z.string().optional().default("all"),
+        mode: z.enum(["legacy", "new"]).optional().default("legacy"),
       })
     )
     .query(async ({ ctx, input }) => {
-      const cacheKey = `problem-leaderboard-${input.slug}-${input.gpuType}`;
+      const mode = input.mode as LeaderboardModeType;
+      const cacheKey = `problem-leaderboard-${input.slug}-${input.gpuType}-${mode}`;
 
       // Check cache first
       const cachedData = problemLeaderboardCache.get(cacheKey);
       if (cachedData) {
         console.log(
-          `[CACHE HIT] Problem leaderboard cache used for ${input.slug}, GPU: ${input.gpuType} (Request #${problemRequestCounter})`
+          `[CACHE HIT] Problem leaderboard cache used for ${input.slug}, GPU: ${input.gpuType}, Mode: ${mode} (Request #${problemRequestCounter})`
         );
 
         problemRequestCounter++;
         if (problemRequestCounter % 10 === 0) {
           console.log(
-            `[CACHE REFRESH] Triggering background refresh for problem ${input.slug}, GPU: ${input.gpuType}`
+            `[CACHE REFRESH] Triggering background refresh for problem ${input.slug}, GPU: ${input.gpuType}, Mode: ${mode}`
           );
           void refreshProblemLeaderboardCache(
             ctx,
             input.slug,
             input.gpuType,
+            mode,
             cacheKey
           );
         }
@@ -246,15 +271,16 @@ export const submissionsRouter = createTRPCRouter({
 
       // Cache miss - compute data
       console.log(
-        `[CACHE MISS] Computing problem leaderboard data for ${input.slug}, GPU: ${input.gpuType}`
+        `[CACHE MISS] Computing problem leaderboard data for ${input.slug}, GPU: ${input.gpuType}, Mode: ${mode}`
       );
       const data = await computeProblemLeaderboardData(
         ctx,
         input.slug,
-        input.gpuType
+        input.gpuType,
+        mode
       );
       console.log(
-        `[CACHE STORE] Storing new problem leaderboard data for ${input.slug}, GPU: ${input.gpuType}`
+        `[CACHE STORE] Storing new problem leaderboard data for ${input.slug}, GPU: ${input.gpuType}, Mode: ${mode}`
       );
       problemLeaderboardCache.set(cacheKey, data);
       return data;
@@ -378,18 +404,45 @@ export const submissionsRouter = createTRPCRouter({
 
 async function computeLeaderboardData(
   ctx: { db: PrismaClient },
-  gpuType: string
+  gpuType: string,
+  mode: LeaderboardModeType = LeaderboardMode.LEGACY
 ): Promise<ProblemLeaderboard[]> {
-  // Get all problems with their top submissions in a single query
+  // Get all problems first
   const problems = await ctx.db.problem.findMany({
     select: {
       id: true,
       slug: true,
       title: true,
-      submissions: {
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  // Build results for each problem
+  const results: ProblemLeaderboard[] = [];
+
+  for (const problem of problems) {
+    type SubmissionData = {
+      id: string;
+      gflops: number | null;
+      gpuType: string | null;
+      runtime: number | null;
+      language: string | null;
+      username: string | null;
+      isLegacy: boolean;
+    };
+
+    const allSubmissions: SubmissionData[] = [];
+
+    // Query legacy submissions if mode is 'legacy'
+    // Legacy mode: GFLOPS-based ranking, sorted by GFLOPS DESC (higher is better)
+    if (mode === LeaderboardMode.LEGACY) {
+      const legacySubmissions = await ctx.db.legacySubmission.findMany({
         where: {
+          problemId: problem.id,
           status: "ACCEPTED",
-          OR: [{ gflops: { not: null } }, { runtime: { not: null } }],
+          gflops: { not: null },
           ...(gpuType !== "all" ? { gpuType } : {}),
         },
         select: {
@@ -398,109 +451,160 @@ async function computeLeaderboardData(
           gpuType: true,
           runtime: true,
           language: true,
-          userId: true,
           user: {
             select: {
               username: true,
             },
           },
         },
-        orderBy: [{ gflops: "desc" }, { runtime: "asc" }],
-        distinct: ["userId"],
-        take: 5, // Get enough submissions to process top performers
-      },
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
+      });
 
-  // Process each problem's submissions server-side
-  return problems.map(
-    (problem: {
-      id: string;
-      slug: string;
-      title: string;
-      submissions: Array<{
-        id: string;
-        gflops: number | null;
-        gpuType: string | null;
-        runtime: number | null;
-        language: string | null;
-        user: { username: string | null };
-      }>;
-    }) => {
-      const userBestMap = new Map<string, (typeof problem.submissions)[0]>();
+      allSubmissions.push(
+        ...legacySubmissions.map((s) => ({
+          id: s.id,
+          gflops: s.gflops,
+          gpuType: s.gpuType,
+          runtime: s.runtime,
+          language: s.language,
+          username: s.user.username,
+          isLegacy: true,
+        }))
+      );
+    }
 
-      // Get best submission per user-GPU combination
-      for (const submission of problem.submissions) {
-        if (!submission.gflops && !submission.runtime) continue;
-        const key = `${submission.user.username ?? "Anonymous"}-${
-          submission.gpuType
-        }`;
-        const current = userBestMap.get(key);
+    // Query new submissions if mode is 'new'
+    // New mode: Runtime-based ranking, sorted by runtime ASC (lower is better)
+    if (mode === LeaderboardMode.NEW) {
+      // For now, query LegacySubmission since new Submission table is empty
+      // This shows runtime-based rankings from legacy data
+      const runtimeSubmissions = await ctx.db.legacySubmission.findMany({
+        where: {
+          problemId: problem.id,
+          status: "ACCEPTED",
+          runtime: { not: null },
+          ...(gpuType !== "all" ? { gpuType } : {}),
+        },
+        select: {
+          id: true,
+          gflops: true,
+          gpuType: true,
+          runtime: true,
+          language: true,
+          user: {
+            select: {
+              username: true,
+            },
+          },
+        },
+      });
+
+      allSubmissions.push(
+        ...runtimeSubmissions.map((s) => ({
+          id: s.id,
+          gflops: s.gflops,
+          gpuType: s.gpuType,
+          runtime: s.runtime,
+          language: s.language,
+          username: s.user.username,
+          isLegacy: false, // Shown as "new" (runtime-based) even though from legacy table
+        }))
+      );
+    }
+
+    // Get best submission per user-GPU combination
+    const userBestMap = new Map<string, SubmissionData>();
+
+    for (const submission of allSubmissions) {
+      const key = `${submission.username ?? "Anonymous"}-${submission.gpuType}`;
+      const current = userBestMap.get(key);
+
+      if (!current) {
+        userBestMap.set(key, submission);
+      } else if (mode === LeaderboardMode.LEGACY) {
+        // Legacy mode: higher GFLOPS is better
         if (
-          !current ||
-          (submission.gflops
-            ? submission.gflops > current.gflops!
-            : submission.runtime! < current.runtime!)
+          submission.gflops !== null &&
+          (current.gflops === null || submission.gflops > current.gflops)
+        ) {
+          userBestMap.set(key, submission);
+        }
+      } else {
+        // New mode: lower runtime is better
+        if (
+          submission.runtime !== null &&
+          (current.runtime === null || submission.runtime < current.runtime)
         ) {
           userBestMap.set(key, submission);
         }
       }
+    }
 
-      // Get top 3 overall
-      const topSubmissions = Array.from(userBestMap.values())
-        .sort((a, b) => {
-          if (a.gflops && !b.gflops) return -1;
-          if (!a.gflops && b.gflops) return 1;
-
-          if (a.gflops && b.gflops) {
+    // Sort based on mode
+    const topSubmissions = Array.from(userBestMap.values())
+      .sort((a, b) => {
+        if (mode === LeaderboardMode.LEGACY) {
+          // Legacy: sort by GFLOPS DESC (higher is better)
+          if (a.gflops !== null && b.gflops !== null) {
             return b.gflops - a.gflops;
           }
+          if (a.gflops !== null) return -1;
+          if (b.gflops !== null) return 1;
+          return 0;
+        } else {
+          // New: sort by runtime ASC (lower is better)
+          if (a.runtime !== null && b.runtime !== null) {
+            return a.runtime - b.runtime;
+          }
+          if (a.runtime !== null) return -1;
+          if (b.runtime !== null) return 1;
+          return 0;
+        }
+      })
+      .slice(0, 3)
+      .map((sub) => ({
+        id: sub.id,
+        gflops: sub.gflops,
+        gpuType: sub.gpuType,
+        language: sub.language,
+        username: sub.username,
+        runtime: sub.runtime,
+        isLegacy: sub.isLegacy,
+      }));
 
-          return a.runtime! - b.runtime!;
-        })
-        .slice(0, 3)
-        .map((sub) => ({
-          id: sub.id,
-          gflops: sub.gflops,
-          gpuType: sub.gpuType,
-          language: sub.language,
-          username: sub.user.username,
-          runtime: sub.runtime,
-        }));
+    results.push({
+      slug: problem.slug,
+      title: problem.title,
+      id: problem.id,
+      topSubmissions,
+    });
+  }
 
-      return {
-        slug: problem.slug,
-        title: problem.title,
-        id: problem.id,
-        topSubmissions,
-      };
-    }
-  );
+  return results;
 }
 
 // Function to refresh cache in background
 async function refreshLeaderboardCache(
   ctx: { db: PrismaClient },
   gpuType: string,
+  mode: LeaderboardModeType,
   cacheKey: string
 ) {
   try {
-    console.log(`[CACHE REFRESH START] Beginning refresh for GPU: ${gpuType}`);
+    console.log(
+      `[CACHE REFRESH START] Beginning refresh for GPU: ${gpuType}, Mode: ${mode}`
+    );
     const startTime = Date.now();
 
-    const freshData = await computeLeaderboardData(ctx, gpuType);
+    const freshData = await computeLeaderboardData(ctx, gpuType, mode);
     const duration = Date.now() - startTime;
 
     console.log(
-      `[CACHE REFRESH COMPLETE] Refreshed cache for GPU: ${gpuType} (took ${duration}ms)`
+      `[CACHE REFRESH COMPLETE] Refreshed cache for GPU: ${gpuType}, Mode: ${mode} (took ${duration}ms)`
     );
     leaderboardCache.set(cacheKey, freshData);
   } catch (error) {
     console.error(
-      `[CACHE REFRESH ERROR] Failed to refresh cache for GPU: ${gpuType}`,
+      `[CACHE REFRESH ERROR] Failed to refresh cache for GPU: ${gpuType}, Mode: ${mode}`,
       error
     );
   }
@@ -510,7 +614,8 @@ async function refreshLeaderboardCache(
 async function computeProblemLeaderboardData(
   ctx: { db: PrismaClient },
   slug: string,
-  gpuType: string
+  gpuType: string,
+  mode: LeaderboardModeType = LeaderboardMode.LEGACY
 ): Promise<ProblemLeaderboardEntry[]> {
   // Get problem ID first
   const problem = await ctx.db.problem.findUnique({
@@ -520,71 +625,163 @@ async function computeProblemLeaderboardData(
 
   if (!problem) return [];
 
-  // Get all submissions for this problem
-  const submissions = await ctx.db.submission.findMany({
-    where: {
-      problem: { slug },
-      status: "ACCEPTED",
-      OR: [{ gflops: { not: null } }, { runtime: { not: null } }],
-      ...(gpuType !== "all" ? { gpuType } : {}),
-    },
-    select: {
-      id: true,
-      gflops: true,
-      runtime: true,
-      gpuType: true,
-      language: true,
-      createdAt: true,
-      isPublic: true,
-      user: {
-        select: {
-          username: true,
+  type SubmissionData = {
+    id: string;
+    gflops: number | null;
+    runtime: number | null;
+    gpuType: string | null;
+    language: string;
+    createdAt: Date;
+    isPublic: boolean;
+    username: string | null;
+    isLegacy: boolean;
+  };
+
+  const allSubmissions: SubmissionData[] = [];
+
+  // Query legacy submissions if mode is 'legacy'
+  // Legacy mode: GFLOPS-based ranking, sorted by GFLOPS DESC (higher is better)
+  if (mode === LeaderboardMode.LEGACY) {
+    const legacySubmissions = await ctx.db.legacySubmission.findMany({
+      where: {
+        problem: { slug },
+        status: "ACCEPTED",
+        gflops: { not: null },
+        ...(gpuType !== "all" ? { gpuType } : {}),
+      },
+      select: {
+        id: true,
+        gflops: true,
+        runtime: true,
+        gpuType: true,
+        language: true,
+        createdAt: true,
+        isPublic: true,
+        user: {
+          select: {
+            username: true,
+          },
         },
       },
-    },
-    orderBy: { gflops: "desc" },
-  });
+    });
+
+    allSubmissions.push(
+      ...legacySubmissions.map((s) => ({
+        id: s.id,
+        gflops: s.gflops,
+        runtime: s.runtime,
+        gpuType: s.gpuType,
+        language: s.language,
+        createdAt: s.createdAt,
+        isPublic: s.isPublic,
+        username: s.user.username,
+        isLegacy: true,
+      }))
+    );
+  }
+
+  // Query for runtime-based mode
+  // New mode: Runtime-based ranking, sorted by runtime ASC (lower is better)
+  if (mode === LeaderboardMode.NEW) {
+    // For now, query LegacySubmission since new Submission table is empty
+    const runtimeSubmissions = await ctx.db.legacySubmission.findMany({
+      where: {
+        problem: { slug },
+        status: "ACCEPTED",
+        runtime: { not: null },
+        ...(gpuType !== "all" ? { gpuType } : {}),
+      },
+      select: {
+        id: true,
+        gflops: true,
+        runtime: true,
+        gpuType: true,
+        language: true,
+        createdAt: true,
+        isPublic: true,
+        user: {
+          select: {
+            username: true,
+          },
+        },
+      },
+    });
+
+    allSubmissions.push(
+      ...runtimeSubmissions.map((s) => ({
+        id: s.id,
+        gflops: s.gflops,
+        runtime: s.runtime,
+        gpuType: s.gpuType,
+        language: s.language,
+        createdAt: s.createdAt,
+        isPublic: s.isPublic,
+        username: s.user.username,
+        isLegacy: false, // Shown as "new" (runtime-based) even though from legacy table
+      }))
+    );
+  }
 
   // Calculate best submission per user-GPU combination
-  const userGpuBestMap = new Map<string, (typeof submissions)[0]>();
+  const userGpuBestMap = new Map<string, SubmissionData>();
 
-  for (const submission of submissions) {
-    if (!submission.gflops && !submission.runtime) continue;
-
-    const userGpuKey = `${submission.user.username ?? "Anonymous"}-${
-      submission.gpuType
-    }`;
+  for (const submission of allSubmissions) {
+    const userGpuKey = `${submission.username ?? "Anonymous"}-${submission.gpuType}`;
     const currentBest = userGpuBestMap.get(userGpuKey);
 
-    if (
-      !currentBest ||
-      (submission.gflops
-        ? submission.gflops > currentBest.gflops!
-        : submission.runtime! < currentBest.runtime!)
-    ) {
+    if (!currentBest) {
       userGpuBestMap.set(userGpuKey, submission);
+    } else if (mode === LeaderboardMode.LEGACY) {
+      // Legacy mode: higher GFLOPS is better
+      if (
+        submission.gflops !== null &&
+        (currentBest.gflops === null || submission.gflops > currentBest.gflops)
+      ) {
+        userGpuBestMap.set(userGpuKey, submission);
+      }
+    } else {
+      // New mode: lower runtime is better
+      if (
+        submission.runtime !== null &&
+        (currentBest.runtime === null ||
+          submission.runtime < currentBest.runtime)
+      ) {
+        userGpuBestMap.set(userGpuKey, submission);
+      }
     }
   }
 
+  // Sort based on mode
   return Array.from(userGpuBestMap.values())
     .sort((a, b) => {
-      if (a.gflops && !b.gflops) return -1;
-      if (!a.gflops && b.gflops) return 1;
-
-      if (a.gflops && b.gflops) {
-        return b.gflops - a.gflops;
+      if (mode === LeaderboardMode.LEGACY) {
+        // Legacy: sort by GFLOPS DESC (higher is better)
+        if (a.gflops !== null && b.gflops !== null) {
+          return b.gflops - a.gflops;
+        }
+        if (a.gflops !== null) return -1;
+        if (b.gflops !== null) return 1;
+        return 0;
+      } else {
+        // New: sort by runtime ASC (lower is better)
+        if (a.runtime !== null && b.runtime !== null) {
+          return a.runtime - b.runtime;
+        }
+        if (a.runtime !== null) return -1;
+        if (b.runtime !== null) return 1;
+        return 0;
       }
-      return a.runtime! - b.runtime!;
     })
     .map((sub) => ({
       id: sub.id,
-      username: sub.user.username,
+      username: sub.username,
       gflops: sub.gflops,
       runtime: sub.runtime,
       createdAt: sub.createdAt,
       gpuType: sub.gpuType,
       language: sub.language,
       isPublic: sub.isPublic,
+      isLegacy: sub.isLegacy,
     }));
 }
 
@@ -593,25 +790,31 @@ async function refreshProblemLeaderboardCache(
   ctx: { db: PrismaClient },
   slug: string,
   gpuType: string,
+  mode: LeaderboardModeType,
   cacheKey: string
 ) {
   try {
     console.log(
-      `[CACHE REFRESH START] Beginning refresh for problem ${slug}, GPU: ${gpuType}`
+      `[CACHE REFRESH START] Beginning refresh for problem ${slug}, GPU: ${gpuType}, Mode: ${mode}`
     );
     const startTime = Date.now();
 
-    const freshData = await computeProblemLeaderboardData(ctx, slug, gpuType);
+    const freshData = await computeProblemLeaderboardData(
+      ctx,
+      slug,
+      gpuType,
+      mode
+    );
 
     const duration = Date.now() - startTime;
     console.log(
-      `[CACHE REFRESH COMPLETE] Refreshed cache for problem ${slug}, GPU: ${gpuType} (took ${duration}ms)`
+      `[CACHE REFRESH COMPLETE] Refreshed cache for problem ${slug}, GPU: ${gpuType}, Mode: ${mode} (took ${duration}ms)`
     );
 
     problemLeaderboardCache.set(cacheKey, freshData);
   } catch (error) {
     console.error(
-      `[CACHE REFRESH ERROR] Failed to refresh cache for problem ${slug}, GPU: ${gpuType}`,
+      `[CACHE REFRESH ERROR] Failed to refresh cache for problem ${slug}, GPU: ${gpuType}, Mode: ${mode}`,
       error
     );
   }

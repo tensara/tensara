@@ -392,12 +392,10 @@ export type SampleOutput = {
 
 /** Leaderboard view modes */
 export const LeaderboardMode = {
-  /** Show only legacy submissions (GFLOPS-based ranking) */
+  /** Show only legacy submissions (GFLOPS-based ranking, sorted by GFLOPS DESC) */
   LEGACY: "legacy",
-  /** Show only new submissions (runtime-based ranking) */
+  /** Show only new submissions (runtime-based ranking, sorted by runtime ASC) */
   NEW: "new",
-  /** Show combined view of both legacy and new submissions */
-  ALL: "all",
 } as const;
 
 export type LeaderboardModeType =
