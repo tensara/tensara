@@ -335,7 +335,10 @@ def run_benchmark(
     problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
 ):
     """
-    Run benchmark on compiled CUDA solution
+    Run benchmark on compiled CUDA solution with GPU metrics collection.
+    
+    Each test case is run multiple times with GPU monitoring (5ms sampling).
+    Returns detailed per-run data including GPU metrics (temperature, clocks, power, etc.)
 
     Args:
         problem_name: Name of the problem
@@ -343,9 +346,14 @@ def run_benchmark(
         solution_func: Callable function for the submitted solution
         dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
+        param_func: Optional custom parameter function
 
     Yields:
-        Dictionary objects with benchmark status updates
+        Dictionary objects with benchmark status updates:
+        - BENCHMARKING: Started benchmarking
+        - BENCHMARK_RESULT: Per-test result with runs array containing GPU metrics
+        - BENCHMARKED: Final summary with avg_runtime_ms, avg_gflops, test_results
+        - WRONG_ANSWER/RUNTIME_ERROR/ERROR: On failure
     """
     try:
         dtype = utils.DTYPE_MAP[dtype]
@@ -418,17 +426,17 @@ def run_benchmark(
         test_count = len(test_results)
 
         if test_count > 0:
-            # Average runtime in milliseconds
-            avg_runtime_ms = statistics.mean([r["runtime_ms"] for r in test_results])
+            # Average runtime in milliseconds (now using avg_runtime_ms from each test result)
+            avg_runtime_ms = statistics.mean([r["avg_runtime_ms"] for r in test_results])
 
-            # Average GFLOPS only if present (compute problems)
-            has_gflops = any(("gflops" in r) and (r["gflops"] is not None) for r in test_results)
+            # Average GFLOPS only if present (now using avg_gflops from each test result)
+            has_gflops = any(("avg_gflops" in r) and (r["avg_gflops"] is not None) for r in test_results)
             if has_gflops:
                 avg_gflops = statistics.mean(
                     [
-                        r["gflops"]
+                        r["avg_gflops"]
                         for r in test_results
-                        if ("gflops" in r) and (r["gflops"] is not None)
+                        if ("avg_gflops" in r) and (r["avg_gflops"] is not None)
                     ]
                 )
             else:
