@@ -180,14 +180,14 @@ const SubmissionsPage: NextPage = () => {
         case "problem":
           return a.problem.title.localeCompare(b.problem.title) * order;
         case "performance":
-          if (a.gflops && !b.gflops) return -1 * order;
-          if (!a.gflops && b.gflops) return 1 * order;
+          if (a.avgGflops && !b.avgGflops) return -1 * order;
+          if (!a.avgGflops && b.avgGflops) return 1 * order;
 
-          if (a.gflops && b.gflops) {
-            return (b.gflops - a.gflops) * order;
+          if (a.avgGflops && b.avgGflops) {
+            return (b.avgGflops - a.avgGflops) * order;
           }
 
-          return (a.runtime! - b.runtime!) * order;
+          return (a.avgRuntimeMs! - b.avgRuntimeMs!) * order;
         case "gpuType":
           return (a.gpuType ?? "").localeCompare(b.gpuType ?? "") * order;
         case "language":
@@ -529,17 +529,17 @@ const SubmissionsPage: NextPage = () => {
                       }}
                     >
                       {submission.status === "ACCEPTED" ? (
-                        submission.gflops ? (
+                        submission.avgGflops ? (
                           <Tooltip
-                            label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}
+                            label={`Runtime: ${submission.avgRuntimeMs?.toFixed(2)} ms`}
                           >
                             <Text fontWeight="medium">
-                              {submission.gflops?.toFixed(2)} GFLOPS
+                              {submission.avgGflops?.toFixed(2)} GFLOPS
                             </Text>
                           </Tooltip>
                         ) : (
                           <Text fontWeight="medium">
-                            {submission.runtime?.toFixed(2)} ms
+                            {submission.avgRuntimeMs?.toFixed(2)} ms
                           </Text>
                         )
                       ) : (

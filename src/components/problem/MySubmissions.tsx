@@ -57,8 +57,9 @@ const MySubmissions = ({
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
       } else {
-        const aPerf = a.gflops ?? -1 * (a.runtime ?? 0);
-        const bPerf = b.gflops ?? -1 * (b.runtime ?? 0);
+        // Sort by runtime (lower is better) or GFLOPS (higher is better)
+        const aPerf = a.avgGflops ?? -1 * (a.avgRuntimeMs ?? 0);
+        const bPerf = b.avgGflops ?? -1 * (b.avgRuntimeMs ?? 0);
         return bPerf - aPerf;
       }
     });
@@ -267,26 +268,26 @@ const MySubmissions = ({
                     })}
                   </Text>
                 </HStack>
-                {(submission.gflops !== null ||
-                  submission.runtime !== null) && (
+                {(submission.avgGflops !== null ||
+                  submission.avgRuntimeMs !== null) && (
                   <SimpleGrid columns={2} spacing={4} mt={2}>
-                    {submission.gflops !== null && (
+                    {submission.avgGflops !== null && (
                       <Box>
                         <Text color="whiteAlpha.600" fontSize="sm">
                           Performance
                         </Text>
                         <Text fontWeight="semibold">
-                          {submission.gflops.toFixed(2)} GFLOPS
+                          {submission.avgGflops.toFixed(2)} GFLOPS
                         </Text>
                       </Box>
                     )}
-                    {submission.runtime !== null && (
+                    {submission.avgRuntimeMs !== null && (
                       <Box>
                         <Text color="whiteAlpha.600" fontSize="sm">
                           Runtime
                         </Text>
                         <Text fontWeight="semibold">
-                          {submission.runtime.toFixed(2)}ms
+                          {submission.avgRuntimeMs.toFixed(2)}ms
                         </Text>
                       </Box>
                     )}

@@ -273,7 +273,7 @@ const SubmissionResults = ({
                 <Box>
                   {(() => {
                     const hasGflops = benchmarkResults.some(
-                      (r) => r.result.gflops !== undefined
+                      (r) => r.result.avg_gflops !== undefined
                     );
 
                     return (
@@ -311,14 +311,15 @@ const SubmissionResults = ({
                               </Td>
                               <Td py={3} isNumeric>
                                 <Text>
-                                  {result.result.runtime_ms.toFixed(2)} ms
+                                  {result.result.avg_runtime_ms.toFixed(2)} ms
                                 </Text>
                               </Td>
                               {hasGflops && (
                                 <Td py={3} isNumeric>
-                                  {result.result.gflops !== undefined && (
+                                  {result.result.avg_gflops !== undefined && (
                                     <Text>
-                                      {result.result.gflops.toFixed(2)} GFLOPS
+                                      {result.result.avg_gflops.toFixed(2)}{" "}
+                                      GFLOPS
                                     </Text>
                                   )}
                                 </Td>

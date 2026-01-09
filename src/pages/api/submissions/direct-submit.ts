@@ -317,8 +317,9 @@ export default async function handler(
                     runIndex: run.run_index,
                     runtimeMs: run.runtime_ms,
                     gflops: run.gflops ?? null,
-                    gpuSamples: run.gpu_samples,
-                    gpuMetrics: run.gpu_metrics,
+                    // Cast to JSON-compatible types for Prisma
+                    gpuSamples: run.gpu_samples as unknown as object[],
+                    gpuMetrics: run.gpu_metrics as unknown as object,
                   })),
                 },
               },

@@ -44,12 +44,38 @@ import { FiCopy } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
 
+import type {
+  TestResultWithRuns,
+  LegacyBenchmarkResult,
+  GPUMetricsStats,
+} from "~/types/submission";
+
+// Legacy format for backward compatibility
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
   gflops?: number;
   name: string;
 };
+
+// Type guard to check if submission is using new schema
+function isNewSchemaSubmission(submission: {
+  avgRuntimeMs?: number | null;
+  avgGflops?: number | null;
+  runtime?: number | null;
+  gflops?: number | null;
+}): boolean {
+  return "avgRuntimeMs" in submission && submission.avgRuntimeMs !== undefined;
+}
+
+// Type guard to check if benchmark results are in new format
+function isNewBenchmarkFormat(
+  results: unknown
+): results is TestResultWithRuns[] {
+  if (!Array.isArray(results) || results.length === 0) return false;
+  const first = results[0] as Record<string, unknown>;
+  return "runs" in first && "avg_runtime_ms" in first;
+}
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const helpers = createServerSideHelpers({
@@ -78,9 +104,19 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       const problemName = submission.problem.title ?? "problem";
       pageTitle = `View ${problemName} submission`;
 
-      // Add performance if available
-      if (submission.gflops) {
-        pageTitle += ` (${submission.gflops.toFixed(2)} GFLOPS)`;
+      // Add performance if available (support both old and new schema)
+      const sub = submission as {
+        avgRuntimeMs?: number | null;
+        avgGflops?: number | null;
+        gflops?: number | null;
+      };
+      const runtimeValue = sub.avgRuntimeMs ?? null;
+      const gflopsValue = sub.avgGflops ?? sub.gflops ?? null;
+
+      if (runtimeValue) {
+        pageTitle += ` (${runtimeValue.toFixed(2)} ms)`;
+      } else if (gflopsValue) {
+        pageTitle += ` (${gflopsValue.toFixed(2)} GFLOPS)`;
       }
     }
 
@@ -341,60 +377,85 @@ const SubmissionPage: NextPage<{
                 overflow="hidden"
               >
                 <HStack spacing={12} wrap="wrap" justify="space-around">
-                  {submission.runtime !== null && (
-                    <VStack align="center" spacing={1}>
-                      <Text
-                        color="whiteAlpha.600"
-                        fontSize="sm"
-                        fontWeight="medium"
-                        letterSpacing="wide"
-                      >
-                        RUNTIME
-                      </Text>
-                      <Text
-                        fontSize="2xl"
-                        fontWeight="bold"
-                        color={`${getStatusColor(submission.status)}.400`}
-                      >
-                        {submission.runtime.toFixed(2)}
+                  {/* Runtime - support both old (runtime) and new (avgRuntimeMs) schema */}
+                  {(() => {
+                    // Check for new schema first, then fall back to legacy
+                    const sub = submission as {
+                      avgRuntimeMs?: number | null;
+                      runtime?: number | null;
+                    };
+                    const runtimeValue =
+                      sub.avgRuntimeMs ?? sub.runtime ?? null;
+
+                    if (runtimeValue === null) return null;
+
+                    return (
+                      <VStack align="center" spacing={1}>
                         <Text
-                          as="span"
-                          fontSize="sm"
                           color="whiteAlpha.600"
-                          ml={1}
+                          fontSize="sm"
+                          fontWeight="medium"
+                          letterSpacing="wide"
                         >
-                          ms
+                          RUNTIME
                         </Text>
-                      </Text>
-                    </VStack>
-                  )}
-                  {submission.gflops !== null && (
-                    <VStack align="center" spacing={1}>
-                      <Text
-                        color="whiteAlpha.600"
-                        fontSize="sm"
-                        fontWeight="medium"
-                        letterSpacing="wide"
-                      >
-                        PERFORMANCE
-                      </Text>
-                      <Text
-                        fontSize="2xl"
-                        fontWeight="bold"
-                        color={`${getStatusColor(submission.status)}.400`}
-                      >
-                        {submission.gflops.toFixed(2)}
                         <Text
-                          as="span"
-                          fontSize="sm"
-                          color="whiteAlpha.600"
-                          ml={1}
+                          fontSize="2xl"
+                          fontWeight="bold"
+                          color={`${getStatusColor(submission.status)}.400`}
                         >
-                          GFLOPS
+                          {runtimeValue.toFixed(2)}
+                          <Text
+                            as="span"
+                            fontSize="sm"
+                            color="whiteAlpha.600"
+                            ml={1}
+                          >
+                            ms
+                          </Text>
                         </Text>
-                      </Text>
-                    </VStack>
-                  )}
+                      </VStack>
+                    );
+                  })()}
+                  {/* GFLOPS - support both old (gflops) and new (avgGflops) schema */}
+                  {(() => {
+                    // Check for new schema first, then fall back to legacy
+                    const sub = submission as {
+                      avgGflops?: number | null;
+                      gflops?: number | null;
+                    };
+                    const gflopsValue = sub.avgGflops ?? sub.gflops ?? null;
+
+                    if (gflopsValue === null) return null;
+
+                    return (
+                      <VStack align="center" spacing={1}>
+                        <Text
+                          color="whiteAlpha.600"
+                          fontSize="sm"
+                          fontWeight="medium"
+                          letterSpacing="wide"
+                        >
+                          PERFORMANCE
+                        </Text>
+                        <Text
+                          fontSize="2xl"
+                          fontWeight="bold"
+                          color={`${getStatusColor(submission.status)}.400`}
+                        >
+                          {gflopsValue.toFixed(2)}
+                          <Text
+                            as="span"
+                            fontSize="sm"
+                            color="whiteAlpha.600"
+                            ml={1}
+                          >
+                            GFLOPS
+                          </Text>
+                        </Text>
+                      </VStack>
+                    );
+                  })()}
                   {submission.passedTests !== null &&
                     submission.totalTests !== null && (
                       <VStack align="center" spacing={1}>
@@ -557,72 +618,76 @@ const SubmissionPage: NextPage<{
                   </Box>
                 )}
 
-              {/* Benchmark Results */}
-              {Array.isArray(submission.benchmarkResults) && (
-                <Box>
-                  <Text color="whiteAlpha.700" fontSize="sm" mb={2}>
-                    Benchmark Results
-                  </Text>
-                  <Box overflowX="auto">
-                    {(() => {
-                      const results: BenchmarkTestResult[] =
-                        (submission.benchmarkResults as unknown as BenchmarkTestResult[]) ??
-                        [];
-                      const hasGflops = results.some(
-                        (r: BenchmarkTestResult) => r.gflops !== undefined
-                      );
+              {/* Benchmark Results - New schema uses testResults */}
+              {"testResults" in submission &&
+                Array.isArray(submission.testResults) &&
+                submission.testResults.length > 0 && (
+                  <Box>
+                    <Text color="whiteAlpha.700" fontSize="sm" mb={2}>
+                      Benchmark Results
+                    </Text>
+                    <Box overflowX="auto">
+                      {(() => {
+                        const testResults = submission.testResults as Array<{
+                          name: string;
+                          avgRuntimeMs: number;
+                          avgGflops: number | null;
+                          testId: number;
+                        }>;
+                        const hasGflops = testResults.some(
+                          (r) =>
+                            r.avgGflops !== null && r.avgGflops !== undefined
+                        );
 
-                      const thStyle: React.CSSProperties = {
-                        textAlign: "center",
-                        padding: "8px",
-                        borderBottom: "1px solid rgba(255,255,255,0.16)",
-                      };
-                      const tdStyle: React.CSSProperties = {
-                        padding: "8px",
-                        borderBottom: "1px solid rgba(255,255,255,0.16)",
-                        textAlign: "center",
-                      };
+                        const thStyle: React.CSSProperties = {
+                          textAlign: "center",
+                          padding: "8px",
+                          borderBottom: "1px solid rgba(255,255,255,0.16)",
+                        };
+                        const tdStyle: React.CSSProperties = {
+                          padding: "8px",
+                          borderBottom: "1px solid rgba(255,255,255,0.16)",
+                          textAlign: "center",
+                        };
 
-                      return (
-                        <table
-                          style={{
-                            width: "100%",
-                            borderCollapse: "collapse",
-                            tableLayout: "fixed",
-                          }}
-                        >
-                          <thead>
-                            <tr>
-                              <th style={thStyle}>Test Case</th>
-                              <th style={thStyle}>Runtime (ms)</th>
-                              {hasGflops && <th style={thStyle}>GFLOPS</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {results.map(
-                              (result: BenchmarkTestResult, index: number) => (
+                        return (
+                          <table
+                            style={{
+                              width: "100%",
+                              borderCollapse: "collapse",
+                              tableLayout: "fixed",
+                            }}
+                          >
+                            <thead>
+                              <tr>
+                                <th style={thStyle}>Test Case</th>
+                                <th style={thStyle}>Runtime (ms)</th>
+                                {hasGflops && <th style={thStyle}>GFLOPS</th>}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {testResults.map((result, index: number) => (
                                 <tr key={index}>
                                   <td style={tdStyle}>{result.name}</td>
                                   <td style={tdStyle}>
-                                    {result.runtime_ms.toFixed(2)}
+                                    {result.avgRuntimeMs.toFixed(2)}
                                   </td>
                                   {hasGflops && (
                                     <td style={tdStyle}>
-                                      {result.gflops !== undefined
-                                        ? result.gflops.toFixed(2)
+                                      {result.avgGflops !== null
+                                        ? result.avgGflops.toFixed(2)
                                         : ""}
                                     </td>
                                   )}
                                 </tr>
-                              )
-                            )}
-                          </tbody>
-                        </table>
-                      );
-                    })()}
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
+                    </Box>
                   </Box>
-                </Box>
-              )}
+                )}
             </VStack>
           </Box>
 
@@ -678,14 +743,22 @@ const SubmissionPage: NextPage<{
                         const createdStr = new Date(
                           submission.createdAt
                         ).toLocaleString();
+                        // Support both old (runtime/gflops) and new (avgRuntimeMs/avgGflops) schema
+                        const sub = submission as {
+                          avgRuntimeMs?: number | null;
+                          runtime?: number | null;
+                          avgGflops?: number | null;
+                          gflops?: number | null;
+                        };
+                        const runtimeValue =
+                          sub.avgRuntimeMs ?? sub.runtime ?? null;
+                        const gflopsValue = sub.avgGflops ?? sub.gflops ?? null;
                         const runtimeStr =
-                          submission.runtime != null
-                            ? submission.runtime.toFixed(2)
+                          runtimeValue != null
+                            ? runtimeValue.toFixed(2)
                             : "N/A";
                         const gflopsStr =
-                          submission.gflops != null
-                            ? submission.gflops.toFixed(2)
-                            : "N/A";
+                          gflopsValue != null ? gflopsValue.toFixed(2) : "N/A";
                         const testsStr =
                           submission.passedTests != null &&
                           submission.totalTests != null

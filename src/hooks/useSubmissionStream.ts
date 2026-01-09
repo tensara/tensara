@@ -208,13 +208,15 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
           refetchSubmissions();
 
           // Synthesize ACCEPTED for UI (works whether or not server sends it)
+          // Extract TestResultWithRuns from BenchmarkResultResponse[]
+          const testResults = benchmarkResults.map((br) => br.result);
           const accepted: AcceptedResponse = {
             status: SubmissionStatus.ACCEPTED,
             avg_runtime_ms: bench.avg_runtime_ms ?? undefined,
             avg_gflops: bench.avg_gflops ?? undefined,
-            // If your AcceptedResponse supports passing the per-test results:
-            benchmark_results: benchmarkResults, // <-- from hook state
-            total_tests: benchmarkResults.length,
+            // Extract the result (TestResultWithRuns) from each BenchmarkResultResponse
+            benchmark_results: testResults,
+            total_tests: testResults.length,
           };
 
           setMetaStatus(SubmissionStatus.ACCEPTED);
