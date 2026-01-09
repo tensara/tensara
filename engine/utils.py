@@ -90,20 +90,13 @@ class GPUMonitor:
                 # Get current timestamp
                 timestamp = time.time()
                 
-                # Query GPU metrics
+                # Query GPU metrics (only the 4 relevant ones)
                 try:
-                    # Get clock speeds
+                    # Get SM clock speed
                     sm_clock = self.pynvml.nvmlDeviceGetClockInfo(self.handle, self.pynvml.NVML_CLOCK_SM)
-                    mem_clock = self.pynvml.nvmlDeviceGetClockInfo(self.handle, self.pynvml.NVML_CLOCK_MEM)
                     
                     # Get temperature
                     temp = self.pynvml.nvmlDeviceGetTemperature(self.handle, self.pynvml.NVML_TEMPERATURE_GPU)
-                    
-                    # Get power usage
-                    power = self.pynvml.nvmlDeviceGetPowerUsage(self.handle) / 1000.0  # Convert mW to W
-                    
-                    # Get utilization
-                    util = self.pynvml.nvmlDeviceGetUtilizationRates(self.handle)
                     
                     # Get performance state
                     pstate = self.pynvml.nvmlDeviceGetPerformanceState(self.handle)
@@ -114,11 +107,7 @@ class GPUMonitor:
                     sample = {
                         "timestamp": timestamp,
                         "sm_clock_mhz": sm_clock,
-                        "mem_clock_mhz": mem_clock,
                         "temp_c": temp,
-                        "power_w": power,
-                        "utilization_gpu_pct": util.gpu,
-                        "utilization_memory_pct": util.memory,
                         "pstate": pstate,
                         "throttle_reasons": throttle_reasons,
                     }
@@ -210,17 +199,14 @@ class GPUMonitor:
                 "sample_count": 0,
                 "temp_c_min": 0, "temp_c_max": 0, "temp_c_mean": 0,
                 "sm_clock_mhz_min": 0, "sm_clock_mhz_max": 0, "sm_clock_mhz_mean": 0,
-                "mem_clock_mhz_min": 0, "mem_clock_mhz_max": 0, "mem_clock_mhz_mean": 0,
-                "power_w_min": 0, "power_w_max": 0, "power_w_mean": 0,
-                "utilization_gpu_pct_mean": 0,
-                "utilization_memory_pct_mean": 0,
+                "pstate_min": 0, "pstate_max": 0,
                 "throttle_reasons_any": 0,
             }
         
         stats = {"sample_count": len(samples)}
         
         # Metrics to compute min/max/mean
-        full_metrics = ["temp_c", "sm_clock_mhz", "mem_clock_mhz", "power_w"]
+        full_metrics = ["temp_c", "sm_clock_mhz"]
         
         for metric in full_metrics:
             values = [s[metric] for s in samples if metric in s and s[metric] is not None]
@@ -233,13 +219,14 @@ class GPUMonitor:
                 stats[f"{metric}_max"] = 0
                 stats[f"{metric}_mean"] = 0
         
-        # Utilization - only mean
-        for metric in ["utilization_gpu_pct", "utilization_memory_pct"]:
-            values = [s[metric] for s in samples if metric in s and s[metric] is not None]
-            if values:
-                stats[f"{metric}_mean"] = statistics.mean(values) if len(values) > 1 else values[0]
-            else:
-                stats[f"{metric}_mean"] = 0
+        # Performance state - only min/max (lower is better, 0 = max perf)
+        pstate_values = [s["pstate"] for s in samples if "pstate" in s and s["pstate"] is not None]
+        if pstate_values:
+            stats["pstate_min"] = min(pstate_values)
+            stats["pstate_max"] = max(pstate_values)
+        else:
+            stats["pstate_min"] = 0
+            stats["pstate_max"] = 0
         
         # Throttle reasons - OR all together
         throttle_values = [s.get("throttle_reasons", 0) for s in samples]

@@ -127,7 +127,7 @@ export const getServerSideProps: GetServerSideProps = async (_context) => {
   // Prefetch the player rankings with default mode
   await helpers.users.getTopRankedPlayers.prefetch({
     limit: 100,
-    mode: "legacy",
+    mode: "new",
   });
 
   // Prefetch ALL GPU types during server-side render
@@ -148,7 +148,7 @@ const LeaderboardPage: NextPage = () => {
   const router = useRouter();
   const [selectedGpu, setSelectedGpu] = useState<string>("all");
   const [selectedMode, setSelectedMode] = useState<LeaderboardModeType>(
-    LeaderboardMode.LEGACY
+    LeaderboardMode.NEW
   );
   const [selectedTab, setSelectedTab] = useState<string>(() => {
     if (typeof window !== "undefined") {

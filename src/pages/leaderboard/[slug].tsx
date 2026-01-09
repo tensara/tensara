@@ -209,7 +209,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
     (router.query.gpu as string) || "all"
   );
   const [selectedMode, setSelectedMode] = useState<LeaderboardModeType>(
-    LeaderboardMode.LEGACY
+    LeaderboardMode.NEW
   );
   const [showBaselines, setShowBaselines] = useState(false);
 

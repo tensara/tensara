@@ -197,7 +197,7 @@ export const submissionsRouter = createTRPCRouter({
     .input(
       z.object({
         gpuType: z.string().optional().default("all"),
-        mode: z.enum(["legacy", "new"]).optional().default("legacy"),
+        mode: z.enum(["legacy", "new"]).optional().default("new"),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -239,7 +239,7 @@ export const submissionsRouter = createTRPCRouter({
       z.object({
         slug: z.string(),
         gpuType: z.string().optional().default("all"),
-        mode: z.enum(["legacy", "new"]).optional().default("legacy"),
+        mode: z.enum(["legacy", "new"]).optional().default("new"),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -405,7 +405,7 @@ export const submissionsRouter = createTRPCRouter({
 async function computeLeaderboardData(
   ctx: { db: PrismaClient },
   gpuType: string,
-  mode: LeaderboardModeType = LeaderboardMode.LEGACY
+  mode: LeaderboardModeType = LeaderboardMode.NEW
 ): Promise<ProblemLeaderboard[]> {
   // Get all problems first
   const problems = await ctx.db.problem.findMany({
@@ -472,12 +472,46 @@ async function computeLeaderboardData(
       );
     }
 
-    // Query new submissions if mode is 'new'
+    // Query submissions for runtime-based mode
     // New mode: Runtime-based ranking, sorted by runtime ASC (lower is better)
+    // Query BOTH new Submission table and LegacySubmission table, rank together
     if (mode === LeaderboardMode.NEW) {
-      // For now, query LegacySubmission since new Submission table is empty
-      // This shows runtime-based rankings from legacy data
-      const runtimeSubmissions = await ctx.db.legacySubmission.findMany({
+      // Query new Submission table (avgRuntimeMs)
+      const newSubmissions = await ctx.db.submission.findMany({
+        where: {
+          problemId: problem.id,
+          status: "ACCEPTED",
+          avgRuntimeMs: { not: null },
+          ...(gpuType !== "all" ? { gpuType } : {}),
+        },
+        select: {
+          id: true,
+          avgGflops: true,
+          gpuType: true,
+          avgRuntimeMs: true,
+          language: true,
+          user: {
+            select: {
+              username: true,
+            },
+          },
+        },
+      });
+
+      allSubmissions.push(
+        ...newSubmissions.map((s) => ({
+          id: s.id,
+          gflops: s.avgGflops,
+          gpuType: s.gpuType,
+          runtime: s.avgRuntimeMs,
+          language: s.language,
+          username: s.user.username,
+          isLegacy: false,
+        }))
+      );
+
+      // Also query LegacySubmission table (runtime field is geometric mean)
+      const legacyRuntimeSubmissions = await ctx.db.legacySubmission.findMany({
         where: {
           problemId: problem.id,
           status: "ACCEPTED",
@@ -499,14 +533,14 @@ async function computeLeaderboardData(
       });
 
       allSubmissions.push(
-        ...runtimeSubmissions.map((s) => ({
+        ...legacyRuntimeSubmissions.map((s) => ({
           id: s.id,
           gflops: s.gflops,
           gpuType: s.gpuType,
           runtime: s.runtime,
           language: s.language,
           username: s.user.username,
-          isLegacy: false, // Shown as "new" (runtime-based) even though from legacy table
+          isLegacy: true, // Mark as legacy (no GPU temp/clock data available)
         }))
       );
     }
@@ -682,9 +716,48 @@ async function computeProblemLeaderboardData(
 
   // Query for runtime-based mode
   // New mode: Runtime-based ranking, sorted by runtime ASC (lower is better)
+  // Query BOTH new Submission table and LegacySubmission table, rank together
   if (mode === LeaderboardMode.NEW) {
-    // For now, query LegacySubmission since new Submission table is empty
-    const runtimeSubmissions = await ctx.db.legacySubmission.findMany({
+    // Query new Submission table (avgRuntimeMs)
+    const newSubmissions = await ctx.db.submission.findMany({
+      where: {
+        problem: { slug },
+        status: "ACCEPTED",
+        avgRuntimeMs: { not: null },
+        ...(gpuType !== "all" ? { gpuType } : {}),
+      },
+      select: {
+        id: true,
+        avgGflops: true,
+        avgRuntimeMs: true,
+        gpuType: true,
+        language: true,
+        createdAt: true,
+        isPublic: true,
+        user: {
+          select: {
+            username: true,
+          },
+        },
+      },
+    });
+
+    allSubmissions.push(
+      ...newSubmissions.map((s) => ({
+        id: s.id,
+        gflops: s.avgGflops,
+        runtime: s.avgRuntimeMs,
+        gpuType: s.gpuType,
+        language: s.language,
+        createdAt: s.createdAt,
+        isPublic: s.isPublic,
+        username: s.user.username,
+        isLegacy: false,
+      }))
+    );
+
+    // Also query LegacySubmission table (runtime field is geometric mean)
+    const legacyRuntimeSubmissions = await ctx.db.legacySubmission.findMany({
       where: {
         problem: { slug },
         status: "ACCEPTED",
@@ -708,7 +781,7 @@ async function computeProblemLeaderboardData(
     });
 
     allSubmissions.push(
-      ...runtimeSubmissions.map((s) => ({
+      ...legacyRuntimeSubmissions.map((s) => ({
         id: s.id,
         gflops: s.gflops,
         runtime: s.runtime,
@@ -717,7 +790,7 @@ async function computeProblemLeaderboardData(
         createdAt: s.createdAt,
         isPublic: s.isPublic,
         username: s.user.username,
-        isLegacy: false, // Shown as "new" (runtime-based) even though from legacy table
+        isLegacy: true, // Mark as legacy (no GPU temp/clock data available)
       }))
     );
   }

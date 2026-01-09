@@ -431,7 +431,7 @@ export const usersRouter = createTRPCRouter({
     .input(
       z.object({
         limit: z.number().min(1).max(1000).default(100),
-        mode: z.enum(["legacy", "new"]).default("legacy"),
+        mode: z.enum(["legacy", "new"]).default("new"),
       })
     )
     .query(async ({ ctx, input }) => {

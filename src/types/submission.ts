@@ -100,16 +100,8 @@ export interface GPUSample {
   timestamp: number;
   /** Streaming multiprocessor clock in MHz */
   sm_clock_mhz: number;
-  /** Memory clock in MHz */
-  mem_clock_mhz: number;
   /** GPU temperature in Celsius */
   temp_c: number;
-  /** Power draw in Watts */
-  power_w: number;
-  /** GPU compute utilization percentage (0-100) */
-  utilization_gpu_pct: number;
-  /** Memory bandwidth utilization percentage (0-100) */
-  utilization_memory_pct: number;
   /** Performance state (0 = max performance, higher = lower performance) */
   pstate: number;
   /** Bitmask of active throttle reasons (see ThrottleReasons) */
@@ -131,19 +123,9 @@ export interface GPUMetricsStats {
   sm_clock_mhz_max: number;
   sm_clock_mhz_mean: number;
 
-  // Memory Clock stats
-  mem_clock_mhz_min: number;
-  mem_clock_mhz_max: number;
-  mem_clock_mhz_mean: number;
-
-  // Power stats
-  power_w_min: number;
-  power_w_max: number;
-  power_w_mean: number;
-
-  // Utilization averages
-  utilization_gpu_pct_mean: number;
-  utilization_memory_pct_mean: number;
+  // Performance state
+  pstate_min: number;
+  pstate_max: number;
 
   /** OR of all throttle reasons seen during the run */
   throttle_reasons_any: number;
