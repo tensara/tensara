@@ -65,12 +65,117 @@ export type DebugInfo = {
   message?: string;
 };
 
-export type BenchmarkResult = {
+// ===== LEGACY BENCHMARK TYPES (for backward compatibility) =====
+
+/** Legacy benchmark result format (used by LegacySubmission) */
+export type LegacyBenchmarkResult = {
   name: string;
   test_id: number;
   gflops?: number;
   runtime_ms: number;
 };
+
+/** @deprecated Use LegacyBenchmarkResult for old data, or TestResultWithRuns for new */
+export type BenchmarkResult = LegacyBenchmarkResult;
+
+// ===== GPU MONITORING TYPES =====
+
+/** GPU clock throttle reason bitmask values */
+export const ThrottleReasons = {
+  NONE: 0,
+  GPU_IDLE: 0x0000000000000001,
+  APPLICATIONS_CLOCKS_SETTING: 0x0000000000000002,
+  SW_POWER_CAP: 0x0000000000000004,
+  HW_SLOWDOWN: 0x0000000000000008,
+  SYNC_BOOST: 0x0000000000000010,
+  SW_THERMAL_SLOWDOWN: 0x0000000000000020,
+  HW_THERMAL_SLOWDOWN: 0x0000000000000040,
+  HW_POWER_BRAKE_SLOWDOWN: 0x0000000000000080,
+  DISPLAY_CLOCK_SETTING: 0x0000000000000100,
+} as const;
+
+/** Single GPU sample collected every 5ms during kernel execution */
+export interface GPUSample {
+  /** Unix timestamp in seconds */
+  timestamp: number;
+  /** Streaming multiprocessor clock in MHz */
+  sm_clock_mhz: number;
+  /** Memory clock in MHz */
+  mem_clock_mhz: number;
+  /** GPU temperature in Celsius */
+  temp_c: number;
+  /** Power draw in Watts */
+  power_w: number;
+  /** GPU compute utilization percentage (0-100) */
+  utilization_gpu_pct: number;
+  /** Memory bandwidth utilization percentage (0-100) */
+  utilization_memory_pct: number;
+  /** Performance state (0 = max performance, higher = lower performance) */
+  pstate: number;
+  /** Bitmask of active throttle reasons (see ThrottleReasons) */
+  throttle_reasons: number;
+}
+
+/** Aggregated GPU metrics statistics for a single benchmark run */
+export interface GPUMetricsStats {
+  /** Number of samples collected during the run */
+  sample_count: number;
+
+  // Temperature stats
+  temp_c_min: number;
+  temp_c_max: number;
+  temp_c_mean: number;
+
+  // SM Clock stats
+  sm_clock_mhz_min: number;
+  sm_clock_mhz_max: number;
+  sm_clock_mhz_mean: number;
+
+  // Memory Clock stats
+  mem_clock_mhz_min: number;
+  mem_clock_mhz_max: number;
+  mem_clock_mhz_mean: number;
+
+  // Power stats
+  power_w_min: number;
+  power_w_max: number;
+  power_w_mean: number;
+
+  // Utilization averages
+  utilization_gpu_pct_mean: number;
+  utilization_memory_pct_mean: number;
+
+  /** OR of all throttle reasons seen during the run */
+  throttle_reasons_any: number;
+}
+
+/** Single benchmark iteration result with GPU monitoring data */
+export interface BenchmarkRunResult {
+  /** 0-indexed iteration number */
+  run_index: number;
+  /** Runtime for this specific iteration in milliseconds */
+  runtime_ms: number;
+  /** GFLOPS for this iteration (calculated if problem provides FLOP count) */
+  gflops?: number;
+  /** Raw GPU samples collected during this run (every 5ms) */
+  gpu_samples: GPUSample[];
+  /** Aggregated GPU metrics for this run */
+  gpu_metrics: GPUMetricsStats;
+}
+
+/** Per-test-case result with all benchmark iterations */
+export interface TestResultWithRuns {
+  /** 1-indexed test number */
+  test_id: number;
+  /** Test case name (e.g., "small_128x128") */
+  name: string;
+  /** Average runtime across all iterations in milliseconds */
+  avg_runtime_ms: number;
+  /** Average GFLOPS across all iterations (if calculable) */
+  avg_gflops?: number;
+  /** Individual benchmark iterations */
+  runs: BenchmarkRunResult[];
+}
 
 // Response Types
 interface BaseResponse<T extends SubmissionStatusType | SubmissionErrorType> {
@@ -102,19 +207,45 @@ export interface WrongAnswerResponse extends BaseResponse<"WRONG_ANSWER"> {
 
 export interface BenchmarkResultResponse
   extends BaseResponse<"BENCHMARK_RESULT"> {
-  result: BenchmarkResult;
+  /** New format: full test result with per-run data */
+  result: TestResultWithRuns;
+  total_tests: number;
+}
+
+/** @deprecated Use BenchmarkResultResponse with TestResultWithRuns */
+export interface LegacyBenchmarkResultResponse
+  extends BaseResponse<"BENCHMARK_RESULT"> {
+  result: LegacyBenchmarkResult;
   total_tests: number;
 }
 
 export interface BenchmarkedResponse extends BaseResponse<"BENCHMARKED"> {
-  test_results: BenchmarkResultResponse[];
+  /** New format: full test results with per-run data */
+  test_results: TestResultWithRuns[];
+  avg_gflops?: number;
+  avg_runtime_ms: number;
+  total_tests: number;
+}
+
+/** @deprecated Use BenchmarkedResponse with TestResultWithRuns[] */
+export interface LegacyBenchmarkedResponse extends BaseResponse<"BENCHMARKED"> {
+  test_results: LegacyBenchmarkResultResponse[];
   avg_gflops?: number;
   avg_runtime_ms: number;
   total_tests: number;
 }
 
 export interface AcceptedResponse extends BaseResponse<"ACCEPTED"> {
-  benchmark_results: BenchmarkResultResponse[];
+  /** New format: full benchmark results with per-run data */
+  benchmark_results: TestResultWithRuns[];
+  avg_gflops?: number;
+  avg_runtime_ms: number;
+  total_tests: number;
+}
+
+/** @deprecated Use AcceptedResponse with TestResultWithRuns[] */
+export interface LegacyAcceptedResponse extends BaseResponse<"ACCEPTED"> {
+  benchmark_results: LegacyBenchmarkResultResponse[];
   avg_gflops?: number;
   avg_runtime_ms: number;
   total_tests: number;
@@ -256,3 +387,82 @@ export type SampleOutput = {
   ptx?: string;
   sass?: string;
 };
+
+// ===== LEADERBOARD TYPES =====
+
+/** Leaderboard view modes */
+export const LeaderboardMode = {
+  /** Show only legacy submissions (GFLOPS-based ranking) */
+  LEGACY: "legacy",
+  /** Show only new submissions (runtime-based ranking) */
+  NEW: "new",
+  /** Show combined view of both legacy and new submissions */
+  ALL: "all",
+} as const;
+
+export type LeaderboardModeType =
+  (typeof LeaderboardMode)[keyof typeof LeaderboardMode];
+
+/** Unified submission entry for leaderboard display */
+export interface LeaderboardSubmissionEntry {
+  id: string;
+  /** Whether this is from LegacySubmission or new Submission */
+  isLegacy: boolean;
+  username: string | null;
+  /** Runtime in milliseconds (primary metric for new, secondary for legacy) */
+  runtime: number | null;
+  /** GFLOPS (primary metric for legacy, secondary for new) */
+  gflops: number | null;
+  gpuType: string | null;
+  language: string | null;
+  createdAt: Date;
+  isPublic: boolean;
+}
+
+/** Helper to determine if a submission uses new schema */
+export function isNewSubmission(
+  submission: unknown
+): submission is { avgRuntimeMs: number } {
+  return (
+    typeof submission === "object" &&
+    submission !== null &&
+    "avgRuntimeMs" in submission
+  );
+}
+
+/** Helper to check if GPU was throttled during a run */
+export function wasThrottled(throttleReasons: number): boolean {
+  return (
+    throttleReasons !== 0 &&
+    throttleReasons !== ThrottleReasons.GPU_IDLE &&
+    throttleReasons !== ThrottleReasons.APPLICATIONS_CLOCKS_SETTING
+  );
+}
+
+/** Get human-readable throttle reason descriptions */
+export function getThrottleReasonDescriptions(
+  throttleReasons: number
+): string[] {
+  const descriptions: string[] = [];
+
+  if (throttleReasons & ThrottleReasons.SW_POWER_CAP) {
+    descriptions.push("Software power cap");
+  }
+  if (throttleReasons & ThrottleReasons.HW_SLOWDOWN) {
+    descriptions.push("Hardware slowdown");
+  }
+  if (throttleReasons & ThrottleReasons.SW_THERMAL_SLOWDOWN) {
+    descriptions.push("Software thermal slowdown");
+  }
+  if (throttleReasons & ThrottleReasons.HW_THERMAL_SLOWDOWN) {
+    descriptions.push("Hardware thermal slowdown");
+  }
+  if (throttleReasons & ThrottleReasons.HW_POWER_BRAKE_SLOWDOWN) {
+    descriptions.push("Hardware power brake");
+  }
+  if (throttleReasons & ThrottleReasons.SYNC_BOOST) {
+    descriptions.push("Sync boost");
+  }
+
+  return descriptions;
+}
