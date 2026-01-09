@@ -336,7 +336,7 @@ def run_benchmark(
 ):
     """
     Run benchmark on compiled CUDA solution with GPU metrics collection.
-    
+
     Each test case is run multiple times with GPU monitoring (5ms sampling).
     Returns detailed per-run data including GPU metrics (temperature, clocks, power, etc.)
 
@@ -430,7 +430,9 @@ def run_benchmark(
             avg_runtime_ms = statistics.mean([r["avg_runtime_ms"] for r in test_results])
 
             # Average GFLOPS only if present (now using avg_gflops from each test result)
-            has_gflops = any(("avg_gflops" in r) and (r["avg_gflops"] is not None) for r in test_results)
+            has_gflops = any(
+                ("avg_gflops" in r) and (r["avg_gflops"] is not None) for r in test_results
+            )
             if has_gflops:
                 avg_gflops = statistics.mean(
                     [

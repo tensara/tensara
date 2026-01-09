@@ -407,14 +407,14 @@ export const usersRouter = createTRPCRouter({
           (post: {
             id: string;
             title: string;
-            slug: string;
+            slug: string | null;
             publishedAt: Date | null;
             createdAt: Date;
             _count: { upvotes: number };
           }) => ({
             id: post.id,
             title: post.title,
-            slug: post.slug,
+            slug: post.slug ?? "",
             publishedAt: (post.publishedAt ?? post.createdAt).toISOString(),
             votes: post._count.upvotes ?? 0,
           })

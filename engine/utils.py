@@ -42,15 +42,15 @@ GPU_COMPUTE_CAPABILITIES = {
 
 class GPUMonitor:
     """Monitor GPU metrics using pynvml in a separate thread during kernel execution.
-    
+
     Collects temperature, clock speeds, power usage, utilization, and throttle reasons
     at a configurable sampling interval (default 5ms).
     """
-    
+
     def __init__(self, device_id=0, sample_interval_ms=5):
         """
         Initialize GPU monitor.
-        
+
         Args:
             device_id: GPU device ID to monitor
             sample_interval_ms: Sampling interval in milliseconds (default 5ms)
@@ -63,11 +63,12 @@ class GPUMonitor:
         self.handle = None
         self.lock = threading.Lock()
         self._init_pynvml()
-    
+
     def _init_pynvml(self):
         """Initialize pynvml library."""
         try:
             import pynvml  # type: ignore
+
             pynvml.nvmlInit()
             self.handle = pynvml.nvmlDeviceGetHandleByIndex(self.device_id)
             self.pynvml = pynvml
@@ -79,31 +80,37 @@ class GPUMonitor:
             # Fallback if pynvml fails to initialize
             self.handle = None
             self.pynvml = None
-    
+
     def _monitor_loop(self):
         """Main monitoring loop that runs in a separate thread."""
         if not self.pynvml or not self.handle:
             return
-        
+
         while self.monitoring:
             try:
                 # Get current timestamp
                 timestamp = time.time()
-                
+
                 # Query GPU metrics (only the 4 relevant ones)
                 try:
                     # Get SM clock speed
-                    sm_clock = self.pynvml.nvmlDeviceGetClockInfo(self.handle, self.pynvml.NVML_CLOCK_SM)
-                    
+                    sm_clock = self.pynvml.nvmlDeviceGetClockInfo(
+                        self.handle, self.pynvml.NVML_CLOCK_SM
+                    )
+
                     # Get temperature
-                    temp = self.pynvml.nvmlDeviceGetTemperature(self.handle, self.pynvml.NVML_TEMPERATURE_GPU)
-                    
+                    temp = self.pynvml.nvmlDeviceGetTemperature(
+                        self.handle, self.pynvml.NVML_TEMPERATURE_GPU
+                    )
+
                     # Get performance state
                     pstate = self.pynvml.nvmlDeviceGetPerformanceState(self.handle)
-                    
+
                     # Get clock throttle reasons
-                    throttle_reasons = self.pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(self.handle)
-                    
+                    throttle_reasons = self.pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(
+                        self.handle
+                    )
+
                     sample = {
                         "timestamp": timestamp,
                         "sm_clock_mhz": sm_clock,
@@ -111,65 +118,65 @@ class GPUMonitor:
                         "pstate": pstate,
                         "throttle_reasons": throttle_reasons,
                     }
-                    
+
                     with self.lock:
                         self.samples.append(sample)
-                        
+
                 except Exception:
                     # If query fails, continue monitoring
                     pass
-                
+
                 # Sleep for sample interval
                 time.sleep(self.sample_interval)
-                
+
             except Exception:
                 # If monitoring loop fails, break out
                 break
-    
+
     def start(self):
         """Start monitoring in a separate thread."""
         if not self.pynvml or not self.handle:
             return
-        
+
         if self.monitoring:
             return  # Already monitoring
-        
+
         self.monitoring = True
         with self.lock:
             self.samples.clear()
-        
+
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
-    
+
     def stop(self):
         """Stop monitoring and return collected samples."""
         if not self.monitoring:
             return []
-        
+
         self.monitoring = False
         if self.thread:
             self.thread.join(timeout=1.0)
-        
+
         with self.lock:
             samples = list(self.samples)
             self.samples.clear()
-        
+
         return samples
-    
+
     def get_samples(self):
         """Get current samples without stopping monitoring."""
         with self.lock:
             return list(self.samples)
-    
+
     def get_samples_for_period(self, start_time, end_time, samples=None):
         """
         Get samples within a specific time period.
-        
+
         Args:
             start_time: Start timestamp
             end_time: End timestamp
             samples: Optional list of samples to filter (uses self.samples if None)
-            
+
         Returns:
             List of samples within the time period
         """
@@ -178,36 +185,38 @@ class GPUMonitor:
                 samples_to_use = list(self.samples)
         else:
             samples_to_use = samples
-            
-        return [
-            s for s in samples_to_use 
-            if start_time <= s["timestamp"] <= end_time
-        ]
-    
+
+        return [s for s in samples_to_use if start_time <= s["timestamp"] <= end_time]
+
     def compute_stats(self, samples):
         """
         Compute aggregated statistics from a list of samples.
-        
+
         Args:
             samples: List of GPU sample dictionaries
-            
+
         Returns:
             Dictionary with min, max, mean for each metric plus sample count
         """
         if not samples:
             return {
                 "sample_count": 0,
-                "temp_c_min": 0, "temp_c_max": 0, "temp_c_mean": 0,
-                "sm_clock_mhz_min": 0, "sm_clock_mhz_max": 0, "sm_clock_mhz_mean": 0,
-                "pstate_min": 0, "pstate_max": 0,
+                "temp_c_min": 0,
+                "temp_c_max": 0,
+                "temp_c_mean": 0,
+                "sm_clock_mhz_min": 0,
+                "sm_clock_mhz_max": 0,
+                "sm_clock_mhz_mean": 0,
+                "pstate_min": 0,
+                "pstate_max": 0,
                 "throttle_reasons_any": 0,
             }
-        
+
         stats = {"sample_count": len(samples)}
-        
+
         # Metrics to compute min/max/mean
         full_metrics = ["temp_c", "sm_clock_mhz"]
-        
+
         for metric in full_metrics:
             values = [s[metric] for s in samples if metric in s and s[metric] is not None]
             if values:
@@ -218,7 +227,7 @@ class GPUMonitor:
                 stats[f"{metric}_min"] = 0
                 stats[f"{metric}_max"] = 0
                 stats[f"{metric}_mean"] = 0
-        
+
         # Performance state - only min/max (lower is better, 0 = max perf)
         pstate_values = [s["pstate"] for s in samples if "pstate" in s and s["pstate"] is not None]
         if pstate_values:
@@ -227,22 +236,22 @@ class GPUMonitor:
         else:
             stats["pstate_min"] = 0
             stats["pstate_max"] = 0
-        
+
         # Throttle reasons - OR all together
         throttle_values = [s.get("throttle_reasons", 0) for s in samples]
         stats["throttle_reasons_any"] = reduce(lambda a, b: a | b, throttle_values, 0)
-        
+
         return stats
-    
+
     def get_stats_for_period(self, start_time, end_time, samples=None):
         """
         Get statistics for a specific time period.
-        
+
         Args:
             start_time: Start timestamp
             end_time: End timestamp
             samples: Optional list of samples to use instead of self.samples
-            
+
         Returns:
             Dictionary with statistics (min, max, mean) for each metric
         """
@@ -813,7 +822,7 @@ def run_dynamic_benchmark(
     """
     Run a CUDA benchmark with dynamic stopping based on runtime variance.
     Collects GPU metrics (temperature, clocks, power, etc.) during each iteration.
-    
+
     Args:
         solution_func: CUDA library with the solution function
         problem: Problem definition with verification methods
@@ -827,7 +836,7 @@ def run_dynamic_benchmark(
         target_cv: Target coefficient of variation to achieve
         long_kernel_threshold: Time in seconds above which CV convergence is skipped
         param_func: Optional custom parameter function
-    
+
     Returns:
         Dictionary with:
         - name: Test case name
@@ -835,7 +844,7 @@ def run_dynamic_benchmark(
         - avg_runtime_ms: Average runtime across all iterations
         - avg_gflops: Average GFLOPS (if calculable)
         - runs: List of per-iteration results with GPU metrics
-        
+
         Or error dict with status="WRONG_ANSWER" on verification failure
     """
     # Prepare pointers for CUDA
@@ -902,7 +911,7 @@ def run_dynamic_benchmark(
     runs = []
     runtimes = []
     gflops_measurements = []
-    
+
     # Now run measured iterations with GPU monitoring
     for iteration in range(target_iterations):
         actual_output.fill_(1.0)
@@ -924,15 +933,15 @@ def run_dynamic_benchmark(
         # End timing
         end_event.record()
         torch.cuda.synchronize()
-        
+
         run_end_time = time.time()
-        
+
         # Stop GPU monitoring and get samples
         all_samples = gpu_monitor.stop()
-        
+
         # Filter samples to this run's time window
         run_samples = gpu_monitor.get_samples_for_period(run_start_time, run_end_time, all_samples)
-        
+
         # Compute GPU stats for this run
         gpu_stats = gpu_monitor.compute_stats(run_samples)
 
@@ -958,13 +967,15 @@ def run_dynamic_benchmark(
             gflops_measurements.append(run_gflops)
 
         # Record this run's results
-        runs.append({
-            "run_index": iteration,
-            "runtime_ms": elapsed_time_ms,
-            "gflops": run_gflops,
-            "gpu_samples": run_samples,
-            "gpu_metrics": gpu_stats,
-        })
+        runs.append(
+            {
+                "run_index": iteration,
+                "runtime_ms": elapsed_time_ms,
+                "gflops": run_gflops,
+                "gpu_samples": run_samples,
+                "gpu_metrics": gpu_stats,
+            }
+        )
 
         # Check if we've done enough iterations and the variance is low enough
         # Only do this check for short kernels
