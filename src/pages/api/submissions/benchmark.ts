@@ -11,6 +11,7 @@ import type {
   BenchmarkedResponse,
   BenchmarkResultResponse,
   SubmissionErrorType,
+  TestResultWithRuns,
 } from "~/types/submission";
 import { db } from "~/server/db";
 
@@ -157,7 +158,7 @@ export default async function handler(
       return;
     }
 
-    const benchmarkResults: BenchmarkResultResponse["result"][] = [];
+    const benchmarkResults: TestResultWithRuns[] = [];
     let partialMessage = "";
 
     try {

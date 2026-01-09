@@ -5,14 +5,15 @@
  * - Authenticates the user, validates payload, and enforces rate-limit quotas.
  * - Creates a `Submission` row (IN_QUEUE) and begins streaming results back to
  *   the client in real-time via SSE.
- * - Uses `proxyUpstreamSSE()` to forward Modal’s "checker-<gpu>" and
+ * - Uses `proxyUpstreamSSE()` to forward Modal's "checker-<gpu>" and
  *   "benchmark-<gpu>" responses while recording incremental test and benchmark
  *   data in the database.
+ * - Stores detailed per-run GPU metrics in TestResult and BenchmarkRun tables.
  * - Emits structured SSE events (`TEST_RESULT`, `CHECKED`, `WRONG_ANSWER`,
  *   `BENCHMARK_RESULT`, `BENCHMARKED`, `ACCEPTED`, and errors) to drive the
  *   frontend progress UI.
  * - Cleans up gracefully on disconnect or upstream error.
- * This route powers Tensara’s full "Submit" flow.
+ * This route powers Tensara's full "Submit" flow.
  */
 
 import { type NextApiRequest, type NextApiResponse } from "next";
@@ -33,6 +34,7 @@ import type {
   TestResult,
   TestResultResponse,
   WrongAnswerResponse,
+  TestResultWithRuns,
 } from "~/types/submission";
 import { proxyUpstreamSSE } from "./sseProxy";
 
@@ -283,7 +285,8 @@ export default async function handler(
   // -------------------------------
   // PHASE 2: BENCHMARK (proxy SSE)
   // -------------------------------
-  const benchResults: BenchmarkResultResponse["result"][] = [];
+  // Store test results with their runs for the new schema
+  const benchResults: TestResultWithRuns[] = [];
 
   await proxyUpstreamSSE(
     res,
@@ -294,37 +297,62 @@ export default async function handler(
       if (!s) return "CONTINUE";
 
       if (s === SubmissionStatus.BENCHMARK_RESULT) {
-        const r = evt as import("~/types/submission").BenchmarkResultResponse;
+        const r = evt as BenchmarkResultResponse;
         if (r.result) {
-          benchResults.push(r.result);
-          await db.submission.update({
-            where: { id: submission.id },
-            data: { benchmarkResults: benchResults },
-          });
+          // r.result is now TestResultWithRuns with runs array
+          const testResult = r.result;
+          benchResults.push(testResult);
+
+          // Create TestResult record with BenchmarkRun records
+          try {
+            await db.testResult.create({
+              data: {
+                submissionId: submission.id,
+                testId: testResult.test_id,
+                name: testResult.name,
+                avgRuntimeMs: testResult.avg_runtime_ms,
+                avgGflops: testResult.avg_gflops ?? null,
+                runs: {
+                  create: testResult.runs.map((run) => ({
+                    runIndex: run.run_index,
+                    runtimeMs: run.runtime_ms,
+                    gflops: run.gflops ?? null,
+                    gpuSamples: run.gpu_samples,
+                    gpuMetrics: run.gpu_metrics,
+                  })),
+                },
+              },
+            });
+          } catch (error) {
+            console.error("Failed to create TestResult:", error);
+          }
         }
         return "CONTINUE";
       }
 
       if (s === SubmissionStatus.BENCHMARKED) {
         const r = evt as import("~/types/submission").BenchmarkedResponse;
-        // Worker may or may not emit ACCEPTED. Persist final numbers here.
-        const updateData: Partial<Record<string, unknown>> & {
+        // Update submission with final averages
+        const updateData: {
           status: SubmissionStatusType;
+          avgRuntimeMs?: number;
+          avgGflops?: number;
         } = {
           status: SubmissionStatus.ACCEPTED,
-          benchmarkResults: benchResults,
         };
-        if (typeof r.avg_runtime_ms === "number")
-          (updateData as Record<string, unknown>).runtime = r.avg_runtime_ms;
-        if (typeof r.avg_gflops === "number")
-          (updateData as Record<string, unknown>).gflops = r.avg_gflops;
+        if (typeof r.avg_runtime_ms === "number") {
+          updateData.avgRuntimeMs = r.avg_runtime_ms;
+        }
+        if (typeof r.avg_gflops === "number") {
+          updateData.avgGflops = r.avg_gflops;
+        }
 
         await db.submission.update({
           where: { id: submission.id },
           data: updateData,
         });
 
-        // If your worker does NOT emit ACCEPTED, you can also emit it here:
+        // Emit ACCEPTED event to client
         res.write(
           `event: ${SubmissionStatus.ACCEPTED}\ndata: ${JSON.stringify({
             avg_runtime_ms: r.avg_runtime_ms,
