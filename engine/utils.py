@@ -1,4 +1,4 @@
-from functools import lru_cache, wraps
+from functools import lru_cache, wraps, reduce
 import os
 from fastapi import HTTPException
 import importlib
@@ -17,6 +17,8 @@ import queue
 import math
 from numbers import Integral
 import numpy as np
+import threading
+from collections import deque
 
 JS_MAX_SAFE = 2**53 - 1
 
@@ -36,6 +38,229 @@ GPU_COMPUTE_CAPABILITIES = {
     "L40S": "89",
     "L4": "89",
 }
+
+
+class GPUMonitor:
+    """Monitor GPU metrics using pynvml in a separate thread during kernel execution.
+    
+    Collects temperature, clock speeds, power usage, utilization, and throttle reasons
+    at a configurable sampling interval (default 5ms).
+    """
+    
+    def __init__(self, device_id=0, sample_interval_ms=5):
+        """
+        Initialize GPU monitor.
+        
+        Args:
+            device_id: GPU device ID to monitor
+            sample_interval_ms: Sampling interval in milliseconds (default 5ms)
+        """
+        self.device_id = device_id
+        self.sample_interval = sample_interval_ms / 1000.0  # Convert to seconds
+        self.monitoring = False
+        self.samples = deque()
+        self.thread = None
+        self.handle = None
+        self.lock = threading.Lock()
+        self._init_pynvml()
+    
+    def _init_pynvml(self):
+        """Initialize pynvml library."""
+        try:
+            import pynvml  # type: ignore
+            pynvml.nvmlInit()
+            self.handle = pynvml.nvmlDeviceGetHandleByIndex(self.device_id)
+            self.pynvml = pynvml
+        except ImportError:
+            # pynvml not installed - set to None, methods will handle gracefully
+            self.handle = None
+            self.pynvml = None
+        except Exception:
+            # Fallback if pynvml fails to initialize
+            self.handle = None
+            self.pynvml = None
+    
+    def _monitor_loop(self):
+        """Main monitoring loop that runs in a separate thread."""
+        if not self.pynvml or not self.handle:
+            return
+        
+        while self.monitoring:
+            try:
+                # Get current timestamp
+                timestamp = time.time()
+                
+                # Query GPU metrics
+                try:
+                    # Get clock speeds
+                    sm_clock = self.pynvml.nvmlDeviceGetClockInfo(self.handle, self.pynvml.NVML_CLOCK_SM)
+                    mem_clock = self.pynvml.nvmlDeviceGetClockInfo(self.handle, self.pynvml.NVML_CLOCK_MEM)
+                    
+                    # Get temperature
+                    temp = self.pynvml.nvmlDeviceGetTemperature(self.handle, self.pynvml.NVML_TEMPERATURE_GPU)
+                    
+                    # Get power usage
+                    power = self.pynvml.nvmlDeviceGetPowerUsage(self.handle) / 1000.0  # Convert mW to W
+                    
+                    # Get utilization
+                    util = self.pynvml.nvmlDeviceGetUtilizationRates(self.handle)
+                    
+                    # Get performance state
+                    pstate = self.pynvml.nvmlDeviceGetPerformanceState(self.handle)
+                    
+                    # Get clock throttle reasons
+                    throttle_reasons = self.pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(self.handle)
+                    
+                    sample = {
+                        "timestamp": timestamp,
+                        "sm_clock_mhz": sm_clock,
+                        "mem_clock_mhz": mem_clock,
+                        "temp_c": temp,
+                        "power_w": power,
+                        "utilization_gpu_pct": util.gpu,
+                        "utilization_memory_pct": util.memory,
+                        "pstate": pstate,
+                        "throttle_reasons": throttle_reasons,
+                    }
+                    
+                    with self.lock:
+                        self.samples.append(sample)
+                        
+                except Exception:
+                    # If query fails, continue monitoring
+                    pass
+                
+                # Sleep for sample interval
+                time.sleep(self.sample_interval)
+                
+            except Exception:
+                # If monitoring loop fails, break out
+                break
+    
+    def start(self):
+        """Start monitoring in a separate thread."""
+        if not self.pynvml or not self.handle:
+            return
+        
+        if self.monitoring:
+            return  # Already monitoring
+        
+        self.monitoring = True
+        with self.lock:
+            self.samples.clear()
+        
+        self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.thread.start()
+    
+    def stop(self):
+        """Stop monitoring and return collected samples."""
+        if not self.monitoring:
+            return []
+        
+        self.monitoring = False
+        if self.thread:
+            self.thread.join(timeout=1.0)
+        
+        with self.lock:
+            samples = list(self.samples)
+            self.samples.clear()
+        
+        return samples
+    
+    def get_samples(self):
+        """Get current samples without stopping monitoring."""
+        with self.lock:
+            return list(self.samples)
+    
+    def get_samples_for_period(self, start_time, end_time, samples=None):
+        """
+        Get samples within a specific time period.
+        
+        Args:
+            start_time: Start timestamp
+            end_time: End timestamp
+            samples: Optional list of samples to filter (uses self.samples if None)
+            
+        Returns:
+            List of samples within the time period
+        """
+        if samples is None:
+            with self.lock:
+                samples_to_use = list(self.samples)
+        else:
+            samples_to_use = samples
+            
+        return [
+            s for s in samples_to_use 
+            if start_time <= s["timestamp"] <= end_time
+        ]
+    
+    def compute_stats(self, samples):
+        """
+        Compute aggregated statistics from a list of samples.
+        
+        Args:
+            samples: List of GPU sample dictionaries
+            
+        Returns:
+            Dictionary with min, max, mean for each metric plus sample count
+        """
+        if not samples:
+            return {
+                "sample_count": 0,
+                "temp_c_min": 0, "temp_c_max": 0, "temp_c_mean": 0,
+                "sm_clock_mhz_min": 0, "sm_clock_mhz_max": 0, "sm_clock_mhz_mean": 0,
+                "mem_clock_mhz_min": 0, "mem_clock_mhz_max": 0, "mem_clock_mhz_mean": 0,
+                "power_w_min": 0, "power_w_max": 0, "power_w_mean": 0,
+                "utilization_gpu_pct_mean": 0,
+                "utilization_memory_pct_mean": 0,
+                "throttle_reasons_any": 0,
+            }
+        
+        stats = {"sample_count": len(samples)}
+        
+        # Metrics to compute min/max/mean
+        full_metrics = ["temp_c", "sm_clock_mhz", "mem_clock_mhz", "power_w"]
+        
+        for metric in full_metrics:
+            values = [s[metric] for s in samples if metric in s and s[metric] is not None]
+            if values:
+                stats[f"{metric}_min"] = min(values)
+                stats[f"{metric}_max"] = max(values)
+                stats[f"{metric}_mean"] = statistics.mean(values) if len(values) > 1 else values[0]
+            else:
+                stats[f"{metric}_min"] = 0
+                stats[f"{metric}_max"] = 0
+                stats[f"{metric}_mean"] = 0
+        
+        # Utilization - only mean
+        for metric in ["utilization_gpu_pct", "utilization_memory_pct"]:
+            values = [s[metric] for s in samples if metric in s and s[metric] is not None]
+            if values:
+                stats[f"{metric}_mean"] = statistics.mean(values) if len(values) > 1 else values[0]
+            else:
+                stats[f"{metric}_mean"] = 0
+        
+        # Throttle reasons - OR all together
+        throttle_values = [s.get("throttle_reasons", 0) for s in samples]
+        stats["throttle_reasons_any"] = reduce(lambda a, b: a | b, throttle_values, 0)
+        
+        return stats
+    
+    def get_stats_for_period(self, start_time, end_time, samples=None):
+        """
+        Get statistics for a specific time period.
+        
+        Args:
+            start_time: Start timestamp
+            end_time: End timestamp
+            samples: Optional list of samples to use instead of self.samples
+            
+        Returns:
+            Dictionary with statistics (min, max, mean) for each metric
+        """
+        period_samples = self.get_samples_for_period(start_time, end_time, samples)
+        return self.compute_stats(period_samples)
 
 
 class NVCCError(Exception):
