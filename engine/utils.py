@@ -849,11 +849,11 @@ def run_dynamic_benchmark(
     """
     # Prepare pointers for CUDA
     if param_func is None:
-        parameters = make_parameters(
+        parameters, _keep_alive = make_parameters(
             language, solution_func, input_tensors, actual_output, problem, test_case
         )
     else:
-        parameters = param_func(
+        parameters, _keep_alive = param_func(
             language, solution_func, input_tensors, actual_output, problem, test_case
         )
 
@@ -1109,7 +1109,8 @@ def make_parameters(language: str, solution_func, input_tensors, actual_output, 
         extra_params_casted = cast_to_ctype(
             extra_params, solution_func.argtypes[-len(extra_params) :], language
         )
-        return input_ptrs + [output_ptr] + extra_params_casted
+        # Return both the casted params AND the original tensors to keep them alive
+        return input_ptrs + [output_ptr] + extra_params_casted, extra_params
     elif language == "cute":
         from cutlass.cute.runtime import from_dlpack
 
@@ -1117,10 +1118,10 @@ def make_parameters(language: str, solution_func, input_tensors, actual_output, 
         output_ptr = from_dlpack(actual_output, assumed_align=16)
         extra_params = problem.get_extra_params(test_case)
         extra_params_casted = cast_to_cute(extra_params)
-        return input_ptrs + [output_ptr] + extra_params_casted
+        return input_ptrs + [output_ptr] + extra_params_casted, extra_params
     else:
         extra_params = problem.get_extra_params(test_case)
-        return list(input_tensors) + [actual_output] + list(extra_params)
+        return list(input_tensors) + [actual_output] + list(extra_params), extra_params
 
 
 class SystemOutputCapture:

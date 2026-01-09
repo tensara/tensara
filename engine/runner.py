@@ -71,11 +71,11 @@ def run_checker(
             actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
             if param_func is None:
-                parameters = utils.make_parameters(
+                parameters, _keep_alive = utils.make_parameters(
                     language, solution_func, input_tensors, actual_output, problem, test_case
                 )
             else:
-                parameters = param_func(
+                parameters, _keep_alive = param_func(
                     language, solution_func, input_tensors, actual_output, problem, test_case
                 )
             solution_func(*parameters)
@@ -177,11 +177,11 @@ def run_sample_case(
         expected_output = problem.reference_solution(*input_tensors).cpu()
         actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
         if param_func is None:
-            parameters = utils.make_parameters(
+            parameters, _keep_alive = utils.make_parameters(
                 language, solution_func, input_tensors, actual_output, problem, sample
             )
         else:
-            parameters = param_func(
+            parameters, _keep_alive = param_func(
                 language, solution_func, input_tensors, actual_output, problem, sample
             )
 
@@ -256,11 +256,11 @@ def run_sanity_check(
             actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
             if param_func is None:
-                parameters = utils.make_parameters(
+                parameters, _keep_alive = utils.make_parameters(
                     language, solution_func, input_tensors, actual_output, problem, test_case
                 )
             else:
-                parameters = param_func(
+                parameters, _keep_alive = param_func(
                     language, solution_func, input_tensors, actual_output, problem, test_case
                 )
             solution_func(*parameters)
