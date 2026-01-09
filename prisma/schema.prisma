@@ -37,6 +37,7 @@ model User {
   Session                   Session[]
   snapshots                 Snapshot[]
   submissions               Submission[]
+  legacySubmissions         LegacySubmission[]
   workspaces                Workspace[]
 
   @@index([email])
@@ -96,29 +97,32 @@ model RevokedToken {
 }
 
 model Problem {
-  id                 String       @id @default(cuid())
+  id                 String             @id @default(cuid())
   title              String
-  slug               String       @unique
+  slug               String             @unique
   description        String?
   difficulty         Difficulty
   author             String
-  parameters         Json         @default("[]")
+  parameters         Json               @default("[]")
   tags               String[]
-  baselineBenchmarks Json?        @default("{}")
+  baselineBenchmarks Json?              @default("{}")
   definition         String?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
   userId             String?
   referenceSolution  String?
-  User               User?        @relation(fields: [userId], references: [id])
+  User               User?              @relation(fields: [userId], references: [id])
   submissions        Submission[]
+  legacySubmissions  LegacySubmission[]
 
   @@index([author])
   @@index([difficulty])
   @@index([slug])
 }
 
-model Submission {
+// Legacy submission model - preserved for historical data
+// Uses GFLOPS as primary ranking metric
+model LegacySubmission {
   id               String               @id @default(cuid())
   code             String
   language         String
@@ -141,13 +145,94 @@ model Submission {
   createdAt        DateTime             @default(now())
   callId           String?
   isPublic         Boolean              @default(false)
-  blogPosts        BlogPostSubmission[]
+  blogPosts        BlogPostSubmission[] @relation("LegacySubmissionToBlogPost")
   problem          Problem              @relation(fields: [problemId], references: [id])
   user             User                 @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([problemId])
   @@index([createdAt])
+  @@map("LegacySubmission")
+}
+
+// New submission model - uses runtime as primary ranking metric
+// Stores detailed per-run GPU metrics
+model Submission {
+  id           String               @id @default(cuid())
+  code         String
+  language     String
+  status       String?
+  gpuType      String?
+  verified     Boolean              @default(false)
+  errorMessage String?
+  errorDetails String?
+
+  // Primary metric: runtime in milliseconds (lower is better)
+  avgRuntimeMs Float?
+
+  // Secondary metric: GFLOPS (informational, stored for ALL problems)
+  avgGflops Float?
+
+  // Test tracking
+  passedTests Int?
+  totalTests  Int?
+
+  // Foreign keys
+  userId    String
+  problemId String
+  createdAt DateTime @default(now())
+  callId    String?
+  isPublic  Boolean  @default(false)
+
+  // Relations
+  testResults TestResult[]
+  blogPosts   BlogPostSubmission[] @relation("SubmissionToBlogPost")
+  problem     Problem              @relation(fields: [problemId], references: [id])
+  user        User                 @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([problemId])
+  @@index([createdAt])
+  @@index([avgRuntimeMs])
+}
+
+// Per-test-case results for new submissions
+model TestResult {
+  id           String   @id @default(cuid())
+  submissionId String
+  testId       Int // 1-indexed test number
+  name         String // Test case name (e.g., "small_128x128")
+
+  // Aggregated metrics across all runs
+  avgRuntimeMs Float
+  avgGflops    Float?
+
+  // Relation to runs
+  runs       BenchmarkRun[]
+  submission Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, testId])
+  @@index([submissionId])
+}
+
+// Individual benchmark iterations with GPU monitoring data
+model BenchmarkRun {
+  id           String @id @default(cuid())
+  testResultId String
+  runIndex     Int // 0-indexed iteration number
+
+  // Performance metrics
+  runtimeMs Float
+  gflops    Float?
+
+  // GPU monitoring data (raw samples and aggregated stats)
+  gpuSamples Json // Array of GPUSample objects
+  gpuMetrics Json? // Aggregated GPUMetricsStats
+
+  testResult TestResult @relation(fields: [testResultId], references: [id], onDelete: Cascade)
+
+  @@unique([testResultId, runIndex])
+  @@index([testResultId])
 }
 
 model ApiKey {
@@ -285,18 +370,22 @@ model CommentUpvote {
 }
 
 model BlogPostSubmission {
-  id           String     @id @default(cuid())
-  postId       String
-  submissionId String
-  order        Int        @default(0)
-  description  String?
-  createdAt    DateTime   @default(now())
-  post         BlogPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
-  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  id                   String            @id @default(cuid())
+  postId               String
+  submissionId         String? // Reference to new Submission (nullable for polymorphic)
+  legacySubmissionId   String? // Reference to LegacySubmission (nullable for polymorphic)
+  order                Int               @default(0)
+  description          String?
+  createdAt            DateTime          @default(now())
+  post                 BlogPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  submission           Submission?       @relation("SubmissionToBlogPost", fields: [submissionId], references: [id], onDelete: Cascade)
+  legacySubmission     LegacySubmission? @relation("LegacySubmissionToBlogPost", fields: [legacySubmissionId], references: [id], onDelete: Cascade)
 
   @@unique([postId, submissionId])
+  @@unique([postId, legacySubmissionId])
   @@index([postId])
   @@index([submissionId])
+  @@index([legacySubmissionId])
 }
 
 model Tag {
