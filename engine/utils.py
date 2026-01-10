@@ -584,6 +584,17 @@ def prepare_gpu():
     time.sleep(0.5)
 
 
+def flush_l2_cache():
+    flush_size = 40 * 1024 * 1024
+    flush_buffer = torch.zeros(flush_size, dtype=torch.float32, device="cuda")
+    
+    flush_buffer.fill_(1.0)
+    torch.cuda.synchronize()
+    
+    del flush_buffer
+    torch.cuda.empty_cache()
+
+
 def run_dynamic_benchmark(
     solution_func,
     problem,
@@ -682,6 +693,8 @@ def run_dynamic_benchmark(
         gflops_measurements.append((flops / initial_runtime) / 1e9)
 
     for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
+        flush_l2_cache()
+
         actual_output.fill_(1.0)
         iter_checksum_before = actual_output.sum().item()
 
