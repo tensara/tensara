@@ -22,6 +22,7 @@ import {
   AlertIcon,
   AlertDescription,
   Button,
+  SimpleGrid,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -41,8 +42,14 @@ import {
   getStatusIcon,
 } from "~/constants/problem";
 import { FiCopy } from "react-icons/fi";
+import {
+  FaThermometerHalf,
+  FaMicrochip,
+  FaTachometerAlt,
+} from "react-icons/fa";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
+import { GPUMetricInfoPopover } from "~/components/misc/GPUMetricInfoPopover";
 
 import type {
   TestResultWithRuns,
@@ -377,6 +384,74 @@ const SubmissionPage: NextPage<{
                 overflow="hidden"
               >
                 <HStack spacing={12} wrap="wrap" justify="space-around">
+                  {/* Test Cases */}
+                  {submission.passedTests !== null &&
+                    submission.totalTests !== null && (
+                      <VStack align="center" spacing={1}>
+                        <Text
+                          color="whiteAlpha.600"
+                          fontSize="sm"
+                          fontWeight="medium"
+                          letterSpacing="wide"
+                        >
+                          TEST CASES
+                        </Text>
+                        <Text
+                          fontSize="2xl"
+                          fontWeight="bold"
+                          color={`${getStatusColor(submission.status)}.400`}
+                        >
+                          {submission.passedTests}/{submission.totalTests}
+                          <Text
+                            as="span"
+                            fontSize="sm"
+                            color="whiteAlpha.600"
+                            ml={1}
+                          >
+                            passed
+                          </Text>
+                        </Text>
+                      </VStack>
+                    )}
+                  {/* GFLOPS - support both old (gflops) and new (avgGflops) schema */}
+                  {(() => {
+                    // Check for new schema first, then fall back to legacy
+                    const sub = submission as {
+                      avgGflops?: number | null;
+                      gflops?: number | null;
+                    };
+                    const gflopsValue = sub.avgGflops ?? sub.gflops ?? null;
+
+                    if (gflopsValue === null) return null;
+
+                    return (
+                      <VStack align="center" spacing={1}>
+                        <Text
+                          color="whiteAlpha.600"
+                          fontSize="sm"
+                          fontWeight="medium"
+                          letterSpacing="wide"
+                        >
+                          PERFORMANCE
+                        </Text>
+                        <Text
+                          fontSize="2xl"
+                          fontWeight="bold"
+                          color={`${getStatusColor(submission.status)}.400`}
+                        >
+                          {gflopsValue.toFixed(2)}
+                          <Text
+                            as="span"
+                            fontSize="sm"
+                            color="whiteAlpha.600"
+                            ml={1}
+                          >
+                            GFLOPS
+                          </Text>
+                        </Text>
+                      </VStack>
+                    );
+                  })()}
                   {/* Runtime - support both old (runtime) and new (avgRuntimeMs) schema */}
                   {(() => {
                     // Check for new schema first, then fall back to legacy
@@ -417,73 +492,6 @@ const SubmissionPage: NextPage<{
                       </VStack>
                     );
                   })()}
-                  {/* GFLOPS - support both old (gflops) and new (avgGflops) schema */}
-                  {(() => {
-                    // Check for new schema first, then fall back to legacy
-                    const sub = submission as {
-                      avgGflops?: number | null;
-                      gflops?: number | null;
-                    };
-                    const gflopsValue = sub.avgGflops ?? sub.gflops ?? null;
-
-                    if (gflopsValue === null) return null;
-
-                    return (
-                      <VStack align="center" spacing={1}>
-                        <Text
-                          color="whiteAlpha.600"
-                          fontSize="sm"
-                          fontWeight="medium"
-                          letterSpacing="wide"
-                        >
-                          PERFORMANCE
-                        </Text>
-                        <Text
-                          fontSize="2xl"
-                          fontWeight="bold"
-                          color={`${getStatusColor(submission.status)}.400`}
-                        >
-                          {gflopsValue.toFixed(2)}
-                          <Text
-                            as="span"
-                            fontSize="sm"
-                            color="whiteAlpha.600"
-                            ml={1}
-                          >
-                            GFLOPS
-                          </Text>
-                        </Text>
-                      </VStack>
-                    );
-                  })()}
-                  {submission.passedTests !== null &&
-                    submission.totalTests !== null && (
-                      <VStack align="center" spacing={1}>
-                        <Text
-                          color="whiteAlpha.600"
-                          fontSize="sm"
-                          fontWeight="medium"
-                          letterSpacing="wide"
-                        >
-                          TEST CASES
-                        </Text>
-                        <Text
-                          fontSize="2xl"
-                          fontWeight="bold"
-                          color={`${getStatusColor(submission.status)}.400`}
-                        >
-                          {submission.passedTests}/{submission.totalTests}
-                          <Text
-                            as="span"
-                            fontSize="sm"
-                            color="whiteAlpha.600"
-                            ml={1}
-                          >
-                            passed
-                          </Text>
-                        </Text>
-                      </VStack>
-                    )}
                 </HStack>
               </Box>
 
@@ -628,16 +636,119 @@ const SubmissionPage: NextPage<{
                     </Text>
                     <Box overflowX="auto">
                       {(() => {
-                        const testResults = submission.testResults as Array<{
+                        // Type for runs with GPU metrics
+                        interface GPUMetrics {
+                          sample_count?: number;
+                          temp_c_min?: number;
+                          temp_c_max?: number;
+                          temp_c_mean?: number;
+                          sm_clock_mhz_min?: number;
+                          sm_clock_mhz_max?: number;
+                          sm_clock_mhz_mean?: number;
+                          pstate_min?: number;
+                          pstate_max?: number;
+                          throttle_reasons_any?: number;
+                        }
+                        interface BenchmarkRun {
+                          runIndex: number;
+                          runtimeMs: number;
+                          gflops: number | null;
+                          gpuSamples: unknown[];
+                          gpuMetrics: GPUMetrics | null;
+                        }
+                        interface TestResultWithRuns {
                           name: string;
                           avgRuntimeMs: number;
                           avgGflops: number | null;
                           testId: number;
-                        }>;
+                          runs?: BenchmarkRun[];
+                        }
+
+                        const testResults =
+                          submission.testResults as TestResultWithRuns[];
                         const hasGflops = testResults.some(
                           (r) =>
                             r.avgGflops !== null && r.avgGflops !== undefined
                         );
+
+                        // Check if we have any GPU metrics data
+                        const hasGpuMetrics = testResults.some(
+                          (r) =>
+                            r.runs &&
+                            r.runs.some(
+                              (run) =>
+                                run.gpuMetrics &&
+                                (run.gpuMetrics.sample_count ?? 0) > 0
+                            )
+                        );
+
+                        // Aggregate GPU metrics across all runs
+                        const aggregateGpuMetrics = () => {
+                          let tempMin = Infinity;
+                          let tempMax = -Infinity;
+                          let tempSum = 0;
+                          let clockMin = Infinity;
+                          let clockMax = -Infinity;
+                          let clockSum = 0;
+                          let pstateMin = Infinity;
+                          let pstateMax = -Infinity;
+                          let runCount = 0;
+
+                          testResults.forEach((r) => {
+                            r.runs?.forEach((run) => {
+                              if (
+                                run.gpuMetrics &&
+                                (run.gpuMetrics.sample_count ?? 0) > 0
+                              ) {
+                                runCount++;
+                                tempMin = Math.min(
+                                  tempMin,
+                                  run.gpuMetrics.temp_c_min ?? Infinity
+                                );
+                                tempMax = Math.max(
+                                  tempMax,
+                                  run.gpuMetrics.temp_c_max ?? -Infinity
+                                );
+                                tempSum += run.gpuMetrics.temp_c_mean ?? 0;
+                                clockMin = Math.min(
+                                  clockMin,
+                                  run.gpuMetrics.sm_clock_mhz_min ?? Infinity
+                                );
+                                clockMax = Math.max(
+                                  clockMax,
+                                  run.gpuMetrics.sm_clock_mhz_max ?? -Infinity
+                                );
+                                clockSum +=
+                                  run.gpuMetrics.sm_clock_mhz_mean ?? 0;
+                                pstateMin = Math.min(
+                                  pstateMin,
+                                  run.gpuMetrics.pstate_min ?? Infinity
+                                );
+                                pstateMax = Math.max(
+                                  pstateMax,
+                                  run.gpuMetrics.pstate_max ?? -Infinity
+                                );
+                              }
+                            });
+                          });
+
+                          if (runCount === 0) return null;
+
+                          return {
+                            tempMin,
+                            tempMax,
+                            tempAvg: tempSum / runCount,
+                            clockMin,
+                            clockMax,
+                            clockAvg: clockSum / runCount,
+                            pstateMin,
+                            pstateMax,
+                          };
+                        };
+
+                        const gpuAgg = hasGpuMetrics
+                          ? aggregateGpuMetrics()
+                          : null;
 
                         const thStyle: React.CSSProperties = {
                           textAlign: "center",
@@ -651,38 +762,141 @@ const SubmissionPage: NextPage<{
                         };
 
                         return (
-                          <table
-                            style={{
-                              width: "100%",
-                              borderCollapse: "collapse",
-                              tableLayout: "fixed",
-                            }}
-                          >
-                            <thead>
-                              <tr>
-                                <th style={thStyle}>Test Case</th>
-                                <th style={thStyle}>Runtime (ms)</th>
-                                {hasGflops && <th style={thStyle}>GFLOPS</th>}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {testResults.map((result, index: number) => (
-                                <tr key={index}>
-                                  <td style={tdStyle}>{result.name}</td>
-                                  <td style={tdStyle}>
-                                    {result.avgRuntimeMs.toFixed(2)}
-                                  </td>
-                                  {hasGflops && (
-                                    <td style={tdStyle}>
-                                      {result.avgGflops !== null
-                                        ? result.avgGflops.toFixed(2)
-                                        : ""}
-                                    </td>
-                                  )}
+                          <>
+                            <table
+                              style={{
+                                width: "100%",
+                                borderCollapse: "collapse",
+                                tableLayout: "fixed",
+                              }}
+                            >
+                              <thead>
+                                <tr>
+                                  <th style={thStyle}>Test Case</th>
+                                  {hasGflops && <th style={thStyle}>GFLOPS</th>}
+                                  <th style={thStyle}>Runtime (ms)</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {testResults.map((result, index: number) => (
+                                  <tr key={index}>
+                                    <td style={tdStyle}>{result.name}</td>
+                                    {hasGflops && (
+                                      <td style={tdStyle}>
+                                        {result.avgGflops !== null
+                                          ? result.avgGflops.toFixed(2)
+                                          : ""}
+                                      </td>
+                                    )}
+                                    <td style={tdStyle}>
+                                      {result.avgRuntimeMs.toFixed(2)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+
+                            {/* GPU Metrics Summary */}
+                            {gpuAgg && (
+                              <Box
+                                mt={4}
+                                p={4}
+                                borderRadius="xl"
+                                bg="whiteAlpha.50"
+                                border="1px solid"
+                                borderColor="whiteAlpha.100"
+                              >
+                                <HStack spacing={6} wrap="wrap">
+                                  <HStack spacing={2}>
+                                    <Icon
+                                      as={FaMicrochip}
+                                      color="blue.300"
+                                      boxSize={4}
+                                    />
+                                    <Text
+                                      fontSize="sm"
+                                      fontWeight="medium"
+                                      color="whiteAlpha.900"
+                                    >
+                                      GPU Metrics
+                                    </Text>
+                                  </HStack>
+
+                                  <HStack
+                                    spacing={6}
+                                    flex={1}
+                                    justify="flex-end"
+                                    wrap="wrap"
+                                  >
+                                    {/* Temperature */}
+                                    <HStack spacing={2}>
+                                      <Icon
+                                        as={FaThermometerHalf}
+                                        color="orange.300"
+                                        boxSize={3}
+                                      />
+                                      <Text
+                                        fontSize="xs"
+                                        color="whiteAlpha.500"
+                                        textTransform="uppercase"
+                                      >
+                                        Temp
+                                      </Text>
+                                      <GPUMetricInfoPopover metric="temperature" />
+                                      <Text
+                                        fontSize="sm"
+                                        fontWeight="semibold"
+                                        color="white"
+                                      >
+                                        {gpuAgg.tempMin.toFixed(0)}-
+                                        {gpuAgg.tempMax.toFixed(0)}°C
+                                      </Text>
+                                      <Text
+                                        fontSize="xs"
+                                        color="whiteAlpha.500"
+                                      >
+                                        (avg {gpuAgg.tempAvg.toFixed(0)}°C)
+                                      </Text>
+                                    </HStack>
+
+                                    {/* Divider */}
+                                    <Box h="20px" w="1px" bg="whiteAlpha.300" />
+
+                                    {/* SM Clock */}
+                                    <HStack spacing={2}>
+                                      <Icon
+                                        as={FaTachometerAlt}
+                                        color="cyan.300"
+                                        boxSize={3}
+                                      />
+                                      <Text
+                                        fontSize="xs"
+                                        color="whiteAlpha.500"
+                                        textTransform="uppercase"
+                                      >
+                                        SM Clock
+                                      </Text>
+                                      <GPUMetricInfoPopover metric="smClock" />
+                                      <Text
+                                        fontSize="sm"
+                                        fontWeight="semibold"
+                                        color="white"
+                                      >
+                                        {gpuAgg.clockMin.toFixed(0)}-
+                                        {gpuAgg.clockMax.toFixed(0)}
+                                      </Text>
+                                      <Text
+                                        fontSize="xs"
+                                        color="whiteAlpha.500"
+                                      >
+                                        (avg {gpuAgg.clockAvg.toFixed(0)} MHz)
+                                      </Text>
+                                    </HStack>
+                                  </HStack>
+                                </HStack>
+                              </Box>
+                            )}
+                          </>
                         );
                       })()}
                     </Box>
