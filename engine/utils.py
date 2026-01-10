@@ -587,10 +587,10 @@ def prepare_gpu():
 def flush_l2_cache():
     flush_size = 40 * 1024 * 1024
     flush_buffer = torch.zeros(flush_size, dtype=torch.float32, device="cuda")
-    
+
     flush_buffer.fill_(1.0)
     torch.cuda.synchronize()
-    
+
     del flush_buffer
     torch.cuda.empty_cache()
 
