@@ -741,11 +741,7 @@ const LeaderboardPage: NextPage = () => {
                                     </Th>
                                     <Th color="whiteAlpha.600">User</Th>
                                     <Th isNumeric color="whiteAlpha.600">
-                                      {topSubmissions.some(
-                                        (sub) => sub.gflops && sub.gflops > 0
-                                      )
-                                        ? "FLOPS"
-                                        : "Time"}
+                                      Time
                                     </Th>
                                   </Tr>
                                 </Thead>
@@ -803,43 +799,18 @@ const LeaderboardPage: NextPage = () => {
                                         </Tooltip>
                                       </Td>
                                       <Td isNumeric borderRightRadius="lg">
-                                        {submission.gflops !== null && (
-                                          <Tooltip
-                                            label={`Runtime: ${submission.runtime?.toFixed(
-                                              2
-                                            )} ms`}
-                                            hasArrow
-                                          >
-                                            <Text
-                                              color={getMedalColor(index)}
-                                              fontWeight="bold"
-                                              fontSize="sm"
-                                              style={{
-                                                fontVariantNumeric:
-                                                  "tabular-nums",
-                                              }}
-                                            >
-                                              {formatPerformance(
-                                                submission.gflops
-                                              )}
-                                            </Text>
-                                          </Tooltip>
-                                        )}
-                                        {submission.gflops === null &&
-                                          submission.runtime !== null && (
-                                            <Text
-                                              color={getMedalColor(index)}
-                                              fontWeight="bold"
-                                              fontSize="sm"
-                                              style={{
-                                                fontVariantNumeric:
-                                                  "tabular-nums",
-                                              }}
-                                            >
-                                              {submission.runtime?.toFixed(2)}{" "}
-                                              ms
-                                            </Text>
-                                          )}
+                                        <Text
+                                          color={getMedalColor(index)}
+                                          fontWeight="bold"
+                                          fontSize="sm"
+                                          style={{
+                                            fontVariantNumeric: "tabular-nums",
+                                          }}
+                                        >
+                                          {submission.runtime != null
+                                            ? `${submission.runtime.toFixed(2)} ms`
+                                            : "N/A"}
+                                        </Text>
                                       </Td>
                                     </Tr>
                                   ))}
