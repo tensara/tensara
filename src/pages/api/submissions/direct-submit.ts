@@ -27,6 +27,7 @@ import {
 } from "~/types/submission";
 import type {
   BenchmarkResultResponse,
+  BenchmarkRunData,
   CheckedResponse,
   SubmissionStatusType,
   SubmissionErrorType,
@@ -301,6 +302,31 @@ export default async function handler(
             where: { id: submission.id },
             data: { benchmarkResults: benchResults },
           });
+
+          // Store detailed test result with per-run GPU metrics
+          const testResult = r.result;
+          const runs = testResult.runs ?? [];
+
+          if (runs.length > 0) {
+            await db.testResult.create({
+              data: {
+                submissionId: submission.id,
+                testId: testResult.test_id,
+                name: testResult.name,
+                avgRuntimeMs: testResult.runtime_ms,
+                avgGflops: testResult.gflops ?? null,
+                runs: {
+                  create: runs.map((run: BenchmarkRunData) => ({
+                    runIndex: run.run_index,
+                    runtimeMs: run.runtime_ms,
+                    gflops: run.gflops ?? null,
+                    gpuSamples: run.gpu_samples ?? [],
+                    gpuMetrics: run.gpu_metrics ?? null,
+                  })),
+                },
+              },
+            });
+          }
         }
         return "CONTINUE";
       }
