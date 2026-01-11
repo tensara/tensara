@@ -185,16 +185,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   };
 };
 
-const formatPerformance = (gflops: number | null | undefined): string => {
-  if (!gflops) return "N/A";
-
-  if (gflops >= 1000) {
-    const tflops = (gflops / 1000).toFixed(2);
-    return `${tflops}T`;
-  }
-  return `${gflops.toFixed(2)}G`;
-};
-
 const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const router = useRouter();
   const { data: session } = useSession();
@@ -255,9 +245,10 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
       baselineBenchmarks as BaselineBenchmarks
     ).flatMap(([framework, gpuData]) => {
       if (selectedGpu === "all") {
+        // Find best GPU entry by lowest runtime
         const bestGpuEntry = Object.entries(gpuData).reduce(
           (best, [gpu, data]) => {
-            if (!best || data.avg_gflops > best.data.avg_gflops) {
+            if (!best || data.avg_runtime_ms < best.data.avg_runtime_ms) {
               return { gpu, data };
             }
             return best;
@@ -303,23 +294,16 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
     const entries = showBaselines
       ? [...leaderboardEntries, ...baselineEntries]
       : leaderboardEntries;
+    // Sort by runtime ascending (lower is better)
     return entries.sort((a, b) => {
-      if (a.gflops && !b.gflops) return -1;
-      if (!a.gflops && b.gflops) return 1;
-
-      if (a.gflops && b.gflops) {
-        return b.gflops - a.gflops;
+      if (a.runtime != null && b.runtime != null) {
+        return a.runtime - b.runtime;
       }
-      return a.runtime! - b.runtime!;
+      if (a.runtime != null) return -1;
+      if (b.runtime != null) return 1;
+      return 0;
     });
   }, [baselineBenchmarks, leaderboardEntries, selectedGpu, showBaselines]);
-
-  const hasAnyGflops = useMemo(() => {
-    return (
-      combinedEntries?.some((entry) => entry.gflops && entry.gflops > 0) ??
-      false
-    );
-  }, [combinedEntries]);
 
   if (isProblemLoading || isLeaderboardLoading) {
     return (
@@ -448,11 +432,6 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                     <Th borderBottom="none" py={2} px={4}>
                       User
                     </Th>
-                    {hasAnyGflops && (
-                      <Th borderBottom="none" isNumeric py={2} px={4}>
-                        GFLOPS
-                      </Th>
-                    )}
                     <Th borderBottom="none" isNumeric py={2} px={4}>
                       Runtime (ms)
                     </Th>
@@ -544,21 +523,16 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             )}
                           </Text>
                         </Td>
-                        {hasAnyGflops && (
-                          <Td isNumeric borderBottom="none" py={2} px={4}>
-                            <Text
-                              color={medalColor}
-                              textAlign="right"
-                              display="block"
-                              style={{ fontVariantNumeric: "tabular-nums" }}
-                              fontWeight={index < 3 ? "bold" : "normal"}
-                            >
-                              {formatPerformance(entry.gflops)}
-                            </Text>
-                          </Td>
-                        )}
                         <Td isNumeric borderBottom="none" py={2} px={4}>
-                          {entry.runtime?.toFixed(2) ?? "N/A"}
+                          <Text
+                            color={medalColor}
+                            textAlign="right"
+                            display="block"
+                            style={{ fontVariantNumeric: "tabular-nums" }}
+                            fontWeight={index < 3 ? "bold" : "normal"}
+                          >
+                            {entry.runtime?.toFixed(2) ?? "N/A"}
+                          </Text>
                         </Td>
                         {selectedGpu === "all" && (
                           <Td borderBottom="none" py={2} px={3}>
