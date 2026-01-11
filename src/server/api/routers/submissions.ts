@@ -149,6 +149,14 @@ export const submissionsRouter = createTRPCRouter({
               username: true,
             },
           },
+          testResults: {
+            include: {
+              runs: true,
+            },
+            orderBy: {
+              testId: "asc",
+            },
+          },
         },
       });
 
