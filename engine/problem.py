@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any
+import hashlib
 import torch
 
 
@@ -98,3 +99,14 @@ class Problem(ABC):
             List of extra parameters
         """
         return []
+    
+    @staticmethod
+    def get_seed(seed_str: str) -> int:
+        """
+        Generate deterministic seed from a string.
+        Uses MD5 for deterministic hashing across Python processes.
+        """
+        hash_bytes = hashlib.md5(seed_str.encode()).digest()
+        seed = int.from_bytes(hash_bytes[:4], "little") & 0x7FFFFFFF
+        return seed
+
