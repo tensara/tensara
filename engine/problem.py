@@ -99,7 +99,7 @@ class Problem(ABC):
             List of extra parameters
         """
         return []
-    
+
     @staticmethod
     def get_seed(seed_str: str) -> int:
         """
@@ -109,4 +109,3 @@ class Problem(ABC):
         hash_bytes = hashlib.md5(seed_str.encode()).digest()
         seed = int.from_bytes(hash_bytes[:4], "little") & 0x7FFFFFFF
         return seed
-
