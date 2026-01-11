@@ -144,10 +144,42 @@ model Submission {
   blogPosts        BlogPostSubmission[]
   problem          Problem              @relation(fields: [problemId], references: [id])
   user             User                 @relation(fields: [userId], references: [id])
+  testResults      TestResult[]
 
   @@index([userId])
   @@index([problemId])
   @@index([createdAt])
+  @@index([runtime])
+}
+
+// Per-test-case results for submissions with detailed GPU metrics
+model TestResult {
+  id           String         @id @default(cuid())
+  submissionId String
+  testId       Int // 1-indexed test number
+  name         String // Test case name (e.g., "small_128x128")
+  avgRuntimeMs Float
+  avgGflops    Float?
+  runs         BenchmarkRun[]
+  submission   Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, testId])
+  @@index([submissionId])
+}
+
+// Individual benchmark iterations with GPU monitoring data
+model BenchmarkRun {
+  id           String     @id @default(cuid())
+  testResultId String
+  runIndex     Int // 0-indexed iteration number
+  runtimeMs    Float
+  gflops       Float?
+  gpuSamples   Json // Array of GPUSample objects
+  gpuMetrics   Json? // Aggregated GPUMetricsStats
+  testResult   TestResult @relation(fields: [testResultId], references: [id], onDelete: Cascade)
+
+  @@unique([testResultId, runIndex])
+  @@index([testResultId])
 }
 
 model ApiKey {
