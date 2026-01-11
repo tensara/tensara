@@ -11,21 +11,101 @@ import {
   Icon,
   Box,
   Divider,
+  IconButton,
 } from "@chakra-ui/react";
 import { FiInfo } from "react-icons/fi";
+import { FaInfoCircle } from "react-icons/fa";
 import { type ReactNode } from "react";
 
+// ============================================================================
+// NEW: Per-metric info popover (used in SubmissionResults.tsx)
+// ============================================================================
+
+export type GPUMetricType = "temperature" | "smClock" | "pState";
+
 interface GPUMetricInfoPopoverProps {
+  metric: GPUMetricType;
+}
+
+const METRIC_INFO: Record<
+  GPUMetricType,
+  { title: string; description: string }
+> = {
+  temperature: {
+    title: "GPU Temperature",
+    description:
+      "GPU core temperature during kernel execution. Higher temperatures indicate heavy load. Sustained high temperatures (>80°C) may trigger thermal throttling, reducing performance.",
+  },
+  smClock: {
+    title: "SM Clock Speed",
+    description:
+      "Streaming Multiprocessor clock speed in MHz. Higher values indicate the GPU is running at higher performance levels. The clock may dynamically adjust based on power and thermal conditions.",
+  },
+  pState: {
+    title: "Performance State",
+    description:
+      "GPU performance state where P0 = maximum performance. Lower numbers indicate higher performance modes. Higher P-states (P1, P2, etc.) indicate the GPU is in a power-saving mode.",
+  },
+};
+
+/**
+ * Per-metric info popover with individual info icon.
+ * Used in SubmissionResults.tsx for Temperature, SM Clock, etc.
+ */
+export const GPUMetricInfoPopover = ({ metric }: GPUMetricInfoPopoverProps) => {
+  const info = METRIC_INFO[metric];
+
+  return (
+    <Popover placement="top" trigger="click">
+      <PopoverTrigger>
+        <IconButton
+          aria-label={`${info.title} Information`}
+          icon={<FaInfoCircle />}
+          size="xs"
+          variant="ghost"
+          color="gray.500"
+          _hover={{ color: "white", bg: "transparent" }}
+          bg="transparent"
+          minW="auto"
+          h="auto"
+          p={0}
+          ml={1}
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        bg="gray.800"
+        borderColor="whiteAlpha.200"
+        w="280px"
+        _focus={{ boxShadow: "none" }}
+      >
+        <PopoverBody p={4}>
+          <Text fontWeight="semibold" color="white" mb={2}>
+            {info.title}
+          </Text>
+          <Text fontSize="sm" color="whiteAlpha.700" lineHeight="tall">
+            {info.description}
+          </Text>
+        </PopoverBody>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// ============================================================================
+// LEGACY: Full GPU metrics popover (used in [id].tsx submission detail page)
+// ============================================================================
+
+interface GPUMetricInfoPopoverLegacyProps {
   children: ReactNode;
 }
 
 /**
- * Popover component explaining GPU metrics collected during benchmarking.
- * Shows information about temperature, SM clock, P-state, and throttle reasons.
+ * Legacy popover component that wraps children and shows all GPU metrics info.
+ * Used in submission detail page ([id].tsx).
  */
-export const GPUMetricInfoPopover = ({
+export const GPUMetricInfoPopoverLegacy = ({
   children,
-}: GPUMetricInfoPopoverProps) => {
+}: GPUMetricInfoPopoverLegacyProps) => {
   return (
     <Popover trigger="hover" placement="top">
       <PopoverTrigger>{children}</PopoverTrigger>
@@ -99,11 +179,12 @@ export const GPUMetricInfoPopover = ({
 };
 
 /**
- * Icon button that triggers the GPU metric info popover.
+ * Icon button that triggers the legacy GPU metric info popover.
+ * Used in submission detail page ([id].tsx).
  */
 export const GPUMetricInfoIcon = () => {
   return (
-    <GPUMetricInfoPopover>
+    <GPUMetricInfoPopoverLegacy>
       <Box as="span" cursor="pointer" display="inline-flex" alignItems="center">
         <Icon
           as={FiInfo}
@@ -112,9 +193,13 @@ export const GPUMetricInfoIcon = () => {
           boxSize={4}
         />
       </Box>
-    </GPUMetricInfoPopover>
+    </GPUMetricInfoPopoverLegacy>
   );
 };
+
+// ============================================================================
+// Helper functions for GPU metrics display
+// ============================================================================
 
 /**
  * Decode throttle reason bitmask to human-readable reasons.

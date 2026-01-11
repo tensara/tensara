@@ -158,6 +158,9 @@ export interface WrongAnswerResponse extends BaseResponse<"WRONG_ANSWER"> {
 export interface BenchmarkResultResponse
   extends BaseResponse<"BENCHMARK_RESULT"> {
   result: BenchmarkResult & {
+    // New format fields (from engine with GPU metrics)
+    avg_runtime_ms?: number;
+    avg_gflops?: number;
     runs?: BenchmarkRunData[]; // Per-run data with GPU metrics (new submissions)
   };
   total_tests: number;

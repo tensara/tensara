@@ -41,6 +41,9 @@ import {
   FaClock,
   FaChevronUp,
   FaChevronDown,
+  FaThermometerHalf,
+  FaMicrochip,
+  FaTachometerAlt,
 } from "react-icons/fa";
 
 import { FiArrowLeft, FiExternalLink } from "react-icons/fi";
@@ -48,6 +51,7 @@ import NextLink from "next/link";
 
 import { getStatusIcon } from "~/constants/problem";
 import { useSplitPanel } from "./SplitPanel";
+import { GPUMetricInfoPopover } from "~/components/misc/GPUMetricInfoPopover";
 
 // Define more specific types for the response data - these match the types in src/types/submission.ts
 type ResponseTypeMap = {
@@ -60,6 +64,62 @@ type ResponseTypeMap = {
   [SubmissionError.RUNTIME_ERROR]: ErrorResponse;
   [SubmissionError.TIME_LIMIT_EXCEEDED]: ErrorResponse;
   [SubmissionError.RATE_LIMIT_EXCEEDED]: ErrorResponse;
+};
+
+// Helper to aggregate GPU metrics from benchmark results
+interface AggregatedGPUMetrics {
+  tempMin: number;
+  tempMax: number;
+  tempAvg: number;
+  clockMin: number;
+  clockMax: number;
+  clockAvg: number;
+  pstateMin: number;
+  pstateMax: number;
+}
+
+const aggregateGPUMetrics = (
+  benchmarkResults: BenchmarkResultResponse[]
+): AggregatedGPUMetrics | null => {
+  let tempMin = Infinity;
+  let tempMax = -Infinity;
+  let tempSum = 0;
+  let clockMin = Infinity;
+  let clockMax = -Infinity;
+  let clockSum = 0;
+  let pstateMin = Infinity;
+  let pstateMax = -Infinity;
+  let runCount = 0;
+
+  benchmarkResults.forEach((br) => {
+    br.result.runs?.forEach((run) => {
+      const metrics = run.gpu_metrics;
+      if (metrics && metrics.sample_count > 0) {
+        runCount++;
+        tempMin = Math.min(tempMin, metrics.temp_c_min);
+        tempMax = Math.max(tempMax, metrics.temp_c_max);
+        tempSum += metrics.temp_c_mean;
+        clockMin = Math.min(clockMin, metrics.sm_clock_mhz_min);
+        clockMax = Math.max(clockMax, metrics.sm_clock_mhz_max);
+        clockSum += metrics.sm_clock_mhz_mean;
+        pstateMin = Math.min(pstateMin, metrics.pstate_min);
+        pstateMax = Math.max(pstateMax, metrics.pstate_max);
+      }
+    });
+  });
+
+  if (runCount === 0) return null;
+
+  return {
+    tempMin,
+    tempMax,
+    tempAvg: tempSum / runCount,
+    clockMin,
+    clockMax,
+    clockAvg: clockSum / runCount,
+    pstateMin,
+    pstateMax,
+  };
 };
 
 interface SubmissionResultsProps {
@@ -272,10 +332,6 @@ const SubmissionResults = ({
               <Collapse in={isTestCaseTableOpen} animateOpacity>
                 <Box>
                   {(() => {
-                    const hasGflops = benchmarkResults.some(
-                      (r) => r.result.gflops !== undefined
-                    );
-
                     return (
                       <Table variant="unstyled" size="sm">
                         <Thead bg="whiteAlpha.100">
@@ -284,47 +340,54 @@ const SubmissionResults = ({
                               Test Case
                             </Th>
                             <Th color="whiteAlpha.700" py={3} isNumeric>
+                              GFLOPS
+                            </Th>
+                            <Th color="whiteAlpha.700" py={3} isNumeric>
                               Runtime
                             </Th>
-                            {hasGflops && (
-                              <Th color="whiteAlpha.700" py={3} isNumeric>
-                                Performance
-                              </Th>
-                            )}
                           </Tr>
                         </Thead>
                         <Tbody>
-                          {benchmarkResults.map((result) => (
-                            <Tr
-                              key={result.result.test_id}
-                              _hover={{ bg: "whiteAlpha.100" }}
-                            >
-                              <Td py={3}>
-                                <HStack spacing={2}>
-                                  <Icon
-                                    as={FaCheck}
-                                    color="green.300"
-                                    boxSize={4}
-                                  />
-                                  <Text>{result.result.name}</Text>
-                                </HStack>
-                              </Td>
-                              <Td py={3} isNumeric>
-                                <Text>
-                                  {result.result.runtime_ms.toFixed(2)} ms
-                                </Text>
-                              </Td>
-                              {hasGflops && (
-                                <Td py={3} isNumeric>
-                                  {result.result.gflops !== undefined && (
-                                    <Text>
-                                      {result.result.gflops.toFixed(2)} GFLOPS
-                                    </Text>
-                                  )}
+                          {benchmarkResults.map((result) => {
+                            // Support both old format (runtime_ms, gflops) and new format (avg_runtime_ms, avg_gflops)
+                            const runtime =
+                              result.result.avg_runtime_ms ??
+                              result.result.runtime_ms;
+                            const gflops =
+                              result.result.avg_gflops ?? result.result.gflops;
+
+                            return (
+                              <Tr
+                                key={result.result.test_id}
+                                _hover={{ bg: "whiteAlpha.100" }}
+                              >
+                                <Td py={3}>
+                                  <HStack spacing={2}>
+                                    <Icon
+                                      as={FaCheck}
+                                      color="green.300"
+                                      boxSize={4}
+                                    />
+                                    <Text>{result.result.name}</Text>
+                                  </HStack>
                                 </Td>
-                              )}
-                            </Tr>
-                          ))}
+                                <Td py={3} isNumeric>
+                                  <Text>
+                                    {gflops !== undefined
+                                      ? gflops.toFixed(2)
+                                      : "-"}
+                                  </Text>
+                                </Td>
+                                <Td py={3} isNumeric>
+                                  <Text>
+                                    {runtime !== undefined
+                                      ? `${runtime.toFixed(2)} ms`
+                                      : "-"}
+                                  </Text>
+                                </Td>
+                              </Tr>
+                            );
+                          })}
 
                           {totalTests !== null &&
                             benchmarkResults &&
@@ -353,15 +416,8 @@ const SubmissionResults = ({
                                     <Td py={3} isNumeric>
                                       -
                                     </Td>
-                                    {hasGflops && (
-                                      <Td py={3} isNumeric>
-                                        -
-                                      </Td>
-                                    )}
-                                    <Td py={3}>
-                                      <Badge colorScheme="red" fontSize="xs">
-                                        Failed
-                                      </Badge>
+                                    <Td py={3} isNumeric>
+                                      -
                                     </Td>
                                   </Tr>
                                 );
@@ -409,6 +465,91 @@ const SubmissionResults = ({
           </SimpleGrid>
         </Box>
       )}
+
+      {/* GPU Metrics (when benchmarks complete and we have data) */}
+      {Boolean(metaStatus) &&
+        (metaStatus === SubmissionStatus.ACCEPTED ||
+          metaStatus === SubmissionStatus.BENCHMARKED) &&
+        benchmarkResults.length > 0 &&
+        (() => {
+          const gpuMetrics = aggregateGPUMetrics(benchmarkResults);
+          if (!gpuMetrics) return null;
+
+          return (
+            <Box
+              bg="whiteAlpha.50"
+              borderRadius="xl"
+              overflow="hidden"
+              border="1px solid"
+              borderColor="whiteAlpha.100"
+            >
+              <HStack
+                px={4}
+                py={3}
+                bg="whiteAlpha.50"
+                borderBottom="1px solid"
+                borderColor="whiteAlpha.100"
+              >
+                <Icon as={FaMicrochip} color="blue.300" boxSize={4} />
+                <Text fontSize="sm" fontWeight="medium" color="whiteAlpha.900">
+                  GPU Metrics
+                </Text>
+              </HStack>
+
+              <SimpleGrid columns={2} spacing={0}>
+                {/* Temperature */}
+                <Box p={4} borderRight="1px solid" borderColor="whiteAlpha.100">
+                  <HStack spacing={1} mb={1}>
+                    <Icon
+                      as={FaThermometerHalf}
+                      color="orange.300"
+                      boxSize={3}
+                    />
+                    <Text
+                      fontSize="xs"
+                      color="whiteAlpha.500"
+                      textTransform="uppercase"
+                      letterSpacing="wide"
+                    >
+                      Temperature
+                    </Text>
+                    <GPUMetricInfoPopover metric="temperature" />
+                  </HStack>
+                  <Text fontSize="lg" fontWeight="semibold" color="white">
+                    {gpuMetrics.tempMin.toFixed(0)}-
+                    {gpuMetrics.tempMax.toFixed(0)}°C
+                  </Text>
+                  <Text fontSize="xs" color="whiteAlpha.500">
+                    avg {gpuMetrics.tempAvg.toFixed(0)}°C
+                  </Text>
+                </Box>
+
+                {/* SM Clock */}
+                <Box p={4}>
+                  <HStack spacing={2} mb={1}>
+                    <Icon as={FaTachometerAlt} color="cyan.300" boxSize={3} />
+                    <Text
+                      fontSize="xs"
+                      color="whiteAlpha.500"
+                      textTransform="uppercase"
+                      letterSpacing="wide"
+                    >
+                      SM Clock
+                    </Text>
+                    <GPUMetricInfoPopover metric="smClock" />
+                  </HStack>
+                  <Text fontSize="lg" fontWeight="semibold" color="white">
+                    {gpuMetrics.clockMin.toFixed(0)}-
+                    {gpuMetrics.clockMax.toFixed(0)}
+                  </Text>
+                  <Text fontSize="xs" color="whiteAlpha.500">
+                    avg {gpuMetrics.clockAvg.toFixed(0)} MHz
+                  </Text>
+                </Box>
+              </SimpleGrid>
+            </Box>
+          );
+        })()}
 
       {/* Wrong Answer Debug Info */}
       {Boolean(metaStatus) && metaStatus === SubmissionStatus.WRONG_ANSWER && (
