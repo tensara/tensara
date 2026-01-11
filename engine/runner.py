@@ -363,6 +363,9 @@ def run_benchmark(
         # Prepare GPU for benchmarking (one-time setup at the beginning)
         utils.prepare_gpu()
 
+        # Create GPU monitor for collecting metrics during benchmark
+        gpu_monitor = utils.GPUMonitor()
+
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
             try:
@@ -371,7 +374,7 @@ def run_benchmark(
                 expected_output = problem.reference_solution(*input_tensors).cpu()
                 actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
-                benchmark_result = utils.run_dynamic_benchmark(
+                benchmark_result = utils.run_dynamic_benchmark_with_gpu_metrics(
                     solution_func,
                     problem,
                     test_id,
@@ -383,6 +386,7 @@ def run_benchmark(
                     max_iterations=20,
                     target_cv=0.01,  # 1% target coefficient of variation
                     param_func=param_func,
+                    gpu_monitor=gpu_monitor,
                 )
 
                 if benchmark_result.get("status") == "WRONG_ANSWER":
