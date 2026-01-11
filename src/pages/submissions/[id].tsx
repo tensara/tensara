@@ -43,6 +43,13 @@ import {
 import { FiCopy } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
+import {
+  GPUMetricInfoIcon,
+  getTempColor,
+  getPStateColor,
+  getThrottleColor,
+  formatThrottleReasons,
+} from "~/components/misc/GPUMetricInfoPopover";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -623,6 +630,193 @@ const SubmissionPage: NextPage<{
                   </Box>
                 </Box>
               )}
+
+              {/* GPU Metrics Section */}
+              {"testResults" in submission &&
+                Array.isArray(submission.testResults) &&
+                submission.testResults.length > 0 &&
+                submission.testResults.some(
+                  (tr: { runs?: unknown[] }) => tr.runs && tr.runs.length > 0
+                ) && (
+                  <Box>
+                    <HStack spacing={2} mb={2}>
+                      <Text color="whiteAlpha.700" fontSize="sm">
+                        GPU Metrics
+                      </Text>
+                      <GPUMetricInfoIcon />
+                    </HStack>
+                    <Box overflowX="auto">
+                      {(() => {
+                        type TestResultWithRuns = {
+                          testId: number;
+                          name: string;
+                          avgRuntimeMs: number;
+                          avgGflops: number | null;
+                          runs: Array<{
+                            runIndex: number;
+                            runtimeMs: number;
+                            gflops: number | null;
+                            gpuSamples: unknown[];
+                            gpuMetrics: {
+                              sample_count: number;
+                              temp_c_min: number;
+                              temp_c_max: number;
+                              temp_c_mean: number;
+                              sm_clock_mhz_min: number;
+                              sm_clock_mhz_max: number;
+                              sm_clock_mhz_mean: number;
+                              pstate_min: number;
+                              pstate_max: number;
+                              throttle_reasons_any: number;
+                            } | null;
+                          }>;
+                        };
+
+                        const testResults =
+                          submission.testResults as TestResultWithRuns[];
+
+                        // Calculate aggregate GPU metrics across all runs
+                        const allMetrics = testResults.flatMap((tr) =>
+                          tr.runs
+                            .filter((r) => r.gpuMetrics)
+                            .map((r) => r.gpuMetrics!)
+                        );
+
+                        if (allMetrics.length === 0) {
+                          return (
+                            <Text color="whiteAlpha.500" fontSize="sm">
+                              No GPU metrics available for this submission.
+                            </Text>
+                          );
+                        }
+
+                        // Aggregate stats
+                        const avgTemp =
+                          allMetrics.reduce(
+                            (sum, m) => sum + m.temp_c_mean,
+                            0
+                          ) / allMetrics.length;
+                        const maxTemp = Math.max(
+                          ...allMetrics.map((m) => m.temp_c_max)
+                        );
+                        const avgSmClock =
+                          allMetrics.reduce(
+                            (sum, m) => sum + m.sm_clock_mhz_mean,
+                            0
+                          ) / allMetrics.length;
+                        const minPState = Math.min(
+                          ...allMetrics.map((m) => m.pstate_min)
+                        );
+                        const maxPState = Math.max(
+                          ...allMetrics.map((m) => m.pstate_max)
+                        );
+                        const combinedThrottle = allMetrics.reduce(
+                          (acc, m) => acc | m.throttle_reasons_any,
+                          0
+                        );
+
+                        return (
+                          <Box
+                            bg="whiteAlpha.50"
+                            borderWidth="1px"
+                            borderColor="whiteAlpha.100"
+                            p={4}
+                            borderRadius="xl"
+                          >
+                            <HStack
+                              spacing={8}
+                              wrap="wrap"
+                              justify="flex-start"
+                            >
+                              <VStack align="start" spacing={0}>
+                                <Text
+                                  color="whiteAlpha.600"
+                                  fontSize="xs"
+                                  fontWeight="medium"
+                                >
+                                  AVG TEMP
+                                </Text>
+                                <Text
+                                  fontSize="lg"
+                                  fontWeight="bold"
+                                  color={getTempColor(avgTemp)}
+                                >
+                                  {avgTemp.toFixed(1)}°C
+                                </Text>
+                              </VStack>
+                              <VStack align="start" spacing={0}>
+                                <Text
+                                  color="whiteAlpha.600"
+                                  fontSize="xs"
+                                  fontWeight="medium"
+                                >
+                                  MAX TEMP
+                                </Text>
+                                <Text
+                                  fontSize="lg"
+                                  fontWeight="bold"
+                                  color={getTempColor(maxTemp)}
+                                >
+                                  {maxTemp.toFixed(1)}°C
+                                </Text>
+                              </VStack>
+                              <VStack align="start" spacing={0}>
+                                <Text
+                                  color="whiteAlpha.600"
+                                  fontSize="xs"
+                                  fontWeight="medium"
+                                >
+                                  AVG SM CLOCK
+                                </Text>
+                                <Text
+                                  fontSize="lg"
+                                  fontWeight="bold"
+                                  color="green.400"
+                                >
+                                  {avgSmClock.toFixed(0)} MHz
+                                </Text>
+                              </VStack>
+                              <VStack align="start" spacing={0}>
+                                <Text
+                                  color="whiteAlpha.600"
+                                  fontSize="xs"
+                                  fontWeight="medium"
+                                >
+                                  P-STATE
+                                </Text>
+                                <Text
+                                  fontSize="lg"
+                                  fontWeight="bold"
+                                  color={getPStateColor(maxPState)}
+                                >
+                                  {minPState === maxPState
+                                    ? `P${minPState}`
+                                    : `P${minPState}-P${maxPState}`}
+                                </Text>
+                              </VStack>
+                              <VStack align="start" spacing={0}>
+                                <Text
+                                  color="whiteAlpha.600"
+                                  fontSize="xs"
+                                  fontWeight="medium"
+                                >
+                                  THROTTLE
+                                </Text>
+                                <Text
+                                  fontSize="lg"
+                                  fontWeight="bold"
+                                  color={getThrottleColor(combinedThrottle)}
+                                >
+                                  {formatThrottleReasons(combinedThrottle)}
+                                </Text>
+                              </VStack>
+                            </HStack>
+                          </Box>
+                        );
+                      })()}
+                    </Box>
+                  </Box>
+                )}
             </VStack>
           </Box>
 
