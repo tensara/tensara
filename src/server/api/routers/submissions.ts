@@ -405,7 +405,7 @@ async function computeLeaderboardData(
             },
           },
         },
-        orderBy: [{ gflops: "desc" }, { runtime: "asc" }],
+        orderBy: { runtime: "asc" },
         distinct: ["userId"],
         take: 5, // Get enough submissions to process top performers
       },
@@ -432,34 +432,29 @@ async function computeLeaderboardData(
     }) => {
       const userBestMap = new Map<string, (typeof problem.submissions)[0]>();
 
-      // Get best submission per user-GPU combination
+      // Get best submission per user-GPU combination (lowest runtime wins)
       for (const submission of problem.submissions) {
-        if (!submission.gflops && !submission.runtime) continue;
+        if (submission.runtime == null) continue;
         const key = `${submission.user.username ?? "Anonymous"}-${
           submission.gpuType
         }`;
         const current = userBestMap.get(key);
-        if (
-          !current ||
-          (submission.gflops
-            ? submission.gflops > current.gflops!
-            : submission.runtime! < current.runtime!)
-        ) {
+        if (!current || submission.runtime < (current.runtime ?? Infinity)) {
           userBestMap.set(key, submission);
         }
       }
 
-      // Get top 3 overall
+      // Get top 3 overall (sorted by runtime, lower is better)
       const topSubmissions = Array.from(userBestMap.values())
         .sort((a, b) => {
-          if (a.gflops && !b.gflops) return -1;
-          if (!a.gflops && b.gflops) return 1;
-
-          if (a.gflops && b.gflops) {
-            return b.gflops - a.gflops;
+          // Both have runtime - sort ascending (lower is better)
+          if (a.runtime != null && b.runtime != null) {
+            return a.runtime - b.runtime;
           }
-
-          return a.runtime! - b.runtime!;
+          // Prefer entries with runtime
+          if (a.runtime != null) return -1;
+          if (b.runtime != null) return 1;
+          return 0;
         })
         .slice(0, 3)
         .map((sub) => ({
@@ -542,14 +537,14 @@ async function computeProblemLeaderboardData(
         },
       },
     },
-    orderBy: { gflops: "desc" },
+    orderBy: { runtime: "asc" },
   });
 
-  // Calculate best submission per user-GPU combination
+  // Calculate best submission per user-GPU combination (lowest runtime wins)
   const userGpuBestMap = new Map<string, (typeof submissions)[0]>();
 
   for (const submission of submissions) {
-    if (!submission.gflops && !submission.runtime) continue;
+    if (submission.runtime == null) continue;
 
     const userGpuKey = `${submission.user.username ?? "Anonymous"}-${
       submission.gpuType
@@ -558,9 +553,7 @@ async function computeProblemLeaderboardData(
 
     if (
       !currentBest ||
-      (submission.gflops
-        ? submission.gflops > currentBest.gflops!
-        : submission.runtime! < currentBest.runtime!)
+      submission.runtime < (currentBest.runtime ?? Infinity)
     ) {
       userGpuBestMap.set(userGpuKey, submission);
     }
@@ -568,13 +561,13 @@ async function computeProblemLeaderboardData(
 
   return Array.from(userGpuBestMap.values())
     .sort((a, b) => {
-      if (a.gflops && !b.gflops) return -1;
-      if (!a.gflops && b.gflops) return 1;
-
-      if (a.gflops && b.gflops) {
-        return b.gflops - a.gflops;
+      // Sort by runtime ascending (lower is better)
+      if (a.runtime != null && b.runtime != null) {
+        return a.runtime - b.runtime;
       }
-      return a.runtime! - b.runtime!;
+      if (a.runtime != null) return -1;
+      if (b.runtime != null) return 1;
+      return 0;
     })
     .map((sub) => ({
       id: sub.id,
