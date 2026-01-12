@@ -19,6 +19,8 @@ import {
   MenuList,
   MenuItem,
   Button,
+  IconButton,
+  Link,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
@@ -30,6 +32,7 @@ import {
   FaChevronUp,
   FaCheckCircle,
   FaClock,
+  FaGithub,
 } from "react-icons/fa";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
@@ -153,6 +156,9 @@ export default function ProblemsPage() {
     }
   };
 
+  const contributeUrl = "https://github.com/tensara/problems/";
+  const hasSearch = searchQuery.trim().length > 0;
+
   const filteredAndSortedProblems = problems
     ?.filter((problem) => {
       const matchesSearch = problem.title
@@ -238,7 +244,7 @@ export default function ProblemsPage() {
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         <VStack spacing={6} align="stretch" w="full">
           <HStack spacing={4} w="full" justify="space-between">
-            <InputGroup>
+            <InputGroup flex={1}>
               <InputLeftElement pointerEvents="none">
                 <FaSearch color="#d4d4d8" />
               </InputLeftElement>
@@ -254,7 +260,7 @@ export default function ProblemsPage() {
               />
             </InputGroup>
 
-            <HStack spacing={4}>
+            <HStack spacing={4} justify="flex-end" flexWrap="wrap">
               <Menu>
                 <MenuButton
                   as={Button}
@@ -382,6 +388,36 @@ export default function ProblemsPage() {
                   </MenuList>
                 </Menu>
               ) : null}
+
+              <Button
+                as="a"
+                href={contributeUrl}
+                target="_blank"
+                rel="noreferrer"
+                bg="whiteAlpha.50"
+                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                _active={{ bg: "whiteAlpha.150" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                color="white"
+                leftIcon={<FaGithub />}
+                display={{ base: "none", md: "inline-flex" }}
+              >
+                Contribute
+              </Button>
+              <IconButton
+                as="a"
+                href={contributeUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Contribute problems on GitHub"
+                icon={<FaGithub />}
+                bg="whiteAlpha.50"
+                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                _active={{ bg: "whiteAlpha.150" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                color="white"
+                display={{ base: "inline-flex", md: "none" }}
+              />
             </HStack>
           </HStack>
 
@@ -397,115 +433,21 @@ export default function ProblemsPage() {
             border="1px solid"
             borderColor="whiteAlpha.100"
           >
-            <Table variant="simple">
-              <Thead bg="brand.card">
-                <Tr>
-                  <Th
-                    color="gray.300"
-                    fontSize="md"
-                    py={4}
-                    borderBottom={
-                      filteredAndSortedProblems.length ? "1px solid" : "none"
-                    }
-                    borderColor={
-                      filteredAndSortedProblems.length
-                        ? "brand.primary"
-                        : "none"
-                    }
-                    cursor="pointer"
-                    onClick={() => handleSort("title")}
-                    _hover={{ color: "white" }}
-                  >
-                    <HStack spacing={2}>
-                      <Box
-                        display="inline-flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        minW="18px"
-                        minH="18px"
-                      >
-                        <Box w="16px" h="16px" />
-                      </Box>
-                      <Text>Title</Text>
-                      <SortIcon field="title" />
-                    </HStack>
-                  </Th>
-                  <Th
-                    color="gray.300"
-                    fontSize="md"
-                    width="180px"
-                    borderBottom={
-                      filteredAndSortedProblems.length ? "1px solid" : "none"
-                    }
-                    borderColor={
-                      filteredAndSortedProblems.length
-                        ? "brand.primary"
-                        : "none"
-                    }
-                    cursor="pointer"
-                    onClick={() => handleSort("difficulty")}
-                    _hover={{ color: "white" }}
-                  >
-                    <HStack spacing={2}>
-                      <Text>Difficulty</Text>
-                      <SortIcon field="difficulty" />
-                    </HStack>
-                  </Th>
-                  <Th
-                    color="gray.300"
-                    fontSize="md"
-                    width="180px"
-                    borderBottom={
-                      filteredAndSortedProblems.length ? "1px solid" : "none"
-                    }
-                    borderColor={
-                      filteredAndSortedProblems.length
-                        ? "brand.primary"
-                        : "none"
-                    }
-                    cursor="pointer"
-                    _hover={{ color: "white" }}
-                  >
-                    Tags
-                  </Th>
-                  <Th
-                    color="gray.300"
-                    fontSize="md"
-                    width="200px"
-                    display={{ base: "none", md: "table-cell" }}
-                    borderBottom={
-                      filteredAndSortedProblems.length ? "1px solid" : "none"
-                    }
-                    borderColor={
-                      filteredAndSortedProblems.length
-                        ? "brand.primary"
-                        : "none"
-                    }
-                    cursor="pointer"
-                    onClick={() => handleSort("submissionCount")}
-                    _hover={{ color: "white" }}
-                  >
-                    <HStack spacing={2}>
-                      <Text>Submissions</Text>
-                      <SortIcon field="submissionCount" />
-                    </HStack>
-                  </Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {filteredAndSortedProblems?.map((problem) => (
-                  <Tr
-                    bg="brand.secondary"
-                    key={problem.id}
-                    _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
-                    transition="all 0.2s"
-                    cursor="pointer"
-                    onClick={(e) => handleProblemClick(e, problem.slug)}
-                    borderBottom="1px solid"
-                    borderColor="gray.800"
-                  >
-                    <Td color="white" borderBottom="none">
-                      <HStack spacing={3} align="center">
+            {filteredAndSortedProblems.length ? (
+              <Table variant="simple">
+                <Thead bg="brand.card">
+                  <Tr>
+                    <Th
+                      color="gray.300"
+                      fontSize="md"
+                      py={4}
+                      borderBottom="1px solid"
+                      borderColor="brand.primary"
+                      cursor="pointer"
+                      onClick={() => handleSort("title")}
+                      _hover={{ color: "white" }}
+                    >
+                      <HStack spacing={2}>
                         <Box
                           display="inline-flex"
                           alignItems="center"
@@ -513,64 +455,171 @@ export default function ProblemsPage() {
                           minW="18px"
                           minH="18px"
                         >
-                          {problem.solvedByCurrentUser ? (
-                            <FaCheckCircle
-                              color="#4ade80"
-                              size={16}
-                              opacity={0.68}
-                            />
-                          ) : problem.attemptedByCurrentUser ? (
-                            <FaClock color="#fbbf24" size={16} opacity={0.68} />
-                          ) : (
-                            // empty placeholder to preserve alignment
-                            <Box w="16px" h="16px" />
-                          )}
+                          <Box w="16px" h="16px" />
                         </Box>
-                        <Text>{problem.title}</Text>
+                        <Text>Title</Text>
+                        <SortIcon field="title" />
                       </HStack>
-                    </Td>
-                    <Td borderBottom="none">
-                      <Badge
-                        colorScheme={getDifficultyColor(problem.difficulty)}
-                        px={2}
-                        py={0.5}
-                        borderRadius="md"
-                      >
-                        {problem.difficulty}
-                      </Badge>
-                    </Td>
-                    <Td color="white" borderBottom="none">
-                      {problem.tags && problem.tags.length > 0 && (
-                        <HStack spacing={1} flex="0 0 auto">
-                          {problem.tags.map((tag: string) => (
-                            <Badge
-                              key={tag}
-                              bg="transparent"
-                              color="gray.100"
-                              variant="solid"
-                              fontSize="xs"
-                              px={2}
-                              py={0.5}
-                              borderRadius="full"
-                              title={
-                                tagAltNames[tag as keyof typeof tagAltNames]
-                              }
-                            >
-                              {tagNames[tag as keyof typeof tagNames]}
-                            </Badge>
-                          ))}
-                        </HStack>
-                      )}
-                    </Td>
-                    <Td borderBottom="none">
-                      <Text color="gray.400" fontSize="sm">
-                        {problem.submissionCount}
-                      </Text>
-                    </Td>
+                    </Th>
+                    <Th
+                      color="gray.300"
+                      fontSize="md"
+                      width="180px"
+                      borderBottom="1px solid"
+                      borderColor="brand.primary"
+                      cursor="pointer"
+                      onClick={() => handleSort("difficulty")}
+                      _hover={{ color: "white" }}
+                    >
+                      <HStack spacing={2}>
+                        <Text>Difficulty</Text>
+                        <SortIcon field="difficulty" />
+                      </HStack>
+                    </Th>
+                    <Th
+                      color="gray.300"
+                      fontSize="md"
+                      width="180px"
+                      borderBottom="1px solid"
+                      borderColor="brand.primary"
+                      cursor="pointer"
+                      _hover={{ color: "white" }}
+                    >
+                      Tags
+                    </Th>
+                    <Th
+                      color="gray.300"
+                      fontSize="md"
+                      width="200px"
+                      display={{ base: "none", md: "table-cell" }}
+                      borderBottom="1px solid"
+                      borderColor="brand.primary"
+                      cursor="pointer"
+                      onClick={() => handleSort("submissionCount")}
+                      _hover={{ color: "white" }}
+                    >
+                      <HStack spacing={2}>
+                        <Text>Submissions</Text>
+                        <SortIcon field="submissionCount" />
+                      </HStack>
+                    </Th>
                   </Tr>
-                ))}
-              </Tbody>
-            </Table>
+                </Thead>
+                <Tbody>
+                  {filteredAndSortedProblems?.map((problem) => (
+                    <Tr
+                      bg="brand.secondary"
+                      key={problem.id}
+                      _hover={{ bg: "gray.700", transform: "translateY(-1px)" }}
+                      transition="all 0.2s"
+                      cursor="pointer"
+                      onClick={(e) => handleProblemClick(e, problem.slug)}
+                      borderBottom="1px solid"
+                      borderColor="gray.800"
+                    >
+                      <Td color="white" borderBottom="none">
+                        <HStack spacing={3} align="center">
+                          <Box
+                            display="inline-flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            minW="18px"
+                            minH="18px"
+                          >
+                            {problem.solvedByCurrentUser ? (
+                              <FaCheckCircle
+                                color="#4ade80"
+                                size={16}
+                                opacity={0.68}
+                              />
+                            ) : problem.attemptedByCurrentUser ? (
+                              <FaClock
+                                color="#fbbf24"
+                                size={16}
+                                opacity={0.68}
+                              />
+                            ) : (
+                              // empty placeholder to preserve alignment
+                              <Box w="16px" h="16px" />
+                            )}
+                          </Box>
+                          <Text>{problem.title}</Text>
+                        </HStack>
+                      </Td>
+                      <Td borderBottom="none">
+                        <Badge
+                          colorScheme={getDifficultyColor(problem.difficulty)}
+                          px={2}
+                          py={0.5}
+                          borderRadius="md"
+                        >
+                          {problem.difficulty}
+                        </Badge>
+                      </Td>
+                      <Td color="white" borderBottom="none">
+                        {problem.tags && problem.tags.length > 0 && (
+                          <HStack spacing={1} flex="0 0 auto">
+                            {problem.tags.map((tag: string) => (
+                              <Badge
+                                key={tag}
+                                bg="transparent"
+                                color="gray.100"
+                                variant="solid"
+                                fontSize="xs"
+                                px={2}
+                                py={0.5}
+                                borderRadius="full"
+                                title={
+                                  tagAltNames[tag as keyof typeof tagAltNames]
+                                }
+                              >
+                                {tagNames[tag as keyof typeof tagNames]}
+                              </Badge>
+                            ))}
+                          </HStack>
+                        )}
+                      </Td>
+                      <Td borderBottom="none">
+                        <Text color="gray.400" fontSize="sm">
+                          {problem.submissionCount}
+                        </Text>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            ) : (
+              <VStack py={12} px={6} spacing={3} align="center">
+                <Text color="white" fontSize="lg" fontWeight="600">
+                  {hasSearch ? "No such problem found." : "No problems found."}
+                </Text>
+                <Text color="whiteAlpha.700" textAlign="center">
+                  Interested in contributing? Add a new problem on{" "}
+                  <Link
+                    href={contributeUrl}
+                    isExternal
+                    color="brand.primary"
+                    textDecoration="underline"
+                    _hover={{ color: "green.300" }}
+                  >
+                    github.com/tensara/problems
+                  </Link>
+                  .
+                </Text>
+                <Button
+                  as="a"
+                  href={contributeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  bg="whiteAlpha.100"
+                  _hover={{ bg: "whiteAlpha.200" }}
+                  color="white"
+                  leftIcon={<FaGithub />}
+                >
+                  Contribute a problem
+                </Button>
+              </VStack>
+            )}
           </Box>
         </VStack>
       </Box>
