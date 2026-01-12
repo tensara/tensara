@@ -506,34 +506,34 @@ export default function HomePage() {
                   minH="420px"
                 >
                   <AnimatePresence initial={false}>
-                    <Box
-                      position="absolute"
-                      w="full"
-                      display="flex"
-                      justifyContent="center"
-                    >
-                      {(isTypingCode || isFadingCode) && (
+                    {(isTypingCode || isFadingCode) && (
+                      <Box
+                        key="cuda-wrapper"
+                        position="absolute"
+                        w="full"
+                        display="flex"
+                        justifyContent="center"
+                      >
                         <AnimatedCudaEditor
-                          key="cuda-editor"
                           onTypingComplete={handleTypingComplete}
                           isFadingOut={isFadingCode}
                         />
-                      )}
-                    </Box>
-                    <Box
-                      position="absolute"
-                      w="full"
-                      display="flex"
-                      justifyContent="center"
-                    >
-                      {isShowingBenchmarks && (
+                      </Box>
+                    )}
+                    {isShowingBenchmarks && (
+                      <Box
+                        key="benchmarks-wrapper"
+                        position="absolute"
+                        w="full"
+                        display="flex"
+                        justifyContent="center"
+                      >
                         <LandingBenchmarkDisplay
-                          key="benchmarks"
                           isVisible={isShowingBenchmarks}
                           dummyData={dummyBenchmarkData}
                         />
-                      )}
-                    </Box>
+                      </Box>
+                    )}
                   </AnimatePresence>
                 </Flex>
               )}

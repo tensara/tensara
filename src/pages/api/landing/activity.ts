@@ -19,15 +19,35 @@ type LandingActivityResponse = {
   }>;
 };
 
-async function fetchRepoStars(): Promise<number | null> {
-  const repo = "tensara/tensara";
-  const token = null;
+function logGithubCall(params: {
+  requestId: string;
+  endpoint: "repo" | "pulls";
+  repo: string;
+  status: number;
+  remaining: string | null;
+  reset: string | null;
+}) {
+  console.log("[github]", params);
+}
+
+async function fetchRepoStars(requestId: string): Promise<number | null> {
+  const repo = process.env.GITHUB_REPO ?? "tensara/tensara";
+  const token = process.env.GITHUB_TOKEN;
 
   const res = await fetch(`https://api.github.com/repos/${repo}`, {
     headers: {
       Accept: "application/vnd.github+json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
+  });
+
+  logGithubCall({
+    requestId,
+    endpoint: "repo",
+    repo,
+    status: res.status,
+    remaining: res.headers.get("x-ratelimit-remaining"),
+    reset: res.headers.get("x-ratelimit-reset"),
   });
 
   if (!res.ok) return null;
@@ -37,11 +57,13 @@ async function fetchRepoStars(): Promise<number | null> {
     : null;
 }
 
-async function fetchLatestMergedPullRequests(): Promise<
+async function fetchLatestMergedPullRequests(
+  requestId: string,
+): Promise<
   LandingActivityResponse["prs"]
 > {
-  const repo = "tensara/tensara";
-  const token = null;
+  const repo = process.env.GITHUB_REPO ?? "tensara/tensara";
+  const token = process.env.GITHUB_TOKEN;
 
   const res = await fetch(
     `https://api.github.com/repos/${repo}/pulls?state=closed&per_page=20&sort=updated&direction=desc`,
@@ -52,6 +74,15 @@ async function fetchLatestMergedPullRequests(): Promise<
       },
     }
   );
+
+  logGithubCall({
+    requestId,
+    endpoint: "pulls",
+    repo,
+    status: res.status,
+    remaining: res.headers.get("x-ratelimit-remaining"),
+    reset: res.headers.get("x-ratelimit-reset"),
+  });
 
   if (!res.ok) return [];
   const json = (await res.json()) as Array<{
@@ -77,6 +108,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<LandingActivityResponse>
 ) {
+  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({
@@ -89,8 +122,8 @@ export default async function handler(
 
   try {
     const [repoStars, prs, problems, blogPosts] = await Promise.all([
-      fetchRepoStars().catch(() => null),
-      fetchLatestMergedPullRequests().catch(() => []),
+      fetchRepoStars(requestId).catch(() => null),
+      fetchLatestMergedPullRequests(requestId).catch(() => []),
       db.problem
         .findMany({
           orderBy: { createdAt: "desc" },
