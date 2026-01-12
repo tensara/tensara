@@ -388,42 +388,11 @@ export default function ProblemsPage() {
                   </MenuList>
                 </Menu>
               ) : null}
-
-              <Button
-                as="a"
-                href={contributeUrl}
-                target="_blank"
-                rel="noreferrer"
-                bg="whiteAlpha.50"
-                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-                _active={{ bg: "whiteAlpha.150" }}
-                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-                color="white"
-                leftIcon={<FaGithub />}
-                display={{ base: "none", md: "inline-flex" }}
-              >
-                Contribute
-              </Button>
-              <IconButton
-                as="a"
-                href={contributeUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Contribute problems on GitHub"
-                icon={<FaGithub />}
-                bg="whiteAlpha.50"
-                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-                _active={{ bg: "whiteAlpha.150" }}
-                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-                color="white"
-                display={{ base: "inline-flex", md: "none" }}
-              />
             </HStack>
           </HStack>
 
           <Text color="gray.400" fontSize="sm">
-            Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "}
-            problems
+            Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "} problems. Help us reach {(Math.floor((problems?.length ?? 0) / 100) + 1) * 100} problems <Link href={contributeUrl} isExternal color="brand.primary" textDecoration="underline" _hover={{ color: "green.300" }}>here</Link>!
           </Text>
 
           <Box
