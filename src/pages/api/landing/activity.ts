@@ -19,18 +19,7 @@ type LandingActivityResponse = {
   }>;
 };
 
-function logGithubCall(params: {
-  requestId: string;
-  endpoint: "repo" | "pulls";
-  repo: string;
-  status: number;
-  remaining: string | null;
-  reset: string | null;
-}) {
-  console.log("[github]", params);
-}
-
-async function fetchRepoStars(requestId: string): Promise<number | null> {
+async function fetchRepoStars(): Promise<number | null> {
   const repo = process.env.GITHUB_REPO ?? "tensara/tensara";
   const token = process.env.GITHUB_TOKEN;
 
@@ -41,15 +30,6 @@ async function fetchRepoStars(requestId: string): Promise<number | null> {
     },
   });
 
-  logGithubCall({
-    requestId,
-    endpoint: "repo",
-    repo,
-    status: res.status,
-    remaining: res.headers.get("x-ratelimit-remaining"),
-    reset: res.headers.get("x-ratelimit-reset"),
-  });
-
   if (!res.ok) return null;
   const json = (await res.json()) as { stargazers_count?: number };
   return typeof json.stargazers_count === "number"
@@ -57,9 +37,7 @@ async function fetchRepoStars(requestId: string): Promise<number | null> {
     : null;
 }
 
-async function fetchLatestMergedPullRequests(
-  requestId: string,
-): Promise<
+async function fetchLatestMergedPullRequests(): Promise<
   LandingActivityResponse["prs"]
 > {
   const repo = process.env.GITHUB_REPO ?? "tensara/tensara";
@@ -74,15 +52,6 @@ async function fetchLatestMergedPullRequests(
       },
     }
   );
-
-  logGithubCall({
-    requestId,
-    endpoint: "pulls",
-    repo,
-    status: res.status,
-    remaining: res.headers.get("x-ratelimit-remaining"),
-    reset: res.headers.get("x-ratelimit-reset"),
-  });
 
   if (!res.ok) return [];
   const json = (await res.json()) as Array<{
@@ -108,8 +77,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<LandingActivityResponse>
 ) {
-  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({
@@ -122,8 +89,8 @@ export default async function handler(
 
   try {
     const [repoStars, prs, problems, blogPosts] = await Promise.all([
-      fetchRepoStars(requestId).catch(() => null),
-      fetchLatestMergedPullRequests(requestId).catch(() => []),
+      fetchRepoStars().catch(() => null),
+      fetchLatestMergedPullRequests().catch(() => []),
       db.problem
         .findMany({
           orderBy: { createdAt: "desc" },
