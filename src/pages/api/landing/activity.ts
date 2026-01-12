@@ -20,8 +20,8 @@ type LandingActivityResponse = {
 };
 
 async function fetchRepoStars(): Promise<number | null> {
-  const repo = process.env.GITHUB_REPO ?? "tensara/tensara";
-  const token = process.env.GITHUB_TOKEN;
+  const repo = "tensara/tensara";
+  const token = null;
 
   const res = await fetch(`https://api.github.com/repos/${repo}`, {
     headers: {
@@ -40,8 +40,8 @@ async function fetchRepoStars(): Promise<number | null> {
 async function fetchLatestMergedPullRequests(): Promise<
   LandingActivityResponse["prs"]
 > {
-  const repo = process.env.GITHUB_REPO ?? "tensara/tensara";
-  const token = process.env.GITHUB_TOKEN;
+  const repo = "tensara/tensara";
+  const token = null;
 
   const res = await fetch(
     `https://api.github.com/repos/${repo}/pulls?state=closed&per_page=20&sort=updated&direction=desc`,
