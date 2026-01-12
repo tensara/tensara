@@ -46,7 +46,7 @@ const FeatureCard = ({
 }) => {
   return (
     <Box
-      bg="brand.card"
+      bg="transparent"
       borderRadius="xl"
       p={6}
       borderWidth="1px"
@@ -144,8 +144,13 @@ const ActivityItem = ({
         color="white"
         fontWeight="600"
         title={title}
+        transition="all 1s"
+        _hover={{
+          textDecoration: "none",
+          color: "brand.primary",
+        }}
       >
-        <Text isTruncated maxW="full">
+        <Text isTruncated maxW="full" transition="color 0.3s">
           {title}
         </Text>
       </Link>
@@ -488,10 +493,6 @@ export default function HomePage() {
                     </Link>
                   </Text>
                 </MotionFlex>
-
-                <Text color="whiteAlpha.600" fontSize="sm" mt={-2}>
-                  Stars help others find Tensara
-                </Text>
               </MotionVStack>
               {/* Right side container for animation - Adjusted for centering */}
               {!isMobile && (
@@ -621,7 +622,7 @@ export default function HomePage() {
 
               <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
                 <Box
-                  bg="brand.card"
+                  bg="transparent"
                   borderRadius="xl"
                   overflow="hidden"
                   borderWidth="1px"
@@ -689,7 +690,7 @@ export default function HomePage() {
                 </Box>
 
                 <Box
-                  bg="brand.card"
+                  bg="transparent"
                   borderRadius="xl"
                   overflow="hidden"
                   borderWidth="1px"
@@ -752,7 +753,7 @@ export default function HomePage() {
                 </Box>
 
                 <Box
-                  bg="brand.card"
+                  bg="transparent"
                   borderRadius="xl"
                   overflow="hidden"
                   borderWidth="1px"
