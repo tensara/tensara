@@ -80,20 +80,23 @@ type UserRanking = {
   };
 };
 
-// Helper function to format performance numbers
-const formatPerformance = (gflops: number | null | undefined): string => {
-  if (!gflops) return "N/A";
-  if (gflops >= 1000) {
-    const tflops = (gflops / 1000).toFixed(2);
-    return `${parseFloat(tflops)}T`;
-  }
-  return `${parseFloat(gflops.toFixed(2))}G`;
-};
-
 // Helper function to format rating numbers
 const formatRating = (rating: number | null | undefined): string => {
   if (!rating) return "0";
   return rating.toFixed(0);
+};
+
+const formatRuntime = (runtime: number | null | undefined): string => {
+  if (runtime == null) return "N/A";
+  if (runtime < 1) {
+    const microseconds = runtime * 1000;
+    return `${microseconds.toFixed(2)} μs`;
+  }
+  if (runtime >= 1000) {
+    const seconds = runtime / 1000;
+    return `${seconds.toFixed(2)} s`;
+  }
+  return `${runtime.toFixed(2)} ms`;
 };
 
 const getMedalColor = (index: number): string => {
@@ -807,9 +810,7 @@ const LeaderboardPage: NextPage = () => {
                                             fontVariantNumeric: "tabular-nums",
                                           }}
                                         >
-                                          {submission.runtime != null
-                                            ? `${submission.runtime.toFixed(2)} ms`
-                                            : "N/A"}
+                                          {formatRuntime(submission.runtime)}
                                         </Text>
                                       </Td>
                                     </Tr>
