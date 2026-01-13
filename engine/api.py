@@ -13,7 +13,7 @@ CURR_DIR = Path(__file__).parent
 
 PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl", "pynvml"]
 UV_PREFIX = "uv pip install --system "
-LOCAL_SOURCE = ["utils", "runner", "problem", "api"]
+LOCAL_SOURCE = ["utils", "runner", "problem", "api", "gpu_monitor"]
 APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
 
 devel_image = (
