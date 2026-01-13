@@ -34,12 +34,12 @@ const METRIC_INFO: Record<
   temperature: {
     title: "GPU Temperature",
     description:
-      "GPU core temperature during kernel execution. Higher temperatures indicate heavy load. Sustained high temperatures (>80°C) may trigger thermal throttling, reducing performance.",
+      "GPU core temperature during kernel execution. Sustained high temperatures (>80°C) may trigger thermal throttling, reducing performance. Hover over each test case to see the temperature range.",
   },
   smClock: {
     title: "SM Clock Speed",
     description:
-      "Streaming Multiprocessor clock speed in MHz. Higher values indicate the GPU is running at higher performance levels. The clock may dynamically adjust based on power and thermal conditions.",
+      "Streaming Multiprocessor clock speed in MHz. The clock may dynamically adjust based on power and thermal conditions. Hover over each test case to see the clock speed range.",
   },
   pState: {
     title: "Performance State",
@@ -73,7 +73,7 @@ export const GPUMetricInfoPopover = ({ metric }: GPUMetricInfoPopoverProps) => {
         />
       </PopoverTrigger>
       <PopoverContent
-        bg="gray.800"
+        bg="brand.secondary"
         borderColor="whiteAlpha.200"
         w="280px"
         _focus={{ boxShadow: "none" }}
@@ -110,7 +110,7 @@ export const GPUMetricInfoPopoverLegacy = ({
     <Popover trigger="hover" placement="top">
       <PopoverTrigger>{children}</PopoverTrigger>
       <PopoverContent
-        bg="gray.800"
+        bg="brand.secondary"
         borderColor="whiteAlpha.200"
         maxW="400px"
         _focus={{ boxShadow: "none" }}

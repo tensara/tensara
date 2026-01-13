@@ -13,6 +13,7 @@ import queue
 import threading
 import io
 import contextlib
+from gpu_monitor import GPUMonitor
 
 
 MAX_SANDBOX_OUTPUT_BYTES = 64 * 1024  # Cap console streaming to 64 KiB for responsiveness
@@ -364,7 +365,7 @@ def run_benchmark(
         utils.prepare_gpu()
 
         # Create GPU monitor for collecting metrics during benchmark
-        gpu_monitor = utils.GPUMonitor()
+        gpu_monitor = GPUMonitor()
 
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
@@ -374,7 +375,7 @@ def run_benchmark(
                 expected_output = problem.reference_solution(*input_tensors).cpu()
                 actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
 
-                benchmark_result = utils.run_dynamic_benchmark_with_gpu_metrics(
+                benchmark_result = utils.run_dynamic_benchmark(
                     solution_func,
                     problem,
                     test_id,

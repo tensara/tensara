@@ -609,183 +609,12 @@ def run_dynamic_benchmark(
     target_cv=0.02,
     long_kernel_threshold=1.0,
     param_func=None,
+    gpu_monitor=None,
 ):
     """
     Run a CUDA benchmark with dynamic stopping based on GFLOPS variance.
     If kernel execution time exceeds threshold, run fixed number of iterations instead.
-
-    Args:
-        solution_func: CUDA library with the solution function
-        problem: Problem definition with verification methods
-        test_case: The specific test case to benchmark
-        input_tensors: Input tensors for the CUDA function
-        actual_output: Output tensor for the CUDA function
-        language: Programming language of the solution ("cuda", "mojo", or "python")
-        min_iterations: Minimum number of iterations to run
-        max_iterations: Maximum number of iterations to run
-        target_cv: Target coefficient of variation to achieve
-        long_kernel_threshold: Time in seconds above which CV convergence is skipped
-
-    Returns:
-        benchmark_result: Dictionary with benchmark results
-    """
-    # Prepare pointers for CUDA
-    if param_func is None:
-        parameters, _keep_alive = make_parameters(
-            language, solution_func, input_tensors, actual_output, problem, test_case
-        )
-    else:
-        parameters, _keep_alive = param_func(
-            language, solution_func, input_tensors, actual_output, problem, test_case
-        )
-
-    if language == "cute":
-        import cutlass.cute as cute
-
-        solution_func = cute.compile(solution_func, *parameters)
-
-    # Calculate FLOPS for this test case
-    has_flops = problem.supports_flops()
-    flops = problem.get_flops(test_case) if has_flops else None
-
-    # Warm up run
-    prepare_gpu()
-    torch.cuda.synchronize()
-
-    actual_output.fill_(1.0)
-    warmup_checksum_before = actual_output.sum().item()
-
-    start_event = torch.cuda.Event(enable_timing=True)
-    end_event = torch.cuda.Event(enable_timing=True)
-
-    start_event.record()
-    solution_func(*parameters)
-    end_event.record()
-    torch.cuda.synchronize()
-
-    warmup_checksum_after = actual_output.sum().item()
-    if warmup_checksum_after == warmup_checksum_before:
-        return {
-            "name": test_case["name"],
-            "test_id": test_id,
-            "status": "WRONG_ANSWER",
-            "debug_info": {
-                "message": f"Mismatched checksum, solution did not modify output ({warmup_checksum_after} != {warmup_checksum_before})",
-            },
-        }
-
-    initial_runtime = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
-
-    # Determine if this is a long-running kernel and how many iterations to run
-    is_long_kernel = initial_runtime >= long_kernel_threshold
-
-    if is_long_kernel:
-        # For long kernels, use fixed number of iterations
-        target_iterations = (min_iterations + max_iterations) // 2
-    else:
-        # For short kernels, use CV-based convergence with max_iterations cap
-        target_iterations = max_iterations
-
-    # Collect runtime measurements
-    runtimes = [initial_runtime]  # Include the initial runtime
-
-    gflops_measurements = []
-    if has_flops and flops is not None and initial_runtime > 0:
-        gflops_measurements.append((flops / initial_runtime) / 1e9)
-
-    for iteration in range(1, target_iterations):  # Start from 1 since we already did one iteration
-        flush_l2_cache()
-
-        actual_output.fill_(1.0)
-        iter_checksum_before = actual_output.sum().item()
-
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
-
-        # Start timing
-        start_event.record()
-
-        # Run the kernel
-        solution_func(*parameters)
-
-        # End timing
-        end_event.record()
-        torch.cuda.synchronize()
-
-        iter_checksum_after = actual_output.sum().item()
-        if iter_checksum_after == iter_checksum_before:
-            return {
-                "name": test_case["name"],
-                "test_id": test_id,
-                "status": "WRONG_ANSWER",
-                "debug_info": {
-                    "message": f"Mismatched checksum, solution did not modify output ({iter_checksum_after} != {iter_checksum_before})",
-                },
-            }
-
-        elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
-        runtimes.append(elapsed_time)
-
-        # Calculate GFLOPS
-        if has_flops and flops is not None and elapsed_time > 0:
-            gflops = (flops / elapsed_time) / 1e9  # Convert to GFLOPS
-            gflops_measurements.append(gflops)
-
-        # Check if we've done enough iterations and the variance is low enough
-        # Only do this check for short kernels
-        if not is_long_kernel and iteration + 1 >= min_iterations:
-            if has_flops and gflops_measurements:
-                mean_val = statistics.mean(gflops_measurements)
-                if len(gflops_measurements) > 1:
-                    stdev_val = statistics.stdev(gflops_measurements)
-                    cv = stdev_val / mean_val if mean_val > 0 else float("inf")
-                    if cv < target_cv:
-                        break
-            elif not has_flops and len(runtimes) > 1:
-                mean_val = statistics.mean(runtimes)
-                stdev_val = statistics.stdev(runtimes)
-                cv = stdev_val / mean_val if mean_val > 0 else float("inf")
-                if cv < target_cv:
-                    break
-
-    if len(runtimes) > 1:
-        mean_runtime = statistics.mean(runtimes)
-    else:
-        mean_runtime = runtimes[0]
-
-    benchmark_result = {
-        "name": test_case["name"],
-        "test_id": test_id,
-        "runtime_ms": mean_runtime * 1000,
-    }
-
-    if gflops_measurements:  # only if non-empty
-        mean_gflops = statistics.mean(gflops_measurements)
-        benchmark_result["gflops"] = mean_gflops
-
-    return benchmark_result
-
-
-def run_dynamic_benchmark_with_gpu_metrics(
-    solution_func,
-    problem,
-    test_id,
-    test_case,
-    input_tensors,
-    actual_output,
-    language="cuda",
-    min_iterations=5,
-    max_iterations=15,
-    target_cv=0.02,
-    long_kernel_threshold=1.0,
-    param_func=None,
-    gpu_monitor=None,
-):
-    """
-    Run a CUDA benchmark with dynamic stopping and GPU metrics collection.
-
-    This function is similar to run_dynamic_benchmark but also collects per-run
-    GPU metrics (temperature, SM clock, etc.) using the GPUMonitor class.
+    Optionally collects GPU metrics per run if gpu_monitor is provided.
 
     Args:
         solution_func: CUDA library with the solution function
@@ -800,10 +629,11 @@ def run_dynamic_benchmark_with_gpu_metrics(
         target_cv: Target coefficient of variation to achieve
         long_kernel_threshold: Time in seconds above which CV convergence is skipped
         param_func: Optional function to prepare parameters
-        gpu_monitor: GPUMonitor instance for collecting GPU metrics
+        gpu_monitor: Optional GPUMonitor instance for collecting GPU metrics
 
     Returns:
-        benchmark_result: Dictionary with benchmark results including per-run GPU metrics
+        benchmark_result: Dictionary with benchmark results. If gpu_monitor is provided,
+            includes a "runs" array with per-run GPU metrics data.
     """
     # Prepare pointers for CUDA
     if param_func is None:
@@ -879,8 +709,11 @@ def run_dynamic_benchmark_with_gpu_metrics(
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
 
-        # Record start time for GPU sample filtering
-        run_start_time = time.time()
+        run_key = f"{test_id}_{iteration}"
+
+        if gpu_monitor:
+            gpu_monitor.current_run_key = run_key
+            gpu_monitor.take_sample_now(run_key)
 
         # Start timing
         start_event.record()
@@ -892,13 +725,11 @@ def run_dynamic_benchmark_with_gpu_metrics(
         end_event.record()
         torch.cuda.synchronize()
 
-        # Record end time for GPU sample filtering
-        run_end_time = time.time()
-
         iter_checksum_after = actual_output.sum().item()
         if iter_checksum_after == iter_checksum_before:
             # Stop monitoring before returning error
             if gpu_monitor:
+                gpu_monitor.current_run_key = None
                 gpu_monitor.stop()
             return {
                 "name": test_case["name"],
@@ -918,30 +749,26 @@ def run_dynamic_benchmark_with_gpu_metrics(
             run_gflops = (flops / elapsed_time) / 1e9
             gflops_measurements.append(run_gflops)
 
-        # Get GPU samples for this run period
         run_gpu_samples = []
         run_gpu_metrics = None
         if gpu_monitor:
-            # Get all samples collected so far, then filter for this run's time window
-            all_samples = gpu_monitor.get_samples()
-            run_gpu_samples = gpu_monitor.get_samples_for_period(
-                run_start_time, run_end_time, all_samples
-            )
+            run_gpu_samples = gpu_monitor.get_samples_for_run(run_key)
+            gpu_monitor.current_run_key = None
             if run_gpu_samples:
                 run_gpu_metrics = gpu_monitor.compute_stats(run_gpu_samples)
 
-        # Build run data
-        run_data = {
-            "run_index": iteration,
-            "runtime_ms": elapsed_time * 1000,
-            "gpu_samples": run_gpu_samples,
-        }
-        if run_gflops is not None:
-            run_data["gflops"] = run_gflops
-        if run_gpu_metrics:
-            run_data["gpu_metrics"] = run_gpu_metrics
+        if gpu_monitor:
+            run_data = {
+                "run_index": iteration,
+                "runtime_ms": elapsed_time * 1000,
+                "gpu_samples": run_gpu_samples,
+            }
+            if run_gflops is not None:
+                run_data["gflops"] = run_gflops
+            if run_gpu_metrics:
+                run_data["gpu_metrics"] = run_gpu_metrics
 
-        runs.append(run_data)
+            runs.append(run_data)
 
         # Check CV convergence for short kernels
         if not is_long_kernel and iteration + 1 >= min_iterations:
@@ -970,8 +797,10 @@ def run_dynamic_benchmark_with_gpu_metrics(
         "name": test_case["name"],
         "test_id": test_id,
         "runtime_ms": mean_runtime * 1000,
-        "runs": runs,
     }
+
+    if gpu_monitor:
+        benchmark_result["runs"] = runs
 
     if gflops_measurements:
         benchmark_result["gflops"] = statistics.mean(gflops_measurements)

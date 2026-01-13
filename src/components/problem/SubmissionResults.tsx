@@ -18,6 +18,7 @@ import {
   Collapse,
   IconButton,
   Icon,
+  Tooltip,
 } from "@chakra-ui/react";
 
 import {
@@ -119,6 +120,47 @@ const aggregateGPUMetrics = (
     clockAvg: clockSum / runCount,
     pstateMin,
     pstateMax,
+  };
+};
+
+const getTestCaseGPUMetrics = (
+  result: BenchmarkResultResponse
+): AggregatedGPUMetrics | null => {
+  const runs = result.result.runs;
+  if (!runs || runs.length === 0) return null;
+
+  let tempMin = Infinity;
+  let tempMax = -Infinity;
+  let tempSum = 0;
+  let clockMin = Infinity;
+  let clockMax = -Infinity;
+  let clockSum = 0;
+  let runCount = 0;
+
+  runs.forEach((run) => {
+    const metrics = run.gpu_metrics;
+    if (metrics && metrics.sample_count > 0) {
+      runCount++;
+      tempMin = Math.min(tempMin, metrics.temp_c_min);
+      tempMax = Math.max(tempMax, metrics.temp_c_max);
+      tempSum += metrics.temp_c_mean;
+      clockMin = Math.min(clockMin, metrics.sm_clock_mhz_min);
+      clockMax = Math.max(clockMax, metrics.sm_clock_mhz_max);
+      clockSum += metrics.sm_clock_mhz_mean;
+    }
+  });
+
+  if (runCount === 0) return null;
+
+  return {
+    tempMin,
+    tempMax,
+    tempAvg: tempSum / runCount,
+    clockMin,
+    clockMax,
+    clockAvg: clockSum / runCount,
+    pstateMin: 0,
+    pstateMax: 0,
   };
 };
 
@@ -355,8 +397,9 @@ const SubmissionResults = ({
                               result.result.runtime_ms;
                             const gflops =
                               result.result.avg_gflops ?? result.result.gflops;
+                            const gpuMetrics = getTestCaseGPUMetrics(result);
 
-                            return (
+                            const row = (
                               <Tr
                                 key={result.result.test_id}
                                 _hover={{ bg: "whiteAlpha.100" }}
@@ -387,6 +430,46 @@ const SubmissionResults = ({
                                 </Td>
                               </Tr>
                             );
+
+                            if (gpuMetrics) {
+                              return (
+                                <Tooltip
+                                  key={result.result.test_id}
+                                  label={
+                                    <HStack spacing={4} py={1} px={2}>
+                                      <VStack align="start" spacing={0}>
+                                        <Text fontSize="xs" color="whiteAlpha.600">
+                                          Temp
+                                        </Text>
+                                        <Text fontSize="sm" fontWeight="medium">
+                                          {gpuMetrics.tempAvg.toFixed(0)}°C
+                                        </Text>
+                                      </VStack>
+                                      <VStack align="start" spacing={0}>
+                                        <Text fontSize="xs" color="whiteAlpha.600">
+                                          SM Clock
+                                        </Text>
+                                        <Text fontSize="sm" fontWeight="medium">
+                                          {gpuMetrics.clockAvg.toFixed(0)} MHz
+                                        </Text>
+                                      </VStack>
+                                    </HStack>
+                                  }
+                                  bg="brand.secondary"
+                                  borderColor="whiteAlpha.200"
+                                  borderWidth={1}
+                                  borderRadius="lg"
+                                  p={2}
+                                  color="white"
+                                  placement="right"
+                                  openDelay={300}
+                                >
+                                  {row}
+                                </Tooltip>
+                              );
+                            }
+
+                            return row;
                           })}
 
                           {totalTests !== null &&
@@ -435,34 +518,63 @@ const SubmissionResults = ({
 
       {/* Performance and Runtime Stats (when submission is accepted) */}
       {Boolean(metaStatus) && metaStatus === SubmissionStatus.ACCEPTED && (
-        <Box bg="whiteAlpha.50" p={4} borderRadius="xl">
-          <SimpleGrid columns={2} spacing={4}>
-            {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==
-              undefined && (
-              <Box>
-                <Text color="whiteAlpha.700" mb={1}>
-                  Average Performance
-                </Text>
-                <Heading size="md">
-                  {getTypedResponse(
-                    SubmissionStatus.ACCEPTED
-                  )!.avg_gflops!.toFixed(2)}{" "}
-                  GFLOPS
-                </Heading>
-              </Box>
-            )}
-            <Box>
-              <Text color="whiteAlpha.700" mb={1}>
-                Average Runtime
+        <Box>
+          <Text
+            fontSize="xs"
+            color="whiteAlpha.600"
+            fontWeight="medium"
+            mb={2}
+            letterSpacing="wide"
+            textTransform="uppercase"
+          >
+            Performance
+          </Text>
+          <Box
+            bg="whiteAlpha.50"
+            borderRadius="xl"
+            overflow="hidden"
+          >
+            <SimpleGrid columns={2} spacing={0}>
+            {/* Runtime */}
+            <Box p={4}>
+              <Text
+                fontSize="xs"
+                color="whiteAlpha.500"
+                textTransform="uppercase"
+                letterSpacing="wide"
+                mb={1}
+              >
+                Runtime
               </Text>
-              <Heading size="md">
+              <Text fontSize="xl" fontWeight="bold" color="white">
                 {getTypedResponse(
                   SubmissionStatus.ACCEPTED
                 )?.avg_runtime_ms?.toFixed(2) ?? "N/A"}{" "}
                 ms
-              </Heading>
+              </Text>
             </Box>
+            {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==
+              undefined && (
+              <Box p={4}>
+                <Text
+                  fontSize="xs"
+                  color="whiteAlpha.500"
+                  textTransform="uppercase"
+                  letterSpacing="wide"
+                  mb={1}
+                >
+                  Throughput
+                </Text>
+                <Text fontSize="xl" fontWeight="bold" color="white">
+                  {getTypedResponse(
+                    SubmissionStatus.ACCEPTED
+                  )!.avg_gflops!.toFixed(2)}{" "}
+                  GFLOPS
+                </Text>
+              </Box>
+            )}
           </SimpleGrid>
+        </Box>
         </Box>
       )}
 
@@ -472,39 +584,31 @@ const SubmissionResults = ({
           metaStatus === SubmissionStatus.BENCHMARKED) &&
         benchmarkResults.length > 0 &&
         (() => {
+          console.log(benchmarkResults);
           const gpuMetrics = aggregateGPUMetrics(benchmarkResults);
           if (!gpuMetrics) return null;
 
           return (
-            <Box
-              bg="whiteAlpha.50"
-              borderRadius="xl"
-              overflow="hidden"
-              border="1px solid"
-              borderColor="whiteAlpha.100"
-            >
-              <HStack
-                px={4}
-                py={3}
-                bg="whiteAlpha.50"
-                borderBottom="1px solid"
-                borderColor="whiteAlpha.100"
+            <Box>
+              <Text
+                fontSize="xs"
+                color="whiteAlpha.600"
+                fontWeight="medium"
+                mb={2}
+                letterSpacing="wide"
+                textTransform="uppercase"
               >
-                <Icon as={FaMicrochip} color="blue.300" boxSize={4} />
-                <Text fontSize="sm" fontWeight="medium" color="whiteAlpha.900">
-                  GPU Metrics
-                </Text>
-              </HStack>
-
-              <SimpleGrid columns={2} spacing={0}>
+                GPU Metrics
+              </Text>
+              <Box
+                bg="whiteAlpha.50"
+                borderRadius="xl"
+                overflow="hidden"
+              >
+                <SimpleGrid columns={2} spacing={0}>
                 {/* Temperature */}
-                <Box p={4} borderRight="1px solid" borderColor="whiteAlpha.100">
+                <Box p={4}>
                   <HStack spacing={1} mb={1}>
-                    <Icon
-                      as={FaThermometerHalf}
-                      color="orange.300"
-                      boxSize={3}
-                    />
                     <Text
                       fontSize="xs"
                       color="whiteAlpha.500"
@@ -515,19 +619,14 @@ const SubmissionResults = ({
                     </Text>
                     <GPUMetricInfoPopover metric="temperature" />
                   </HStack>
-                  <Text fontSize="lg" fontWeight="semibold" color="white">
-                    {gpuMetrics.tempMin.toFixed(0)}-
-                    {gpuMetrics.tempMax.toFixed(0)}°C
-                  </Text>
-                  <Text fontSize="xs" color="whiteAlpha.500">
-                    avg {gpuMetrics.tempAvg.toFixed(0)}°C
+                  <Text fontSize="xl" fontWeight="bold" color="white">
+                    {gpuMetrics.tempAvg.toFixed(0)}°C
                   </Text>
                 </Box>
 
                 {/* SM Clock */}
                 <Box p={4}>
                   <HStack spacing={2} mb={1}>
-                    <Icon as={FaTachometerAlt} color="cyan.300" boxSize={3} />
                     <Text
                       fontSize="xs"
                       color="whiteAlpha.500"
@@ -538,15 +637,12 @@ const SubmissionResults = ({
                     </Text>
                     <GPUMetricInfoPopover metric="smClock" />
                   </HStack>
-                  <Text fontSize="lg" fontWeight="semibold" color="white">
-                    {gpuMetrics.clockMin.toFixed(0)}-
-                    {gpuMetrics.clockMax.toFixed(0)}
-                  </Text>
-                  <Text fontSize="xs" color="whiteAlpha.500">
-                    avg {gpuMetrics.clockAvg.toFixed(0)} MHz
+                  <Text fontSize="xl" fontWeight="bold" color="white">
+                    {gpuMetrics.clockAvg.toFixed(0)} MHz
                   </Text>
                 </Box>
               </SimpleGrid>
+            </Box>
             </Box>
           );
         })()}

@@ -19,6 +19,7 @@ class GPUMonitor:
         self.thread = None
         self.handle = None
         self.lock = threading.Lock()
+        self.current_run_key = None
         self._init_pynvml()
 
     def _init_pynvml(self):
@@ -35,42 +36,53 @@ class GPUMonitor:
             self.handle = None
             self.pynvml = None
 
+    def _take_sample(self, run_key=None):
+        if not self.pynvml or not self.handle:
+            return
+
+        try:
+            timestamp = time.time()
+
+            try:
+                sm_clock = self.pynvml.nvmlDeviceGetClockInfo(
+                    self.handle, self.pynvml.NVML_CLOCK_SM
+                )
+                temp = self.pynvml.nvmlDeviceGetTemperature(
+                    self.handle, self.pynvml.NVML_TEMPERATURE_GPU
+                )
+                pstate = self.pynvml.nvmlDeviceGetPerformanceState(self.handle)
+                throttle_reasons = self.pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(
+                    self.handle
+                )
+
+                # Use provided run_key or fall back to current_run_key
+                sample_run_key = run_key if run_key is not None else self.current_run_key
+
+                sample = {
+                    "timestamp": timestamp,
+                    "sm_clock_mhz": sm_clock,
+                    "temp_c": temp,
+                    "pstate": pstate,
+                    "throttle_reasons": throttle_reasons,
+                    "run_key": sample_run_key,
+                }
+
+                with self.lock:
+                    self.samples.append(sample)
+
+            except Exception:
+                pass
+        except Exception:
+            pass
+
     def _monitor_loop(self):
         if not self.pynvml or not self.handle:
             return
 
         while self.monitoring:
             try:
-                timestamp = time.time()
-
-                try:
-                    sm_clock = self.pynvml.nvmlDeviceGetClockInfo(
-                        self.handle, self.pynvml.NVML_CLOCK_SM
-                    )
-                    temp = self.pynvml.nvmlDeviceGetTemperature(
-                        self.handle, self.pynvml.NVML_TEMPERATURE_GPU
-                    )
-                    pstate = self.pynvml.nvmlDeviceGetPerformanceState(self.handle)
-                    throttle_reasons = self.pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(
-                        self.handle
-                    )
-
-                    sample = {
-                        "timestamp": timestamp,
-                        "sm_clock_mhz": sm_clock,
-                        "temp_c": temp,
-                        "pstate": pstate,
-                        "throttle_reasons": throttle_reasons,
-                    }
-
-                    with self.lock:
-                        self.samples.append(sample)
-
-                except Exception:
-                    pass
-
+                self._take_sample()
                 time.sleep(self.sample_interval)
-
             except Exception:
                 break
 
@@ -85,6 +97,8 @@ class GPUMonitor:
         self.monitoring = True
         with self.lock:
             self.samples.clear()
+
+        self._take_sample()
 
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
@@ -104,18 +118,21 @@ class GPUMonitor:
 
         return samples
 
+    def take_sample_now(self, run_key):
+        self._take_sample(run_key=run_key)
+
     def get_samples(self):
         with self.lock:
             return list(self.samples)
 
-    def get_samples_for_period(self, start_time, end_time, samples=None):
+    def get_samples_for_run(self, run_key, samples=None):
         if samples is None:
             with self.lock:
                 samples_to_use = list(self.samples)
         else:
             samples_to_use = samples
 
-        return [s for s in samples_to_use if start_time <= s["timestamp"] <= end_time]
+        return [s for s in samples_to_use if s.get("run_key") == run_key]
 
     def compute_stats(self, samples):
         if not samples:
