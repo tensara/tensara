@@ -50,7 +50,7 @@ function geometricMean(values: number[]): number {
   return Math.exp(logSum / positiveValues.length);
 }
 
-async function migrateRuntimeToGeometricMean(dryRun: boolean = false) {
+async function migrateRuntimeToGeometricMean(dryRun = false) {
   console.log("=".repeat(60));
   console.log("Runtime Migration: Arithmetic Mean -> Geometric Mean");
   console.log("=".repeat(60));

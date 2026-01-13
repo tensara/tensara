@@ -16,7 +16,7 @@
  */
 
 import { type NextApiRequest, type NextApiResponse } from "next";
-import { Prisma } from "@prisma/client";
+import { type Prisma } from "@prisma/client";
 import { db } from "~/server/db";
 import { env } from "~/env";
 import { combinedAuth } from "~/server/auth";

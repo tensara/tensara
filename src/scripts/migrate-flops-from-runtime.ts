@@ -18,7 +18,7 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient, type Prisma } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -82,16 +82,20 @@ function loadFlopsData(): FlopsData {
   return JSON.parse(flopsContent) as FlopsData;
 }
 
-async function migrateFlopsFromRuntime(dryRun: boolean = false) {
+async function migrateFlopsFromRuntime(dryRun = false) {
   console.log("=".repeat(60));
-  console.log("GFLOPS Migration: From Per-Run GFLOPS -> From Runtime + Analytical FLOPS");
+  console.log(
+    "GFLOPS Migration: From Per-Run GFLOPS -> From Runtime + Analytical FLOPS"
+  );
   console.log("=".repeat(60));
   console.log(`Mode: ${dryRun ? "DRY RUN (no changes will be made)" : "LIVE"}`);
   console.log("");
 
   // Load FLOPS data
   const flopsData = loadFlopsData();
-  console.log(`Loaded FLOPS data for ${Object.keys(flopsData).length} problems\n`);
+  console.log(
+    `Loaded FLOPS data for ${Object.keys(flopsData).length} problems\n`
+  );
 
   // Fetch all ACCEPTED submissions with benchmarkResults
   const submissions = (await prisma.submission.findMany({
@@ -186,8 +190,7 @@ async function migrateFlopsFromRuntime(dryRun: boolean = false) {
 
       for (const result of benchmarkResults) {
         const testCaseName = result.name;
-        const runtimeMs =
-          result.avg_runtime_ms ?? result.runtime_ms ?? 0;
+        const runtimeMs = result.avg_runtime_ms ?? result.runtime_ms ?? 0;
 
         if (runtimeMs <= 0) {
           // Skip test cases with invalid runtime
@@ -225,9 +228,7 @@ async function migrateFlopsFromRuntime(dryRun: boolean = false) {
       // Calculate overall submission GFLOPS as geometric mean of test case GFLOPS
       const oldGflops = submission.gflops;
       const newGflops =
-        testCaseGflops.length > 0
-          ? geometricMean(testCaseGflops)
-          : null;
+        testCaseGflops.length > 0 ? geometricMean(testCaseGflops) : null;
 
       // Skip if no test cases were updated or if the change is negligible
       if (testCasesUpdated === 0) {
@@ -237,8 +238,7 @@ async function migrateFlopsFromRuntime(dryRun: boolean = false) {
 
       // Skip if the difference is negligible (less than 0.01%)
       if (oldGflops !== null && newGflops !== null) {
-        const percentDiff =
-          (Math.abs(newGflops - oldGflops) / oldGflops) * 100;
+        const percentDiff = (Math.abs(newGflops - oldGflops) / oldGflops) * 100;
         if (percentDiff < 0.01) {
           skippedCount++;
           continue;
@@ -260,7 +260,8 @@ async function migrateFlopsFromRuntime(dryRun: boolean = false) {
           where: { id: submission.id },
           data: {
             gflops: newGflops,
-            benchmarkResults: updatedResults as unknown as Prisma.InputJsonValue,
+            benchmarkResults:
+              updatedResults as unknown as Prisma.InputJsonValue,
           },
         });
       }
@@ -313,18 +314,23 @@ async function migrateFlopsFromRuntime(dryRun: boolean = false) {
 
     // Statistics on changes
     const improvements = updates.filter(
-      (u) => u.oldGflops !== null && u.newGflops !== null && u.newGflops > u.oldGflops
+      (u) =>
+        u.oldGflops !== null &&
+        u.newGflops !== null &&
+        u.newGflops > u.oldGflops
     );
     const regressions = updates.filter(
-      (u) => u.oldGflops !== null && u.newGflops !== null && u.newGflops < u.oldGflops
+      (u) =>
+        u.oldGflops !== null &&
+        u.newGflops !== null &&
+        u.newGflops < u.oldGflops
     );
     const avgChange =
       updates
         .filter((u) => u.oldGflops !== null && u.newGflops !== null)
         .reduce(
           (sum, u) =>
-            sum +
-            ((u.newGflops! - u.oldGflops!) / u.oldGflops!) * 100,
+            sum + ((u.newGflops! - u.oldGflops!) / u.oldGflops!) * 100,
           0
         ) /
       updates.filter((u) => u.oldGflops !== null && u.newGflops !== null)
@@ -343,9 +349,7 @@ async function migrateFlopsFromRuntime(dryRun: boolean = false) {
     console.log("-".repeat(60));
     console.log("IMPACT ANALYSIS");
     console.log("-".repeat(60));
-    console.log(
-      `  Submissions with higher GFLOPS: ${improvements.length}`
-    );
+    console.log(`  Submissions with higher GFLOPS: ${improvements.length}`);
     console.log(`  Submissions with lower GFLOPS: ${regressions.length}`);
     if (avgChange !== undefined && !isNaN(avgChange)) {
       console.log(`  Average change: ${avgChange.toFixed(2)}%`);

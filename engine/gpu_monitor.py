@@ -179,4 +179,3 @@ class GPUMonitor:
             stats["throttle_reasons_any"] = 0
 
         return stats
-

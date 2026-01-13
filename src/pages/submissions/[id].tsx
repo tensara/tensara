@@ -41,14 +41,8 @@ import {
   getStatusIcon,
 } from "~/constants/problem";
 import { FiCopy } from "react-icons/fi";
-import {
-  FaThermometerHalf,
-  FaMicrochip,
-  FaTachometerAlt,
-} from "react-icons/fa";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
-import { GPUMetricInfoPopover } from "~/components/misc/GPUMetricInfoPopover";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -604,7 +598,7 @@ const SubmissionPage: NextPage<{
                           (tr) => tr.testId === testId
                         );
 
-                        if (!testResult || !testResult.runs) return null;
+                        if (!testResult?.runs) return null;
 
                         let tempSum = 0;
                         let clockSum = 0;
@@ -715,7 +709,6 @@ const SubmissionPage: NextPage<{
                   </Box>
                 </Box>
               )}
-
             </VStack>
           </Box>
 

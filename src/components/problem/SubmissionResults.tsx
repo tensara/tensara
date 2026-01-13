@@ -13,7 +13,6 @@ import {
   Tr,
   Th,
   Td,
-  Badge,
   SimpleGrid,
   Collapse,
   IconButton,
@@ -42,9 +41,6 @@ import {
   FaClock,
   FaChevronUp,
   FaChevronDown,
-  FaThermometerHalf,
-  FaMicrochip,
-  FaTachometerAlt,
 } from "react-icons/fa";
 
 import { FiArrowLeft, FiExternalLink } from "react-icons/fi";
@@ -438,7 +434,10 @@ const SubmissionResults = ({
                                   label={
                                     <HStack spacing={4} py={1} px={2}>
                                       <VStack align="start" spacing={0}>
-                                        <Text fontSize="xs" color="whiteAlpha.600">
+                                        <Text
+                                          fontSize="xs"
+                                          color="whiteAlpha.600"
+                                        >
                                           Temp
                                         </Text>
                                         <Text fontSize="sm" fontWeight="medium">
@@ -446,7 +445,10 @@ const SubmissionResults = ({
                                         </Text>
                                       </VStack>
                                       <VStack align="start" spacing={0}>
-                                        <Text fontSize="xs" color="whiteAlpha.600">
+                                        <Text
+                                          fontSize="xs"
+                                          color="whiteAlpha.600"
+                                        >
                                           SM Clock
                                         </Text>
                                         <Text fontSize="sm" fontWeight="medium">
@@ -529,32 +531,9 @@ const SubmissionResults = ({
           >
             Performance
           </Text>
-          <Box
-            bg="whiteAlpha.50"
-            borderRadius="xl"
-            overflow="hidden"
-          >
+          <Box bg="whiteAlpha.50" borderRadius="xl" overflow="hidden">
             <SimpleGrid columns={2} spacing={0}>
-            {/* Runtime */}
-            <Box p={4}>
-              <Text
-                fontSize="xs"
-                color="whiteAlpha.500"
-                textTransform="uppercase"
-                letterSpacing="wide"
-                mb={1}
-              >
-                Runtime
-              </Text>
-              <Text fontSize="xl" fontWeight="bold" color="white">
-                {getTypedResponse(
-                  SubmissionStatus.ACCEPTED
-                )?.avg_runtime_ms?.toFixed(2) ?? "N/A"}{" "}
-                ms
-              </Text>
-            </Box>
-            {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==
-              undefined && (
+              {/* Runtime */}
               <Box p={4}>
                 <Text
                   fontSize="xs"
@@ -563,18 +542,37 @@ const SubmissionResults = ({
                   letterSpacing="wide"
                   mb={1}
                 >
-                  Throughput
+                  Runtime
                 </Text>
                 <Text fontSize="xl" fontWeight="bold" color="white">
                   {getTypedResponse(
                     SubmissionStatus.ACCEPTED
-                  )!.avg_gflops!.toFixed(2)}{" "}
-                  GFLOPS
+                  )?.avg_runtime_ms?.toFixed(2) ?? "N/A"}{" "}
+                  ms
                 </Text>
               </Box>
-            )}
-          </SimpleGrid>
-        </Box>
+              {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==
+                undefined && (
+                <Box p={4}>
+                  <Text
+                    fontSize="xs"
+                    color="whiteAlpha.500"
+                    textTransform="uppercase"
+                    letterSpacing="wide"
+                    mb={1}
+                  >
+                    Throughput
+                  </Text>
+                  <Text fontSize="xl" fontWeight="bold" color="white">
+                    {getTypedResponse(
+                      SubmissionStatus.ACCEPTED
+                    )!.avg_gflops!.toFixed(2)}{" "}
+                    GFLOPS
+                  </Text>
+                </Box>
+              )}
+            </SimpleGrid>
+          </Box>
         </Box>
       )}
 
@@ -600,49 +598,45 @@ const SubmissionResults = ({
               >
                 GPU Metrics
               </Text>
-              <Box
-                bg="whiteAlpha.50"
-                borderRadius="xl"
-                overflow="hidden"
-              >
+              <Box bg="whiteAlpha.50" borderRadius="xl" overflow="hidden">
                 <SimpleGrid columns={2} spacing={0}>
-                {/* Temperature */}
-                <Box p={4}>
-                  <HStack spacing={1} mb={1}>
-                    <Text
-                      fontSize="xs"
-                      color="whiteAlpha.500"
-                      textTransform="uppercase"
-                      letterSpacing="wide"
-                    >
-                      Temperature
+                  {/* Temperature */}
+                  <Box p={4}>
+                    <HStack spacing={1} mb={1}>
+                      <Text
+                        fontSize="xs"
+                        color="whiteAlpha.500"
+                        textTransform="uppercase"
+                        letterSpacing="wide"
+                      >
+                        Temperature
+                      </Text>
+                      <GPUMetricInfoPopover metric="temperature" />
+                    </HStack>
+                    <Text fontSize="xl" fontWeight="bold" color="white">
+                      {gpuMetrics.tempAvg.toFixed(0)}°C
                     </Text>
-                    <GPUMetricInfoPopover metric="temperature" />
-                  </HStack>
-                  <Text fontSize="xl" fontWeight="bold" color="white">
-                    {gpuMetrics.tempAvg.toFixed(0)}°C
-                  </Text>
-                </Box>
+                  </Box>
 
-                {/* SM Clock */}
-                <Box p={4}>
-                  <HStack spacing={2} mb={1}>
-                    <Text
-                      fontSize="xs"
-                      color="whiteAlpha.500"
-                      textTransform="uppercase"
-                      letterSpacing="wide"
-                    >
-                      SM Clock
+                  {/* SM Clock */}
+                  <Box p={4}>
+                    <HStack spacing={2} mb={1}>
+                      <Text
+                        fontSize="xs"
+                        color="whiteAlpha.500"
+                        textTransform="uppercase"
+                        letterSpacing="wide"
+                      >
+                        SM Clock
+                      </Text>
+                      <GPUMetricInfoPopover metric="smClock" />
+                    </HStack>
+                    <Text fontSize="xl" fontWeight="bold" color="white">
+                      {gpuMetrics.clockAvg.toFixed(0)} MHz
                     </Text>
-                    <GPUMetricInfoPopover metric="smClock" />
-                  </HStack>
-                  <Text fontSize="xl" fontWeight="bold" color="white">
-                    {gpuMetrics.clockAvg.toFixed(0)} MHz
-                  </Text>
-                </Box>
-              </SimpleGrid>
-            </Box>
+                  </Box>
+                </SimpleGrid>
+              </Box>
             </Box>
           );
         })()}

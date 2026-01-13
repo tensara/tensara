@@ -6,7 +6,6 @@ import {
   PopoverBody,
   PopoverArrow,
   VStack,
-  HStack,
   Text,
   Icon,
   Box,

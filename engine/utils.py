@@ -1,4 +1,4 @@
-from functools import lru_cache, wraps, reduce
+from functools import lru_cache, wraps
 import os
 from fastapi import HTTPException
 import importlib
@@ -17,7 +17,6 @@ import queue
 import math
 from numbers import Integral
 import numpy as np
-from gpu_monitor import GPUMonitor
 
 JS_MAX_SAFE = 2**53 - 1
 
