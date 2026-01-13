@@ -95,6 +95,11 @@ export const submissionsRouter = createTRPCRouter({
             slug: true,
           },
         },
+        testResults: {
+          include: {
+            runs: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",

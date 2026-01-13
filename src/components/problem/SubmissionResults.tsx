@@ -382,10 +382,10 @@ const SubmissionResults = ({
                               Test Case
                             </Th>
                             <Th color="whiteAlpha.700" py={3} isNumeric>
-                              GFLOPS
+                              Runtime
                             </Th>
                             <Th color="whiteAlpha.700" py={3} isNumeric>
-                              Runtime
+                              GFLOPS
                             </Th>
                           </Tr>
                         </Thead>
@@ -416,15 +416,15 @@ const SubmissionResults = ({
                                 </Td>
                                 <Td py={3} isNumeric>
                                   <Text>
-                                    {gflops !== undefined
-                                      ? gflops.toFixed(2)
+                                    {runtime !== undefined
+                                      ? `${runtime.toFixed(2)} ms`
                                       : "-"}
                                   </Text>
                                 </Td>
                                 <Td py={3} isNumeric>
                                   <Text>
-                                    {runtime !== undefined
-                                      ? `${runtime.toFixed(2)} ms`
+                                    {gflops !== undefined
+                                      ? gflops.toFixed(2)
                                       : "-"}
                                   </Text>
                                 </Td>

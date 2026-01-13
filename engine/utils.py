@@ -693,7 +693,6 @@ def run_dynamic_benchmark(
     # Collect per-run data with GPU metrics
     runs = []
     runtimes = []
-    gflops_measurements = []
 
     # Start GPU monitoring if available
     if gpu_monitor:
@@ -743,12 +742,6 @@ def run_dynamic_benchmark(
         elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
         runtimes.append(elapsed_time)
 
-        # Calculate GFLOPS for this run
-        run_gflops = None
-        if has_flops and flops is not None and elapsed_time > 0:
-            run_gflops = (flops / elapsed_time) / 1e9
-            gflops_measurements.append(run_gflops)
-
         run_gpu_samples = []
         run_gpu_metrics = None
         if gpu_monitor:
@@ -763,8 +756,6 @@ def run_dynamic_benchmark(
                 "runtime_ms": elapsed_time * 1000,
                 "gpu_samples": run_gpu_samples,
             }
-            if run_gflops is not None:
-                run_data["gflops"] = run_gflops
             if run_gpu_metrics:
                 run_data["gpu_metrics"] = run_gpu_metrics
 
@@ -772,14 +763,7 @@ def run_dynamic_benchmark(
 
         # Check CV convergence for short kernels
         if not is_long_kernel and iteration + 1 >= min_iterations:
-            if has_flops and gflops_measurements:
-                mean_val = statistics.mean(gflops_measurements)
-                if len(gflops_measurements) > 1:
-                    stdev_val = statistics.stdev(gflops_measurements)
-                    cv = stdev_val / mean_val if mean_val > 0 else float("inf")
-                    if cv < target_cv:
-                        break
-            elif not has_flops and len(runtimes) > 1:
+            if len(runtimes) > 1:
                 mean_val = statistics.mean(runtimes)
                 stdev_val = statistics.stdev(runtimes)
                 cv = stdev_val / mean_val if mean_val > 0 else float("inf")
@@ -802,8 +786,8 @@ def run_dynamic_benchmark(
     if gpu_monitor:
         benchmark_result["runs"] = runs
 
-    if gflops_measurements:
-        benchmark_result["gflops"] = statistics.mean(gflops_measurements)
+    if has_flops and flops is not None and mean_runtime > 0:
+        benchmark_result["gflops"] = (flops / mean_runtime) / 1e9
 
     return benchmark_result
 
