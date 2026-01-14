@@ -16,6 +16,7 @@
  */
 
 import { type NextApiRequest, type NextApiResponse } from "next";
+import { type Prisma } from "@prisma/client";
 import { db } from "~/server/db";
 import { env } from "~/env";
 import { combinedAuth } from "~/server/auth";
@@ -27,6 +28,7 @@ import {
 } from "~/types/submission";
 import type {
   BenchmarkResultResponse,
+  BenchmarkRunData,
   CheckedResponse,
   SubmissionStatusType,
   SubmissionErrorType,
@@ -299,8 +301,38 @@ export default async function handler(
           benchResults.push(r.result);
           await db.submission.update({
             where: { id: submission.id },
-            data: { benchmarkResults: benchResults },
+            data: {
+              benchmarkResults:
+                benchResults as unknown as Prisma.InputJsonValue,
+            },
           });
+
+          // Store detailed test result with per-run GPU metrics
+          const testResult = r.result;
+          const runs = testResult.runs ?? [];
+
+          if (runs.length > 0) {
+            await db.testResult.create({
+              data: {
+                submissionId: submission.id,
+                testId: testResult.test_id,
+                name: testResult.name,
+                avgRuntimeMs: testResult.runtime_ms,
+                avgGflops: testResult.gflops ?? null,
+                runs: {
+                  create: runs.map((run: BenchmarkRunData) => ({
+                    runIndex: run.run_index,
+                    runtimeMs: run.runtime_ms,
+                    gflops: run.gflops ?? null,
+                    gpuSamples: (run.gpu_samples ??
+                      []) as unknown as Prisma.InputJsonValue,
+                    gpuMetrics: (run.gpu_metrics ??
+                      null) as unknown as Prisma.InputJsonValue,
+                  })),
+                },
+              },
+            });
+          }
         }
         return "CONTINUE";
       }
@@ -312,7 +344,7 @@ export default async function handler(
           status: SubmissionStatusType;
         } = {
           status: SubmissionStatus.ACCEPTED,
-          benchmarkResults: benchResults,
+          benchmarkResults: benchResults as unknown as Prisma.InputJsonValue,
         };
         if (typeof r.avg_runtime_ms === "number")
           (updateData as Record<string, unknown>).runtime = r.avg_runtime_ms;

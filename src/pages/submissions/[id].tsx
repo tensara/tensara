@@ -341,6 +341,34 @@ const SubmissionPage: NextPage<{
                 overflow="hidden"
               >
                 <HStack spacing={12} wrap="wrap" justify="space-around">
+                  {submission.passedTests !== null &&
+                    submission.totalTests !== null && (
+                      <VStack align="center" spacing={1}>
+                        <Text
+                          color="whiteAlpha.600"
+                          fontSize="sm"
+                          fontWeight="medium"
+                          letterSpacing="wide"
+                        >
+                          TEST CASES
+                        </Text>
+                        <Text
+                          fontSize="2xl"
+                          fontWeight="bold"
+                          color={`${getStatusColor(submission.status)}.400`}
+                        >
+                          {submission.passedTests}/{submission.totalTests}
+                          <Text
+                            as="span"
+                            fontSize="sm"
+                            color="whiteAlpha.600"
+                            ml={1}
+                          >
+                            passed
+                          </Text>
+                        </Text>
+                      </VStack>
+                    )}
                   {submission.runtime !== null && (
                     <VStack align="center" spacing={1}>
                       <Text
@@ -395,34 +423,6 @@ const SubmissionPage: NextPage<{
                       </Text>
                     </VStack>
                   )}
-                  {submission.passedTests !== null &&
-                    submission.totalTests !== null && (
-                      <VStack align="center" spacing={1}>
-                        <Text
-                          color="whiteAlpha.600"
-                          fontSize="sm"
-                          fontWeight="medium"
-                          letterSpacing="wide"
-                        >
-                          TEST CASES
-                        </Text>
-                        <Text
-                          fontSize="2xl"
-                          fontWeight="bold"
-                          color={`${getStatusColor(submission.status)}.400`}
-                        >
-                          {submission.passedTests}/{submission.totalTests}
-                          <Text
-                            as="span"
-                            fontSize="sm"
-                            color="whiteAlpha.600"
-                            ml={1}
-                          >
-                            passed
-                          </Text>
-                        </Text>
-                      </VStack>
-                    )}
                 </HStack>
               </Box>
 
@@ -568,9 +568,69 @@ const SubmissionPage: NextPage<{
                       const results: BenchmarkTestResult[] =
                         (submission.benchmarkResults as unknown as BenchmarkTestResult[]) ??
                         [];
+
+                      const getTestCaseGPUMetrics = (
+                        testId: number
+                      ): { tempAvg: number; clockAvg: number } | null => {
+                        if (
+                          !("testResults" in submission) ||
+                          !Array.isArray(submission.testResults)
+                        ) {
+                          return null;
+                        }
+
+                        interface GPUMetrics {
+                          sample_count?: number;
+                          temp_c_mean?: number;
+                          sm_clock_mhz_mean?: number;
+                        }
+                        interface BenchmarkRun {
+                          gpuMetrics: GPUMetrics | null;
+                        }
+                        interface TestResultWithRuns {
+                          testId: number;
+                          runs?: BenchmarkRun[];
+                        }
+
+                        const testResults =
+                          submission.testResults as TestResultWithRuns[];
+                        const testResult = testResults.find(
+                          (tr) => tr.testId === testId
+                        );
+
+                        if (!testResult?.runs) return null;
+
+                        let tempSum = 0;
+                        let clockSum = 0;
+                        let runCount = 0;
+
+                        testResult.runs.forEach((run) => {
+                          if (
+                            run.gpuMetrics &&
+                            (run.gpuMetrics.sample_count ?? 0) > 0
+                          ) {
+                            runCount++;
+                            tempSum += run.gpuMetrics.temp_c_mean ?? 0;
+                            clockSum += run.gpuMetrics.sm_clock_mhz_mean ?? 0;
+                          }
+                        });
+
+                        if (runCount === 0) return null;
+
+                        return {
+                          tempAvg: tempSum / runCount,
+                          clockAvg: clockSum / runCount,
+                        };
+                      };
+
                       const hasGflops = results.some(
                         (r: BenchmarkTestResult) => r.gflops !== undefined
                       );
+
+                      const hasGpuMetrics =
+                        "testResults" in submission &&
+                        Array.isArray(submission.testResults) &&
+                        submission.testResults.length > 0;
 
                       const thStyle: React.CSSProperties = {
                         textAlign: "center",
@@ -596,25 +656,51 @@ const SubmissionPage: NextPage<{
                               <th style={thStyle}>Test Case</th>
                               <th style={thStyle}>Runtime (ms)</th>
                               {hasGflops && <th style={thStyle}>GFLOPS</th>}
+                              {hasGpuMetrics && (
+                                <>
+                                  <th style={thStyle}>Temperature</th>
+                                  <th style={thStyle}>SM Clock</th>
+                                </>
+                              )}
                             </tr>
                           </thead>
                           <tbody>
                             {results.map(
-                              (result: BenchmarkTestResult, index: number) => (
-                                <tr key={index}>
-                                  <td style={tdStyle}>{result.name}</td>
-                                  <td style={tdStyle}>
-                                    {result.runtime_ms.toFixed(2)}
-                                  </td>
-                                  {hasGflops && (
+                              (result: BenchmarkTestResult, index: number) => {
+                                const gpuMetrics = hasGpuMetrics
+                                  ? getTestCaseGPUMetrics(result.test_id)
+                                  : null;
+
+                                return (
+                                  <tr key={index}>
+                                    <td style={tdStyle}>{result.name}</td>
                                     <td style={tdStyle}>
-                                      {result.gflops !== undefined
-                                        ? result.gflops.toFixed(2)
-                                        : ""}
+                                      {result.runtime_ms.toFixed(2)}
                                     </td>
-                                  )}
-                                </tr>
-                              )
+                                    {hasGflops && (
+                                      <td style={tdStyle}>
+                                        {result.gflops !== undefined
+                                          ? result.gflops.toFixed(2)
+                                          : ""}
+                                      </td>
+                                    )}
+                                    {hasGpuMetrics && (
+                                      <>
+                                        <td style={tdStyle}>
+                                          {gpuMetrics
+                                            ? `${gpuMetrics.tempAvg.toFixed(0)}°C`
+                                            : "-"}
+                                        </td>
+                                        <td style={tdStyle}>
+                                          {gpuMetrics
+                                            ? `${gpuMetrics.clockAvg.toFixed(0)} MHz`
+                                            : "-"}
+                                        </td>
+                                      </>
+                                    )}
+                                  </tr>
+                                );
+                              }
                             )}
                           </tbody>
                         </table>

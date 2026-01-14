@@ -13,6 +13,7 @@ import queue
 import threading
 import io
 import contextlib
+from gpu_monitor import GPUMonitor
 
 
 MAX_SANDBOX_OUTPUT_BYTES = 64 * 1024  # Cap console streaming to 64 KiB for responsiveness
@@ -363,6 +364,9 @@ def run_benchmark(
         # Prepare GPU for benchmarking (one-time setup at the beginning)
         utils.prepare_gpu()
 
+        # Create GPU monitor for collecting metrics during benchmark
+        gpu_monitor = GPUMonitor()
+
         # Run each test case
         for test_id, test_case in enumerate(test_cases, 1):
             try:
@@ -383,6 +387,7 @@ def run_benchmark(
                     max_iterations=20,
                     target_cv=0.01,  # 1% target coefficient of variation
                     param_func=param_func,
+                    gpu_monitor=gpu_monitor,
                 )
 
                 if benchmark_result.get("status") == "WRONG_ANSWER":
@@ -418,13 +423,11 @@ def run_benchmark(
         test_count = len(test_results)
 
         if test_count > 0:
-            # Average runtime in milliseconds
-            avg_runtime_ms = statistics.mean([r["runtime_ms"] for r in test_results])
+            avg_runtime_ms = statistics.geometric_mean([r["runtime_ms"] for r in test_results])
 
-            # Average GFLOPS only if present (compute problems)
             has_gflops = any(("gflops" in r) and (r["gflops"] is not None) for r in test_results)
             if has_gflops:
-                avg_gflops = statistics.mean(
+                avg_gflops = statistics.geometric_mean(
                     [
                         r["gflops"]
                         for r in test_results

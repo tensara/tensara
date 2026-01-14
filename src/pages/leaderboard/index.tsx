@@ -71,6 +71,7 @@ type UserRanking = {
   solvedProblemsCount: number;
   bestSubmission: {
     id: string;
+    runtime: number | null;
     gflops: number | null;
     gpuType: string | null;
     problem: {
@@ -80,20 +81,31 @@ type UserRanking = {
   };
 };
 
-// Helper function to format performance numbers
-const formatPerformance = (gflops: number | null | undefined): string => {
-  if (!gflops) return "N/A";
-  if (gflops >= 1000) {
-    const tflops = (gflops / 1000).toFixed(2);
-    return `${parseFloat(tflops)}T`;
-  }
-  return `${parseFloat(gflops.toFixed(2))}G`;
-};
-
 // Helper function to format rating numbers
 const formatRating = (rating: number | null | undefined): string => {
   if (!rating) return "0";
   return rating.toFixed(0);
+};
+
+const formatRuntime = (runtime: number | null | undefined): string => {
+  if (runtime == null) return "N/A";
+  if (runtime < 1) {
+    const microseconds = runtime * 1000;
+    return `${microseconds.toFixed(2)} μs`;
+  }
+  if (runtime >= 1000) {
+    const seconds = runtime / 1000;
+    return `${seconds.toFixed(2)} s`;
+  }
+  return `${runtime.toFixed(2)} ms`;
+};
+
+const formatGFLOPS = (gflops: number | null | undefined): string => {
+  if (gflops == null) return "N/A";
+  if (gflops >= 1000) {
+    return `${(gflops / 1000).toFixed(2)} TFLOPS`;
+  }
+  return `${gflops.toFixed(2)} GFLOPS`;
 };
 
 const getMedalColor = (index: number): string => {
@@ -603,23 +615,23 @@ const LeaderboardPage: NextPage = () => {
                                             {user.bestSubmission.gpuType}
                                           </Badge>
                                         )}
-                                        <Badge
-                                          bg="blackAlpha.400"
-                                          color="white.300"
-                                          px={2}
-                                          py={0.5}
-                                          borderRadius="md"
-                                          fontSize="xs"
-                                          fontWeight="medium"
-                                          minWidth="fit-content"
-                                        >
-                                          {user.bestSubmission.gflops !== null
-                                            ? user.bestSubmission.gflops >= 1000
-                                              ? `${(user.bestSubmission.gflops / 1000).toFixed(2)} T`
-                                              : `${user.bestSubmission.gflops.toFixed(2)} G`
-                                            : "0.00 G"}
-                                          {"FLOPS"}
-                                        </Badge>
+                                        {user.bestSubmission.runtime !=
+                                          null && (
+                                          <Badge
+                                            bg="blackAlpha.400"
+                                            color="white.300"
+                                            px={2}
+                                            py={0.5}
+                                            borderRadius="md"
+                                            fontSize="xs"
+                                            fontWeight="medium"
+                                            minWidth="fit-content"
+                                          >
+                                            {formatRuntime(
+                                              user.bestSubmission.runtime
+                                            )}
+                                          </Badge>
+                                        )}
                                       </Flex>
                                     </Flex>
                                   ) : (
@@ -741,11 +753,7 @@ const LeaderboardPage: NextPage = () => {
                                     </Th>
                                     <Th color="whiteAlpha.600">User</Th>
                                     <Th isNumeric color="whiteAlpha.600">
-                                      {topSubmissions.some(
-                                        (sub) => sub.gflops && sub.gflops > 0
-                                      )
-                                        ? "FLOPS"
-                                        : "Time"}
+                                      Time
                                     </Th>
                                   </Tr>
                                 </Thead>
@@ -803,43 +811,27 @@ const LeaderboardPage: NextPage = () => {
                                         </Tooltip>
                                       </Td>
                                       <Td isNumeric borderRightRadius="lg">
-                                        {submission.gflops !== null && (
-                                          <Tooltip
-                                            label={`Runtime: ${submission.runtime?.toFixed(
-                                              2
-                                            )} ms`}
-                                            hasArrow
-                                          >
-                                            <Text
-                                              color={getMedalColor(index)}
-                                              fontWeight="bold"
-                                              fontSize="sm"
-                                              style={{
-                                                fontVariantNumeric:
-                                                  "tabular-nums",
-                                              }}
-                                            >
-                                              {formatPerformance(
-                                                submission.gflops
-                                              )}
-                                            </Text>
-                                          </Tooltip>
-                                        )}
-                                        {submission.gflops === null &&
-                                          submission.runtime !== null && (
-                                            <Text
-                                              color={getMedalColor(index)}
-                                              fontWeight="bold"
-                                              fontSize="sm"
-                                              style={{
-                                                fontVariantNumeric:
-                                                  "tabular-nums",
-                                              }}
-                                            >
-                                              {submission.runtime?.toFixed(2)}{" "}
-                                              ms
-                                            </Text>
+                                        <Tooltip
+                                          label={formatGFLOPS(
+                                            submission.gflops
                                           )}
+                                          hasArrow
+                                          bg="whiteAlpha.50"
+                                          color="white"
+                                        >
+                                          <Text
+                                            style={{
+                                              color: getMedalColor(index),
+                                              fontWeight: "bold",
+                                              fontSize: "0.875rem",
+                                              fontVariantNumeric:
+                                                "tabular-nums",
+                                              display: "inline-block",
+                                            }}
+                                          >
+                                            {formatRuntime(submission.runtime)}
+                                          </Text>
+                                        </Tooltip>
                                       </Td>
                                     </Tr>
                                   ))}

@@ -35,18 +35,22 @@ async function getUserRating(
   // Get user's best submissions for each problem-GPU combination
   const userBestSubmissions = await ctx.db.submission.groupBy({
     by: ["problemId", "gpuType"],
-    _max: { gflops: true },
-    where: { userId: userId },
+    _min: { runtime: true },
+    where: {
+      userId: userId,
+      status: "ACCEPTED",
+      runtime: { not: null },
+    },
   });
 
   // Process each submission to calculate rating change
   for (const submission of userBestSubmissions) {
     const gpuType = submission.gpuType;
-    const gflops = submission._max.gflops;
+    const runtime = submission._min.runtime;
     const problemId = submission.problemId;
 
     // Skip invalid submissions
-    if (!gpuType || !gflops) continue;
+    if (!gpuType || !runtime) continue;
 
     // Get problem details
     const problem = await ctx.db.problem.findUnique({
@@ -65,33 +69,35 @@ async function getUserRating(
       where: {
         problemId: problemId,
         gpuType: gpuType,
+        status: "ACCEPTED",
+        runtime: { not: null },
       },
       select: {
         userId: true,
-        gflops: true,
+        runtime: true,
       },
       orderBy: {
-        gflops: "desc",
+        runtime: "asc",
       },
     });
 
     // Group submissions by user (keeping only best per user)
-    const userBestGflops: Record<string, number> = {};
+    const userBestRuntimes: Record<string, number> = {};
     for (const sub of allSubmissionsForProblemGpu) {
-      if (sub?.gflops === null || sub?.userId === null) continue;
-      if (!userBestGflops[sub.userId]) {
-        userBestGflops[sub.userId] = sub.gflops;
-      } else if (userBestGflops[sub.userId]! < sub.gflops) {
-        userBestGflops[sub.userId] = sub.gflops;
+      if (sub?.runtime === null || sub?.userId === null) continue;
+      if (!userBestRuntimes[sub.userId]) {
+        userBestRuntimes[sub.userId] = sub.runtime;
+      } else if (userBestRuntimes[sub.userId]! > sub.runtime) {
+        userBestRuntimes[sub.userId] = sub.runtime;
       }
     }
-    const uniqueGflopValues = Object.values(userBestGflops).sort(
-      (a, b) => b - a
+    const uniqueRuntimeValues = Object.values(userBestRuntimes).sort(
+      (a, b) => a - b
     );
 
     const userRank =
-      uniqueGflopValues.findIndex((value) => value === gflops) + 1;
-    const totalUniqueSubmissions = uniqueGflopValues.length;
+      uniqueRuntimeValues.findIndex((value) => value === runtime) + 1;
+    const totalUniqueSubmissions = uniqueRuntimeValues.length;
 
     if (totalUniqueSubmissions <= 1) {
       totalRatingChanges += FIRST_SOLVE_BONUS;
@@ -434,13 +440,15 @@ export const usersRouter = createTRPCRouter({
           const bestSubmission = await ctx.db.submission.findFirst({
             where: {
               userId: user.id,
-              gflops: { not: null },
+              runtime: { not: null },
+              status: "ACCEPTED",
             },
             orderBy: {
-              gflops: "desc",
+              runtime: "asc",
             },
             select: {
               id: true,
+              runtime: true,
               gflops: true,
               gpuType: true,
               problem: {

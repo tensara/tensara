@@ -72,6 +72,61 @@ export type BenchmarkResult = {
   runtime_ms: number;
 };
 
+// GPU Monitoring Types
+
+/**
+ * Single GPU sample collected every ~5ms during kernel execution
+ */
+export interface GPUSample {
+  timestamp: number; // Unix timestamp in seconds
+  sm_clock_mhz: number; // Streaming multiprocessor clock in MHz
+  temp_c: number; // GPU temperature in Celsius
+  pstate: number; // Performance state (0 = max performance)
+  throttle_reasons: number; // Bitmask of active throttle reasons
+}
+
+/**
+ * Aggregated GPU metrics statistics for a single benchmark run
+ */
+export interface GPUMetricsStats {
+  sample_count: number;
+  // Temperature stats
+  temp_c_min: number;
+  temp_c_max: number;
+  temp_c_mean: number;
+  // SM Clock stats
+  sm_clock_mhz_min: number;
+  sm_clock_mhz_max: number;
+  sm_clock_mhz_mean: number;
+  // Performance state
+  pstate_min: number;
+  pstate_max: number;
+  // Throttle reasons (OR of all seen during run)
+  throttle_reasons_any: number;
+}
+
+/**
+ * Individual benchmark run data with GPU metrics
+ */
+export interface BenchmarkRunData {
+  run_index: number;
+  runtime_ms: number;
+  gflops?: number;
+  gpu_samples: GPUSample[];
+  gpu_metrics?: GPUMetricsStats;
+}
+
+/**
+ * Test result with per-run benchmark data including GPU metrics
+ */
+export interface TestResultWithRuns {
+  test_id: number;
+  name: string;
+  avg_runtime_ms: number;
+  avg_gflops?: number;
+  runs: BenchmarkRunData[];
+}
+
 // Response Types
 interface BaseResponse<T extends SubmissionStatusType | SubmissionErrorType> {
   status: T;
@@ -102,7 +157,12 @@ export interface WrongAnswerResponse extends BaseResponse<"WRONG_ANSWER"> {
 
 export interface BenchmarkResultResponse
   extends BaseResponse<"BENCHMARK_RESULT"> {
-  result: BenchmarkResult;
+  result: BenchmarkResult & {
+    // New format fields (from engine with GPU metrics)
+    avg_runtime_ms?: number;
+    avg_gflops?: number;
+    runs?: BenchmarkRunData[]; // Per-run data with GPU metrics (new submissions)
+  };
   total_tests: number;
 }
 

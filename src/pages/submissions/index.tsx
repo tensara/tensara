@@ -64,6 +64,20 @@ interface SubmissionWithProblem extends Submission {
   };
 }
 
+// Helper function to format runtime numbers
+const formatRuntime = (runtime: number | null | undefined): string => {
+  if (runtime == null) return "N/A";
+  if (runtime < 1) {
+    const microseconds = runtime * 1000;
+    return `${microseconds.toFixed(2)} μs`;
+  }
+  if (runtime >= 1000) {
+    const seconds = runtime / 1000;
+    return `${seconds.toFixed(2)} s`;
+  }
+  return `${runtime.toFixed(2)} ms`;
+};
+
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await auth(context.req, context.res);
 
@@ -180,14 +194,14 @@ const SubmissionsPage: NextPage = () => {
         case "problem":
           return a.problem.title.localeCompare(b.problem.title) * order;
         case "performance":
-          if (a.gflops && !b.gflops) return -1 * order;
-          if (!a.gflops && b.gflops) return 1 * order;
-
-          if (a.gflops && b.gflops) {
-            return (b.gflops - a.gflops) * order;
+          // Sort by runtime (lower is better), so ascending order means lower runtime first
+          if (a.runtime != null && b.runtime != null) {
+            return (a.runtime - b.runtime) * order;
           }
-
-          return (a.runtime! - b.runtime!) * order;
+          // Prefer entries with runtime
+          if (a.runtime != null) return -1 * order;
+          if (b.runtime != null) return 1 * order;
+          return 0;
         case "gpuType":
           return (a.gpuType ?? "").localeCompare(b.gpuType ?? "") * order;
         case "language":
@@ -529,19 +543,9 @@ const SubmissionsPage: NextPage = () => {
                       }}
                     >
                       {submission.status === "ACCEPTED" ? (
-                        submission.gflops ? (
-                          <Tooltip
-                            label={`Runtime: ${submission.runtime?.toFixed(2)} ms`}
-                          >
-                            <Text fontWeight="medium">
-                              {submission.gflops?.toFixed(2)} GFLOPS
-                            </Text>
-                          </Tooltip>
-                        ) : (
-                          <Text fontWeight="medium">
-                            {submission.runtime?.toFixed(2)} ms
-                          </Text>
-                        )
+                        <Text fontWeight="medium">
+                          {formatRuntime(submission.runtime)}
+                        </Text>
                       ) : (
                         <Text color="whiteAlpha.700">-</Text>
                       )}
