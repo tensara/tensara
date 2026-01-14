@@ -598,32 +598,35 @@ export default function CLI() {
                     borderColor="gray.700"
                     mb={6}
                   >
-                    <Text mb={4} color="gray.300">
-                      After installation, authenticate the CLI with your API
-                      key. You can create or manage your keys in the
-                      <Menu>
-                        <MenuButton
-                          as={Button}
-                          variant="link"
-                          colorScheme="brand"
-                          mx={2}
-                          fontWeight="bold"
-                          _hover={{
-                            textDecoration: "none",
-                            color: "brand.400",
-                          }}
-                        >
-                          API Keys
-                        </MenuButton>
-                        <MenuList>
-                          <MenuItem onClick={() => setTabIndex(1)}>
-                            View API Keys
-                          </MenuItem>
-                          <MenuItem onClick={onOpen}>Create New Key</MenuItem>
-                        </MenuList>
-                      </Menu>
-                      tab.
-                    </Text>
+                    <Box mb={4} color="gray.300">
+                      <Text as="span">
+                        After installation, authenticate the CLI with your API
+                        key. You can create or manage your keys in the{" "}
+                      </Text>
+                      <Box as="span" display="inline-block" mx={2}>
+                        <Menu>
+                          <MenuButton
+                            as={Button}
+                            variant="link"
+                            colorScheme="brand"
+                            fontWeight="bold"
+                            _hover={{
+                              textDecoration: "none",
+                              color: "brand.400",
+                            }}
+                          >
+                            API Keys
+                          </MenuButton>
+                          <MenuList>
+                            <MenuItem onClick={() => setTabIndex(1)}>
+                              View API Keys
+                            </MenuItem>
+                            <MenuItem onClick={onOpen}>Create New Key</MenuItem>
+                          </MenuList>
+                        </Menu>
+                      </Box>
+                      <Text as="span">tab.</Text>
+                    </Box>
                     <TerminalBox command="tensara auth -t <your_api_token>" />
                   </Box>
                 </MotionBox>

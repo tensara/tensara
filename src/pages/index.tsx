@@ -10,7 +10,6 @@ import {
   SimpleGrid,
   Link,
   Divider,
-  Badge,
   Flex,
   CloseButton,
 } from "@chakra-ui/react";
@@ -21,11 +20,11 @@ import {
   FiCpu,
   FiAward,
   FiUsers,
-  FiTerminal,
   FiArrowRight,
   FiGitPullRequest,
   FiCode,
   FiBookOpen,
+  FiStar,
 } from "react-icons/fi";
 import { FaDiscord, FaGithub, FaTwitter, FaEnvelope } from "react-icons/fa";
 import { type IconType } from "react-icons";
@@ -48,7 +47,7 @@ const FeatureCard = ({
 }) => {
   return (
     <Box
-      bg="brand.card"
+      bg="transparent"
       borderRadius="xl"
       p={6}
       borderWidth="1px"
@@ -84,33 +83,53 @@ const FeatureCard = ({
   );
 };
 
-// Update card component
-const UpdateCard = ({
+type LandingActivity = {
+  repoStars: number | null;
+  prs: Array<{ title: string; url: string; number: number; updatedAt: string }>;
+  problems: Array<{
+    title: string;
+    slug: string;
+    difficulty: string;
+    createdAt: string;
+  }>;
+  blogPosts: Array<{
+    title: string;
+    slug: string;
+    publishedAt: string;
+    authorUsername: string | null;
+  }>;
+};
+
+function formatRelativeTime(isoDate: string) {
+  const date = new Date(isoDate);
+  const deltaMs = date.getTime() - Date.now();
+  const deltaSeconds = Math.round(deltaMs / 1000);
+
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+  const minutes = Math.round(deltaSeconds / 60);
+  const hours = Math.round(minutes / 60);
+  const days = Math.round(hours / 24);
+  const weeks = Math.round(days / 7);
+
+  if (Math.abs(deltaSeconds) < 60) return rtf.format(deltaSeconds, "second");
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, "minute");
+  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
+  if (Math.abs(days) < 7) return rtf.format(days, "day");
+  return rtf.format(weeks, "week");
+}
+
+const ActivityItem = ({
   title,
-  type,
-  description,
-  date,
+  href,
+  subtitle,
+  isExternal,
 }: {
   title: string;
-  type: string;
-  description: string;
-  date: string;
+  href: string;
+  subtitle?: string;
+  isExternal?: boolean;
 }) => {
-  const getBadgeColor = (type: string) => {
-    switch (type) {
-      case "FEATURE":
-        return "green";
-      case "IMPROVEMENT":
-        return "blue";
-      case "RELEASE":
-        return "purple";
-      case "IN PROGRESS":
-        return "yellow";
-      default:
-        return "gray";
-    }
-  };
-
   return (
     <Box
       p={4}
@@ -120,26 +139,27 @@ const UpdateCard = ({
         bg: "rgba(14, 129, 68, 0.05)",
       }}
     >
-      <Flex justify="space-between" align="center" mb={2}>
-        <Heading size="sm" color="white">
+      <Link
+        href={href}
+        isExternal={isExternal}
+        color="white"
+        fontWeight="600"
+        title={title}
+        transition="all 1s"
+        _hover={{
+          textDecoration: "none",
+          color: "brand.primary",
+        }}
+      >
+        <Text isTruncated maxW="full" transition="color 0.3s">
           {title}
-        </Heading>
-        <Badge
-          colorScheme={getBadgeColor(type)}
-          fontSize="xs"
-          borderRadius="md"
-          px={2}
-          py={1}
-        >
-          {type}
-        </Badge>
-      </Flex>
-      <Text color="whiteAlpha.800" fontSize="sm" mb={1}>
-        {description}
-      </Text>
-      <Text color="whiteAlpha.500" fontSize="xs">
-        {date}
-      </Text>
+        </Text>
+      </Link>
+      {subtitle ? (
+        <Text color="whiteAlpha.600" fontSize="sm" mt={1}>
+          {subtitle}
+        </Text>
+      ) : null}
     </Box>
   );
 };
@@ -147,6 +167,8 @@ const UpdateCard = ({
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showMetricBanner, setShowMetricBanner] = useState(true);
+  const [activity, setActivity] = useState<LandingActivity | null>(null);
+  const [activityError, setActivityError] = useState(false);
 
   // State for animation sequence
   const [isTypingCode, setIsTypingCode] = useState(true); // Start with code typing
@@ -197,6 +219,30 @@ export default function HomePage() {
     window.addEventListener("resize", checkMobile);
 
     return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadActivity() {
+      try {
+        setActivityError(false);
+        const res = await fetch("/api/landing/activity", {
+          signal: controller.signal,
+        });
+
+        if (!res.ok) throw new Error(`Failed to load activity: ${res.status}`);
+        const json: LandingActivity = (await res.json()) as LandingActivity;
+        setActivity(json);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        console.error(err);
+        setActivityError(true);
+      }
+    }
+
+    void loadActivity();
+    return () => controller.abort();
   }, []);
 
   console.log("HomePage Rendering:", {
@@ -364,6 +410,7 @@ export default function HomePage() {
 
                   <Link
                     href="https://github.com/tensara/tensara"
+                    isExternal
                     style={{ textDecoration: "none" }}
                     cursor="pointer"
                   >
@@ -380,10 +427,23 @@ export default function HomePage() {
                       }}
                       transition="all 0.2s"
                     >
-                      <Icon as={FaGithub} boxSize={5} color="white" />
+                      <Icon as={FiStar} boxSize={5} color="white" />
                       <Text color="white" fontWeight="500">
                         GitHub
                       </Text>
+                      {activity?.repoStars !== null &&
+                      activity?.repoStars !== undefined ? (
+                        <Box
+                          bg="whiteAlpha.200"
+                          px={2}
+                          py={0.5}
+                          borderRadius="md"
+                          fontSize="sm"
+                          color="whiteAlpha.900"
+                        >
+                          {activity.repoStars.toLocaleString()}
+                        </Box>
+                      ) : null}
                     </Flex>
                   </Link>
 
@@ -449,34 +509,34 @@ export default function HomePage() {
                   minH="420px"
                 >
                   <AnimatePresence initial={false}>
-                    <Box
-                      position="absolute"
-                      w="full"
-                      display="flex"
-                      justifyContent="center"
-                    >
-                      {(isTypingCode || isFadingCode) && (
+                    {(isTypingCode || isFadingCode) && (
+                      <Box
+                        key="cuda-wrapper"
+                        position="absolute"
+                        w="full"
+                        display="flex"
+                        justifyContent="center"
+                      >
                         <AnimatedCudaEditor
-                          key="cuda-editor"
                           onTypingComplete={handleTypingComplete}
                           isFadingOut={isFadingCode}
                         />
-                      )}
-                    </Box>
-                    <Box
-                      position="absolute"
-                      w="full"
-                      display="flex"
-                      justifyContent="center"
-                    >
-                      {isShowingBenchmarks && (
+                      </Box>
+                    )}
+                    {isShowingBenchmarks && (
+                      <Box
+                        key="benchmarks-wrapper"
+                        position="absolute"
+                        w="full"
+                        display="flex"
+                        justifyContent="center"
+                      >
                         <LandingBenchmarkDisplay
-                          key="benchmarks"
                           isVisible={isShowingBenchmarks}
                           dummyData={dummyBenchmarkData}
                         />
-                      )}
-                    </Box>
+                      </Box>
+                    )}
                   </AnimatePresence>
                 </Flex>
               )}
@@ -550,17 +610,21 @@ export default function HomePage() {
           </Flex>
         </Container>
 
-        {/* Updates Section */}
+        {/* Activity Section */}
         <Box py={16}>
           <Container maxW="8xl">
             <VStack align="flex-start" spacing={8}>
               <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
-                Latest Updates
+                Latest Activity
               </Heading>
+
+              <Text color="whiteAlpha.700" maxW="2xl">
+                Fresh PRs, new problems, and recent community submissions.
+              </Text>
 
               <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full">
                 <Box
-                  bg="brand.card"
+                  bg="transparent"
                   borderRadius="xl"
                   overflow="hidden"
                   borderWidth="1px"
@@ -574,73 +638,61 @@ export default function HomePage() {
                   >
                     <Icon as={FiGitPullRequest} color="brand.primary" mr={2} />
                     <Heading size="sm" color="white">
-                      Core Platform
+                      Latest Changes
                     </Heading>
+                    <Link
+                      href="https://github.com/tensara/tensara/pulls"
+                      isExternal
+                      ml="auto"
+                      color="whiteAlpha.600"
+                      fontSize="sm"
+                      _hover={{ color: "white" }}
+                    >
+                      View all
+                    </Link>
                   </Flex>
                   <Box>
-                    <UpdateCard
-                      title="Compiler Baselines"
-                      type="FEATURE"
-                      description="Add compiler baselines to leaderboards."
-                      date="1 week ago"
-                    />
-                    <UpdateCard
-                      title="Experimental Mojo Support"
-                      type="FEATURE"
-                      description="Added support for Mojo submissions."
-                      date="3 weeks ago"
-                    />
-                    <UpdateCard
-                      title="Rating System"
-                      type="FEATURE"
-                      description="New rating system for user rankings."
-                      date="1 month ago"
-                    />
+                    {activity ? (
+                      activity.prs.length ? (
+                        activity.prs.map((pr) => (
+                          <ActivityItem
+                            key={pr.number}
+                            title={pr.title}
+                            href={pr.url}
+                            isExternal
+                            subtitle={`${formatRelativeTime(pr.updatedAt)} · #${
+                              pr.number
+                            }`}
+                          />
+                        ))
+                      ) : (
+                        <ActivityItem
+                          title="No PRs found"
+                          href="https://github.com/tensara/tensara/pulls"
+                          isExternal
+                          subtitle="Check GitHub for the latest merged PRs"
+                        />
+                      )
+                    ) : activityError ? (
+                      <ActivityItem
+                        title="Activity unavailable"
+                        href="https://github.com/tensara/tensara/pulls"
+                        isExternal
+                        subtitle="Couldn’t load merged PRs right now"
+                      />
+                    ) : (
+                      <ActivityItem
+                        title="Loading…"
+                        href="https://github.com/tensara/tensara/pulls"
+                        isExternal
+                        subtitle="Fetching latest merged PRs"
+                      />
+                    )}
                   </Box>
                 </Box>
 
                 <Box
-                  bg="brand.card"
-                  borderRadius="xl"
-                  overflow="hidden"
-                  borderWidth="1px"
-                  borderColor="whiteAlpha.100"
-                >
-                  <Flex
-                    p={4}
-                    borderBottomWidth="1px"
-                    borderColor="brand.primary"
-                    align="center"
-                  >
-                    <Icon as={FiTerminal} color="brand.primary" mr={2} />
-                    <Heading size="sm" color="white">
-                      CLI Tool
-                    </Heading>
-                  </Flex>
-                  <Box>
-                    <UpdateCard
-                      title="v1 Release"
-                      type="RELEASE"
-                      description="Fully integrated CLI tool for Tensara."
-                      date="1 hour ago"
-                    />
-                    <UpdateCard
-                      title="Submissions"
-                      type="FEATURE"
-                      description="Allows direct submissions via CLI."
-                      date="5 hours ago"
-                    />
-                    <UpdateCard
-                      title="v0.1 Release"
-                      type="RELEASE"
-                      description="Initial release of the Tensara CLI."
-                      date="1 month ago"
-                    />
-                  </Box>
-                </Box>
-
-                <Box
-                  bg="brand.card"
+                  bg="transparent"
                   borderRadius="xl"
                   overflow="hidden"
                   borderWidth="1px"
@@ -654,28 +706,112 @@ export default function HomePage() {
                   >
                     <Icon as={FiBookOpen} color="brand.primary" mr={2} />
                     <Heading size="sm" color="white">
-                      Problems
+                      Latest Problems
                     </Heading>
+                    <Link
+                      href="/problems"
+                      ml="auto"
+                      color="whiteAlpha.600"
+                      fontSize="sm"
+                      _hover={{ color: "white" }}
+                    >
+                      View all
+                    </Link>
                   </Flex>
                   <Box>
-                    <UpdateCard
-                      title="Graphics Problems"
-                      type="IN PROGRESS"
-                      description="Image processing problems in progress."
-                      date="1 day ago"
-                    />
-                    <UpdateCard
-                      title="Convolution Problems"
-                      type="FEATURE"
-                      description="New set of convolution challenges available."
-                      date="1 week ago"
-                    />
-                    <UpdateCard
-                      title="3D/4D Tensor Matmul Problems"
-                      type="FEATURE"
-                      description="Added new matrix multiplication problems."
-                      date="2 weeks ago"
-                    />
+                    {activity ? (
+                      activity.problems.length ? (
+                        activity.problems.map((problem) => (
+                          <ActivityItem
+                            key={problem.slug}
+                            title={problem.title}
+                            href={`/problems/${problem.slug}`}
+                            subtitle={`${problem.difficulty} · ${formatRelativeTime(
+                              problem.createdAt
+                            )}`}
+                          />
+                        ))
+                      ) : (
+                        <ActivityItem
+                          title="No problems found"
+                          href="/problems"
+                          subtitle="Create the first problem"
+                        />
+                      )
+                    ) : activityError ? (
+                      <ActivityItem
+                        title="Activity unavailable"
+                        href="/problems"
+                        subtitle="Couldn’t load problems right now"
+                      />
+                    ) : (
+                      <ActivityItem
+                        title="Loading…"
+                        href="/problems"
+                        subtitle="Fetching latest problems"
+                      />
+                    )}
+                  </Box>
+                </Box>
+
+                <Box
+                  bg="transparent"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  borderWidth="1px"
+                  borderColor="whiteAlpha.100"
+                >
+                  <Flex
+                    p={4}
+                    borderBottomWidth="1px"
+                    borderColor="brand.primary"
+                    align="center"
+                  >
+                    <Icon as={FiUsers} color="brand.primary" mr={2} />
+                    <Heading size="sm" color="white">
+                      Community Submissions
+                    </Heading>
+                    <Link
+                      href="/blog"
+                      ml="auto"
+                      color="whiteAlpha.600"
+                      fontSize="sm"
+                      _hover={{ color: "white" }}
+                    >
+                      View all
+                    </Link>
+                  </Flex>
+                  <Box>
+                    {activity ? (
+                      activity.blogPosts.length ? (
+                        activity.blogPosts.map((post) => (
+                          <ActivityItem
+                            key={post.slug}
+                            title={`${post.authorUsername ?? "Someone"} · ${post.title}`}
+                            href={`/blog/${post.slug}`}
+                            subtitle={formatRelativeTime(post.publishedAt)}
+                          />
+                        ))
+                      ) : (
+                        <ActivityItem
+                          title="No solution posts yet"
+                          href="/blog"
+                          subtitle="Be the first to publish a solution write-up"
+                        />
+                      )
+                    ) : activityError ? (
+                      <ActivityItem
+                        title="Activity unavailable"
+                        href="/blog"
+                        subtitle="Couldn’t load blog posts right now"
+                      />
+                    ) : (
+                      <ActivityItem
+                        title="Loading…"
+                        href="/blog"
+                        subtitle="Fetching latest blog posts"
+                      />
+                    )}
                   </Box>
                 </Box>
               </SimpleGrid>
@@ -845,13 +981,6 @@ export default function HomePage() {
                   _hover={{ color: "white" }}
                 >
                   Roadmap
-                </Link>
-                <Link
-                  href="https://github.com/tensara/tensara-cli"
-                  isExternal
-                  _hover={{ color: "white" }}
-                >
-                  CLI Tool
                 </Link>
               </VStack>
 
