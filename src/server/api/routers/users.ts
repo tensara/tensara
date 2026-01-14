@@ -435,12 +435,14 @@ export const usersRouter = createTRPCRouter({
             where: {
               userId: user.id,
               gflops: { not: null },
+              status: "ACCEPTED",
             },
             orderBy: {
               gflops: "desc",
             },
             select: {
               id: true,
+              runtime: true,
               gflops: true,
               gpuType: true,
               problem: {

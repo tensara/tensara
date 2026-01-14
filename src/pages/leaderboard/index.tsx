@@ -71,6 +71,7 @@ type UserRanking = {
   solvedProblemsCount: number;
   bestSubmission: {
     id: string;
+    runtime: number | null;
     gflops: number | null;
     gpuType: string | null;
     problem: {
@@ -97,6 +98,14 @@ const formatRuntime = (runtime: number | null | undefined): string => {
     return `${seconds.toFixed(2)} s`;
   }
   return `${runtime.toFixed(2)} ms`;
+};
+
+const formatGFLOPS = (gflops: number | null | undefined): string => {
+  if (gflops == null) return "N/A";
+  if (gflops >= 1000) {
+    return `${(gflops / 1000).toFixed(2)} TFLOPS`;
+  }
+  return `${gflops.toFixed(2)} GFLOPS`;
 };
 
 const getMedalColor = (index: number): string => {
@@ -606,23 +615,20 @@ const LeaderboardPage: NextPage = () => {
                                             {user.bestSubmission.gpuType}
                                           </Badge>
                                         )}
-                                        <Badge
-                                          bg="blackAlpha.400"
-                                          color="white.300"
-                                          px={2}
-                                          py={0.5}
-                                          borderRadius="md"
-                                          fontSize="xs"
-                                          fontWeight="medium"
-                                          minWidth="fit-content"
-                                        >
-                                          {user.bestSubmission.gflops !== null
-                                            ? user.bestSubmission.gflops >= 1000
-                                              ? `${(user.bestSubmission.gflops / 1000).toFixed(2)} T`
-                                              : `${user.bestSubmission.gflops.toFixed(2)} G`
-                                            : "0.00 G"}
-                                          {"FLOPS"}
-                                        </Badge>
+                                        {user.bestSubmission.runtime != null && (
+                                          <Badge
+                                            bg="blackAlpha.400"
+                                            color="white.300"
+                                            px={2}
+                                            py={0.5}
+                                            borderRadius="md"
+                                            fontSize="xs"
+                                            fontWeight="medium"
+                                            minWidth="fit-content"
+                                          >
+                                            {formatRuntime(user.bestSubmission.runtime)}
+                                          </Badge>
+                                        )}
                                       </Flex>
                                     </Flex>
                                   ) : (
@@ -802,16 +808,24 @@ const LeaderboardPage: NextPage = () => {
                                         </Tooltip>
                                       </Td>
                                       <Td isNumeric borderRightRadius="lg">
-                                        <Text
-                                          color={getMedalColor(index)}
-                                          fontWeight="bold"
-                                          fontSize="sm"
-                                          style={{
-                                            fontVariantNumeric: "tabular-nums",
-                                          }}
+                                        <Tooltip
+                                          label={formatGFLOPS(submission.gflops)}
+                                          hasArrow
+                                          bg="whiteAlpha.50"
+                                          color="white"
                                         >
-                                          {formatRuntime(submission.runtime)}
-                                        </Text>
+                                          <Text
+                                            style={{
+                                              color: getMedalColor(index),
+                                              fontWeight: "bold",
+                                              fontSize: "0.875rem",
+                                              fontVariantNumeric: "tabular-nums",
+                                              display: "inline-block",
+                                            }}
+                                          >
+                                            {formatRuntime(submission.runtime)}
+                                          </Text>
+                                        </Tooltip>
                                       </Td>
                                     </Tr>
                                   ))}
