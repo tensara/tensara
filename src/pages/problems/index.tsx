@@ -19,7 +19,6 @@ import {
   MenuList,
   MenuItem,
   Button,
-  IconButton,
   Link,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
@@ -392,7 +391,19 @@ export default function ProblemsPage() {
           </HStack>
 
           <Text color="gray.400" fontSize="sm">
-            Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "} problems. Help us reach {(Math.floor((problems?.length ?? 0) / 100) + 1) * 100} problems <Link href={contributeUrl} isExternal color="brand.primary" textDecoration="underline" _hover={{ color: "green.300" }}>here</Link>!
+            Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "}
+            problems. Help us reach{" "}
+            {(Math.floor((problems?.length ?? 0) / 100) + 1) * 100} problems{" "}
+            <Link
+              href={contributeUrl}
+              isExternal
+              color="brand.primary"
+              textDecoration="underline"
+              _hover={{ color: "green.300" }}
+            >
+              here
+            </Link>
+            !
           </Text>
 
           <Box

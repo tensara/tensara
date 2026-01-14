@@ -1026,8 +1026,8 @@ export default function HomePage() {
                 Metric Migration
               </Heading>
               <Text fontSize="sm" color="gray.300">
-                We&apos;re migrating our primary metric from FLOPS to runtime. More
-                info on the changes we&apos;ve made will be posted soon.
+                We&apos;re migrating our primary metric from FLOPS to runtime.
+                More info on the changes we&apos;ve made will be posted soon.
               </Text>
             </Box>
             <CloseButton

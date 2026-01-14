@@ -8,6 +8,7 @@ const config = {
     "@typescript-eslint",
     "prettier"
   ],
+  "ignorePatterns": ["src/scripts/**/*"],
   "extends": [
     "next/core-web-vitals",
     "plugin:@typescript-eslint/recommended-type-checked",
