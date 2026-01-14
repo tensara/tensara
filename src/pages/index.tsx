@@ -12,6 +12,7 @@ import {
   Divider,
   Badge,
   Flex,
+  CloseButton,
 } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion"; // Import AnimatePresence
 import React, { useState, useEffect, useCallback } from "react"; // Import useCallback
@@ -145,6 +146,7 @@ const UpdateCard = ({
 
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
+  const [showMetricBanner, setShowMetricBanner] = useState(true);
 
   // State for animation sequence
   const [isTypingCode, setIsTypingCode] = useState(true); // Start with code typing
@@ -873,6 +875,40 @@ export default function HomePage() {
           </Container>
         </Box>
       </Box>
+
+      {showMetricBanner && (
+        <Box
+          position="fixed"
+          bottom={{ base: 4, md: 8 }}
+          right={{ base: 4, md: 8 }}
+          left={{ base: 4, md: "auto" }}
+          maxW="420px"
+          zIndex={20}
+          bg="gray.800"
+          border="1px solid"
+          borderColor="whiteAlpha.300"
+          borderRadius="lg"
+          boxShadow="0 12px 30px rgba(0,0,0,0.45)"
+          p={4}
+        >
+          <Flex align="start" gap={3}>
+            <Box>
+              <Heading size="sm" color="gray.100" mb={2}>
+                Metric Migration
+              </Heading>
+              <Text fontSize="sm" color="gray.300">
+                We&apos;re migrating our primary metric from FLOPS to runtime. More
+                info on the changes we&apos;ve made will be posted soon.
+              </Text>
+            </Box>
+            <CloseButton
+              color="gray.400"
+              _hover={{ color: "white" }}
+              onClick={() => setShowMetricBanner(false)}
+            />
+          </Flex>
+        </Box>
+      )}
     </Layout>
   );
 }
