@@ -615,7 +615,8 @@ const LeaderboardPage: NextPage = () => {
                                             {user.bestSubmission.gpuType}
                                           </Badge>
                                         )}
-                                        {user.bestSubmission.runtime != null && (
+                                        {user.bestSubmission.runtime !=
+                                          null && (
                                           <Badge
                                             bg="blackAlpha.400"
                                             color="white.300"
@@ -626,7 +627,9 @@ const LeaderboardPage: NextPage = () => {
                                             fontWeight="medium"
                                             minWidth="fit-content"
                                           >
-                                            {formatRuntime(user.bestSubmission.runtime)}
+                                            {formatRuntime(
+                                              user.bestSubmission.runtime
+                                            )}
                                           </Badge>
                                         )}
                                       </Flex>
@@ -809,7 +812,9 @@ const LeaderboardPage: NextPage = () => {
                                       </Td>
                                       <Td isNumeric borderRightRadius="lg">
                                         <Tooltip
-                                          label={formatGFLOPS(submission.gflops)}
+                                          label={formatGFLOPS(
+                                            submission.gflops
+                                          )}
                                           hasArrow
                                           bg="whiteAlpha.50"
                                           color="white"
@@ -819,7 +824,8 @@ const LeaderboardPage: NextPage = () => {
                                               color: getMedalColor(index),
                                               fontWeight: "bold",
                                               fontSize: "0.875rem",
-                                              fontVariantNumeric: "tabular-nums",
+                                              fontVariantNumeric:
+                                                "tabular-nums",
                                               display: "inline-block",
                                             }}
                                           >
