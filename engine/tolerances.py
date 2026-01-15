@@ -42,4 +42,3 @@ def tol_for(dtype: torch.dtype, numeric_category: NumericCategory) -> Tol | None
         return TOLS_FP32[numeric_category]
     except KeyError as e:
         raise KeyError(f"Unknown numeric_category={numeric_category!r}") from e
-
