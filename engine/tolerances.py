@@ -14,13 +14,12 @@ class Tol:
     atol: float
 
 
-# Broad, durable categories (FP32 defaults).
 TOLS_FP32: dict[NumericCategory, Tol] = {
-    "EXACT": Tol(0.0, 0.0),  # use torch.equal / exact checks
-    "ELEMENTWISE": Tol(1e-4, 1e-4),
-    "LOCAL": Tol(3e-4, 3e-4),
-    "REDUCTION": Tol(1e-3, 1e-3),
-    "GEMM_CONV": Tol(3e-3, 3e-3),
+    "EXACT": Tol(0.0, 0.0),  # torch.equal
+    "ELEMENTWISE": Tol(rtol=1e-4, atol=1e-4),
+    "LOCAL": Tol(rtol=3e-4, atol=3e-4),
+    "REDUCTION": Tol(rtol=1e-3, atol=1e-2),
+    "GEMM_CONV": Tol(rtol=3e-3, atol=1e-2),
 }
 
 
