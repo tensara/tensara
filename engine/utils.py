@@ -146,6 +146,12 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
     DANGEROUS_BUILTINS = {"eval", "exec", "open", "__import__"}
     FORBIDDEN_METHODS = {"sort", "topk"}  # Methods forbidden on tl.* and torch.*
     SORT_MODULES = {"triton.language", "torch"}  # Modules where sort/topk are forbidden
+    ALLOWED_CUTILE_CUPY_CALLS = {
+        "cupy.cuda.get_current_stream",
+        "cupy.zeros",
+        "cupy.ones",
+        "cupy.full",
+    }
 
     class ForbiddenPatternVisitor(ast.NodeVisitor):
         def __init__(self):
@@ -231,12 +237,13 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
                 if self._resolve(node.func.value.id) == "importlib":
                     self._set_error("Forbidden use of importlib detected.")
 
-            # 3. CuTile cupy restrictions: only cupy.cuda.get_current_stream() allowed
+            # 3. CuTile cupy restrictions: only a small allowlist of cupy calls are permitted
             if is_cutile and isinstance(node.func, ast.Attribute):
                 chain = self._get_attr_chain(node.func)
-                if chain and chain.startswith("cupy.") and chain != "cupy.cuda.get_current_stream":
+                if chain and chain.startswith("cupy.") and chain not in ALLOWED_CUTILE_CUPY_CALLS:
+                    allowed = ", ".join(sorted(f"{c}()" for c in ALLOWED_CUTILE_CUPY_CALLS))
                     self._set_error(
-                        f"Forbidden cupy usage: '{chain}()'. Only 'cupy.cuda.get_current_stream()' is allowed."
+                        f"Forbidden cupy usage: '{chain}()'. Allowed cupy calls: {allowed}."
                     )
 
             self.generic_visit(node)
