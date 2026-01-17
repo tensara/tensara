@@ -242,7 +242,9 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
                 chain = self._get_attr_chain(node.func)
                 if chain and chain.startswith("cupy.") and chain not in ALLOWED_CUTILE_CUPY_CALLS:
                     allowed = ", ".join(sorted(f"{c}()" for c in ALLOWED_CUTILE_CUPY_CALLS))
-                    self._set_error(f"Forbidden cupy usage: '{chain}()'. Allowed cupy calls: {allowed}.")
+                    self._set_error(
+                        f"Forbidden cupy usage: '{chain}()'. Allowed cupy calls: {allowed}."
+                    )
 
             self.generic_visit(node)
 
