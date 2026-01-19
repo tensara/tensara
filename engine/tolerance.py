@@ -1,8 +1,6 @@
 from fastapi import FastAPI, Request
 import modal
-from pathlib import Path
 import utils
-import inspect
 import torch
 
 runtime_image = (
@@ -26,8 +24,8 @@ def compute_tolerances_for_problem(
     """Compute tolerances for a problem definition."""
     try:
         problem = utils.load_problem_module(problem_name, problem_def)
-        
-        if hasattr(problem, 'is_exact') and getattr(problem, 'is_exact', False) is True:
+
+        if hasattr(problem, "is_exact") and getattr(problem, "is_exact", False) is True:
             return {
                 "problem_name": problem_name,
                 "percentile": percentile,
@@ -37,24 +35,28 @@ def compute_tolerances_for_problem(
                 "skipped": True,
                 "reason": "is_exact=True - tolerances not needed for exact problems",
             }
-        
+
         test_cases = problem.generate_test_cases(torch.float32)
-        
-        sig = inspect.signature(problem.reference_solution)
-        has_dtype_param = "dtype" in sig.parameters
-        
+
         rtol_list = []
         atol_list = []
         test_case_stats = []
-        
+
         for tc in test_cases:
             fp32_inputs_tuple = tc["create_inputs"]()
-            fp32_inputs = list(fp32_inputs_tuple) if isinstance(fp32_inputs_tuple, tuple) else [fp32_inputs_tuple]
+            fp32_inputs = (
+                list(fp32_inputs_tuple)
+                if isinstance(fp32_inputs_tuple, tuple)
+                else [fp32_inputs_tuple]
+            )
             # FP32 output
             x_t = problem.reference_solution(*fp32_inputs)
-            
+
             # FP16 output
-            fp16_inputs = [inp.to(torch.float16) if isinstance(inp, torch.Tensor) else inp for inp in fp32_inputs]
+            fp16_inputs = [
+                inp.to(torch.float16) if isinstance(inp, torch.Tensor) else inp
+                for inp in fp32_inputs
+            ]
             y_t_fp16 = problem.reference_solution(*fp16_inputs)
 
             min_threshold = 1e-6
@@ -62,18 +64,20 @@ def compute_tolerances_for_problem(
             del y_t_fp16
             y_t_clamped = torch.clamp(torch.abs(y_t), min=min_threshold) * torch.sign(y_t)
             del y_t
-            
+
             rtol, atol = utils.compute_tolerances(x_t, y_t_clamped, percentile)
             del x_t, y_t_clamped
-            
+
             rtol_list.append(rtol)
             atol_list.append(atol)
-            test_case_stats.append({
-                "name": tc["name"],
-                "rtol": rtol,
-                "atol": atol,
-            })
-        
+            test_case_stats.append(
+                {
+                    "name": tc["name"],
+                    "rtol": rtol,
+                    "atol": atol,
+                }
+            )
+
         return {
             "problem_name": problem_name,
             "percentile": percentile,
@@ -92,21 +96,21 @@ def compute_tolerances_for_problem(
 @web_app.post("/compute-tolerances")
 async def compute_tolerances_endpoint(request: Request):
     req = await request.json()
-    
+
     problem_def = req.get("problem_def")
     problem_name = req.get("problem_name")
     percentile = req.get("percentile", 25.0)
-    
+
     if not problem_def:
         return {"error": "problem_def is required"}
     if not problem_name:
         return {"error": "problem_name is required"}
-    
+
     try:
         percentile = float(percentile)
     except (ValueError, TypeError):
         return {"error": "percentile must be a number"}
-    
+
     try:
         result = compute_tolerances_for_problem.remote(problem_name, problem_def, percentile)
         return result

@@ -1190,19 +1190,19 @@ class ReferenceSolutionContext:
 def quantize_tolerance(value: float) -> float:
     if value <= 0:
         return 1e-9
-    
+
     magnitude = np.floor(np.log10(value))
-    base = 10 ** magnitude
-    
+    base = 10**magnitude
+
     normalized = value / base
-    
+
     if normalized < 1:
         base /= 10
         normalized = 9
     else:
         quantized_normalized = np.floor(normalized)
         normalized = max(1, min(9, quantized_normalized))
-    
+
     return normalized * base
 
 
@@ -1211,7 +1211,7 @@ def compute_tolerances(x: torch.Tensor, y: torch.Tensor, percentile: float) -> t
     y_flat = y.detach().flatten()
     total_elements = len(x_flat)
     max_samples = 100000
-    
+
     if total_elements > max_samples:
         step = total_elements / max_samples
         indices = (torch.arange(max_samples, dtype=torch.float32) * step).long()
@@ -1220,13 +1220,13 @@ def compute_tolerances(x: torch.Tensor, y: torch.Tensor, percentile: float) -> t
             indices = indices.to(x_flat.device)
         x_flat = x_flat[indices]
         y_flat = y_flat[indices]
-    
+
     x = x_flat.cpu().to(dtype=torch.float64)
     y = y_flat.cpu().to(dtype=torch.float64)
-    
+
     d = torch.abs(x - y)
     s = torch.abs(y)
-    
+
     quantile = percentile / 100.0
     threshold = 1e-5
     significant_mask = s >= threshold
@@ -1234,10 +1234,10 @@ def compute_tolerances(x: torch.Tensor, y: torch.Tensor, percentile: float) -> t
         s_star = torch.quantile(s[significant_mask], quantile).item()
     else:
         s_star = 1e-6
-    
+
     denominator = s_star + s
     valid_mask = denominator > 0
-    
+
     if not valid_mask.any():
         max_d = torch.max(d).item()
         rtol = 1e-6 if max_d == 0 else max_d / 1e-9
@@ -1245,16 +1245,16 @@ def compute_tolerances(x: torch.Tensor, y: torch.Tensor, percentile: float) -> t
     else:
         ratios = torch.where(valid_mask, d / denominator, torch.tensor(-float("inf")))
         rtol = torch.max(ratios).item()
-        
+
         if not np.isfinite(rtol) or rtol < 0:
             max_d = torch.max(d).item()
             rtol = max(max_d / (s_star + 1e-9), 1e-6) if s_star > 0 else 1e-6
             if not np.isfinite(rtol):
                 rtol = 1e-6
-        
+
         atol = rtol * s_star
-    
+
     rtol = quantize_tolerance(max(rtol, 1e-9))
     atol = quantize_tolerance(max(atol, 1e-9))
-    
+
     return float(rtol), float(atol)
