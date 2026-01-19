@@ -26,6 +26,18 @@ def compute_tolerances_for_problem(
     """Compute tolerances for a problem definition."""
     try:
         problem = utils.load_problem_module(problem_name, problem_def)
+        
+        if hasattr(problem, 'is_exact') and getattr(problem, 'is_exact', False) is True:
+            return {
+                "problem_name": problem_name,
+                "percentile": percentile,
+                "rtol_t": [],
+                "atol_t": [],
+                "test_case_stats": [],
+                "skipped": True,
+                "reason": "is_exact=True - tolerances not needed for exact problems",
+            }
+        
         test_cases = problem.generate_test_cases(torch.float32)
         
         sig = inspect.signature(problem.reference_solution)
@@ -38,27 +50,24 @@ def compute_tolerances_for_problem(
         for tc in test_cases:
             fp32_inputs_tuple = tc["create_inputs"]()
             fp32_inputs = list(fp32_inputs_tuple) if isinstance(fp32_inputs_tuple, tuple) else [fp32_inputs_tuple]
-            
             # FP32 output
-            if has_dtype_param:
-                x_t = problem.reference_solution(*fp32_inputs, dtype=torch.float32)
-            else:
-                x_t = problem.reference_solution(*fp32_inputs)
+            x_t = problem.reference_solution(*fp32_inputs)
             
             # FP16 output
             fp16_inputs = [inp.to(torch.float16) if isinstance(inp, torch.Tensor) else inp for inp in fp32_inputs]
-            if has_dtype_param:
-                y_t_fp16 = problem.reference_solution(*fp16_inputs, dtype=torch.float16)
-            else:
-                torch.backends.cudnn.enabled = False
-                y_t_fp16 = problem.reference_solution(*fp16_inputs)
-            
+            y_t_fp16 = problem.reference_solution(*fp16_inputs)
+
+            min_threshold = 1e-6
             y_t = y_t_fp16.to(torch.float32)
+            del y_t_fp16
+            y_t_clamped = torch.clamp(torch.abs(y_t), min=min_threshold) * torch.sign(y_t)
+            del y_t
             
-            rtol, atol = utils.compute_tolerances(x_t, y_t, percentile)
+            rtol, atol = utils.compute_tolerances(x_t, y_t_clamped, percentile)
+            del x_t, y_t_clamped
+            
             rtol_list.append(rtol)
             atol_list.append(atol)
-            
             test_case_stats.append({
                 "name": tc["name"],
                 "rtol": rtol,
@@ -86,7 +95,7 @@ async def compute_tolerances_endpoint(request: Request):
     
     problem_def = req.get("problem_def")
     problem_name = req.get("problem_name")
-    percentile = req.get("percentile", 10.0)
+    percentile = req.get("percentile", 25.0)
     
     if not problem_def:
         return {"error": "problem_def is required"}

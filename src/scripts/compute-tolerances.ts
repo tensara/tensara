@@ -1,15 +1,3 @@
-/**
- * Compute Tolerances Script
- *
- * This script computes optimal tolerance values (rtol/atol) for all problems
- * in the database using the tolerance API endpoint.
- *
- * Usage:
- *   bun tsx src/scripts/compute-tolerances.ts --percentile 10.0
- *   bun tsx src/scripts/compute-tolerances.ts --percentile 10.0 --update-db
- */
-
-// @ts-expect-error - Prisma types may not be generated yet
 import { PrismaClient } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
@@ -18,6 +6,12 @@ const prisma = new PrismaClient();
 
 const DEFAULT_PERCENTILE = 10.0;
 const OUTPUT_DIR = path.join(process.cwd(), "tolerance-results");
+
+type FilterOpts = {
+  slugs?: string[];
+  ids?: string[];
+  slugRegex?: RegExp;
+};
 
 interface ToleranceResult {
   problemId: string;
@@ -98,7 +92,7 @@ async function computeTolerances(
  */
 async function computeAllTolerances(
   percentile: number,
-  updateDb: boolean
+  filter?: FilterOpts
 ): Promise<void> {
   const modalEndpoint = process.env.MODAL_ENDPOINT;
   if (!modalEndpoint) {
@@ -110,29 +104,54 @@ async function computeAllTolerances(
   console.log("=".repeat(60));
   console.log(`Percentile: ${percentile}`);
   console.log(`Modal Endpoint: ${modalEndpoint}`);
-  console.log(`Update DB: ${updateDb ? "Yes" : "No"}`);
+  if (filter?.slugs?.length) {
+    console.log(`Slug filter: ${filter.slugs.join(", ")}`);
+  }
+  if (filter?.ids?.length) {
+    console.log(`ID filter: ${filter.ids.join(", ")}`);
+  }
+  if (filter?.slugRegex) {
+    console.log(`Slug regex filter: ${String(filter.slugRegex)}`);
+  }
   console.log("");
 
   // Fetch all problems with definitions
-  const problems = await prisma.problem.findMany({
-    where: {
-      definition: {
-        not: null,
-      },
+  const where: Record<string, unknown> = {
+    definition: {
+      not: null,
     },
+  };
+
+  if (filter?.slugs?.length) {
+    where.slug = { in: filter.slugs };
+  }
+
+  if (filter?.ids?.length) {
+    where.id = { in: filter.ids };
+  }
+
+  if (filter?.slugRegex) {
+    // Prisma doesn't support regex on all DBs consistently; do an in-memory filter below.
+  }
+
+  const problems = await prisma.problem.findMany({
+    where,
     select: {
       id: true,
       slug: true,
       title: true,
       definition: true,
-      baselineBenchmarks: true,
     },
     orderBy: {
       slug: "asc",
     },
   });
 
-  console.log(`Found ${problems.length} problems with definitions`);
+  const filteredProblems = filter?.slugRegex
+    ? problems.filter((p) => filter.slugRegex!.test(p.slug))
+    : problems;
+
+  console.log(`Found ${filteredProblems.length} problems with definitions`);
   console.log("");
 
   // Ensure output directory exists
@@ -144,12 +163,12 @@ async function computeAllTolerances(
   let successCount = 0;
   let errorCount = 0;
 
-  for (let i = 0; i < problems.length; i++) {
-    const problem = problems[i];
+  for (let i = 0; i < filteredProblems.length; i++) {
+    const problem = filteredProblems[i];
     if (!problem.definition) continue;
 
     process.stdout.write(
-      `[${i + 1}/${problems.length}] Processing: ${problem.slug}... `
+      `[${i + 1}/${filteredProblems.length}] Processing: ${problem.slug}... `
     );
 
     try {
@@ -203,29 +222,6 @@ async function computeAllTolerances(
         };
 
         results.push(result);
-
-        // Optionally update database
-        if (updateDb) {
-          // Store tolerances in baselineBenchmarks or create a new field
-          // For now, we'll store in a JSON structure
-          const tolerancesData = {
-            rtol_t: toleranceResult.rtol_t,
-            atol_t: toleranceResult.atol_t,
-            percentile: percentile,
-            computedAt: new Date().toISOString(),
-          };
-
-          await prisma.problem.update({
-            where: { id: problem.id },
-            data: {
-              baselineBenchmarks: {
-                ...((problem.baselineBenchmarks as Record<string, unknown>) ||
-                  {}),
-                tolerances: tolerancesData,
-              },
-            },
-          });
-        }
       }
     } catch (error) {
       console.log(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -258,7 +254,7 @@ async function computeAllTolerances(
   const output = {
     timestamp: new Date().toISOString(),
     percentile: percentile,
-    totalProblems: problems.length,
+    totalProblems: filteredProblems.length,
     successCount: successCount,
     errorCount: errorCount,
     results: results,
@@ -270,13 +266,10 @@ async function computeAllTolerances(
   console.log("=".repeat(60));
   console.log("COMPUTATION COMPLETE");
   console.log("=".repeat(60));
-  console.log(`Total problems: ${problems.length}`);
+  console.log(`Total problems: ${filteredProblems.length}`);
   console.log(`Successful: ${successCount}`);
   console.log(`Errors: ${errorCount}`);
   console.log(`Results saved to: ${outputFile}`);
-  if (updateDb) {
-    console.log("Database updated with tolerance values");
-  }
   console.log("");
 }
 
@@ -298,11 +291,67 @@ async function main() {
     process.exit(1);
   }
 
-  // Check if we should update the database
-  const updateDb = args.includes("--update-db");
+  const parseCommaSeparated = (raw: string | undefined): string[] => {
+    if (!raw) return [];
+    return raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
+
+  // Optional filters
+  const slugsIndex = args.indexOf("--slugs");
+  const slugs =
+    slugsIndex !== -1 && args[slugsIndex + 1]
+      ? parseCommaSeparated(args[slugsIndex + 1])
+      : [];
+
+  const idsIndex = args.indexOf("--ids");
+  const ids =
+    idsIndex !== -1 && args[idsIndex + 1]
+      ? parseCommaSeparated(args[idsIndex + 1])
+      : [];
+
+  const slugRegexIndex = args.indexOf("--slug-regex");
+  const slugRegexRaw =
+    slugRegexIndex !== -1 && args[slugRegexIndex + 1]
+      ? args[slugRegexIndex + 1]
+      : undefined;
+
+  let slugRegex: RegExp | undefined = undefined;
+  if (slugRegexRaw) {
+    try {
+      slugRegex = new RegExp(slugRegexRaw);
+    } catch (e) {
+      console.error(
+        `Invalid --slug-regex value: ${slugRegexRaw}. Must be a valid JS RegExp pattern.`
+      );
+      process.exit(1);
+    }
+  }
+
+  const filter: FilterOpts | undefined =
+    slugs.length || ids.length || slugRegex
+      ? {
+          slugs: slugs.length ? slugs : undefined,
+          ids: ids.length ? ids : undefined,
+          slugRegex,
+        }
+      : undefined;
+
+  if (slugs.length && slugRegex) {
+    console.warn(
+      "Warning: both --slugs and --slug-regex provided. Both will be applied (intersection)."
+    );
+  }
+  if (ids.length && slugRegex) {
+    console.warn(
+      "Warning: both --ids and --slug-regex provided. Both will be applied (intersection)."
+    );
+  }
 
   try {
-    await computeAllTolerances(percentile, updateDb);
+    await computeAllTolerances(percentile, filter);
   } catch (error) {
     console.error("Script failed:", error);
     process.exit(1);

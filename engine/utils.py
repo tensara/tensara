@@ -1207,21 +1207,33 @@ def quantize_tolerance(value: float) -> float:
 
 
 def compute_tolerances(x: torch.Tensor, y: torch.Tensor, percentile: float) -> tuple[float, float]:
-    x = x.detach().to("cpu", dtype=torch.float64).flatten()
-    y = y.detach().to("cpu", dtype=torch.float64).flatten()
+    x_flat = x.detach().flatten()
+    y_flat = y.detach().flatten()
+    total_elements = len(x_flat)
+    max_samples = 100000
+    
+    if total_elements > max_samples:
+        step = total_elements / max_samples
+        indices = (torch.arange(max_samples, dtype=torch.float32) * step).long()
+        indices = torch.clamp(indices, 0, total_elements - 1)
+        if x_flat.is_cuda:
+            indices = indices.to(x_flat.device)
+        x_flat = x_flat[indices]
+        y_flat = y_flat[indices]
+    
+    x = x_flat.cpu().to(dtype=torch.float64)
+    y = y_flat.cpu().to(dtype=torch.float64)
     
     d = torch.abs(x - y)
     s = torch.abs(y)
     
     quantile = percentile / 100.0
-    max_samples = 100000
-    if len(s) > max_samples:
-        indices = torch.linspace(0, len(s) - 1, max_samples, dtype=torch.long)
-        s_sample = s[indices]
+    threshold = 1e-5
+    significant_mask = s >= threshold
+    if significant_mask.any():
+        s_star = torch.quantile(s[significant_mask], quantile).item()
     else:
-        s_sample = s
-    
-    s_star = torch.quantile(s_sample, quantile).item()
+        s_star = 1e-6
     
     denominator = s_star + s
     valid_mask = denominator > 0
