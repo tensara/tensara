@@ -1225,32 +1225,32 @@ def compute_tolerances(x: torch.Tensor, y: torch.Tensor, percentile: float) -> t
     y = y_flat.cpu().to(dtype=torch.float64)
 
     d = torch.abs(x - y)
-    s = torch.abs(y)
+    s = torch.abs(x)
 
     quantile = percentile / 100.0
-    threshold = 1e-5
-    significant_mask = s >= threshold
-    if significant_mask.any():
-        s_star = torch.quantile(s[significant_mask], quantile).item()
-    else:
-        s_star = 1e-6
+
+    s_star = torch.median(s).item()
+
+    if s_star == 0 or not np.isfinite(s_star):
+        s_star = torch.quantile(s, 0.75).item()
+    if s_star == 0 or not np.isfinite(s_star):
+        s_star = torch.max(s).item()
+    if s_star == 0 or not np.isfinite(s_star):
+        s_star = 1.0
 
     denominator = s_star + s
     valid_mask = denominator > 0
 
     if not valid_mask.any():
         max_d = torch.max(d).item()
-        rtol = 1e-6 if max_d == 0 else max_d / 1e-9
-        atol = max_d + 1e-9 if max_d > 0 else 1e-9
+        rtol = 1e-6
+        atol = max(max_d, 1e-9)
     else:
-        ratios = torch.where(valid_mask, d / denominator, torch.tensor(-float("inf")))
-        rtol = torch.max(ratios).item()
+        ratios = d / denominator
+        rtol = torch.quantile(ratios[valid_mask], quantile).item()
 
         if not np.isfinite(rtol) or rtol < 0:
-            max_d = torch.max(d).item()
-            rtol = max(max_d / (s_star + 1e-9), 1e-6) if s_star > 0 else 1e-6
-            if not np.isfinite(rtol):
-                rtol = 1e-6
+            rtol = 1e-6
 
         atol = rtol * s_star
 
