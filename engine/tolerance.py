@@ -87,13 +87,8 @@ def compute_tolerances_for_problem(
                 }
             )
 
-        max_tolerances = [
-            max(tc["rtol"], tc["atol"]) for tc in test_case_stats
-        ]
-        sorted_indices = sorted(
-            range(len(test_case_stats)),
-            key=lambda i: max_tolerances[i]
-        )
+        max_tolerances = [max(tc["rtol"], tc["atol"]) for tc in test_case_stats]
+        sorted_indices = sorted(range(len(test_case_stats)), key=lambda i: max_tolerances[i])
         median_idx = sorted_indices[len(sorted_indices) // 2]
         chosen_rtol = test_case_stats[median_idx]["rtol"]
         chosen_atol = test_case_stats[median_idx]["atol"]
