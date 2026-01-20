@@ -18,6 +18,8 @@ interface ToleranceResult {
   problemSlug: string;
   problemTitle: string;
   percentile: number;
+  rtol: number;
+  atol: number;
   rtol_t: number[];
   atol_t: number[];
   test_case_stats: Array<{
@@ -32,14 +34,18 @@ interface ToleranceResult {
 interface ToleranceResponse {
   problem_name: string;
   percentile: number;
-  rtol_t: number[];
-  atol_t: number[];
-  test_case_stats: Array<{
+  rtol?: number;
+  atol?: number;
+  rtol_t?: number[];
+  atol_t?: number[];
+  test_case_stats?: Array<{
     name: string;
     rtol: number;
     atol: number;
   }>;
   error?: string;
+  skipped?: boolean;
+  reason?: string;
 }
 
 /**
@@ -190,23 +196,34 @@ async function computeAllTolerances(
           problemSlug: problem.slug,
           problemTitle: problem.title,
           percentile: percentile,
+          rtol: 0,
+          atol: 0,
           rtol_t: [],
           atol_t: [],
           test_case_stats: [],
           error: toleranceResult.error,
           computedAt: new Date().toISOString(),
         });
-      } else {
-        const maxRtol =
-          toleranceResult.rtol_t.length > 0
-            ? Math.max(...toleranceResult.rtol_t)
-            : 0;
-        const maxAtol =
-          toleranceResult.atol_t.length > 0
-            ? Math.max(...toleranceResult.atol_t)
-            : 0;
+      } else if (toleranceResult.skipped) {
+        console.log(`⊘ Skipped: ${toleranceResult.reason || "No reason provided"}`);
+        successCount++;
+
+        results.push({
+          problemId: problem.id,
+          problemSlug: problem.slug,
+          problemTitle: problem.title,
+          percentile: percentile,
+          rtol: 0,
+          atol: 0,
+          rtol_t: toleranceResult.rtol_t || [],
+          atol_t: toleranceResult.atol_t || [],
+          test_case_stats: toleranceResult.test_case_stats || [],
+          error: toleranceResult.reason || "Skipped",
+          computedAt: new Date().toISOString(),
+        });
+      } else if (toleranceResult.rtol !== undefined && toleranceResult.atol !== undefined) {
         console.log(
-          `✓ (rtol: ${maxRtol.toExponential(2)}, atol: ${maxAtol.toExponential(2)})`
+          `✓ (rtol: ${toleranceResult.rtol.toExponential(2)}, atol: ${toleranceResult.atol.toExponential(2)})`
         );
         successCount++;
 
@@ -215,13 +232,32 @@ async function computeAllTolerances(
           problemSlug: problem.slug,
           problemTitle: problem.title,
           percentile: percentile,
-          rtol_t: toleranceResult.rtol_t,
-          atol_t: toleranceResult.atol_t,
-          test_case_stats: toleranceResult.test_case_stats,
+          rtol: toleranceResult.rtol,
+          atol: toleranceResult.atol,
+          rtol_t: toleranceResult.rtol_t || [],
+          atol_t: toleranceResult.atol_t || [],
+          test_case_stats: toleranceResult.test_case_stats || [],
           computedAt: new Date().toISOString(),
         };
 
         results.push(result);
+      } else {
+        console.log(`✗ Error: Missing rtol/atol in response`);
+        errorCount++;
+
+        results.push({
+          problemId: problem.id,
+          problemSlug: problem.slug,
+          problemTitle: problem.title,
+          percentile: percentile,
+          rtol: 0,
+          atol: 0,
+          rtol_t: [],
+          atol_t: [],
+          test_case_stats: [],
+          error: "Missing rtol/atol in response",
+          computedAt: new Date().toISOString(),
+        });
       }
     } catch (error) {
       console.log(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -232,6 +268,8 @@ async function computeAllTolerances(
         problemSlug: problem.slug,
         problemTitle: problem.title,
         percentile: percentile,
+        rtol: 0,
+        atol: 0,
         rtol_t: [],
         atol_t: [],
         test_case_stats: [],

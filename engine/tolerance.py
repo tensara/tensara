@@ -29,6 +29,8 @@ def compute_tolerances_for_problem(
             return {
                 "problem_name": problem_name,
                 "percentile": percentile,
+                "rtol": 0.0,
+                "atol": 0.0,
                 "rtol_t": [],
                 "atol_t": [],
                 "test_case_stats": [],
@@ -66,6 +68,13 @@ def compute_tolerances_for_problem(
             del y_t
 
             rtol, atol = utils.compute_tolerances(x_t, y_t_clamped, percentile)
+
+            if torch.allclose(x_t, y_t_clamped, rtol=rtol, atol=atol):
+                raise ValueError(
+                    f"Computed tolerances (rtol={rtol}, atol={atol}) are too loose - "
+                    f"they pass FP16 precision for test case '{tc['name']}'"
+                )
+
             del x_t, y_t_clamped
 
             rtol_list.append(rtol)
@@ -78,9 +87,22 @@ def compute_tolerances_for_problem(
                 }
             )
 
+        max_tolerances = [
+            max(tc["rtol"], tc["atol"]) for tc in test_case_stats
+        ]
+        sorted_indices = sorted(
+            range(len(test_case_stats)),
+            key=lambda i: max_tolerances[i]
+        )
+        median_idx = sorted_indices[len(sorted_indices) // 2]
+        chosen_rtol = test_case_stats[median_idx]["rtol"]
+        chosen_atol = test_case_stats[median_idx]["atol"]
+
         return {
             "problem_name": problem_name,
             "percentile": percentile,
+            "rtol": chosen_rtol,
+            "atol": chosen_atol,
             "rtol_t": rtol_list,
             "atol_t": atol_list,
             "test_case_stats": test_case_stats,
@@ -90,6 +112,8 @@ def compute_tolerances_for_problem(
             "error": str(e),
             "problem_name": problem_name,
             "percentile": percentile,
+            "rtol": 0.0,
+            "atol": 0.0,
         }
 
 
@@ -99,23 +123,26 @@ async def compute_tolerances_endpoint(request: Request):
 
     problem_def = req.get("problem_def")
     problem_name = req.get("problem_name")
-    percentile = req.get("percentile", 25.0)
+    percentile = req.get("percentile", 75.0)
 
     if not problem_def:
-        return {"error": "problem_def is required"}
+        return {"error": "problem_def is required", "rtol": 0.0, "atol": 0.0}
     if not problem_name:
-        return {"error": "problem_name is required"}
+        return {"error": "problem_name is required", "rtol": 0.0, "atol": 0.0}
 
     try:
         percentile = float(percentile)
     except (ValueError, TypeError):
-        return {"error": "percentile must be a number"}
+        return {"error": "percentile must be a number", "rtol": 0.0, "atol": 0.0}
+
+    if percentile < 0 or percentile > 100:
+        return {"error": "percentile must be between 0 and 100", "rtol": 0.0, "atol": 0.0}
 
     try:
         result = compute_tolerances_for_problem.remote(problem_name, problem_def, percentile)
         return result
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e), "rtol": 0.0, "atol": 0.0}
 
 
 @app.function()
