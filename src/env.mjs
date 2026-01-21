@@ -21,6 +21,8 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_GA_ID: z.string().min(1),
     NEXT_PUBLIC_BASE_URL: z.string().url(),
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().optional(),
+    NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET: z.string().optional(),
   },
 
   /**
@@ -34,6 +36,10 @@ export const env = createEnv({
     AUTH_SECRET: process.env.AUTH_SECRET,
     NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID,
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET:
+      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
     MODAL_ENDPOINT: process.env.MODAL_ENDPOINT,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
