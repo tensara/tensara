@@ -399,6 +399,7 @@ def run_benchmark(
                     return
 
                 benchmark_results.append(benchmark_result)
+                print("benchmark result", benchmark_result)
 
                 yield {
                     "status": "BENCHMARK_RESULT",
@@ -454,6 +455,7 @@ def run_benchmark(
             "avg_runtime_ms": avg_runtime_ms,
             "total_tests": test_count,
         }
+        print(summary)
         if avg_gflops is not None:
             summary["avg_gflops"] = avg_gflops
 

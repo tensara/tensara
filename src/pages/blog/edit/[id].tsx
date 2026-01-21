@@ -22,9 +22,10 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { api } from "~/utils/api";
-import { FiArrowLeft, FiEye, FiEdit, FiUpload } from "react-icons/fi";
+import { FiArrowLeft, FiEye, FiEdit, FiImage, FiUpload } from "react-icons/fi";
 import { MarkdownRenderer } from "~/components/blog";
 import { markdownContentStyles } from "~/constants/blog";
+import { env } from "~/env";
 // --- utils ---
 function parseTags(input: string): string[] {
   // accept commas OR spaces as separators; dedupe; lowercase slugs
@@ -50,6 +51,8 @@ export default function EditPost() {
   const { status } = useSession();
   const toast = useToast();
   const utils = api.useContext();
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const postQ = api.blogpost.getById.useQuery(
     { id: id ?? "" },
@@ -82,6 +85,101 @@ export default function EditPost() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagsInput, setTagsInput] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const insertMarkdownAtCursor = useCallback((markdown: string) => {
+    const el = contentRef.current;
+    if (!el) {
+      setContent((prev) => prev + markdown);
+      return;
+    }
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    setContent((prev) => prev.slice(0, start) + markdown + prev.slice(end));
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + markdown.length;
+      el.setSelectionRange(pos, pos);
+    });
+  }, []);
+
+  const uploadImageToCloudinary = useCallback(async (file: File) => {
+    const cloudName = env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    if (!cloudName || !uploadPreset) {
+      throw new Error(
+        "Missing NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME or NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET (add them to .env.local)."
+      );
+    }
+
+    const body = new FormData();
+    body.append("file", file);
+    body.append("upload_preset", uploadPreset);
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      { method: "POST", body }
+    );
+
+    const data: unknown = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        data &&
+        typeof data === "object" &&
+        "error" in data &&
+        (data as Record<string, unknown>).error &&
+        typeof (data as { error?: { message?: unknown } }).error?.message ===
+          "string"
+          ? (data as { error: { message: string } }).error.message
+          : `Image upload failed (${res.status})`;
+      throw new Error(message);
+    }
+
+    const record = data as Record<string, unknown> | null;
+    const url =
+      record && typeof record.secure_url === "string"
+        ? record.secure_url
+        : record && typeof record.url === "string"
+          ? record.url
+          : null;
+    if (!url) {
+      throw new Error("Image upload failed (unexpected response).");
+    }
+    return url;
+  }, []);
+
+  const uploadAndInsertImage = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Not an image",
+          description: "Please upload an image file.",
+          status: "warning",
+        });
+        return;
+      }
+
+      if (isUploadingImage) return;
+
+      setIsUploadingImage(true);
+      try {
+        const url = await uploadImageToCloudinary(file);
+        insertMarkdownAtCursor(`\n\n![](${url})\n\n`);
+        toast({ title: "Image added", status: "success", duration: 2000 });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to upload image";
+        toast({
+          title: "Upload failed",
+          description: message,
+          status: "error",
+        });
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [insertMarkdownAtCursor, isUploadingImage, toast, uploadImageToCloudinary]
+  );
 
   const onSaveNow = useCallback(async () => {
     if (!id || !hasHydrated.current) return;
@@ -387,6 +485,32 @@ export default function EditPost() {
                   Content
                 </FormLabel>
                 <HStack spacing={1.5}>
+                  {!showPreview ? (
+                    <>
+                      <Button
+                        size="sm"
+                        leftIcon={<Icon as={FiImage} />}
+                        onClick={() => imageInputRef.current?.click()}
+                        isLoading={isUploadingImage}
+                        {...getGhostBtnStyles()}
+                        px={3}
+                      >
+                        Image
+                      </Button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={imageInputRef}
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!file) return;
+                          void uploadAndInsertImage(file);
+                        }}
+                      />
+                    </>
+                  ) : null}
                   <Button
                     size="sm"
                     leftIcon={<Icon as={FiEdit} />}
@@ -410,8 +534,28 @@ export default function EditPost() {
 
               {!showPreview ? (
                 <Textarea
+                  ref={contentRef}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
+                  onPaste={(e) => {
+                    const file = Array.from(e.clipboardData.files).find((f) =>
+                      f.type.startsWith("image/")
+                    );
+                    if (!file) return;
+                    e.preventDefault();
+                    void uploadAndInsertImage(file);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = Array.from(e.dataTransfer.files).find((f) =>
+                      f.type.startsWith("image/")
+                    );
+                    if (!file) return;
+                    void uploadAndInsertImage(file);
+                  }}
                   placeholder="# Your Story\n\nWrite your post in markdown…"
                   minH="420px"
                   fontSize="md"

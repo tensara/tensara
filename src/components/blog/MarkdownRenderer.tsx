@@ -9,6 +9,25 @@ interface MarkdownRendererProps {
   content: string;
 }
 
+function optimizeCloudinaryUrl(url: string): string {
+  // Cloudinary transformation URLs look like:
+  // https://res.cloudinary.com/<cloud>/image/upload/<transformations>/<asset>
+  // If no transformations are present, insert lightweight defaults.
+  const marker = "/image/upload/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return url;
+  const after = url.slice(idx + marker.length);
+
+  // If there are already transformations (first segment contains commas and no dots),
+  // leave it as-is.
+  const firstSeg = after.split("/")[0] ?? "";
+  const looksLikeTransform = firstSeg.includes(",") && !firstSeg.includes(".");
+  if (looksLikeTransform) return url;
+
+  const transform = "f_auto,q_auto,c_limit,w_1600";
+  return url.slice(0, idx + marker.length) + transform + "/" + after;
+}
+
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   // Regex to match {{submission:submissionId}} patterns
   // Captures the submission ID in group 1
@@ -52,6 +71,25 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, rehypeHighlight]}
+        components={{
+          img({ src, alt, title }) {
+            const safeSrc = typeof src === "string" ? src : "";
+            const optimized =
+              safeSrc.startsWith("https://res.cloudinary.com/")
+                ? optimizeCloudinaryUrl(safeSrc)
+                : safeSrc;
+            return (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={optimized}
+                alt={alt ?? ""}
+                title={title}
+                loading="lazy"
+                decoding="async"
+              />
+            );
+          },
+        }}
       >
         {content}
       </ReactMarkdown>
@@ -67,6 +105,25 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex, rehypeHighlight]}
+            components={{
+              img({ src, alt, title }) {
+                const safeSrc = typeof src === "string" ? src : "";
+                const optimized =
+                  safeSrc.startsWith("https://res.cloudinary.com/")
+                    ? optimizeCloudinaryUrl(safeSrc)
+                    : safeSrc;
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={optimized}
+                    alt={alt ?? ""}
+                    title={title}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                );
+              },
+            }}
           >
             {segment.content}
           </ReactMarkdown>
