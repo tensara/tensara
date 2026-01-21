@@ -86,6 +86,25 @@ export default function EditPost() {
   const [tagsInput, setTagsInput] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+  const MAX_IMAGES_PER_POST = 20;
+  const ALLOWED_IMAGE_MIME_TYPES = useMemo(
+    () =>
+      new Set([
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+        "image/avif",
+      ]),
+    []
+  );
+
+  const countImagesInMarkdown = useCallback((markdown: string): number => {
+    // Counts basic inline markdown images: ![alt](url "title")
+    const regex = /!\[[^\]]*]\([^)\n]+\)/g;
+    return markdown.match(regex)?.length ?? 0;
+  }, []);
 
   const insertMarkdownAtCursor = useCallback((markdown: string) => {
     const el = contentRef.current;
@@ -158,6 +177,31 @@ export default function EditPost() {
         });
         return;
       }
+      if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
+        toast({
+          title: "Unsupported image type",
+          description: `Type ${file.type} is not allowed.`,
+          status: "warning",
+        });
+        return;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        toast({
+          title: "Image too large",
+          description: `Max size is ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)}MB.`,
+          status: "warning",
+        });
+        return;
+      }
+      const currentImageCount = countImagesInMarkdown(content);
+      if (currentImageCount >= MAX_IMAGES_PER_POST) {
+        toast({
+          title: "Too many images",
+          description: `Max ${MAX_IMAGES_PER_POST} images per post.`,
+          status: "warning",
+        });
+        return;
+      }
 
       if (isUploadingImage) return;
 
@@ -178,7 +222,17 @@ export default function EditPost() {
         setIsUploadingImage(false);
       }
     },
-    [insertMarkdownAtCursor, isUploadingImage, toast, uploadImageToCloudinary]
+    [
+      ALLOWED_IMAGE_MIME_TYPES,
+      MAX_IMAGE_BYTES,
+      MAX_IMAGES_PER_POST,
+      content,
+      countImagesInMarkdown,
+      insertMarkdownAtCursor,
+      isUploadingImage,
+      toast,
+      uploadImageToCloudinary,
+    ]
   );
 
   const onSaveNow = useCallback(async () => {
