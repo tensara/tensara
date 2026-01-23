@@ -58,6 +58,7 @@ import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
 import { api } from "~/utils/api";
 import Editor from "@monaco-editor/react";
+import { FlopsModal } from "~/components/misc/FlopsModal";
 
 type ViewType = "submissions" | "problem" | "result";
 
@@ -103,6 +104,11 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isFlopsModalOpen,
+    onOpen: onFlopsModalOpen,
+    onClose: onFlopsModalClose,
+  } = useDisclosure();
 
   const {
     output: consoleOutput,
@@ -507,6 +513,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
             onBackToProblem={() => setViewType("problem")}
             onViewSubmissions={() => setViewType("submissions")}
             submissionId={submissionId}
+            onViewFlops={onFlopsModalOpen}
+            hasFlopsCode={!!(problem as { getFlops?: string | null }).getFlops}
           />
         ) : null;
       default:
@@ -637,12 +645,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             <ModalCloseButton color="gray.400" />
             <ModalBody pb={6}>
               {problem.referenceSolution && (
-                <Box
-                  borderRadius="md"
-                  overflow="hidden"
-                  border="1px solid"
-                  borderColor="whiteAlpha.200"
-                >
+                <Box>
                   {(() => {
                     const lines = problem.referenceSolution.split("\n").length;
                     const height = Math.min(lines * 20 + 100, 600);
@@ -668,6 +671,12 @@ export default function ProblemPage({ slug }: { slug: string }) {
             </ModalBody>
           </ModalContent>
         </Modal>
+        <FlopsModal
+          isOpen={isFlopsModalOpen}
+          onClose={onFlopsModalClose}
+          problemSlug={problem.slug}
+          getFlops={(problem as { getFlops?: string | null }).getFlops}
+        />
       </Box>
     </Layout>
   );

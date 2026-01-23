@@ -110,6 +110,7 @@ model Problem {
   updatedAt          DateTime     @updatedAt
   userId             String?
   referenceSolution  String?
+  getFlops           String?
   User               User?        @relation(fields: [userId], references: [id])
   submissions        Submission[]
 

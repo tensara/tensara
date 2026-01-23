@@ -49,6 +49,7 @@ import NextLink from "next/link";
 import { getStatusIcon } from "~/constants/problem";
 import { useSplitPanel } from "./SplitPanel";
 import { GPUMetricInfoPopover } from "~/components/misc/GPUMetricInfoPopover";
+import { FiHash } from "react-icons/fi";
 
 // Define more specific types for the response data - these match the types in src/types/submission.ts
 type ResponseTypeMap = {
@@ -175,6 +176,8 @@ interface SubmissionResultsProps {
   onBackToProblem: () => void;
   onViewSubmissions: () => void;
   submissionId?: string | null;
+  onViewFlops?: () => void;
+  hasFlopsCode?: boolean;
 }
 
 const getStatusMessage = (
@@ -225,6 +228,8 @@ const SubmissionResults = ({
   onBackToProblem,
   onViewSubmissions,
   submissionId,
+  onViewFlops,
+  hasFlopsCode,
 }: SubmissionResultsProps) => {
   const { splitRatio } = useSplitPanel();
   const useCompactLabels = splitRatio < 40;
@@ -381,7 +386,27 @@ const SubmissionResults = ({
                               Runtime
                             </Th>
                             <Th color="whiteAlpha.700" py={3} isNumeric>
-                              GFLOPS
+                              <HStack spacing={1} justify="flex-start">
+                                <Text>GFLOPS</Text>
+                                {hasFlopsCode && onViewFlops && (
+                                  <IconButton
+                                    aria-label="View FLOPs Calculation"
+                                    icon={<Icon as={FiHash} />}
+                                    size="xs"
+                                    variant="ghost"
+                                    color="gray.500"
+                                    _hover={{
+                                      color: "white",
+                                      bg: "transparent",
+                                    }}
+                                    bg="transparent"
+                                    minW="auto"
+                                    h="auto"
+                                    p={0}
+                                    onClick={onViewFlops}
+                                  />
+                                )}
+                              </HStack>
                             </Th>
                           </Tr>
                         </Thead>
@@ -554,15 +579,31 @@ const SubmissionResults = ({
               {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==
                 undefined && (
                 <Box p={4}>
-                  <Text
-                    fontSize="xs"
-                    color="whiteAlpha.500"
-                    textTransform="uppercase"
-                    letterSpacing="wide"
-                    mb={1}
-                  >
-                    Throughput
-                  </Text>
+                  <HStack spacing={1} mb={1}>
+                    <Text
+                      fontSize="xs"
+                      color="whiteAlpha.500"
+                      textTransform="uppercase"
+                      letterSpacing="wide"
+                    >
+                      Throughput
+                    </Text>
+                    {hasFlopsCode && onViewFlops && (
+                      <IconButton
+                        aria-label="View FLOPs Calculation"
+                        icon={<Icon as={FiHash} />}
+                        size="xs"
+                        variant="ghost"
+                        color="gray.500"
+                        _hover={{ color: "white", bg: "transparent" }}
+                        bg="transparent"
+                        minW="auto"
+                        h="auto"
+                        p={0}
+                        onClick={onViewFlops}
+                      />
+                    )}
+                  </HStack>
                   <Text fontSize="xl" fontWeight="bold" color="white">
                     {getTypedResponse(
                       SubmissionStatus.ACCEPTED
