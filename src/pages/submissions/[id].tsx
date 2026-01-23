@@ -22,6 +22,8 @@ import {
   AlertIcon,
   AlertDescription,
   Button,
+  useDisclosure,
+  IconButton,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -40,9 +42,10 @@ import {
   getStatusColor,
   getStatusIcon,
 } from "~/constants/problem";
-import { FiCopy } from "react-icons/fi";
+import { FiCopy, FiHash } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
+import { FlopsModal } from "~/components/misc/FlopsModal";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -115,6 +118,11 @@ const SubmissionPage: NextPage<{
   const [code, setCode] = useState("");
   const { data: session } = useSession();
   const toast = useToast();
+  const {
+    isOpen: isFlopsModalOpen,
+    onOpen: onFlopsModalOpen,
+    onClose: onFlopsModalClose,
+  } = useDisclosure();
 
   const {
     data: submission,
@@ -398,14 +406,31 @@ const SubmissionPage: NextPage<{
                   )}
                   {submission.gflops !== null && (
                     <VStack align="center" spacing={1}>
-                      <Text
-                        color="whiteAlpha.600"
-                        fontSize="sm"
-                        fontWeight="medium"
-                        letterSpacing="wide"
-                      >
-                        PERFORMANCE
-                      </Text>
+                      <HStack spacing={1}>
+                        <Text
+                          color="whiteAlpha.600"
+                          fontSize="sm"
+                          fontWeight="medium"
+                          letterSpacing="wide"
+                        >
+                          PERFORMANCE
+                        </Text>
+                        {submission.problem.getFlops && (
+                          <IconButton
+                            aria-label="View FLOPs Calculation"
+                            icon={<Icon as={FiHash} />}
+                            size="xs"
+                            variant="ghost"
+                            color="gray.500"
+                            _hover={{ color: "white", bg: "transparent" }}
+                            bg="transparent"
+                            minW="auto"
+                            h="auto"
+                            p={0}
+                            onClick={onFlopsModalOpen}
+                          />
+                        )}
+                      </HStack>
                       <Text
                         fontSize="2xl"
                         fontWeight="bold"
@@ -655,7 +680,31 @@ const SubmissionPage: NextPage<{
                             <tr>
                               <th style={thStyle}>Test Case</th>
                               <th style={thStyle}>Runtime (ms)</th>
-                              {hasGflops && <th style={thStyle}>GFLOPS</th>}
+                              {hasGflops && (
+                                <th style={thStyle}>
+                                  <HStack spacing={1} justify="center">
+                                    <Text>GFLOPS</Text>
+                                    {submission.problem.getFlops && (
+                                      <IconButton
+                                        aria-label="View FLOPs Calculation"
+                                        icon={<Icon as={FiHash} />}
+                                        size="xs"
+                                        variant="ghost"
+                                        color="gray.500"
+                                        _hover={{
+                                          color: "white",
+                                          bg: "transparent",
+                                        }}
+                                        bg="transparent"
+                                        minW="auto"
+                                        h="auto"
+                                        p={0}
+                                        onClick={onFlopsModalOpen}
+                                      />
+                                    )}
+                                  </HStack>
+                                </th>
+                              )}
                               {hasGpuMetrics && (
                                 <>
                                   <th style={thStyle}>Temperature</th>
@@ -877,6 +926,26 @@ ${code}
           </Box>
         </VStack>
       </Box>
+      {submission && "problem" in submission && (
+        <FlopsModal
+          isOpen={isFlopsModalOpen}
+          onClose={onFlopsModalClose}
+          problemSlug={
+            (
+              submission as {
+                problem: { slug: string; getFlops?: string | null };
+              }
+            ).problem?.slug ?? ""
+          }
+          getFlops={
+            (
+              submission as {
+                problem: { slug: string; getFlops?: string | null };
+              }
+            ).problem?.getFlops
+          }
+        />
+      )}
     </Layout>
   );
 };

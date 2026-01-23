@@ -74,10 +74,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         components={{
           img({ src, alt, title }) {
             const safeSrc = typeof src === "string" ? src : "";
-            const optimized =
-              safeSrc.startsWith("https://res.cloudinary.com/")
-                ? optimizeCloudinaryUrl(safeSrc)
-                : safeSrc;
+            const optimized = safeSrc.startsWith("https://res.cloudinary.com/")
+              ? optimizeCloudinaryUrl(safeSrc)
+              : safeSrc;
             return (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -108,10 +107,11 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
             components={{
               img({ src, alt, title }) {
                 const safeSrc = typeof src === "string" ? src : "";
-                const optimized =
-                  safeSrc.startsWith("https://res.cloudinary.com/")
-                    ? optimizeCloudinaryUrl(safeSrc)
-                    : safeSrc;
+                const optimized = safeSrc.startsWith(
+                  "https://res.cloudinary.com/"
+                )
+                  ? optimizeCloudinaryUrl(safeSrc)
+                  : safeSrc;
                 return (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

@@ -85,9 +85,7 @@ async function computeTolerances(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      `Tolerance API returned ${response.status}: ${errorText}`
-    );
+    throw new Error(`Tolerance API returned ${response.status}: ${errorText}`);
   }
 
   return (await response.json()) as ToleranceResponse;
@@ -205,7 +203,9 @@ async function computeAllTolerances(
           computedAt: new Date().toISOString(),
         });
       } else if (toleranceResult.skipped) {
-        console.log(`⊘ Skipped: ${toleranceResult.reason || "No reason provided"}`);
+        console.log(
+          `⊘ Skipped: ${toleranceResult.reason || "No reason provided"}`
+        );
         successCount++;
 
         results.push({
@@ -221,7 +221,10 @@ async function computeAllTolerances(
           error: toleranceResult.reason || "Skipped",
           computedAt: new Date().toISOString(),
         });
-      } else if (toleranceResult.rtol !== undefined && toleranceResult.atol !== undefined) {
+      } else if (
+        toleranceResult.rtol !== undefined &&
+        toleranceResult.atol !== undefined
+      ) {
         console.log(
           `✓ (rtol: ${toleranceResult.rtol.toExponential(2)}, atol: ${toleranceResult.atol.toExponential(2)})`
         );
@@ -260,7 +263,9 @@ async function computeAllTolerances(
         });
       }
     } catch (error) {
-      console.log(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(
+        `✗ Error: ${error instanceof Error ? error.message : String(error)}`
+      );
       errorCount++;
 
       results.push({

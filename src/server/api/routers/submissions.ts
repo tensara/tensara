@@ -147,6 +147,7 @@ export const submissionsRouter = createTRPCRouter({
               title: true,
               slug: true,
               difficulty: true,
+              getFlops: true,
             },
           },
           user: {
