@@ -138,7 +138,7 @@ export default function BlogPost({ slug }: { slug: string }) {
   }
 
   const [newComment, setNewComment] = useState("");
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(true);
 
   function CommentItem({ comment }: { comment: CommentType }) {
     const [replyOpen, setReplyOpen] = useState(false);
@@ -172,9 +172,23 @@ export default function BlogPost({ slug }: { slug: string }) {
       <Box key={comment.id} py={3}>
         <VStack align="stretch" spacing={2}>
           <HStack spacing={2} align="baseline">
-            <Text color="gray.400" fontSize="xs" fontWeight="500">
-              {comment.author?.name}
-            </Text>
+            {comment.author?.username ? (
+              <ChakraLink
+                as={Link}
+                href={`/user/${comment.author.username}`}
+                color="gray.400"
+                fontSize="xs"
+                fontWeight="500"
+                display="inline-flex"
+                _hover={{ textDecoration: "none", color: "white" }}
+              >
+                {comment.author?.name ?? "Unknown"}
+              </ChakraLink>
+            ) : (
+              <Text color="gray.400" fontSize="xs" fontWeight="500">
+                {comment.author?.name ?? "Unknown"}
+              </Text>
+            )}
             <Text as="span" color="gray.600" fontSize="xs">
               ·
             </Text>
