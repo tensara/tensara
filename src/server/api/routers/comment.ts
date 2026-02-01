@@ -4,7 +4,12 @@ import { TRPCError } from "@trpc/server";
 import type { PrismaClient, Comment } from "@prisma/client";
 
 type CommentWithAuthor = Comment & {
-  author: { id: string; name?: string | null; image?: string | null };
+  author: {
+    id: string;
+    name?: string | null;
+    username?: string | null;
+    image?: string | null;
+  };
 };
 
 type CommentNode = CommentWithAuthor & { children: CommentNode[] };
@@ -67,7 +72,11 @@ export const commentRouter = createTRPCRouter({
       const flatComments = (await db.comment.findMany({
         where: { postId: input.postId },
         orderBy: { createdAt: "asc" },
-        include: { author: { select: { id: true, name: true, image: true } } },
+        include: {
+          author: {
+            select: { id: true, name: true, username: true, image: true },
+          },
+        },
       })) as CommentWithAuthor[];
 
       // Build map id -> comment (and initialize children arrays)
