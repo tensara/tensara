@@ -46,6 +46,214 @@ class MojoError(Exception):
     pass
 
 
+class SolutionSignatureError(Exception):
+    pass
+
+
+def _expected_solution_arity(problem: Problem) -> int | None:
+    try:
+        func_sig = problem.get_function_signature()
+        argtypes = func_sig.get("argtypes") if isinstance(func_sig, dict) else None
+        return len(argtypes) if argtypes else None
+    except Exception:
+        return None
+
+
+def _strip_c_like_comments_and_strings(s: str) -> str:
+    if not isinstance(s, str) or not s:
+        return s
+    import re
+
+    s = re.sub(r'"(?:\\.|[^"\\])*"', "", s, flags=re.DOTALL)
+    s = re.sub(r"'(?:\\.|[^'\\])*'", "", s, flags=re.DOTALL)
+    s = re.sub(r"/\*.*?\*/", "", s, flags=re.DOTALL)
+    s = re.sub(r"//.*?$", "", s, flags=re.MULTILINE)
+    return s
+
+
+def _extract_paren_group(s: str, open_paren_index: int) -> tuple[str, int] | None:
+    """Return (inside, close_index) for the (...) starting at `open_paren_index`."""
+    if open_paren_index < 0 or open_paren_index >= len(s) or s[open_paren_index] != "(":
+        return None
+    depth = 0
+    i = open_paren_index
+    start = open_paren_index + 1
+    while i < len(s):
+        c = s[i]
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return s[start:i], i
+        i += 1
+    return None
+
+
+def _split_top_level_commas(s: str) -> list[str]:
+    """Split by commas, ignoring commas inside <> [] () nesting."""
+    parts: list[str] = []
+    buf: list[str] = []
+    depth_paren = 0
+    depth_angle = 0
+    depth_brack = 0
+
+    for c in s:
+        if c == "(":
+            depth_paren += 1
+        elif c == ")":
+            depth_paren = max(0, depth_paren - 1)
+        elif c == "<":
+            depth_angle += 1
+        elif c == ">":
+            depth_angle = max(0, depth_angle - 1)
+        elif c == "[":
+            depth_brack += 1
+        elif c == "]":
+            depth_brack = max(0, depth_brack - 1)
+
+        if c == "," and depth_paren == 0 and depth_angle == 0 and depth_brack == 0:
+            parts.append("".join(buf).strip())
+            buf = []
+            continue
+        buf.append(c)
+
+    tail = "".join(buf).strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def validate_cuda_solution_signature_from_source(source: str, expected_arity: int | None) -> None:
+    if expected_arity is None:
+        return
+    cleaned = _strip_c_like_comments_and_strings(source or "")
+
+    import re
+
+    # Prefer a definition-like occurrence: solution(...) { ... }
+    for m in re.finditer(r"\bsolution\s*\(", cleaned):
+        paren_idx = cleaned.find("(", m.start())
+        grp = _extract_paren_group(cleaned, paren_idx)
+        if not grp:
+            continue
+        inside, close_idx = grp
+        j = close_idx + 1
+        while j < len(cleaned) and cleaned[j].isspace():
+            j += 1
+        if j >= len(cleaned) or cleaned[j] != "{":
+            continue
+
+        inside = inside.strip()
+        if not inside:
+            found = 0
+        else:
+            parts = _split_top_level_commas(inside)
+            if any(p.strip() == "..." for p in parts):
+                raise SolutionSignatureError(
+                    "Your CUDA `solution` uses varargs (`...`), which is not supported."
+                )
+            found = len([p for p in parts if p.strip()])
+
+        if found != expected_arity:
+            raise SolutionSignatureError(
+                "Your CUDA `solution` does not match the expected signature.\n"
+                f"- Expected: {expected_arity} parameters\n"
+                f"- Found: {found} parameters"
+            )
+        return
+
+    raise SolutionSignatureError(
+        "Missing required function `solution`.\n"
+        'Make sure your submission defines `extern "C" void solution(...) { ... }`.'
+    )
+
+
+def validate_mojo_solution_signature_from_source(source: str, expected_arity: int | None) -> None:
+    if expected_arity is None:
+        return
+    cleaned = _strip_c_like_comments_and_strings(source or "")
+
+    import re
+
+    for m in re.finditer(r"\bfn\s+solution\s*\(", cleaned):
+        paren_idx = cleaned.find("(", m.start())
+        grp = _extract_paren_group(cleaned, paren_idx)
+        if not grp:
+            continue
+        inside, _close_idx = grp
+        inside = inside.strip()
+        if not inside:
+            found = 0
+        else:
+            parts = _split_top_level_commas(inside)
+            found = len([p for p in parts if p.strip()])
+
+        if found != expected_arity:
+            raise SolutionSignatureError(
+                "Your Mojo `solution` does not match the expected signature.\n"
+                f"- Expected: {expected_arity} parameters\n"
+                f"- Found: {found} parameters"
+            )
+        return
+
+    raise SolutionSignatureError(
+        "Missing required function `solution`.\n"
+        "Make sure your submission defines `@export fn solution(...) ...:`."
+    )
+
+
+def validate_python_solution_signature_from_source(source: str, expected_arity: int | None) -> None:
+    if expected_arity is None:
+        return
+    if not isinstance(source, str) or not source.strip():
+        return
+
+    import ast
+
+    try:
+        tree = ast.parse(source)
+    except Exception:
+        return
+
+    solution_nodes = [
+        n
+        for n in tree.body
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "solution"
+    ]
+    if not solution_nodes:
+        raise SolutionSignatureError(
+            "Missing required function `solution`.\n"
+            "Make sure your submission defines `def solution(...):` at the top level."
+        )
+
+    node = solution_nodes[0]
+    args = node.args
+
+    required_kwonly = [
+        a.arg for a, d in zip(args.kwonlyargs, args.kw_defaults, strict=False) if d is None
+    ]
+    if required_kwonly:
+        raise SolutionSignatureError(
+            "Your `solution` function uses required keyword-only parameters, but the runner "
+            "calls `solution` with positional arguments only.\n"
+            f"- Keyword-only params: {', '.join(required_kwonly)}"
+        )
+
+    total_pos = len(args.posonlyargs) + len(args.args)
+    num_defaults = len(args.defaults or [])
+    min_pos = max(0, total_pos - num_defaults)
+    max_pos = None if args.vararg is not None else total_pos
+
+    if expected_arity < min_pos or (max_pos is not None and expected_arity > max_pos):
+        max_display = "∞" if max_pos is None else str(max_pos)
+        raise SolutionSignatureError(
+            "Your `solution` function does not match the expected signature.\n"
+            f"- Expected: callable with {expected_arity} positional arguments\n"
+            f"- Found: accepts {min_pos}..{max_display} positional arguments"
+        )
+
+
 def get_nvidia_smi():
     """Get nvidia-smi output"""
     process = subprocess.run(["nvidia-smi"], capture_output=True, text=True)
@@ -844,18 +1052,34 @@ def subproc_generator(timeout=None):
 
 
 def make_solution_func(language: str, solution_code: str, compiled: bytes, problem: Problem):
+    expected_arity = _expected_solution_arity(problem)
+
     if language == "cuda":
+        if solution_code:
+            validate_cuda_solution_signature_from_source(solution_code, expected_arity)
         if not compiled:
             raise ValueError("Compiled bytes required for CUDA submissions")
 
         cuda_lib = read_bytes_as_lib(compiled)
+        if not hasattr(cuda_lib, "solution"):
+            raise SolutionSignatureError(
+                "Missing required symbol `solution`.\n"
+                'Make sure your submission defines `extern "C" void solution(...) { ... }`.'
+            )
         func_sig = problem.get_function_signature()
         cuda_lib.solution.argtypes = func_sig["argtypes"]
         cuda_lib.solution.restype = func_sig["restype"]
         return cuda_lib.solution
 
     elif language == "mojo":
+        if solution_code:
+            validate_mojo_solution_signature_from_source(solution_code, expected_arity)
         mojo_lib = read_bytes_as_lib(compiled)
+        if not hasattr(mojo_lib, "solution"):
+            raise SolutionSignatureError(
+                "Missing required symbol `solution`.\n"
+                "Make sure your submission defines an `@export fn solution(...) ...:`."
+            )
         func_sig = problem.get_function_signature()
         mojo_lib.solution.argtypes = func_sig["argtypes"]
         mojo_lib.solution.restype = func_sig["restype"]
@@ -866,6 +1090,7 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         if solution_code:
             pattern_lang = "cutile" if language == "cutile" else "triton"
             reject_forbidden_patterns(pattern_lang, solution_code)
+            validate_python_solution_signature_from_source(solution_code, expected_arity)
 
         if language == "cutile":
             filename = "cutile_solution.py"
@@ -887,6 +1112,13 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         spec = importlib.util.spec_from_file_location(filename, temp_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        if not hasattr(module, "solution"):
+            raise SolutionSignatureError(
+                "Missing required function `solution`.\n"
+                "Make sure your submission defines `def solution(...):`."
+            )
+        if not callable(module.solution):
+            raise SolutionSignatureError("`solution` must be a callable function.")
         return module.solution
 
     else:
