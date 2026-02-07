@@ -215,6 +215,13 @@ def run_sample_case(
             "stderr": captured_stderr,
         }
 
+    except utils.SolutionSignatureError as e:
+        yield {
+            "status": "COMPILE_ERROR",
+            "message": "Invalid `solution` signature",
+            "details": str(e),
+        }
+
     except Exception as e:
         yield {"status": "ERROR", "message": str(e), "details": traceback.format_exc()}
 
