@@ -77,8 +77,7 @@ def solution(${paramStr}):
       return null;
     })();
 
-    const dtypeConst =
-      dtypeFromPtr?.dtypeConst ?? MOJO_DTYPE_CONST[dataType];
+    const dtypeConst = dtypeFromPtr?.dtypeConst ?? MOJO_DTYPE_CONST[dataType];
     const dtypeDisplay =
       dtypeFromPtr?.display ?? DATA_TYPE_DISPLAY_NAMES[dataType];
 
@@ -103,9 +102,7 @@ def solution(${paramStr}):
       })
       .join("\n");
 
-    const dtypeBlock = usesDType
-      ? `comptime dtype = ${dtypeConst}`
-      : "";
+    const dtypeBlock = usesDType ? `comptime dtype = ${dtypeConst}` : "";
 
     return `from gpu import thread_idx, block_idx, block_dim
 from gpu.host import DeviceContext

@@ -37,7 +37,6 @@ import {
   FiCpu,
   FiCode,
   FiShare2,
-  FiZap,
   FiPackage,
 } from "react-icons/fi";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
@@ -223,11 +222,7 @@ export default function SandboxHome() {
           gap={12}
         >
           <VStack spacing={6} maxW="640px" textAlign="center">
-            <Flex
-              p={4}
-              borderRadius="xl"
-              color="#2ecc71"
-            >
+            <Flex p={4} borderRadius="xl" color="#2ecc71">
               <Icon as={FiPackage} boxSize={16} />
             </Flex>
             <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
@@ -239,19 +234,19 @@ export default function SandboxHome() {
               later.
             </Text>
             <VStack spacing={2}>
-            <Button
-              onClick={() => signIn()}
-              bg="#0e8144"
-              _hover={{ 
-                bg: "#0a6434",
-                transform: "translateY(-2px)",
-              }}
-              borderRadius="lg"
+              <Button
+                onClick={() => signIn()}
+                bg="#0e8144"
+                _hover={{
+                  bg: "#0a6434",
+                  transform: "translateY(-2px)",
+                }}
+                borderRadius="lg"
                 px={8}
                 h="46px"
-            >
+              >
                 Sign In to Start a Workspace
-            </Button>
+              </Button>
               <Text fontSize="xs" color="gray.500">
                 Use your existing account to start a GPU workspace.
               </Text>
