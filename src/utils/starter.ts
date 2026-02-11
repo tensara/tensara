@@ -8,6 +8,8 @@ import {
   MOJO_MISC_TYPES,
   CUTE_TYPES,
   CUTE_MISC_TYPES,
+  DATA_TYPE_DISPLAY_NAMES,
+  MOJO_DTYPE_CONST,
 } from "~/constants/datatypes";
 import { FORBIDDEN_PATTERNS } from "~/constants/forbidden";
 
@@ -54,25 +56,67 @@ def solution(${paramStr}):
     `;
   }
   if (language === "mojo") {
-    const names = parameters
-      .map((parameter: Parameter) =>
-        parameter.pointer === "true" ? parameter.name : null
-      )
-      .filter(Boolean);
+    const pointerParams = parameters.filter((p) => p.pointer === "true");
+    const names = pointerParams.map((p) => p.name).filter(Boolean);
+    const dtypeFromPtr = (() => {
+      // If pointer params specify a concrete element type (e.g. int*), prefer that
+      // over the global dataType (which is mainly used for [VAR] problems).
+      const concretePtrTypes = pointerParams
+        .map((p) => p.type)
+        .filter((t) => t && t !== "[VAR]");
+      const uniqueConcrete = [...new Set(concretePtrTypes)];
+
+      // Mixed pointer element types are rare; fall back to the global dataType.
+      if (uniqueConcrete.length !== 1) return null;
+
+      const t = uniqueConcrete[0];
+      if (t === "int" || t === "size_t")
+        return { dtypeConst: "DType.int32", display: "int32" };
+      if (t === "float")
+        return { dtypeConst: "DType.float32", display: "float32" };
+      return null;
+    })();
+
+    const dtypeConst =
+      dtypeFromPtr?.dtypeConst ?? MOJO_DTYPE_CONST[dataType];
+    const dtypeDisplay =
+      dtypeFromPtr?.display ?? DATA_TYPE_DISPLAY_NAMES[dataType];
+
+    // For Mojo, we always pass raw device addresses and cast inside the function.
+    // Use Scalar[dtype] so the element type is controlled by `dtype`.
+    const usesDType = pointerParams.length > 0;
+
     const paramStr = parameters
-      .map(
-        (parameter: Parameter) =>
-          `${parameter.name}: ${parameter.pointer === "true" ? `UnsafePointer[${MOJO_TYPES[dataType]}]` : parameter.type === "[VAR]" ? MOJO_TYPES[dataType] : MOJO_MISC_TYPES[parameter.type]}`
+      .map((p) =>
+        p.pointer === "true"
+          ? `${p.name}_addr: Int`
+          : `${p.name}: ${p.type === "[VAR]" ? MOJO_TYPES[dataType] : MOJO_MISC_TYPES[p.type]}`
       )
       .join(", ");
-    return `from gpu.host import DeviceContext
-from gpu.id import block_dim, block_idx, thread_idx
-from memory import UnsafePointer
 
-# Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
+    const ptrTypeComment = `${dtypeDisplay} arrays`;
+
+    const pointerSetup = pointerParams
+      .map((p) => {
+        const varName = p.name.startsWith("d_") ? p.name.slice(2) : p.name;
+        return `    ${varName} = UnsafePointer[Scalar[dtype], MutExternalOrigin](unsafe_from_address=${p.name}_addr)`;
+      })
+      .join("\n");
+
+    const dtypeBlock = usesDType
+      ? `comptime dtype = ${dtypeConst}`
+      : "";
+
+    return `from gpu import thread_idx, block_idx, block_dim
+from gpu.host import DeviceContext
+from memory import UnsafePointer 
+
+${dtypeBlock ? dtypeBlock : ""}
+
+# Note: ${names.join(", ")} are device pointers to ${ptrTypeComment}
 @export
 fn solution(${paramStr}) raises:
-    `;
+${pointerSetup ? pointerSetup + "\n" : ""}    `;
   }
   if (language == "cute") {
     const names = parameters

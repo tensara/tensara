@@ -41,6 +41,13 @@ export const MOJO_TYPES: Record<DataType, string> = {
   int16: "Int16",
 } as const;
 
+export const MOJO_DTYPE_CONST: Record<DataType, string> = {
+  float32: "DType.float32",
+  float16: "DType.float16",
+  int32: "DType.int32",
+  int16: "DType.int16",
+} as const;
+
 export const MOJO_MISC_TYPES: Record<string, string> = {
   float: "Float32",
   int: "Int32",

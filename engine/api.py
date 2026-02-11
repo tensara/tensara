@@ -9,7 +9,7 @@ import runner
 DEVEL_IMAGE_NAME = "nvidia/cuda:13.1.0-devel-ubuntu24.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:13.1.0-runtime-ubuntu24.04"
 CURR_DIR = Path(__file__).parent
-
+MODULAR_INDEX = "https://modular.gateway.scarf.sh/simple/modular/modular-26.1.0-py3-none-any.whl"
 
 PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl", "nvidia-ml-py"]
 UV_PREFIX = "uv pip install --system "
@@ -35,7 +35,7 @@ runtime_image = (
     .env({"PATH": "/root/.local/bin:$PATH"})
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
-    .run_commands("uv pip install --system modular==25.4.0")
+    .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
     # install torch separately with CUDA 12.8
     .run_commands(
         "uv pip install --system torch==2.9.0 --index-url https://download.pytorch.org/whl/cu128"
@@ -52,7 +52,7 @@ def b200_image():
         .env({"PATH": "/root/.local/bin:$PATH"})
         .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
         .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES + ["cuda-tile", "cupy-cuda13x"]))
-        .run_commands("uv pip install --system modular==25.4.0")
+        .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
         # install torch separately with CUDA 12.8
         .run_commands(
             "uv pip install --system torch==2.9.0 --index-url https://download.pytorch.org/whl/cu128"
