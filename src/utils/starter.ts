@@ -59,20 +59,41 @@ def solution(${paramStr}):
         parameter.pointer === "true" ? parameter.name : null
       )
       .filter(Boolean);
+    const dtypeConst =
+      dataType === "float16"
+        ? "DType.float16"
+        : dataType === "float32"
+          ? "DType.float32"
+          : "DType.float32";
+
+    const pointerParams = parameters.filter((p) => p.pointer === "true");
+
     const paramStr = parameters
-      .map(
-        (parameter: Parameter) =>
-          `${parameter.name}: ${parameter.pointer === "true" ? `UnsafePointer[${MOJO_TYPES[dataType]}]` : parameter.type === "[VAR]" ? MOJO_TYPES[dataType] : MOJO_MISC_TYPES[parameter.type]}`
+      .map((p) =>
+        p.pointer === "true"
+          ? `${p.name}_addr: Int`
+          : `${p.name}: ${p.type === "[VAR]" ? MOJO_TYPES[dataType] : MOJO_MISC_TYPES[p.type]}`
       )
       .join(", ");
-    return `from gpu.host import DeviceContext
-from gpu.id import block_dim, block_idx, thread_idx
-from memory import UnsafePointer
+
+    const pointerSetup = pointerParams
+      .map((p) => {
+        const varName = p.name.startsWith("d_") ? p.name.slice(2) : p.name;
+        return `    ${varName} = UnsafePointer[Scalar[dtype], MutExternalOrigin](unsafe_from_address=${p.name}_addr)`;
+      })
+      .join("\n");
+
+    return `from gpu import thread_idx, block_idx, block_dim
+from gpu.host import DeviceContext
+from memory import UnsafePointer, MutExternalOrigin
+from tensor import DType, Scalar
+
+comptime dtype = ${dtypeConst}
 
 # Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
 @export
 fn solution(${paramStr}) raises:
-    `;
+${pointerSetup ? pointerSetup + "\n" : ""}    `;
   }
   if (language == "cute") {
     const names = parameters
