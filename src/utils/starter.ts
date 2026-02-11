@@ -8,6 +8,8 @@ import {
   MOJO_MISC_TYPES,
   CUTE_TYPES,
   CUTE_MISC_TYPES,
+  DATA_TYPE_DISPLAY_NAMES,
+  MOJO_DTYPE_CONST,
 } from "~/constants/datatypes";
 import { FORBIDDEN_PATTERNS } from "~/constants/forbidden";
 
@@ -76,27 +78,9 @@ def solution(${paramStr}):
     })();
 
     const dtypeConst =
-      dtypeFromPtr?.dtypeConst ??
-      (dataType === "float16"
-        ? "DType.float16"
-        : dataType === "float32"
-          ? "DType.float32"
-          : dataType === "int16"
-            ? "DType.int16"
-            : dataType === "int32"
-              ? "DType.int32"
-              : "DType.float32");
+      dtypeFromPtr?.dtypeConst ?? MOJO_DTYPE_CONST[dataType];
     const dtypeDisplay =
-      dtypeFromPtr?.display ??
-      (dataType === "float16"
-        ? "float16"
-        : dataType === "float32"
-          ? "float32"
-          : dataType === "int16"
-            ? "int16"
-            : dataType === "int32"
-              ? "int32"
-              : "float32");
+      dtypeFromPtr?.display ?? DATA_TYPE_DISPLAY_NAMES[dataType];
 
     // For Mojo, we always pass raw device addresses and cast inside the function.
     // Use Scalar[dtype] so the element type is controlled by `dtype`.
@@ -120,15 +104,13 @@ def solution(${paramStr}):
       .join("\n");
 
     const dtypeBlock = usesDType
-      ? `
-
-comptime dtype = ${dtypeConst}
-`
+      ? `comptime dtype = ${dtypeConst}`
       : "";
 
     return `from gpu import thread_idx, block_idx, block_dim
 from gpu.host import DeviceContext
 from memory import UnsafePointer 
+
 ${dtypeBlock ? dtypeBlock : ""}
 
 # Note: ${names.join(", ")} are device pointers to ${ptrTypeComment}
