@@ -3,34 +3,39 @@ const PREFERENCES_PREFIX = "problem_preferences_";
 const BLOG_POST_SNAPSHOT_PREFIX = "blogPost_";
 const EDITOR_VIM_MODE_KEY = "editor_vim_mode";
 
-export const getSolutionKey = (
-  slug: string,
-  language: string,
-  dataType: string
-): string => `${LOCAL_STORAGE_PREFIX}${slug}_${language}_${dataType}`;
+export const getSolutionKey = (slug: string, language: string): string =>
+  `${LOCAL_STORAGE_PREFIX}${slug}_${language}`;
 
 export const saveSolutionToStorage = (
   slug: string,
   code: string,
-  language: string,
-  dataType: string
+  language: string
 ): void => {
   if (typeof window === "undefined") return;
-  localStorage.setItem(getSolutionKey(slug, language, dataType), code);
+  localStorage.setItem(getSolutionKey(slug, language), code);
 };
 
 export const loadSolutionFromStorage = (
   slug: string,
-  language: string,
-  dataType: string
+  language: string
 ): string | null => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(getSolutionKey(slug, language, dataType));
+  const key = getSolutionKey(slug, language);
+  const value = localStorage.getItem(key);
+  if (value !== null) return value;
+  // Migration: try legacy key (slug, language, "float32")
+  const legacyKey = `${LOCAL_STORAGE_PREFIX}${slug}_${language}_float32`;
+  const legacyValue = localStorage.getItem(legacyKey);
+  if (legacyValue !== null) {
+    localStorage.setItem(key, legacyValue);
+    localStorage.removeItem(legacyKey);
+    return legacyValue;
+  }
+  return null;
 };
 
 interface ProblemPreferences {
   language: string;
-  dataType: string;
   gpuType: string;
 }
 

@@ -2,7 +2,6 @@ import { isSubmissionError } from "~/types/submission";
 import { FaCheck, FaTimes, FaExclamationCircle, FaClock } from "react-icons/fa";
 
 export const DEFAULT_LANGUAGE = "cuda";
-export const DEFAULT_DATA_TYPE = "float32";
 
 export const PROBLEM_DIFFICULTY_MULTIPLIERS = {
   EASY: 1,

@@ -141,8 +141,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setCode,
     selectedLanguage,
     setSelectedLanguage,
-    selectedDataType,
-    setSelectedDataType,
     isCodeDirty,
     handleReset,
     savedGpuType,
@@ -322,26 +320,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
   }, [submissionSassContent, sassContent]);
 
   useEffect(() => {
-    if (
-      hasLoadedPreferences &&
-      slug &&
-      selectedLanguage &&
-      selectedDataType &&
-      selectedGpuType
-    ) {
+    if (hasLoadedPreferences && slug && selectedLanguage && selectedGpuType) {
       savePreferences(slug, {
         language: selectedLanguage,
-        dataType: selectedDataType,
         gpuType: selectedGpuType,
       });
     }
-  }, [
-    slug,
-    selectedLanguage,
-    selectedDataType,
-    selectedGpuType,
-    hasLoadedPreferences,
-  ]);
+  }, [slug, selectedLanguage, selectedGpuType, hasLoadedPreferences]);
 
   // Handle submission
   const handleSubmit = useCallback(() => {
@@ -536,8 +521,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
         setSelectedGpuType={setSelectedGpuType}
         selectedLanguage={selectedLanguage}
         setSelectedLanguage={setSelectedLanguage}
-        selectedDataType={selectedDataType}
-        setSelectedDataType={setSelectedDataType}
         isCodeDirty={isCodeDirty}
         onResetClick={() => setIsResetModalOpen(true)}
         onSubmit={handleSubmit}

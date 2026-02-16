@@ -137,7 +137,7 @@ async def baseline_handler(request: Request, baseline: str):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
+    dtype = req.get("dtype", "float32")
     check = req.get("check", False)
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 

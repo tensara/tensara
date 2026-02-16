@@ -6,22 +6,19 @@ import {
   loadPreferences,
 } from "~/utils/localStorage";
 import { generateStarterCode } from "~/utils/starter";
-import { type ProgrammingLanguage, type DataType } from "~/types/misc";
+import { type ProgrammingLanguage } from "~/types/misc";
 import { type Parameter } from "~/types/problem";
-import { DEFAULT_LANGUAGE, DEFAULT_DATA_TYPE } from "~/constants/problem";
+import { DEFAULT_LANGUAGE } from "~/constants/problem";
 import { type Problem } from "@prisma/client";
 
 export function useCodePersistence(
   slug: string | undefined,
   problem: Problem,
-  initialLanguage: ProgrammingLanguage = DEFAULT_LANGUAGE,
-  initialDataType: DataType = DEFAULT_DATA_TYPE
+  initialLanguage: ProgrammingLanguage = DEFAULT_LANGUAGE
 ) {
   const [code, setCode] = useState<string>("");
   const [selectedLanguage, setSelectedLanguage] =
     useState<ProgrammingLanguage>(initialLanguage);
-  const [selectedDataType, setSelectedDataType] =
-    useState<DataType>(initialDataType);
   const [savedGpuType, setSavedGpuType] = useState<string | undefined>(
     undefined
   );
@@ -39,9 +36,6 @@ export function useCodePersistence(
         if (savedPreferences.language) {
           setSelectedLanguage(savedPreferences.language as ProgrammingLanguage);
         }
-        if (savedPreferences.dataType) {
-          setSelectedDataType(savedPreferences.dataType as DataType);
-        }
         if (savedPreferences.gpuType) {
           setSavedGpuType(savedPreferences.gpuType);
         }
@@ -54,10 +48,9 @@ export function useCodePersistence(
     () =>
       generateStarterCode(
         problem?.parameters as unknown as Parameter[],
-        selectedLanguage,
-        selectedDataType
+        selectedLanguage
       ),
-    [problem?.parameters, selectedLanguage, selectedDataType]
+    [problem?.parameters, selectedLanguage]
   );
 
   // Load starter code based on language and data type
@@ -66,30 +59,15 @@ export function useCodePersistence(
 
     if (memoizedStarterCode) {
       setStarterCode(memoizedStarterCode);
-      const savedSolution = loadSolutionFromStorage(
-        slug,
-        selectedLanguage,
-        selectedDataType
-      );
+      const savedSolution = loadSolutionFromStorage(slug, selectedLanguage);
       if (savedSolution) {
         setCode(savedSolution);
       } else {
         setCode(memoizedStarterCode);
-        saveSolutionToStorage(
-          slug,
-          memoizedStarterCode,
-          selectedLanguage,
-          selectedDataType
-        );
+        saveSolutionToStorage(slug, memoizedStarterCode, selectedLanguage);
       }
     }
-  }, [
-    selectedLanguage,
-    selectedDataType,
-    problem?.parameters,
-    slug,
-    memoizedStarterCode,
-  ]);
+  }, [selectedLanguage, problem?.parameters, slug, memoizedStarterCode]);
 
   // Check if code is dirty (different from starter code)
   useEffect(() => {
@@ -101,18 +79,14 @@ export function useCodePersistence(
   // Save code to localStorage when it changes
   useEffect(() => {
     if (code && slug) {
-      saveSolutionToStorage(slug, code, selectedLanguage, selectedDataType);
+      saveSolutionToStorage(slug, code, selectedLanguage);
     }
-  }, [code, slug, selectedLanguage, selectedDataType]);
+  }, [code, slug, selectedLanguage]);
 
   // Initial code setup
   useEffect(() => {
     if (!hasSetInitialCode && slug) {
-      const savedSolution = loadSolutionFromStorage(
-        slug,
-        selectedLanguage,
-        selectedDataType
-      );
+      const savedSolution = loadSolutionFromStorage(slug, selectedLanguage);
       if (savedSolution) {
         setCode(savedSolution);
         setHasSetInitialCode(true);
@@ -121,30 +95,20 @@ export function useCodePersistence(
         setHasSetInitialCode(true);
       }
     }
-  }, [
-    slug,
-    hasSetInitialCode,
-    starterCode,
-    selectedLanguage,
-    selectedDataType,
-  ]);
+  }, [slug, hasSetInitialCode, starterCode, selectedLanguage]);
 
   const handleReset = useCallback(() => {
     if (starterCode && slug) {
       setCode(starterCode);
-      localStorage.removeItem(
-        getSolutionKey(slug, selectedLanguage, selectedDataType)
-      );
+      localStorage.removeItem(getSolutionKey(slug, selectedLanguage));
     }
-  }, [starterCode, slug, selectedLanguage, selectedDataType]);
+  }, [starterCode, slug, selectedLanguage]);
 
   return {
     code,
     setCode,
     selectedLanguage,
     setSelectedLanguage,
-    selectedDataType,
-    setSelectedDataType,
     isCodeDirty,
     handleReset,
     starterCode,
