@@ -1,3 +1,4 @@
+import importlib
 import subprocess
 import torch
 import gc
@@ -484,11 +485,108 @@ def run_benchmark(
         yield {"status": "ERROR", "message": str(e), "details": traceback.format_exc()}
 
 
-def run_sandbox(compiled_lib: bytes, solution_code: str):
+def run_sandbox(compiled_lib: bytes, solution_code: str, language: str):
     """
-    Run sandbox on a compiled solution with real-time output streaming
+    Run sandbox on a solution with real-time output streaming
     """
     try:
+        if language == "cute":
+            if not solution_code:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Compilation Failed",
+                    "details": "No solution code provided for CuTE DSL",
+                }
+                return
+
+            yield {
+                "status": "SANDBOX_RUNNING",
+            }
+
+            try:
+                import torch
+
+                if torch.cuda.is_available():
+                    torch.cuda.init()
+                    torch.cuda.set_device(0)
+
+                def sol_func():
+                    filename = "cute_solution.py"
+                    utils.reject_forbidden_patterns("triton", solution_code)
+                    temp_dir = tempfile.mkdtemp()
+                    temp_path = os.path.join(temp_dir, filename)
+                    with open(temp_path, "w") as f:
+                        f.write(solution_code)
+
+                    spec = importlib.util.spec_from_file_location(filename, temp_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    func = getattr(module, "main", None)
+                    if callable(func):
+                        return func
+                    raise AttributeError("Submission must define a main function")
+
+                solution_func = sol_func()
+
+            except AttributeError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "CuTe submission must define `solution` or `main`",
+                    "details": str(e),
+                }
+                return
+            except Exception as e:
+                yield {
+                    "status": "SANDBOX_ERROR",
+                    "message": str(e),
+                    "details": traceback.format_exc(),
+                }
+                return
+
+            start_time = time.time()
+            stdout_buf = io.StringIO()
+            stderr_buf = io.StringIO()
+
+            # some CuTe flows require a tensor to initialize context
+            _ = utils.cast_to_cute([torch.tensor([1, 2, 3], device="cuda")])
+
+            with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+                solution_func()  # Call without parameters for sandbox mode
+
+            captured_stdout = stdout_buf.getvalue()
+            captured_stderr = stderr_buf.getvalue()
+
+            # stream captured stdout/stderr line by line to mimic other languages
+            output_bytes = 0
+            for stream_name, text in (("stdout", captured_stdout), ("stderr", captured_stderr)):
+                for line in text.splitlines():
+                    prospective_total = output_bytes + len(line.encode("utf-8")) + 1
+                    if prospective_total > MAX_SANDBOX_OUTPUT_BYTES:
+                        yield {
+                            "status": "SANDBOX_OUTPUT_LIMIT",
+                            "message": f"Sandbox output exceeded limit of {MAX_SANDBOX_OUTPUT_BYTES // 1024} KB",
+                            "stdout": captured_stdout,
+                            "stderr": captured_stderr,
+                            "details": "Execution stopped because the program produced too much console output.",
+                        }
+                        return
+
+                    output_bytes = prospective_total
+                    yield {
+                        "status": "SANDBOX_OUTPUT",
+                        "stream": stream_name,
+                        "line": line,
+                        "timestamp": time.time(),
+                    }
+
+            yield {
+                "status": "SANDBOX_SUCCESS",
+                "stdout": captured_stdout,
+                "stderr": captured_stderr,
+                "return_code": 0,
+                "execution_time": time.time() - start_time,
+            }
+            return
         if not compiled_lib:
             yield {
                 "status": "COMPILE_ERROR",
