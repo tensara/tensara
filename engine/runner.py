@@ -20,7 +20,7 @@ MAX_SANDBOX_OUTPUT_BYTES = 64 * 1024  # Cap console streaming to 64 KiB for resp
 
 
 def run_checker(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str, problem_def: str, solution_func, language: str, param_func=None
 ) -> Iterator[str]:
     """
     Check a submitted solution against the reference implementation
@@ -30,7 +30,6 @@ def run_checker(
         problem_name: Name of the problem
         problem_def: Problem instance
         solution_func: Callable function for the submitted solution
-        dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
         param_func: None for general submissions, non-None only for baseline submissions
 
@@ -39,8 +38,8 @@ def run_checker(
     """
 
     try:
-        dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
+        dtype = utils.dtype_from_signature(problem)
 
         test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
@@ -163,14 +162,14 @@ def run_checker(
 
 @utils.subproc_generator(timeout=60)
 def run_sample_case(
-    problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_func=None
+    problem_name, problem_def, solution_code, compiled_lib, language, param_func=None
 ):
     """
     Run the sample test case of a problem and return result + output.
     """
     try:
-        dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
+        dtype = utils.dtype_from_signature(problem)
         solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
 
         sample = problem.generate_sample(dtype)
@@ -227,14 +226,14 @@ def run_sample_case(
 
 
 def run_sanity_check(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str, problem_def: str, solution_func, language: str, param_func=None
 ):
     """
     Run sanity check on compiled CUDA solution
     """
     try:
-        dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
+        dtype = utils.dtype_from_signature(problem)
 
         test_cases = problem.generate_test_cases(dtype)
         total_tests = len(test_cases)
@@ -340,7 +339,7 @@ def run_sanity_check(
 
 
 def run_benchmark(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str, problem_def: str, solution_func, language: str, param_func=None
 ):
     """
     Run benchmark on compiled CUDA solution
@@ -349,15 +348,14 @@ def run_benchmark(
         problem_name: Name of the problem
         problem_def: Problem instance
         solution_func: Callable function for the submitted solution
-        dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
 
     Yields:
         Dictionary objects with benchmark status updates
     """
     try:
-        dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
+        dtype = utils.dtype_from_signature(problem)
 
         yield {"status": "BENCHMARKING"}
 

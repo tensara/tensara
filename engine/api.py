@@ -72,7 +72,6 @@ def binary_runner(
     solution_code: str,
     problem_name: str,
     problem_def: str,
-    dtype: str,
     language: str,
 ):
     gen = None
@@ -107,7 +106,7 @@ def binary_runner(
         gen = runner.run_sandbox(compiled_lib, solution_code)
     elif type == "sample":
         gen = runner.run_sample_case(
-            problem_name, problem_def, solution_code, compiled_lib, dtype, language
+            problem_name, problem_def, solution_code, compiled_lib, language
         )
     else:
         try:
@@ -132,11 +131,11 @@ def binary_runner(
             # this should not be reached
             raise ValueError("This code path should not be reached")
         elif type == "checker":
-            gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
+            gen = runner.run_checker(problem_name, problem_def, solution_func, language)
         elif type == "benchmark":
-            gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, language)
+            gen = runner.run_benchmark(problem_name, problem_def, solution_func, language)
         elif type == "sanity_check":
-            gen = runner.run_sanity_check(problem_name, problem_def, solution_func, dtype, language)
+            gen = runner.run_sanity_check(problem_name, problem_def, solution_func, language)
         else:
             raise ValueError(f"Unknown binary type: {type}")
 
@@ -177,7 +176,6 @@ async def checker(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req.get("dtype", "float32")
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -231,7 +229,7 @@ async def checker(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "checker", checker_compiled, solution_code, problem_name, problem_def, dtype, language
+            "checker", checker_compiled, solution_code, problem_name, problem_def, language
         )
         for event in stream:
             yield event
@@ -248,8 +246,6 @@ async def benchmark(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req.get("dtype", "float32")
-
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -297,7 +293,6 @@ async def benchmark(gpu: str, request: Request):
             solution_code,
             problem_name,
             problem_def,
-            dtype,
             language,
         )
         for event in stream:
@@ -315,7 +310,6 @@ async def sample_runner(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req.get("dtype", "float32")
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -358,7 +352,7 @@ async def sample_runner(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "sample", sample_compiled, solution_code, problem_name, problem_def, dtype, language
+            "sample", sample_compiled, solution_code, problem_name, problem_def, language
         )
         for event in stream:
             yield event
@@ -424,7 +418,7 @@ async def sandbox(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", language
+            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", language
         )
         for event in stream:
             if not event:
@@ -451,8 +445,6 @@ async def benchmark_cli(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req.get("dtype", "float32")
-
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -499,7 +491,6 @@ async def benchmark_cli(gpu: str, request: Request):
             solution_code,
             problem_name,
             problem_def,
-            dtype,
             language,
         )
         for event in sanity_check_stream:
@@ -520,7 +511,6 @@ async def benchmark_cli(gpu: str, request: Request):
             solution_code,
             problem_name,
             problem_def,
-            dtype,
             language,
         )
         for event in stream:

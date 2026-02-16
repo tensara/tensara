@@ -59,6 +59,31 @@ def _expected_solution_arity(problem: Problem) -> int | None:
         return None
 
 
+def dtype_from_signature(problem: Problem) -> torch.dtype:
+    """
+    Derive the tensor dtype from the problem's function signature.
+    Uses the first float pointer in argtypes (e.g. POINTER(c_float) -> float32).
+    Defaults to torch.float32 if no float pointer is found.
+    """
+    sig = problem.get_function_signature()
+    argtypes = sig.get("argtypes") if isinstance(sig, dict) else []
+    if not argtypes:
+        return torch.float32
+    for at in argtypes:
+        inner = getattr(at, "_type_", None)
+        if inner is ctypes.c_float:
+            return torch.float32
+        if inner is ctypes.c_double:
+            return torch.float64
+        # Fallback: match by type name (e.g. LP_c_float)
+        name = type(at).__name__
+        if "c_float" in name:
+            return torch.float32
+        if "c_double" in name:
+            return torch.float64
+    return torch.float32
+
+
 def _strip_c_like_comments_and_strings(s: str) -> str:
     if not isinstance(s, str) or not s:
         return s
