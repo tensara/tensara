@@ -10,7 +10,7 @@ import {
 } from "~/constants/datatypes";
 import { FORBIDDEN_PATTERNS } from "~/constants/forbidden";
 
-const DEFAULT_DTYPE = "float32" as const;
+const DEFAULT_DTYPE = "float32";
 
 export const generateStarterCode = (
   parameters: Parameter[],

@@ -320,12 +320,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   }, [submissionSassContent, sassContent]);
 
   useEffect(() => {
-    if (
-      hasLoadedPreferences &&
-      slug &&
-      selectedLanguage &&
-      selectedGpuType
-    ) {
+    if (hasLoadedPreferences && slug && selectedLanguage && selectedGpuType) {
       savePreferences(slug, {
         language: selectedLanguage,
         gpuType: selectedGpuType,
