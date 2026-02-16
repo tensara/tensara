@@ -4,7 +4,6 @@ import {
   Box,
   Text,
   Button,
-  IconButton,
   Flex,
   Menu,
   MenuButton,
@@ -12,13 +11,13 @@ import {
   MenuItem,
   Tooltip,
 } from "@chakra-ui/react";
-import { type DataType, type ProgrammingLanguage } from "~/types/misc";
+import { type ProgrammingLanguage } from "~/types/misc";
 
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
 import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
 
 import { IoRepeat } from "react-icons/io5";
-import { FaInfoCircle, FaChevronDown } from "react-icons/fa";
+import { FaChevronDown } from "react-icons/fa";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
@@ -28,8 +27,6 @@ interface SubmissionFormProps {
   setSelectedGpuType: (gpuType: string) => void;
   selectedLanguage: ProgrammingLanguage;
   setSelectedLanguage: (language: ProgrammingLanguage) => void;
-  selectedDataType: DataType;
-  setSelectedDataType: (dataType: DataType) => void;
   isCodeDirty: boolean;
   onResetClick: () => void;
   onSubmit: () => void;
@@ -43,8 +40,6 @@ const SubmissionForm = ({
   setSelectedGpuType,
   selectedLanguage,
   setSelectedLanguage,
-  selectedDataType,
-  setSelectedDataType,
   isCodeDirty,
   onResetClick,
   onSubmit,
@@ -228,95 +223,6 @@ const SubmissionForm = ({
                   cuTile Python
                 </MenuItem>
               </Tooltip>
-            </MenuList>
-          </Menu>
-        </Box>
-        <Box>
-          <Text fontSize="sm" color="whiteAlpha.700">
-            Data Type
-            {/* dummy button to align -- terrible hack */}
-            <IconButton
-              aria-label="Data Type Information"
-              icon={<FaInfoCircle />}
-              size="sm"
-              variant="ghost"
-              color="transparent"
-              visibility="hidden"
-              bg="transparent"
-            />
-          </Text>
-          <Menu>
-            <MenuButton
-              size="sm"
-              as={Button}
-              rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
-              bg="whiteAlpha.50"
-              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-              _active={{ bg: "whiteAlpha.150" }}
-              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-              color="white"
-              w={{ base: "110px", md: "140px" }}
-              fontWeight="normal"
-              textAlign="left"
-              justifyContent="flex-start"
-              borderRadius="lg"
-            >
-              {selectedDataType}
-            </MenuButton>
-            <MenuList
-              bg="brand.secondary"
-              borderColor="gray.800"
-              p={0}
-              borderRadius="lg"
-              minW="140px"
-            >
-              <MenuItem
-                key="float32"
-                onClick={() => setSelectedDataType("float32")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                float32
-              </MenuItem>
-              <MenuItem
-                key="float16"
-                onClick={() => setSelectedDataType("float16")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                isDisabled={true}
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                float16
-              </MenuItem>
-              <MenuItem
-                key="int32"
-                onClick={() => setSelectedDataType("int32")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                isDisabled={true}
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                int32
-              </MenuItem>
-              <MenuItem
-                key="int16"
-                onClick={() => setSelectedDataType("int16")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                isDisabled={true}
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                int16
-              </MenuItem>
             </MenuList>
           </Menu>
         </Box>

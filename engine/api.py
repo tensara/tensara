@@ -177,7 +177,7 @@ async def checker(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
+    dtype = req.get("dtype", "float32")
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -248,7 +248,7 @@ async def benchmark(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
+    dtype = req.get("dtype", "float32")
 
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
@@ -315,7 +315,7 @@ async def sample_runner(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
+    dtype = req.get("dtype", "float32")
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -451,7 +451,7 @@ async def benchmark_cli(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
+    dtype = req.get("dtype", "float32")
 
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
