@@ -516,10 +516,14 @@ def read_bytes_as_lib(compiled_lib: bytes):
     return lib
 
 
+COMPILED_LANGUAGES = ("cuda", "mojo")
+SCRIPT_LANGUAGES = ("python", "triton", "cute", "cutile")
+
+
 def cast_to_ctype(data, argtypes, language="cuda"):
     """Cast data to ctypes"""
     data_casted = []
-    if language == "cuda" or language == "mojo":
+    if language in COMPILED_LANGUAGES:
         for tensor, argtype in zip(data, argtypes):
             if isinstance(tensor, torch.Tensor):
                 data_casted.append(ctypes.cast(tensor.data_ptr(), argtype))
@@ -861,7 +865,7 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         mojo_lib.solution.restype = func_sig["restype"]
         return mojo_lib.solution
 
-    elif language == "python" or language == "cute" or language == "cutile":
+    elif language in SCRIPT_LANGUAGES:
         # Run Python/Triton AST checks to reject forbidden patterns
         if solution_code:
             pattern_lang = "cutile" if language == "cutile" else "triton"
@@ -894,7 +898,7 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
 
 
 def make_parameters(language: str, solution_func, input_tensors, actual_output, problem, test_case):
-    if language == "cuda" or language == "mojo":
+    if language in COMPILED_LANGUAGES:
         input_ptrs = cast_to_ctype(
             input_tensors, solution_func.argtypes[: len(input_tensors)], language
         )
