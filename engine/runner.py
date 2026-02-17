@@ -1,7 +1,7 @@
 import subprocess
 import torch
 import gc
-from typing import Iterator, Any
+from typing import Iterator
 import statistics
 import utils
 import os
