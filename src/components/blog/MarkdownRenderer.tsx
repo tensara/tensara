@@ -4,6 +4,8 @@ import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import { Fragment } from "react";
+import "katex/dist/katex.min.css";
+import "highlight.js/styles/github-dark.css";
 
 interface MarkdownRendererProps {
   content: string;

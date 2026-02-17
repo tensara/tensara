@@ -28,8 +28,15 @@ import {
 } from "react-icons/fi";
 import { FaDiscord, FaGithub, FaTwitter, FaEnvelope } from "react-icons/fa";
 import { type IconType } from "react-icons";
-import AnimatedCudaEditor from "~/components/CudaEditor";
-import LandingBenchmarkDisplay from "~/components/landing/LandingBenchmarkDisplay"; // Import the new component
+import dynamic from "next/dynamic";
+
+const AnimatedCudaEditor = dynamic(() => import("~/components/CudaEditor"), {
+  ssr: false,
+});
+const LandingBenchmarkDisplay = dynamic(
+  () => import("~/components/landing/LandingBenchmarkDisplay"),
+  { ssr: false },
+);
 
 // Create motion components
 const MotionVStack = motion(VStack);
@@ -100,12 +107,12 @@ type LandingActivity = {
   }>;
 };
 
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
 function formatRelativeTime(isoDate: string) {
   const date = new Date(isoDate);
   const deltaMs = date.getTime() - Date.now();
   const deltaSeconds = Math.round(deltaMs / 1000);
-
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
   const minutes = Math.round(deltaSeconds / 60);
   const hours = Math.round(minutes / 60);
@@ -164,6 +171,16 @@ const ActivityItem = ({
   );
 };
 
+const DUMMY_BENCHMARK_DATA = [
+  { id: "1", name: "n = 2^20", runtime_ms: 0.05, gflops: 19.79 },
+  { id: "2", name: "n = 2^22", runtime_ms: 0.2, gflops: 21.08 },
+  { id: "3", name: "n = 2^23", runtime_ms: 0.39, gflops: 21.29 },
+  { id: "4", name: "n = 2^25", runtime_ms: 1.56, gflops: 21.49 },
+  { id: "5", name: "n = 2^26", runtime_ms: 3.12, gflops: 21.53 },
+  { id: "6", name: "n = 2^29", runtime_ms: 24.94, gflops: 21.53 },
+  { id: "7", name: "n = 2^30", runtime_ms: 50.1, gflops: 21.43 },
+];
+
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showMetricBanner, setShowMetricBanner] = useState(true);
@@ -175,37 +192,21 @@ export default function HomePage() {
   const [isFadingCode, setIsFadingCode] = useState(false); // Code is not fading initially
   const [isShowingBenchmarks, setIsShowingBenchmarks] = useState(false); // Benchmarks hidden initially
 
-  // Dummy data for the benchmark display
-  const dummyBenchmarkData = [
-    { id: "1", name: "n = 2^20", runtime_ms: 0.05, gflops: 19.79 },
-    { id: "2", name: "n = 2^22", runtime_ms: 0.2, gflops: 21.08 },
-    { id: "3", name: "n = 2^23", runtime_ms: 0.39, gflops: 21.29 },
-    { id: "4", name: "n = 2^25", runtime_ms: 1.56, gflops: 21.49 },
-    { id: "5", name: "n = 2^26", runtime_ms: 3.12, gflops: 21.53 },
-    { id: "6", name: "n = 2^29", runtime_ms: 24.94, gflops: 21.53 },
-    { id: "7", name: "n = 2^30", runtime_ms: 50.1, gflops: 21.43 },
-  ];
-
   const handleTypingComplete = useCallback(() => {
-    console.log("HomePage: handleTypingComplete called");
     const fadeOutTimer = setTimeout(() => {
-      console.log("HomePage: Setting isFadingCode=true, isTypingCode=false");
       setIsFadingCode(true);
       setIsTypingCode(false);
 
       const fadeInTimer = setTimeout(() => {
-        console.log("HomePage: Setting isShowingBenchmarks=true");
         setIsShowingBenchmarks(true);
       }, 500);
 
       return () => {
-        console.log("HomePage: Clearing fadeInTimer");
         clearTimeout(fadeInTimer);
       };
     }, 1000);
 
     return () => {
-      console.log("HomePage: Clearing fadeOutTimer");
       clearTimeout(fadeOutTimer);
     };
   }, []);
@@ -244,12 +245,6 @@ export default function HomePage() {
     void loadActivity();
     return () => controller.abort();
   }, []);
-
-  console.log("HomePage Rendering:", {
-    isTypingCode,
-    isFadingCode,
-    isShowingBenchmarks,
-  }); // Log state on render
 
   return (
     <Layout title="Home" ogImage="/tensara_ogimage.png">
@@ -533,7 +528,7 @@ export default function HomePage() {
                       >
                         <LandingBenchmarkDisplay
                           isVisible={isShowingBenchmarks}
-                          dummyData={dummyBenchmarkData}
+                          dummyData={DUMMY_BENCHMARK_DATA}
                         />
                       </Box>
                     )}
