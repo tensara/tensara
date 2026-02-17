@@ -35,7 +35,7 @@ const AnimatedCudaEditor = dynamic(() => import("~/components/CudaEditor"), {
 });
 const LandingBenchmarkDisplay = dynamic(
   () => import("~/components/landing/LandingBenchmarkDisplay"),
-  { ssr: false },
+  { ssr: false }
 );
 
 // Create motion components

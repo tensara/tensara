@@ -445,7 +445,11 @@ export default function ProblemsPage() {
                           <Box w="16px" h="16px" />
                         </Box>
                         <Text>Title</Text>
-                        <SortIcon field="title" sortField={sortField} sortDirection={sortDirection} />
+                        <SortIcon
+                          field="title"
+                          sortField={sortField}
+                          sortDirection={sortDirection}
+                        />
                       </HStack>
                     </Th>
                     <Th
@@ -460,7 +464,11 @@ export default function ProblemsPage() {
                     >
                       <HStack spacing={2}>
                         <Text>Difficulty</Text>
-                        <SortIcon field="difficulty" sortField={sortField} sortDirection={sortDirection} />
+                        <SortIcon
+                          field="difficulty"
+                          sortField={sortField}
+                          sortDirection={sortDirection}
+                        />
                       </HStack>
                     </Th>
                     <Th
@@ -487,7 +495,11 @@ export default function ProblemsPage() {
                     >
                       <HStack spacing={2}>
                         <Text>Submissions</Text>
-                        <SortIcon field="submissionCount" sortField={sortField} sortDirection={sortDirection} />
+                        <SortIcon
+                          field="submissionCount"
+                          sortField={sortField}
+                          sortDirection={sortDirection}
+                        />
                       </HStack>
                     </Th>
                   </Tr>
