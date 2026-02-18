@@ -27,7 +27,7 @@ def _cleanup_gpu_memory():
 
 def _cleanup_solution_temp_dir(language: str, solution_func):
     """Clean up temporary directory for script-based solutions."""
-    if language in ("python", "cutile"):
+    if language in ("python", "triton", "cute", "cutile"):
         try:
             temp_dir = os.path.dirname(solution_func.__code__.co_filename)
             shutil.rmtree(temp_dir)
