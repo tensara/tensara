@@ -90,9 +90,7 @@ def run_checker(
                 return
 
             # Move to CPU for comparison
-            is_correct, debug_info = problem.verify_result(
-                expected_output, actual_output.cpu()
-            )
+            is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
 
             # Clean up memory
             del input_tensors, expected_output, actual_output, parameters
@@ -280,9 +278,7 @@ def run_sanity_check(
                 return
 
             # Move to CPU for comparison
-            is_correct, debug_info = problem.verify_result(
-                expected_output, actual_output.cpu()
-            )
+            is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
 
             # Clean up memory
             del input_tensors, expected_output, actual_output, parameters
