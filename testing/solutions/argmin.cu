@@ -1,13 +1,8 @@
 #include <cuda_runtime.h>
 #include <float.h>
 
-__global__ void argmin_kernel(const float* input, int dim,
-                               int* output, const int* shape, int ndim) {
-    int dim_size = shape[dim];
-    int outer = 1, inner = 1;
-    for (int i = 0; i < dim; i++) outer *= shape[i];
-    for (int i = dim + 1; i < ndim; i++) inner *= shape[i];
-
+__global__ void argmin_kernel(const float* input, int* output,
+                               int outer, int dim_size, int inner) {
     int outer_idx = blockIdx.x;
     int inner_idx = blockIdx.y;
     if (outer_idx >= outer || inner_idx >= inner) return;
@@ -24,11 +19,13 @@ __global__ void argmin_kernel(const float* input, int dim,
 
 extern "C" void solution(const float* input, int dim,
                           int* output, const int* shape, int ndim) {
+    // shape is a host pointer — compute outer/dim_size/inner on CPU
+    int dim_size = shape[dim];
     int outer = 1, inner = 1;
-    for (int i = 0; i < dim; i++) outer *= shape[i];
+    for (int i = 0; i < dim; i++)       outer *= shape[i];
     for (int i = dim + 1; i < ndim; i++) inner *= shape[i];
 
     dim3 grid(outer, inner);
-    argmin_kernel<<<grid, 1>>>(input, dim, output, shape, ndim);
+    argmin_kernel<<<grid, 1>>>(input, output, outer, dim_size, inner);
     cudaDeviceSynchronize();
 }
