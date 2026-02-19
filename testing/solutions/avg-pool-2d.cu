@@ -1,8 +1,8 @@
 #include <cuda_runtime.h>
 
 __global__ void avg_pool_2d_kernel(const float* input, float* output,
-                                    size_t H, size_t W, size_t kernel_size,
-                                    size_t stride, size_t padding,
+                                    size_t kernel_size, size_t stride, size_t padding,
+                                    size_t H, size_t W,
                                     size_t out_H, size_t out_W) {
     size_t out_col = blockIdx.x * blockDim.x + threadIdx.x;
     size_t out_row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -22,14 +22,14 @@ __global__ void avg_pool_2d_kernel(const float* input, float* output,
     output[out_row * out_W + out_col] = sum / denom;
 }
 
-extern "C" void solution(const float* input, float* output,
-                          size_t H, size_t W, size_t kernel_size,
-                          size_t stride, size_t padding) {
+extern "C" void solution(const float* input,
+                          size_t kernel_size, size_t stride, size_t padding,
+                          float* output,
+                          size_t H, size_t W) {
     size_t out_H = (H + 2 * padding - kernel_size) / stride + 1;
     size_t out_W = (W + 2 * padding - kernel_size) / stride + 1;
     dim3 block(16, 16);
     dim3 grid((out_W + 15) / 16, (out_H + 15) / 16);
-    avg_pool_2d_kernel<<<grid, block>>>(input, output, H, W, kernel_size,
-                                        stride, padding, out_H, out_W);
+    avg_pool_2d_kernel<<<grid, block>>>(input, output, kernel_size, stride, padding, H, W, out_H, out_W);
     cudaDeviceSynchronize();
 }

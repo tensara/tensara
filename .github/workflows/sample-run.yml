@@ -7,7 +7,7 @@ on:
     inputs:
       sample_size:
         description: "Problems to sample (0 = all)"
-        default: "11"
+        default: "5"
         required: false
       problems:
         description: "Specific slugs (comma-separated), overrides sample_size"
