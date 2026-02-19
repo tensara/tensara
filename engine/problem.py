@@ -1,11 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any
+import ctypes
 import hashlib
 import torch
+from utils import TYPE_TO_CTYPE, TYPE_TO_TORCH_DTYPE
 
 
 class Problem(ABC):
     """Base class for defining problems."""
+
+    parameters = None
 
     def __init__(self, name: str, time_limit: int = 100):
         """
@@ -17,6 +21,17 @@ class Problem(ABC):
         self.name = name
         self.time_limit = time_limit
 
+    def param_dtype(self, key: str | int) -> torch.dtype:
+        """Return the torch dtype for a parameter by name or index."""
+        if not self.parameters:
+            raise ValueError("Problem has no parameters defined")
+        if isinstance(key, int):
+            return TYPE_TO_TORCH_DTYPE.get(self.parameters[key]["type"], torch.float32)
+        for p in self.parameters:
+            if p["name"] == key:
+                return TYPE_TO_TORCH_DTYPE.get(p["type"], torch.float32)
+        raise KeyError(f"No parameter named '{key}'")
+
     @abstractmethod
     def reference_solution(self, *args, **kwargs) -> Any:
         """
@@ -25,31 +40,22 @@ class Problem(ABC):
         pass
 
     @abstractmethod
-    def generate_test_cases(self, dtype: torch.dtype) -> List[Dict[str, Any]]:
+    def generate_test_cases(self) -> List[Dict[str, Any]]:
         """
         Generate test cases for this problem.
-
-        Returns:
-            List of test case dictionaries
         """
         pass
 
     @abstractmethod
-    def generate_sample(self, dtype: torch.dtype = torch.float32) -> List[Dict[str, Any]]:
+    def generate_sample(self) -> List[Dict[str, Any]]:
         """
         Generate a sample test case for this problem.
-
-        Args:
-            dtype: Data type for the tensors
-
-        Returns:
-            List of test case dictionaries
         """
         pass
 
     @abstractmethod
     def verify_result(
-        self, expected_output: torch.Tensor, actual_output: torch.Tensor, dtype: torch.dtype
+        self, expected_output: torch.Tensor, actual_output: torch.Tensor
     ) -> Tuple[bool, Dict[str, Any]]:
         """
         Verify if the actual output matches the expected output.
@@ -63,7 +69,6 @@ class Problem(ABC):
         """
         pass
 
-    @abstractmethod
     def get_function_signature(self) -> Dict[str, Any]:
         """
         Get the function signature for the CUDA solution.
@@ -71,7 +76,17 @@ class Problem(ABC):
         Returns:
             Dictionary with argtypes and restype for ctypes
         """
-        pass
+        if self.parameters:
+            argtypes = []
+            for p in self.parameters:
+                ctype = TYPE_TO_CTYPE[p["type"]]
+                if p.get("pointer"):
+                    ctype = ctypes.POINTER(ctype)
+                argtypes.append(ctype)
+            return {"argtypes": argtypes, "restype": None}
+        raise NotImplementedError(
+            "Subclass must define `parameters` or override `get_function_signature()`"
+        )
 
     def get_flops(self, test_case: Dict[str, Any]) -> int:
         """

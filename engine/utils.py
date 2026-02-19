@@ -26,6 +26,22 @@ DTYPE_MAP = {
     "bfloat16": torch.bfloat16,
 }
 
+TYPE_TO_CTYPE = {
+    "float": ctypes.c_float,
+    "double": ctypes.c_double,
+    "int": ctypes.c_int,
+    "size_t": ctypes.c_size_t,
+    "uint64_t": ctypes.c_uint64,
+}
+
+TYPE_TO_TORCH_DTYPE = {
+    "float": torch.float32,
+    "double": torch.float64,
+    "int": torch.int32,
+    "size_t": torch.int64,
+    "uint64_t": torch.int64,
+}
+
 GPU_COMPUTE_CAPABILITIES = {
     "T4": "75",
     "H100": "90a",
@@ -57,31 +73,6 @@ def _expected_solution_arity(problem: Problem) -> int | None:
         return len(argtypes) if argtypes else None
     except Exception:
         return None
-
-
-def dtype_from_signature(problem: Problem) -> torch.dtype:
-    """
-    Derive the tensor dtype from the problem's function signature.
-    Uses the first float pointer in argtypes (e.g. POINTER(c_float) -> float32).
-    Defaults to torch.float32 if no float pointer is found.
-    """
-    sig = problem.get_function_signature()
-    argtypes = sig.get("argtypes") if isinstance(sig, dict) else []
-    if not argtypes:
-        return torch.float32
-    for at in argtypes:
-        inner = getattr(at, "_type_", None)
-        if inner is ctypes.c_float:
-            return torch.float32
-        if inner is ctypes.c_double:
-            return torch.float64
-        # Fallback: match by type name (e.g. LP_c_float)
-        name = type(at).__name__
-        if "c_float" in name:
-            return torch.float32
-        if "c_double" in name:
-            return torch.float64
-    return torch.float32
 
 
 def _strip_c_like_comments_and_strings(s: str) -> str:
@@ -1407,8 +1398,7 @@ def to_lossless_jsonable(x):
 
 
 class ReferenceSolutionContext:
-    def __init__(self, dtype):
-        self.dtype = dtype
+    def __init__(self):
         self.autocast_ctx = None
 
     def __enter__(self):
@@ -1429,7 +1419,7 @@ class ReferenceSolutionContext:
         torch.backends.cudnn.deterministic = True
         torch.use_deterministic_algorithms(True)
 
-        self.autocast_ctx = torch.autocast("cuda", enabled=False, dtype=self.dtype)
+        self.autocast_ctx = torch.autocast("cuda", enabled=False)
         return self.autocast_ctx.__enter__()
 
     def __exit__(self, *args):
