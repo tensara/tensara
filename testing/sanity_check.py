@@ -32,7 +32,9 @@ TIMEOUT  = int(os.environ.get("CI_TIMEOUT_SECONDS", "300"))
 
 SOLUTIONS_DIR = os.path.join(os.path.dirname(__file__), "solutions")
 ENDPOINT      = f"{BASE_URL}/api/submissions/sample"
+ENDPOINT      = f"{BASE_URL}/api/submissions/sample"
 
+# Terminal SSE statuses
 TERMINAL_PASS = {"PASSED"}
 TERMINAL_FAIL = {"FAILED", "WRONG_ANSWER", "ERROR", "COMPILATION_ERROR",
                  "COMPILE_ERROR", "RATE_LIMIT_EXCEEDED"}
@@ -76,6 +78,42 @@ def select_problems(all_problems: list[str]) -> list[str]:
     return all_problems
 
 
+def fmt_val(v) -> str:
+    """Format a scalar value for display."""
+    if isinstance(v, float):
+        return f"{v:.6g}"
+    return str(v)
+
+
+def print_test_result(tc_name: str, passed: bool, debug_info: dict, runtime_ms: float | None):
+    indent = "    "
+    rt = f"  {runtime_ms:.2f}ms" if runtime_ms is not None else ""
+    if passed:
+        print(f"{indent}{GREEN}✓{RESET} {tc_name}{rt}")
+    else:
+        print(f"{indent}{RED}✗{RESET} {tc_name}{rt}")
+        if debug_info:
+            max_diff = debug_info.get("max_difference")
+            mean_diff = debug_info.get("mean_difference")
+            msg = debug_info.get("message") or debug_info.get("error")
+            if max_diff is not None:
+                print(f"{indent}  max_diff={fmt_val(max_diff)}", end="")
+                if mean_diff is not None:
+                    print(f"  mean_diff={fmt_val(mean_diff)}", end="")
+                print()
+            if msg:
+                print(f"{indent}  {msg}")
+            sample = debug_info.get("sample_differences") or debug_info.get("sample_mismatches") or {}
+            if sample:
+                print(f"{indent}  sample diffs:")
+                for k, v in list(sample.items())[:3]:
+                    exp = fmt_val(v.get("expected", "?"))
+                    act = fmt_val(v.get("actual", "?"))
+                    diff = fmt_val(v.get("diff", "")) if "diff" in v else ""
+                    diff_str = f"  Δ={diff}" if diff else ""
+                    print(f"{indent}    [{k}]  expected={exp}  actual={act}{diff_str}")
+
+
 def submit(slug: str, code: str) -> dict:
     """POST to /api/submissions/sample, consume SSE until terminal event."""
     resp = requests.post(
@@ -106,6 +144,8 @@ def submit(slug: str, code: str) -> dict:
         )
 
     current_event = None
+    printed_compiling = False
+    any_test_failed = False
 
     for raw in resp.iter_lines(decode_unicode=True):
         if not raw:
@@ -127,13 +167,26 @@ def submit(slug: str, code: str) -> dict:
             if status in SKIP_PRINT:
                 pass  # PTX/SASS are huge — skip
             elif status == "COMPILING":
-                info("compiling...")
+                if not printed_compiling:
+                    info("compiling...")
+                    printed_compiling = True
             elif status == "CHECKING":
-                info("checking...")
+                pass  # will be shown per test case below
+            elif status == "TEST_RESULT":
+                # Per-test-case result event
+                tc_name   = data.get("testCaseName") or data.get("test_case_name") or data.get("name", "?")
+                tc_passed = data.get("passed", False)
+                tc_debug  = data.get("debugInfo") or data.get("debug_info") or {}
+                tc_rt     = data.get("runtimeMs") or data.get("runtime_ms")
+                print_test_result(tc_name, tc_passed, tc_debug, tc_rt)
+                if not tc_passed:
+                    any_test_failed = True
             elif status not in TERMINAL:
                 info(status)
 
             if status in TERMINAL:
+                # Attach whether any individual test failed for richer reporting
+                data["_any_test_failed"] = any_test_failed
                 return data
 
     raise RuntimeError("SSE stream ended without a terminal status event")
@@ -157,10 +210,15 @@ def run_checks(problems: list[str]) -> tuple[list[str], list[dict]]:
                 passed_list.append(slug)
             else:
                 fail(f"{status}  ({elapsed:.1f}s)")
-                for key in ("error", "details", "stderr", "stdout"):
+                # Print top-level error message if no per-test events were shown
+                for key in ("error", "details", "message"):
                     val = result.get(key)
                     if val:
                         fail(f"  {key}: {str(val)[:400]}")
+                # Dump raw result keys to help discover available fields
+                raw_keys = {k: v for k, v in result.items()
+                            if k not in ("code",) and not isinstance(v, (bytes,))}
+                info(f"raw result: {json.dumps(raw_keys, default=str)[:600]}")
                 failed_list.append({"problem": slug, "status": status})
 
         except Exception as e:
