@@ -22,6 +22,7 @@ TYPE_TO_TORCH_DTYPE = {
     "uint64_t": torch.int64,
 }
 
+
 class Problem(ABC):
     """Base class for defining problems."""
 
