@@ -15,12 +15,14 @@ PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl"
 UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api", "gpu_monitor"]
 APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
+CUBLAS_ENV = {"CUBLAS_WORKSPACE_CONFIG": ":4096:8"}
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.13")
     .apt_install(APT_PACKAGES)
     .env({"CC": "gcc"})
     .env({"PATH": "/root/.local/bin:$PATH"})
+    .env(CUBLAS_ENV)
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
     .run_commands("uv pip install --system torch==2.9.0")
@@ -33,6 +35,7 @@ runtime_image = (
     .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
     .env({"CC": "gcc"})
     .env({"PATH": "/root/.local/bin:$PATH"})
+    .env(CUBLAS_ENV)
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
     .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
@@ -50,6 +53,7 @@ def b200_image():
         .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
         .env({"CC": "gcc"})
         .env({"PATH": "/root/.local/bin:$PATH"})
+        .env(CUBLAS_ENV)
         .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
         .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES + ["cuda-tile", "cupy-cuda13x"]))
         .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
