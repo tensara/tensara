@@ -3,8 +3,24 @@ from typing import List, Dict, Tuple, Any
 import ctypes
 import hashlib
 import torch
-from utils import TYPE_TO_CTYPE, TYPE_TO_TORCH_DTYPE
 
+TYPE_TO_CTYPE = {
+    "float": ctypes.c_float,
+    "double": ctypes.c_double,
+    "int": ctypes.c_int,
+    "size_t": ctypes.c_size_t,
+    "uint32_t": ctypes.c_uint32,
+    "uint64_t": ctypes.c_uint64,
+}
+
+TYPE_TO_TORCH_DTYPE = {
+    "float": torch.float32,
+    "double": torch.float64,
+    "int": torch.int32,
+    "size_t": torch.int64,
+    "uint32_t": torch.int32,
+    "uint64_t": torch.int64,
+}
 
 class Problem(ABC):
     """Base class for defining problems."""

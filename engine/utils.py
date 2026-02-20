@@ -20,28 +20,6 @@ import numpy as np
 
 JS_MAX_SAFE = 2**53 - 1
 
-DTYPE_MAP = {
-    "float32": torch.float32,
-    "float16": torch.float16,
-    "bfloat16": torch.bfloat16,
-}
-
-TYPE_TO_CTYPE = {
-    "float": ctypes.c_float,
-    "double": ctypes.c_double,
-    "int": ctypes.c_int,
-    "size_t": ctypes.c_size_t,
-    "uint64_t": ctypes.c_uint64,
-}
-
-TYPE_TO_TORCH_DTYPE = {
-    "float": torch.float32,
-    "double": torch.float64,
-    "int": torch.int32,
-    "size_t": torch.int64,
-    "uint64_t": torch.int64,
-}
-
 GPU_COMPUTE_CAPABILITIES = {
     "T4": "75",
     "H100": "90a",
