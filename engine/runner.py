@@ -20,7 +20,7 @@ MAX_SANDBOX_OUTPUT_BYTES = 64 * 1024  # Cap console streaming to 64 KiB for resp
 
 
 def run_checker(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str, problem_def: str, solution_func, language: str, param_func=None
 ) -> Iterator[str]:
     """
     Check a submitted solution against the reference implementation
@@ -30,7 +30,6 @@ def run_checker(
         problem_name: Name of the problem
         problem_def: Problem instance
         solution_func: Callable function for the submitted solution
-        dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
         param_func: None for general submissions, non-None only for baseline submissions
 
@@ -39,10 +38,9 @@ def run_checker(
     """
 
     try:
-        dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
 
-        test_cases = problem.generate_test_cases(dtype)
+        test_cases = problem.generate_test_cases()
         total_tests = len(test_cases)
         test_results = []
         passed_tests = 0
@@ -65,7 +63,7 @@ def run_checker(
             input_tensors = test_case["create_inputs"]()
 
             # Get the reference solution and move it to CPU
-            with utils.ReferenceSolutionContext(dtype=dtype):
+            with utils.ReferenceSolutionContext():
                 expected_output = problem.reference_solution(*input_tensors).cpu()
 
             # Create actual_output with the same shape as expected_output
@@ -92,9 +90,7 @@ def run_checker(
                 return
 
             # Move to CPU for comparison
-            is_correct, debug_info = problem.verify_result(
-                expected_output, actual_output.cpu(), dtype
-            )
+            is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
 
             # Clean up memory
             del input_tensors, expected_output, actual_output, parameters
@@ -163,17 +159,16 @@ def run_checker(
 
 @utils.subproc_generator(timeout=60)
 def run_sample_case(
-    problem_name, problem_def, solution_code, compiled_lib, dtype, language, param_func=None
+    problem_name, problem_def, solution_code, compiled_lib, language, param_func=None
 ):
     """
     Run the sample test case of a problem and return result + output.
     """
     try:
-        dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
         solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
 
-        sample = problem.generate_sample(dtype)
+        sample = problem.generate_sample()
         input_tensors = sample["create_inputs"]()
         expected_output = problem.reference_solution(*input_tensors).cpu()
         actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
@@ -202,7 +197,7 @@ def run_sample_case(
             captured_stderr = stderr_buf.getvalue()
 
         torch.cuda.synchronize()
-        is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu(), dtype)
+        is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
         yield {
             "status": "PASSED" if is_correct else "FAILED",
             "input": utils.to_lossless_jsonable(
@@ -227,16 +222,15 @@ def run_sample_case(
 
 
 def run_sanity_check(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str, problem_def: str, solution_func, language: str, param_func=None
 ):
     """
     Run sanity check on compiled CUDA solution
     """
     try:
-        dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
 
-        test_cases = problem.generate_test_cases(dtype)
+        test_cases = problem.generate_test_cases()
         total_tests = len(test_cases)
 
         start_time = time.time()
@@ -257,7 +251,7 @@ def run_sanity_check(
             input_tensors = test_case["create_inputs"]()
 
             # Get the reference solution and move it to CPU
-            with utils.ReferenceSolutionContext(dtype=dtype):
+            with utils.ReferenceSolutionContext():
                 expected_output = problem.reference_solution(*input_tensors).cpu()
 
             # Create actual_output with the same shape as expected_output
@@ -284,9 +278,7 @@ def run_sanity_check(
                 return
 
             # Move to CPU for comparison
-            is_correct, debug_info = problem.verify_result(
-                expected_output, actual_output.cpu(), dtype
-            )
+            is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
 
             # Clean up memory
             del input_tensors, expected_output, actual_output, parameters
@@ -340,7 +332,7 @@ def run_sanity_check(
 
 
 def run_benchmark(
-    problem_name: str, problem_def: str, solution_func, dtype: str, language: str, param_func=None
+    problem_name: str, problem_def: str, solution_func, language: str, param_func=None
 ):
     """
     Run benchmark on compiled CUDA solution
@@ -349,20 +341,18 @@ def run_benchmark(
         problem_name: Name of the problem
         problem_def: Problem instance
         solution_func: Callable function for the submitted solution
-        dtype: Data type for the problem
         language: Programming language of the solution ("cuda", "python", or "mojo")
 
     Yields:
         Dictionary objects with benchmark status updates
     """
     try:
-        dtype = utils.DTYPE_MAP[dtype]
         problem = utils.load_problem_module(problem_name, problem_def)
 
         yield {"status": "BENCHMARKING"}
 
         # Get test cases from the problem
-        test_cases = problem.generate_test_cases(dtype)
+        test_cases = problem.generate_test_cases()
         total_tests = len(test_cases)
 
         # Initialize statistics

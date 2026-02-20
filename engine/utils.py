@@ -20,12 +20,6 @@ import numpy as np
 
 JS_MAX_SAFE = 2**53 - 1
 
-DTYPE_MAP = {
-    "float32": torch.float32,
-    "float16": torch.float16,
-    "bfloat16": torch.bfloat16,
-}
-
 GPU_COMPUTE_CAPABILITIES = {
     "T4": "75",
     "H100": "90a",
@@ -64,10 +58,10 @@ def _strip_c_like_comments_and_strings(s: str) -> str:
         return s
     import re
 
-    s = re.sub(r'"(?:\\.|[^"\\])*"', "", s, flags=re.DOTALL)
-    s = re.sub(r"'(?:\\.|[^'\\])*'", "", s, flags=re.DOTALL)
     s = re.sub(r"/\*.*?\*/", "", s, flags=re.DOTALL)
     s = re.sub(r"//.*?$", "", s, flags=re.MULTILINE)
+    s = re.sub(r'"(?:\\.|[^"\\])*"', "", s, flags=re.DOTALL)
+    s = re.sub(r"'(?:\\.|[^'\\])*'", "", s, flags=re.DOTALL)
     return s
 
 
@@ -1382,8 +1376,7 @@ def to_lossless_jsonable(x):
 
 
 class ReferenceSolutionContext:
-    def __init__(self, dtype):
-        self.dtype = dtype
+    def __init__(self):
         self.autocast_ctx = None
 
     def __enter__(self):
@@ -1404,7 +1397,7 @@ class ReferenceSolutionContext:
         torch.backends.cudnn.deterministic = True
         torch.use_deterministic_algorithms(True)
 
-        self.autocast_ctx = torch.autocast("cuda", enabled=False, dtype=self.dtype)
+        self.autocast_ctx = torch.autocast("cuda", enabled=False)
         return self.autocast_ctx.__enter__()
 
     def __exit__(self, *args):

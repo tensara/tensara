@@ -3,14 +3,27 @@ import {
   CPP_TYPES,
   PYTHON_TYPES,
   MOJO_TYPES,
-  PYTHON_MISC_TYPES,
-  MOJO_MISC_TYPES,
+  MOJO_DTYPE_CONST,
   CUTE_TYPES,
-  CUTE_MISC_TYPES,
 } from "~/constants/datatypes";
 import { FORBIDDEN_PATTERNS } from "~/constants/forbidden";
 
-const DEFAULT_DTYPE = "float32";
+/** Parameter.type is always C-style (float, int, size_t, uint64_t, etc.). */
+function resolveCppType(type: string): string {
+  return CPP_TYPES[type] ?? type;
+}
+
+function resolvePythonType(type: string): string {
+  return PYTHON_TYPES[type] ?? type;
+}
+
+function resolveMojoType(type: string): string {
+  return MOJO_TYPES[type] ?? type;
+}
+
+function resolveCuteType(type: string): string {
+  return CUTE_TYPES[type] ?? type;
+}
 
 export const generateStarterCode = (
   parameters: Parameter[],
@@ -25,12 +38,12 @@ export const generateStarterCode = (
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.const === "true" ? "const " : ""}${parameter.type === "[VAR]" ? CPP_TYPES[DEFAULT_DTYPE] : parameter.type}${parameter.pointer === "true" ? "*" : ""} ${parameter.name}`
+          `${parameter.const === "true" ? "const " : ""}${resolveCppType(parameter.type)}${parameter.pointer === "true" ? "*" : ""} ${parameter.name}`
       )
       .join(", ");
     return `#include <cuda_runtime.h>
 
-// Note: ${names.join(", ")} are all device pointers to ${DEFAULT_DTYPE} arrays
+// Note: ${names.join(", ")} are device pointers
 extern "C" void solution(${paramStr}) {
 }`;
   }
@@ -43,50 +56,30 @@ extern "C" void solution(${paramStr}) {
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.name}${parameter.pointer === "true" ? "" : parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[DEFAULT_DTYPE]}` : `: ${PYTHON_MISC_TYPES[parameter.type]}`}`
+          `${parameter.name}${parameter.pointer === "true" ? "" : `: ${resolvePythonType(parameter.type)}`}`
       )
       .join(", ");
     return `import triton
 import triton.language as tl
 
-# Note: ${names.join(", ")} are all ${DEFAULT_DTYPE} device tensors
+# Note: ${names.join(", ")} are device tensors
 def solution(${paramStr}):
     `;
   }
   if (language === "mojo") {
     const pointerParams = parameters.filter((p) => p.pointer === "true");
     const names = pointerParams.map((p) => p.name).filter(Boolean);
-    const dtypeFromPtr = (() => {
-      // If pointer params specify a concrete element type (e.g. int*), prefer that
-      // over the default dtype (mainly used for [VAR] problems).
-      const concretePtrTypes = pointerParams
-        .map((p) => p.type)
-        .filter((t) => t && t !== "[VAR]");
-      const uniqueConcrete = [...new Set(concretePtrTypes)];
+    const firstPtrType = pointerParams[0]?.type ?? "float";
+    const dtypeConst = MOJO_DTYPE_CONST[firstPtrType] ?? "DType.float32";
+    const dtypeDisplay = firstPtrType;
 
-      // Mixed pointer element types are rare; fall back to default float32.
-      if (uniqueConcrete.length !== 1) return null;
-
-      const t = uniqueConcrete[0];
-      if (t === "int" || t === "size_t")
-        return { dtypeConst: "DType.int32", display: "int32" };
-      if (t === "float")
-        return { dtypeConst: "DType.float32", display: "float32" };
-      return null;
-    })();
-
-    const dtypeConst = dtypeFromPtr?.dtypeConst ?? "DType.float32";
-    const dtypeDisplay = dtypeFromPtr?.display ?? DEFAULT_DTYPE;
-
-    // For Mojo, we always pass raw device addresses and cast inside the function.
-    // Use Scalar[dtype] so the element type is controlled by `dtype`.
     const usesDType = pointerParams.length > 0;
 
     const paramStr = parameters
       .map((p) =>
         p.pointer === "true"
           ? `${p.name}_addr: Int`
-          : `${p.name}: ${p.type === "[VAR]" ? MOJO_TYPES[DEFAULT_DTYPE] : MOJO_MISC_TYPES[p.type]}`
+          : `${p.name}: ${resolveMojoType(p.type)}`
       )
       .join(", ");
 
@@ -121,7 +114,7 @@ ${pointerSetup ? pointerSetup + "\n" : ""}    `;
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.name}${parameter.pointer === "true" ? `: cute.Tensor` : parameter.type === "[VAR]" ? `: ${CUTE_TYPES[DEFAULT_DTYPE]}` : `: ${CUTE_MISC_TYPES[parameter.type]}`}`
+          `${parameter.name}${parameter.pointer === "true" ? `: cute.Tensor` : `: ${resolveCuteType(parameter.type)}`}`
       )
       .filter(Boolean)
       .join(", ");
@@ -142,14 +135,14 @@ def solution(${paramStr}):
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.name}${parameter.pointer === "true" ? "" : parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[DEFAULT_DTYPE]}` : `: ${PYTHON_MISC_TYPES[parameter.type]}`}`
+          `${parameter.name}${parameter.pointer === "true" ? "" : `: ${resolvePythonType(parameter.type)}`}`
       )
       .join(", ");
     return `import cuda.tile as ct
 import cupy
 
 # You can use cupy.cuda.get_current_stream() to get the current stream to launch cuTile kernels.
-# Note: ${names.join(", ")} are all ${DEFAULT_DTYPE} device tensors
+# Note: ${names.join(", ")} are device tensors
 def solution(${paramStr}):
     `;
   }
