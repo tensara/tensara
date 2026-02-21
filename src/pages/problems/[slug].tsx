@@ -618,7 +618,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   ? (submissionSassContent ?? sassContent)
                   : (sassContent ?? submissionSassContent)
               }
-              enablePtxSassView={selectedLanguage === "cuda"}
+              enablePtxSassView={
+                selectedLanguage === "cuda" || selectedLanguage === "mojo"
+              }
               ptxDirty={ptxDirty}
               sassDirty={sassDirty}
             />

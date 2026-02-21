@@ -619,6 +619,12 @@ const CodeEditor = ({
   );
 
   const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
+  const isCuda = selectedLanguage === "cuda";
+  const auxLeftLabel = isCuda ? "PTX" : "IR";
+  const auxRightLabel = isCuda ? "SASS" : "ASM";
+  const auxTooltip = isCuda
+    ? "PTX/SASS may be outdated. Run or submit your CUDA source to refresh."
+    : "IR/ASM may be outdated. Run or submit your Mojo source to refresh.";
 
   const highlightPtxLines = useCallback(
     (lineNumbers: number[] | null) => {
@@ -769,7 +775,7 @@ const CodeEditor = ({
   }, [disposeVimMode]);
 
   useEffect(() => {
-    if (!enablePtxSassView || !ptxContent) {
+    if (!enablePtxSassView || !ptxContent || !isCuda) {
       setPtxSourceMap(null);
       highlightPtxLines(null);
       // console.log(`${debugTag} PTX pane disabled or content missing`);
@@ -787,7 +793,7 @@ const CodeEditor = ({
     // );
     setPtxSourceMap(map);
     setMaxMappedSourceLine(maxLine);
-  }, [enablePtxSassView, ptxContent, highlightPtxLines, debugTag]);
+  }, [enablePtxSassView, ptxContent, highlightPtxLines, debugTag, isCuda]);
 
   useEffect(() => {
     if (!ptxSourceMap || currentCodeLine == null) {
@@ -994,7 +1000,7 @@ const CodeEditor = ({
               px={4}
               pointerEvents="auto"
             >
-              Show PTX/SASS
+              Show {auxLeftLabel}/{auxRightLabel}
             </Button>
           )}
         </Box>
@@ -1039,7 +1045,7 @@ const CodeEditor = ({
                 _hover={{ color: "#CCCCCC" }}
                 isDisabled={!ptxContent}
               >
-                PTX
+                {auxLeftLabel}
               </Tab>
             )}
             {enablePtxSassView && (
@@ -1059,18 +1065,18 @@ const CodeEditor = ({
                 _hover={{ color: "#CCCCCC" }}
                 isDisabled={!sassContent}
               >
-                SASS
+                {auxRightLabel}
               </Tab>
             )}
           </TabList>
           {(ptxDirty ?? sassDirty) && (
             <Tooltip
-              label="PTX/SASS may be outdated. Run or submit your CUDA source to refresh."
+              label={auxTooltip}
               placement="top"
               hasArrow
             >
               <IconButton
-                aria-label="PTX/SASS might be outdated"
+                aria-label={`${auxLeftLabel}/${auxRightLabel} might be outdated`}
                 icon={<FiAlertTriangle />}
                 size="xs"
                 variant="ghost"
@@ -1102,7 +1108,7 @@ const CodeEditor = ({
           {enablePtxSassView && (
             <TabPanel p={0} h="100%">
               {ptxContent ? (
-                editorContent(ptxContent, "ptx", true, {
+                editorContent(ptxContent, isCuda ? "ptx" : "plaintext", true, {
                   onMount: handlePtxEditorMount,
                 })
               ) : (
@@ -1115,8 +1121,8 @@ const CodeEditor = ({
                   fontSize="sm"
                 >
                   <Text>
-                    PTX content will appear here after running or submitting
-                    your code.
+                    {auxLeftLabel} content will appear here after running or
+                    submitting your code.
                   </Text>
                 </Box>
               )}
@@ -1136,8 +1142,8 @@ const CodeEditor = ({
                   fontSize="sm"
                 >
                   <Text>
-                    SASS content will appear here after running or submitting
-                    your code.
+                    {auxRightLabel} content will appear here after running or
+                    submitting your code.
                   </Text>
                 </Box>
               )}

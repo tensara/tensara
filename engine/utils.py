@@ -1291,6 +1291,135 @@ def yield_ptx_sass(gpu: str, solution_code: str):
         yield {"status": "WARNING", "message": f"PTX/SASS generation failed: {str(e)}"}
 
 
+def _try_run(cmd: list[str]):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError as e:
+        raise MojoError(
+            f"Required tool not found: {cmd[0]}. Please ensure the Mojo/CUDA toolchain is installed."
+        ) from e
+
+
+def generate_mojo_ptx_sass(gpu: str, solution_code: str) -> tuple[str, str]:
+    """Best-effort PTX/SASS generation for Mojo kernels.
+
+    Strategy:
+    1) Try to emit PTX from Mojo (`--emit=ptx`). If successful and CUDA tools are available,
+       assemble to cubin with ptxas then disassemble with nvdisasm for SASS.
+    2) If PTX isn't available, fall back to LLVM IR (`--emit=llvm`) and host assembly (`--emit=asm`).
+
+    Returns:
+        tuple[str, str]: (ptx_or_ir_content, sass_or_asm_content)
+    """
+    reject_forbidden_patterns("mojo", solution_code)
+    sm = GPU_COMPUTE_CAPABILITIES[gpu]
+
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td)
+        src_path = path / "solution.mojo"
+        src_path.write_text(solution_code)
+
+        # 1) Try PTX -> SASS
+        ptx_path = path / "output.ptx"
+        ptx_cmd = [
+            "mojo",
+            "build",
+            "--optimization-level=3",
+            "--emit=ptx",
+            "-o",
+            str(ptx_path),
+            str(src_path),
+        ]
+        try:
+            ptx_process = _try_run(ptx_cmd)
+        except MojoError:
+            ptx_process = None
+
+        if ptx_process is not None and ptx_process.returncode == 0 and ptx_path.exists():
+            ptx_content = ptx_path.read_text()
+            try:
+                cubin_path = path / "output.cubin"
+                ptxas_process = _try_run(
+                    ["ptxas", f"-arch=sm_{sm}", str(ptx_path), "-o", str(cubin_path)]
+                )
+                if ptxas_process.returncode != 0:
+                    raise Exception(ptxas_process.stderr.strip() or "ptxas failed")
+
+                sass_process = _try_run(
+                    ["nvdisasm", str(cubin_path), "--print-line-info"]
+                )
+                if sass_process.returncode != 0:
+                    sass_process = _try_run(["nvdisasm", str(cubin_path)])
+                    if sass_process.returncode != 0:
+                        raise Exception(sass_process.stderr.strip() or "nvdisasm failed")
+
+                return ptx_content, sass_process.stdout
+            except Exception:
+                # If CUDA toolchain pieces are missing or fail, still return PTX
+                # and fall back to Mojo-emitted assembly for the second pane.
+                asm_path = path / "output.s"
+                asm_process = _try_run(
+                    [
+                        "mojo",
+                        "build",
+                        "--optimization-level=3",
+                        "--emit=asm",
+                        "-o",
+                        str(asm_path),
+                        str(src_path),
+                    ]
+                )
+                if asm_process.returncode != 0 or not asm_path.exists():
+                    return ptx_content, ""
+                return ptx_content, asm_path.read_text()
+
+        # 2) Fallback: LLVM IR + assembly
+        ir_path = path / "output.ll"
+        ir_process = _try_run(
+            [
+                "mojo",
+                "build",
+                "--optimization-level=3",
+                "--emit=llvm",
+                "-o",
+                str(ir_path),
+                str(src_path),
+            ]
+        )
+        if ir_process.returncode != 0:
+            raise MojoError(ir_process.stderr)
+        ir_content = ir_path.read_text() if ir_path.exists() else ""
+
+        asm_path = path / "output.s"
+        asm_process = _try_run(
+            [
+                "mojo",
+                "build",
+                "--optimization-level=3",
+                "--emit=asm",
+                "-o",
+                str(asm_path),
+                str(src_path),
+            ]
+        )
+        if asm_process.returncode != 0:
+            raise MojoError(asm_process.stderr)
+        asm_content = asm_path.read_text() if asm_path.exists() else ""
+
+    return ir_content, asm_content
+
+
+def yield_mojo_ptx_sass(gpu: str, solution_code: str):
+    """Generate and yield Mojo low-level outputs in the PTX/SASS stream slots."""
+    try:
+        ptx_or_ir, sass_or_asm = generate_mojo_ptx_sass(gpu, solution_code)
+        yield {"status": "PTX", "content": ptx_or_ir}
+        yield {"status": "SASS", "content": sass_or_asm}
+    except Exception as e:
+        print(f"Mojo PTX/SASS generation failed: {e}")
+        yield {"status": "WARNING", "message": f"Mojo PTX/SASS generation failed: {str(e)}"}
+
+
 @hash_dict
 @lru_cache(maxsize=512)
 def run_nvcc_and_return_executable(gpu: str, solution_code: str) -> bytes:

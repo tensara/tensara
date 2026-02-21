@@ -19,12 +19,13 @@ CUBLAS_ENV = {"CUBLAS_WORKSPACE_CONFIG": ":4096:8"}
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.13")
-    .apt_install(APT_PACKAGES)
+    .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
     .env({"CC": "gcc"})
     .env({"PATH": "/root/.local/bin:$PATH"})
     .env(CUBLAS_ENV)
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
+    .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
     .run_commands("uv pip install --system torch==2.9.0")
     .add_local_python_source(*LOCAL_SOURCE)
 )
@@ -228,6 +229,42 @@ async def checker(gpu: str, request: Request):
 
             for event in utils.yield_ptx_sass(gpu, solution_code):
                 yield event
+        elif language == "mojo":
+            try:
+                problem = utils.load_problem_module(problem_name, problem_def)
+                expected = len(problem.get_function_signature().get("argtypes") or [])
+                utils.validate_mojo_solution_signature_from_source(solution_code, expected)
+            except utils.SolutionSignatureError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Invalid `solution` signature",
+                    "details": str(e),
+                }
+                return
+            try:
+                checker_compiled = utils.run_mojo_and_return_bytes(solution_code, "checker")
+            except utils.MojoError as e:
+                # If Mojo isn't available in this environment, let the remote worker compile.
+                if "CLI not found" in str(e.args[0]) or "not found in PATH" in str(e.args[0]):
+                    checker_compiled = None
+                else:
+                    yield {
+                        "status": "COMPILE_ERROR",
+                        "message": "Compilation Failed",
+                        "details": e.args[0],
+                    }
+                    return
+            except Exception as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Unexpected Compilation Error",
+                    "details": str(e),
+                }
+                return
+
+            if checker_compiled is not None:
+                for event in utils.yield_mojo_ptx_sass(gpu, solution_code):
+                    yield event
         else:
             checker_compiled = None
 
@@ -287,6 +324,41 @@ async def benchmark(gpu: str, request: Request):
 
             for event in utils.yield_ptx_sass(gpu, solution_code):
                 yield event
+        elif language == "mojo":
+            try:
+                problem = utils.load_problem_module(problem_name, problem_def)
+                expected = len(problem.get_function_signature().get("argtypes") or [])
+                utils.validate_mojo_solution_signature_from_source(solution_code, expected)
+            except utils.SolutionSignatureError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Invalid `solution` signature",
+                    "details": str(e),
+                }
+                return
+            try:
+                benchmark_compiled = utils.run_mojo_and_return_bytes(solution_code, "benchmark")
+            except utils.MojoError as e:
+                if "CLI not found" in str(e.args[0]) or "not found in PATH" in str(e.args[0]):
+                    benchmark_compiled = None
+                else:
+                    yield {
+                        "status": "COMPILE_ERROR",
+                        "message": "Compilation Failed",
+                        "details": e.args[0],
+                    }
+                    return
+            except Exception as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Unexpected Compilation Error",
+                    "details": str(e),
+                }
+                return
+
+            if benchmark_compiled is not None:
+                for event in utils.yield_mojo_ptx_sass(gpu, solution_code):
+                    yield event
         else:
             benchmark_compiled = None
 
@@ -351,6 +423,41 @@ async def sample_runner(gpu: str, request: Request):
 
             for event in utils.yield_ptx_sass(gpu, solution_code):
                 yield event
+        elif language == "mojo":
+            try:
+                problem = utils.load_problem_module(problem_name, problem_def)
+                expected = len(problem.get_function_signature().get("argtypes") or [])
+                utils.validate_mojo_solution_signature_from_source(solution_code, expected)
+            except utils.SolutionSignatureError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Invalid `solution` signature",
+                    "details": str(e),
+                }
+                return
+            try:
+                sample_compiled = utils.run_mojo_and_return_bytes(solution_code, "sample")
+            except utils.MojoError as e:
+                if "CLI not found" in str(e.args[0]) or "not found in PATH" in str(e.args[0]):
+                    sample_compiled = None
+                else:
+                    yield {
+                        "status": "COMPILE_ERROR",
+                        "message": "Compilation Failed",
+                        "details": e.args[0],
+                    }
+                    return
+            except Exception as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Unexpected Compilation Error",
+                    "details": str(e),
+                }
+                return
+
+            if sample_compiled is not None:
+                for event in utils.yield_mojo_ptx_sass(gpu, solution_code):
+                    yield event
         else:
             sample_compiled = None
 
@@ -383,12 +490,11 @@ async def sandbox(gpu: str, request: Request):
                 for event in utils.yield_ptx_sass(gpu, solution_code):
                     yield event
             elif language == "mojo":
-                # Attempt a local compile if Mojo is available; if not, fall back
-                # to letting the remote worker perform compilation by passing
-                # `compiled_lib=None` (binary_runner will compile inside the
-                # modal runtime when it sees a Mojo submission with no compiled bytes).
+                # Attempt a local compile; if Mojo isn't available, let the remote worker compile.
                 try:
                     compiled_lib = utils.run_mojo_and_return_executable(solution_code, "sandbox")
+                    for event in utils.yield_mojo_ptx_sass(gpu, solution_code):
+                        yield event
                 except utils.MojoError:
                     compiled_lib = None
             else:

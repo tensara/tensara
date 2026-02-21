@@ -462,12 +462,18 @@ export default function Sandbox({
       case SandboxStatus.PTX:
         setPtxContent(data.content ?? null);
         setPtxDirty(false);
-        addTerminalLine("info", "📦 PTX generated");
+        addTerminalLine(
+          "info",
+          selectedLanguage === "cuda" ? "📦 PTX generated" : "📦 IR generated"
+        );
         break;
       case SandboxStatus.SASS:
         setSassContent(data.content ?? null);
         setSassDirty(false);
-        addTerminalLine("info", "🧱 SASS generated");
+        addTerminalLine(
+          "info",
+          selectedLanguage === "cuda" ? "🧱 SASS generated" : "🧱 ASM generated"
+        );
         break;
       case SandboxStatus.WARNING:
         addTerminalLine(
