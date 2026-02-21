@@ -65,7 +65,7 @@ export const workspaceRouter = createTRPCRouter({
             ? [
                 {
                   name: "main.mojo",
-                  content: `def main() -> int:\n    print("Hello, world!")\n    return 0\n`,
+                  content: `from sys import has_accelerator, has_apple_gpu_accelerator\n\nfrom gpu.host import DeviceContext\nfrom gpu import block_idx, thread_idx\n\n\nfn print_threads():\n    \"\"\"Print thread IDs.\"\"\"\n\n    print(\"Block index: [\",\n        block_idx.x,\n        \"]\\tThread index: [\",\n        thread_idx.x,\n        \"]\"\n    )\n\n\ndef main():\n    ctx = DeviceContext()\n    ctx.enqueue_function[print_threads, print_threads](\n        grid_dim=2, block_dim=64\n    )\n    ctx.synchronize()\n    print(\"Program finished\")\n`,
                 },
               ]
             : [
