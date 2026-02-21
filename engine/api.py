@@ -184,6 +184,18 @@ async def checker(gpu: str, request: Request):
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
+    def should_fallback_to_remote_mojo_compile(err_details: str) -> bool:
+        if not err_details:
+            return False
+        # The web/API container doesn't have a real GPU device attached, so Mojo's
+        # GPU-arch detection can fail. In that case, let the Modal GPU worker
+        # compile instead (it does have the GPU).
+        fallback_markers = [
+            "Unknown GPU architecture detected",
+            "constraint failed: Unknown GPU architecture detected",
+        ]
+        return any(m in err_details for m in fallback_markers)
+
     def create_stream():
         yield {"status": "COMPILING"}
 
@@ -247,6 +259,8 @@ async def checker(gpu: str, request: Request):
                 # If Mojo isn't available in this environment, let the remote worker compile.
                 if "CLI not found" in str(e.args[0]) or "not found in PATH" in str(e.args[0]):
                     checker_compiled = None
+                elif should_fallback_to_remote_mojo_compile(str(e.args[0])):
+                    checker_compiled = None
                 else:
                     yield {
                         "status": "COMPILE_ERROR",
@@ -289,6 +303,15 @@ async def benchmark(gpu: str, request: Request):
     problem_def = req["problem_def"]
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
+
+    def should_fallback_to_remote_mojo_compile(err_details: str) -> bool:
+        if not err_details:
+            return False
+        fallback_markers = [
+            "Unknown GPU architecture detected",
+            "constraint failed: Unknown GPU architecture detected",
+        ]
+        return any(m in err_details for m in fallback_markers)
 
     def create_stream():
         if language == "cuda":
@@ -341,6 +364,8 @@ async def benchmark(gpu: str, request: Request):
             except utils.MojoError as e:
                 if "CLI not found" in str(e.args[0]) or "not found in PATH" in str(e.args[0]):
                     benchmark_compiled = None
+                elif should_fallback_to_remote_mojo_compile(str(e.args[0])):
+                    benchmark_compiled = None
                 else:
                     yield {
                         "status": "COMPILE_ERROR",
@@ -388,6 +413,15 @@ async def sample_runner(gpu: str, request: Request):
     problem_def = req["problem_def"]
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
+
+    def should_fallback_to_remote_mojo_compile(err_details: str) -> bool:
+        if not err_details:
+            return False
+        fallback_markers = [
+            "Unknown GPU architecture detected",
+            "constraint failed: Unknown GPU architecture detected",
+        ]
+        return any(m in err_details for m in fallback_markers)
 
     def create_stream():
         yield {"status": "COMPILING"}
@@ -439,6 +473,8 @@ async def sample_runner(gpu: str, request: Request):
                 sample_compiled = utils.run_mojo_and_return_bytes(solution_code, "sample")
             except utils.MojoError as e:
                 if "CLI not found" in str(e.args[0]) or "not found in PATH" in str(e.args[0]):
+                    sample_compiled = None
+                elif should_fallback_to_remote_mojo_compile(str(e.args[0])):
                     sample_compiled = None
                 else:
                     yield {
