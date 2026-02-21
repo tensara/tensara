@@ -1,9 +1,11 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Box,
   Spinner,
   Text,
   VStack,
+  HStack,
+  Badge,
   useToast,
   Icon,
   Heading,
@@ -62,6 +64,20 @@ import { FlopsModal } from "~/components/misc/FlopsModal";
 
 type ViewType = "submissions" | "problem" | "result";
 
+type ProblemParameter = {
+  name: string;
+  type: string;
+  const?: string | boolean;
+  pointer?: string | boolean;
+};
+
+const hasFlag = (value: string | boolean | undefined) =>
+  value === true || value === "true";
+
+const getParameterDisplayType = (parameter: ProblemParameter) => {
+  return parameter.type;
+};
+
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const helpers = createServerSideHelpers({
     router: appRouter,
@@ -105,6 +121,11 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [viewType, setViewType] = useState<ViewType>("problem");
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
+    isOpen: isParametersOpen,
+    onOpen: onParametersOpen,
+    onClose: onParametersClose,
+  } = useDisclosure();
+  const {
     isOpen: isFlopsModalOpen,
     onOpen: onFlopsModalOpen,
     onClose: onFlopsModalClose,
@@ -141,8 +162,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setCode,
     selectedLanguage,
     setSelectedLanguage,
-    selectedDataType,
-    setSelectedDataType,
     isCodeDirty,
     handleReset,
     savedGpuType,
@@ -202,6 +221,52 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [sampleSassTimestamp, setSampleSassTimestamp] = useState<number>(0);
   const [ptxDirty, setPtxDirty] = useState(false);
   const [sassDirty, setSassDirty] = useState(false);
+
+  const parameters = useMemo<ProblemParameter[]>(() => {
+    const raw = problem?.parameters;
+    if (!Array.isArray(raw)) return [];
+
+    return raw.reduce<ProblemParameter[]>((acc, item) => {
+      if (!item || typeof item !== "object") return acc;
+
+      const candidate = item as Record<string, unknown>;
+      if (
+        typeof candidate.name !== "string" ||
+        typeof candidate.type !== "string"
+      ) {
+        return acc;
+      }
+
+      acc.push({
+        name: candidate.name,
+        type: candidate.type,
+        const:
+          typeof candidate.const === "string" ||
+          typeof candidate.const === "boolean"
+            ? candidate.const
+            : undefined,
+        pointer:
+          typeof candidate.pointer === "string" ||
+          typeof candidate.pointer === "boolean"
+            ? candidate.pointer
+            : undefined,
+      });
+
+      return acc;
+    }, []);
+  }, [problem?.parameters]);
+
+  const parameterSignature = useMemo(() => {
+    if (parameters.length === 0) return "solution()";
+
+    const args = parameters
+      .map(
+        (parameter) => `${getParameterDisplayType(parameter)} ${parameter.name}`
+      )
+      .join(", ");
+
+    return `solution(${args})`;
+  }, [parameters]);
 
   useEffect(() => {
     if (submissionPtxContent) {
@@ -322,26 +387,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
   }, [submissionSassContent, sassContent]);
 
   useEffect(() => {
-    if (
-      hasLoadedPreferences &&
-      slug &&
-      selectedLanguage &&
-      selectedDataType &&
-      selectedGpuType
-    ) {
+    if (hasLoadedPreferences && slug && selectedLanguage && selectedGpuType) {
       savePreferences(slug, {
         language: selectedLanguage,
-        dataType: selectedDataType,
         gpuType: selectedGpuType,
       });
     }
-  }, [
-    slug,
-    selectedLanguage,
-    selectedDataType,
-    selectedGpuType,
-    hasLoadedPreferences,
-  ]);
+  }, [slug, selectedLanguage, selectedGpuType, hasLoadedPreferences]);
 
   // Handle submission
   const handleSubmit = useCallback(() => {
@@ -536,14 +588,15 @@ export default function ProblemPage({ slug }: { slug: string }) {
         setSelectedGpuType={setSelectedGpuType}
         selectedLanguage={selectedLanguage}
         setSelectedLanguage={setSelectedLanguage}
-        selectedDataType={selectedDataType}
-        setSelectedDataType={setSelectedDataType}
         isCodeDirty={isCodeDirty}
         onResetClick={() => setIsResetModalOpen(true)}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
         onRun={handleRun}
         isRunning={isRunning}
+        onViewParameters={onParametersOpen}
+        hasParameters={parameters.length > 0}
+        parameterCount={parameters.length}
       />
       <Box flex={1} w="100%" minH={0}>
         <VerticalSplitPanel
@@ -667,6 +720,97 @@ export default function ProblemPage({ slug }: { slug: string }) {
                     );
                   })()}
                 </Box>
+              )}
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+        <Modal
+          isOpen={isParametersOpen}
+          onClose={onParametersClose}
+          isCentered
+          size="2xl"
+        >
+          <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(5px)" />
+          <ModalContent
+            bg="brand.secondary"
+            borderColor="whiteAlpha.100"
+            borderWidth={1}
+          >
+            <ModalHeader color="white">Function Parameters</ModalHeader>
+            <ModalCloseButton color="gray.400" />
+            <ModalBody pb={6}>
+              {parameters.length === 0 ? (
+                <Text color="gray.300">
+                  This solution function takes no parameters.
+                </Text>
+              ) : (
+                <VStack spacing={2} align="stretch">
+                  <Text
+                    color="gray.500"
+                    fontSize="xs"
+                    textTransform="uppercase"
+                  >
+                    Signature
+                  </Text>
+                  <Text
+                    color="teal.200"
+                    fontFamily="JetBrains Mono, monospace"
+                    fontSize="sm"
+                    whiteSpace="pre-wrap"
+                    mb={1}
+                  >
+                    {parameterSignature}
+                  </Text>
+                  {parameters.map((parameter, index) => (
+                    <HStack
+                      key={`${parameter.name}-${index}`}
+                      justify="space-between"
+                      align="center"
+                      py={2}
+                      borderBottomWidth={
+                        index === parameters.length - 1 ? "0" : "1px"
+                      }
+                      borderColor="whiteAlpha.200"
+                    >
+                      <Text
+                        color="white"
+                        fontWeight="medium"
+                        fontFamily="JetBrains Mono, monospace"
+                        fontSize="sm"
+                      >
+                        {parameter.name}
+                        <Text as="span" color="gray.400">
+                          {": "}
+                        </Text>
+                        <Text as="span" color="gray.300" fontWeight="normal">
+                          {getParameterDisplayType(parameter)}
+                        </Text>
+                      </Text>
+                      <HStack spacing={1.5}>
+                        {hasFlag(parameter.const) && (
+                          <Badge
+                            colorScheme="green"
+                            borderRadius="md"
+                            py={0.5}
+                            px={2}
+                          >
+                            const
+                          </Badge>
+                        )}
+                        {hasFlag(parameter.pointer) && (
+                          <Badge
+                            colorScheme="red"
+                            borderRadius="md"
+                            py={0.5}
+                            px={2}
+                          >
+                            pointer
+                          </Badge>
+                        )}
+                      </HStack>
+                    </HStack>
+                  ))}
+                </VStack>
               )}
             </ModalBody>
           </ModalContent>

@@ -25,22 +25,79 @@ import {
   Center,
   Flex,
   Spinner,
+  SimpleGrid,
+  Icon,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { format } from "date-fns";
 import { Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
-import { FiMoreVertical, FiPlus } from "react-icons/fi";
+import {
+  FiMoreVertical,
+  FiPlus,
+  FiCpu,
+  FiCode,
+  FiShare2,
+  FiPackage,
+} from "react-icons/fi";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { useSession, signIn } from "next-auth/react";
 import { type TRPCClientError } from "@trpc/client";
 import type { AppRouter } from "~/server/api/root";
 import { keyframes } from "@emotion/react";
+import { type IconType } from "react-icons";
 
 const pulseAnimation = keyframes`
   0% { opacity: 0.6; }
   50% { opacity: 0.8; }
   100% { opacity: 0.6; }
 `;
+
+const FeatureCard = ({
+  icon,
+  title,
+  description,
+}: {
+  icon: IconType;
+  title: string;
+  description: string;
+}) => {
+  return (
+    <Box
+      bg="transparent"
+      borderRadius="xl"
+      p={6}
+      borderWidth="1px"
+      borderColor="rgba(46, 204, 113, 0.3)"
+      transition="all 0.3s"
+      _hover={{
+        transform: "translateY(-5px)",
+        boxShadow: "0 10px 30px rgba(46, 204, 113, 0.2)",
+        borderColor: "rgba(46, 204, 113, 0.5)",
+      }}
+    >
+      <Flex direction="column" align="flex-start">
+        <Flex
+          bg="rgba(14, 129, 68, 0.2)"
+          p={3}
+          borderRadius="md"
+          mb={4}
+          color="#2ecc71"
+        >
+          <Icon as={icon} boxSize={6} />
+        </Flex>
+        <Heading
+          size="md"
+          fontFamily="Space Grotesk, sans-serif"
+          mb={2}
+          color="white"
+        >
+          {title}
+        </Heading>
+        <Text color="whiteAlpha.800">{description}</Text>
+      </Flex>
+    </Box>
+  );
+};
 
 export default function SandboxHome() {
   const { data: session, status } = useSession();
@@ -153,20 +210,72 @@ export default function SandboxHome() {
   if (status !== "authenticated") {
     return (
       <Layout title="Sign In">
-        <Center minH="70vh">
-          <VStack spacing={4}>
-            <Heading size="md" color="white">
-              Sign in to start messing around with GPU workspaces.
+        <Box
+          w="full"
+          minH="80vh"
+          px={{ base: 6, md: 12 }}
+          py={{ base: 12, md: 20 }}
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          gap={12}
+        >
+          <VStack spacing={6} maxW="640px" textAlign="center">
+            <Flex p={4} borderRadius="xl" color="#2ecc71">
+              <Icon as={FiPackage} boxSize={16} />
+            </Flex>
+            <Heading fontSize={{ base: "2xl", md: "3xl" }} color="white">
+              Tensara Sandbox
             </Heading>
-            <Button
-              onClick={() => signIn()}
-              colorScheme="green"
-              borderRadius="lg"
-            >
-              Sign In
-            </Button>
+            <Text fontSize={{ base: "md", md: "lg" }} color="gray.300">
+              Disposable GPU workspaces you can spin up in seconds. Write CUDA
+              C++ or Mojo kernels, experiment freely, and come back to them
+              later.
+            </Text>
+            <VStack spacing={2}>
+              <Button
+                onClick={() => signIn()}
+                bg="#0e8144"
+                _hover={{
+                  bg: "#0a6434",
+                  transform: "translateY(-2px)",
+                }}
+                borderRadius="lg"
+                px={8}
+                h="46px"
+              >
+                Sign In to Start a Workspace
+              </Button>
+              <Text fontSize="xs" color="gray.500">
+                Use your existing account to start a GPU workspace.
+              </Text>
+            </VStack>
           </VStack>
-        </Center>
+
+          <SimpleGrid
+            columns={{ base: 1, sm: 2, md: 3 }}
+            spacing={6}
+            w="full"
+            maxW="1200px"
+          >
+            <FeatureCard
+              icon={FiCode}
+              title="CUDA C++ & Mojo"
+              description="Choose your language when creating a sandbox. Run kernels on real GPU hardware without any local setup."
+            />
+            <FeatureCard
+              icon={FiCpu}
+              title="Persistent workspaces"
+              description="Keep files and experiments together across sessions. Come back to your work anytime, exactly as you left it."
+            />
+            <FeatureCard
+              icon={FiShare2}
+              title="Shareable workspaces"
+              description="Every sandbox has a unique URL you can share with others. Collaborate or show off your code with a simple link."
+            />
+          </SimpleGrid>
+        </Box>
       </Layout>
     );
   }

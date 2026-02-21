@@ -164,7 +164,6 @@ export default async function handler(
     problem: submission.problem.slug,
     problem_def: submission.problem.definition,
     gpu_type: submission.gpuType,
-    dtype: "float32",
     language: submission.language,
   };
 

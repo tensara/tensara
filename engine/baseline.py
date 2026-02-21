@@ -70,7 +70,6 @@ def baseline_runner(
     solution_code: str,
     problem_name: str,
     problem_def: str,
-    dtype: str,
     baseline: str,
     check: bool = False,
 ):
@@ -95,11 +94,11 @@ def baseline_runner(
 
     if check:
         gen = runner.run_checker(
-            problem_name, problem_def, solution_func, dtype, "python", param_func=param_func
+            problem_name, problem_def, solution_func, "python", param_func=param_func
         )
     else:
         gen = runner.run_benchmark(
-            problem_name, problem_def, solution_func, dtype, "python", param_func=param_func
+            problem_name, problem_def, solution_func, "python", param_func=param_func
         )
     last_event = None
     for event in gen:
@@ -137,13 +136,12 @@ async def baseline_handler(request: Request, baseline: str):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
     check = req.get("check", False)
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
         runner = gpu_runners[gpu]
-        stream = runner.remote_gen(solution_code, problem_name, problem_def, dtype, baseline, check)
+        stream = runner.remote_gen(solution_code, problem_name, problem_def, baseline, check)
         for event in stream:
             yield event
 

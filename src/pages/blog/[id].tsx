@@ -100,6 +100,7 @@ export default function BlogPost({ slug }: { slug: string }) {
     { postId: post?.id ?? "" },
     { enabled: !!post && !!session }
   );
+  const postUpvoted = !!postHasUpvoted?.hasUpvoted;
   const postUpvoteToggle = api.postUpvote.toggle.useMutation({
     onSuccess: async () => {
       if (post?.id) {
@@ -138,7 +139,7 @@ export default function BlogPost({ slug }: { slug: string }) {
   }
 
   const [newComment, setNewComment] = useState("");
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(true);
 
   function CommentItem({ comment }: { comment: CommentType }) {
     const [replyOpen, setReplyOpen] = useState(false);
@@ -172,9 +173,23 @@ export default function BlogPost({ slug }: { slug: string }) {
       <Box key={comment.id} py={3}>
         <VStack align="stretch" spacing={2}>
           <HStack spacing={2} align="baseline">
-            <Text color="gray.400" fontSize="xs" fontWeight="500">
-              {comment.author?.name}
-            </Text>
+            {comment.author?.username ? (
+              <ChakraLink
+                as={Link}
+                href={`/user/${comment.author.username}`}
+                color="gray.400"
+                fontSize="xs"
+                fontWeight="500"
+                display="inline-flex"
+                _hover={{ textDecoration: "none", color: "white" }}
+              >
+                {comment.author?.name ?? "Unknown"}
+              </ChakraLink>
+            ) : (
+              <Text color="gray.400" fontSize="xs" fontWeight="500">
+                {comment.author?.name ?? "Unknown"}
+              </Text>
+            )}
             <Text as="span" color="gray.600" fontSize="xs">
               ·
             </Text>
@@ -198,15 +213,19 @@ export default function BlogPost({ slug }: { slug: string }) {
               variant="ghost"
               leftIcon={<Icon as={FiThumbsUp} />}
               onClick={() => cuToggle.mutate({ commentId: comment.id })}
-              color={cuHasUpvoted?.hasUpvoted ? "green.400" : "gray.500"}
+              color={cuHasUpvoted?.hasUpvoted ? "green.300" : "gray.500"}
+              bg={cuHasUpvoted?.hasUpvoted ? "green.900" : "transparent"}
               _hover={{
-                bg: "transparent",
-                color: cuHasUpvoted?.hasUpvoted ? "green.300" : "gray.400",
+                bg: cuHasUpvoted?.hasUpvoted ? "green.800" : "transparent",
+                color: cuHasUpvoted?.hasUpvoted ? "green.200" : "gray.400",
               }}
+              transition="color 0.2s ease"
               fontWeight="normal"
               h="auto"
               py={1}
               px={2}
+              minW="auto"
+              aria-pressed={!!cuHasUpvoted?.hasUpvoted}
             >
               {cuCount.data?.count ?? 0}
             </Button>
@@ -500,19 +519,28 @@ export default function BlogPost({ slug }: { slug: string }) {
                     <Icon as={FiShare2} />
                   </HStack>
 
-                  <HStack
-                    as="button"
-                    spacing={1}
-                    color={postHasUpvoted?.hasUpvoted ? "white" : "gray.500"}
-                    _hover={{ color: "white" }}
-                    transition="color 0.5s ease"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<Icon as={FiThumbsUp} />}
+                    color={postUpvoted ? "green.300" : "gray.500"}
+                    bg={postUpvoted ? "green.900" : "transparent"}
+                    _hover={{
+                      bg: postUpvoted ? "green.800" : "transparent",
+                      color: postUpvoted ? "green.200" : "gray.300",
+                    }}
+                    transition="color 0.2s ease"
                     onClick={() => postUpvoteToggle.mutate({ postId: post.id })}
                     cursor="pointer"
                     fontSize="sm"
+                    px={2}
+                    h="auto"
+                    py={1}
+                    minW="auto"
+                    aria-pressed={postUpvoted}
                   >
-                    <Icon as={FiThumbsUp} />
-                    <Text>{postUpvoteCount?.count ?? 0}</Text>
-                  </HStack>
+                    {postUpvoteCount?.count ?? 0}
+                  </Button>
                 </Flex>
               </Flex>
             </Box>

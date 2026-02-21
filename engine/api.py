@@ -9,18 +9,20 @@ import runner
 DEVEL_IMAGE_NAME = "nvidia/cuda:13.1.0-devel-ubuntu24.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:13.1.0-runtime-ubuntu24.04"
 CURR_DIR = Path(__file__).parent
-
+MODULAR_INDEX = "https://modular.gateway.scarf.sh/simple/modular/modular-26.1.0-py3-none-any.whl"
 
 PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl", "nvidia-ml-py"]
 UV_PREFIX = "uv pip install --system "
 LOCAL_SOURCE = ["utils", "runner", "problem", "api", "gpu_monitor"]
 APT_PACKAGES = ["build-essential", "gcc", "g++", "curl"]
+CUBLAS_ENV = {"CUBLAS_WORKSPACE_CONFIG": ":4096:8"}
 
 devel_image = (
     modal.Image.from_registry(DEVEL_IMAGE_NAME, add_python="3.13")
     .apt_install(APT_PACKAGES)
     .env({"CC": "gcc"})
     .env({"PATH": "/root/.local/bin:$PATH"})
+    .env(CUBLAS_ENV)
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
     .run_commands("uv pip install --system torch==2.9.0")
@@ -33,9 +35,10 @@ runtime_image = (
     .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
     .env({"CC": "gcc"})
     .env({"PATH": "/root/.local/bin:$PATH"})
+    .env(CUBLAS_ENV)
     .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
     .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES))
-    .run_commands("uv pip install --system modular==25.4.0")
+    .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
     # install torch separately with CUDA 12.8
     .run_commands(
         "uv pip install --system torch==2.9.0 --index-url https://download.pytorch.org/whl/cu128"
@@ -50,9 +53,10 @@ def b200_image():
         .apt_install(APT_PACKAGES + ["libedit-dev", "zlib1g-dev"])
         .env({"CC": "gcc"})
         .env({"PATH": "/root/.local/bin:$PATH"})
+        .env(CUBLAS_ENV)
         .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
         .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES + ["cuda-tile", "cupy-cuda13x"]))
-        .run_commands("uv pip install --system modular==25.4.0")
+        .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
         # install torch separately with CUDA 12.8
         .run_commands(
             "uv pip install --system torch==2.9.0 --index-url https://download.pytorch.org/whl/cu128"
@@ -72,12 +76,23 @@ def binary_runner(
     solution_code: str,
     problem_name: str,
     problem_def: str,
-    dtype: str,
     language: str,
 ):
     gen = None
 
     if language == "mojo" and compiled_lib is None:
+        if type != "sandbox":
+            try:
+                problem = utils.load_problem_module(problem_name, problem_def)
+                expected = len(problem.get_function_signature().get("argtypes") or [])
+                utils.validate_mojo_solution_signature_from_source(solution_code, expected)
+            except utils.SolutionSignatureError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Invalid `solution` signature",
+                    "details": str(e),
+                }
+                return
         try:
             if type == "sandbox":
                 compiled_lib = utils.run_mojo_and_return_executable(solution_code, type)
@@ -95,12 +110,19 @@ def binary_runner(
         gen = runner.run_sandbox(compiled_lib, solution_code)
     elif type == "sample":
         gen = runner.run_sample_case(
-            problem_name, problem_def, solution_code, compiled_lib, dtype, language
+            problem_name, problem_def, solution_code, compiled_lib, language
         )
     else:
         try:
             problem = utils.load_problem_module(problem_name, problem_def)
             solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
+        except utils.SolutionSignatureError as e:
+            yield {
+                "status": "COMPILE_ERROR",
+                "message": "Invalid `solution` signature",
+                "details": str(e),
+            }
+            return
         except Exception as e:
             yield {
                 "status": "COMPILE_ERROR",
@@ -109,12 +131,16 @@ def binary_runner(
             }
             return
 
-        if type == "checker":
-            gen = runner.run_checker(problem_name, problem_def, solution_func, dtype, language)
+
+          if type == "sample":
+            # this should not be reached
+            raise ValueError("This code path should not be reached")
+        elif type == "checker":
+            gen = runner.run_checker(problem_name, problem_def, solution_func, language)
         elif type == "benchmark":
-            gen = runner.run_benchmark(problem_name, problem_def, solution_func, dtype, language)
+            gen = runner.run_benchmark(problem_name, problem_def, solution_func, language)
         elif type == "sanity_check":
-            gen = runner.run_sanity_check(problem_name, problem_def, solution_func, dtype, language)
+            gen = runner.run_sanity_check(problem_name, problem_def, solution_func, language)
         else:
             raise ValueError(f"Unknown binary type: {type}")
 
@@ -155,7 +181,6 @@ async def checker(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -169,6 +194,17 @@ async def checker(gpu: str, request: Request):
                 pass
 
         if language == "cuda":
+            try:
+                problem = utils.load_problem_module(problem_name, problem_def)
+                expected = len(problem.get_function_signature().get("argtypes") or [])
+                utils.validate_cuda_solution_signature_from_source(solution_code, expected)
+            except utils.SolutionSignatureError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Invalid `solution` signature",
+                    "details": str(e),
+                }
+                return
             bench_thr = Thread(target=compile_benchmark)
             bench_thr.start()
 
@@ -198,7 +234,7 @@ async def checker(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "checker", checker_compiled, solution_code, problem_name, problem_def, dtype, language
+            "checker", checker_compiled, solution_code, problem_name, problem_def, language
         )
         for event in stream:
             yield event
@@ -215,13 +251,22 @@ async def benchmark(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
-
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
     def create_stream():
         if language == "cuda":
+            try:
+                problem = utils.load_problem_module(problem_name, problem_def)
+                expected = len(problem.get_function_signature().get("argtypes") or [])
+                utils.validate_cuda_solution_signature_from_source(solution_code, expected)
+            except utils.SolutionSignatureError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Invalid `solution` signature",
+                    "details": str(e),
+                }
+                return
             try:
                 benchmark_compiled = utils.run_nvcc_and_return_bytes(
                     gpu, solution_code, "benchmark"
@@ -253,7 +298,6 @@ async def benchmark(gpu: str, request: Request):
             solution_code,
             problem_name,
             problem_def,
-            dtype,
             language,
         )
         for event in stream:
@@ -271,7 +315,6 @@ async def sample_runner(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -279,6 +322,17 @@ async def sample_runner(gpu: str, request: Request):
         yield {"status": "COMPILING"}
 
         if language == "cuda":
+            try:
+                problem = utils.load_problem_module(problem_name, problem_def)
+                expected = len(problem.get_function_signature().get("argtypes") or [])
+                utils.validate_cuda_solution_signature_from_source(solution_code, expected)
+            except utils.SolutionSignatureError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Invalid `solution` signature",
+                    "details": str(e),
+                }
+                return
             try:
                 sample_compiled = utils.run_nvcc_and_return_bytes(gpu, solution_code, "sample")
             except utils.NVCCError as e:
@@ -303,7 +357,7 @@ async def sample_runner(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "sample", sample_compiled, solution_code, problem_name, problem_def, dtype, language
+            "sample", sample_compiled, solution_code, problem_name, problem_def, language
         )
         for event in stream:
             yield event
@@ -368,7 +422,7 @@ async def sandbox(gpu: str, request: Request):
 
         runner = gpu_runners[gpu]
         stream = runner.remote_gen(
-            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", "float32", language
+            "sandbox", compiled_lib, solution_code, "sandbox", "sandbox", language
         )
         for event in stream:
             if not event:
@@ -395,8 +449,6 @@ async def benchmark_cli(gpu: str, request: Request):
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
-    dtype = req["dtype"]
-
     language = req["language"]
     problem_name = utils.convert_slug_to_module_name(req["problem"])
 
@@ -404,6 +456,17 @@ async def benchmark_cli(gpu: str, request: Request):
         yield {"status": "COMPILING"}
 
         if language == "cuda":
+            try:
+                problem = utils.load_problem_module(problem_name, problem_def)
+                expected = len(problem.get_function_signature().get("argtypes") or [])
+                utils.validate_cuda_solution_signature_from_source(solution_code, expected)
+            except utils.SolutionSignatureError as e:
+                yield {
+                    "status": "COMPILE_ERROR",
+                    "message": "Invalid `solution` signature",
+                    "details": str(e),
+                }
+                return
             try:
                 benchmark_compiled = utils.run_nvcc_and_return_bytes(
                     gpu, solution_code, "benchmark"
@@ -432,7 +495,6 @@ async def benchmark_cli(gpu: str, request: Request):
             solution_code,
             problem_name,
             problem_def,
-            dtype,
             language,
         )
         for event in sanity_check_stream:
@@ -453,7 +515,6 @@ async def benchmark_cli(gpu: str, request: Request):
             solution_code,
             problem_name,
             problem_def,
-            dtype,
             language,
         )
         for event in stream:

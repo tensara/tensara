@@ -1,20 +1,33 @@
 import { type Parameter } from "~/types/problem";
-import { type DataType } from "~/types/misc";
 import {
   CPP_TYPES,
   PYTHON_TYPES,
   MOJO_TYPES,
-  PYTHON_MISC_TYPES,
-  MOJO_MISC_TYPES,
+  MOJO_DTYPE_CONST,
   CUTE_TYPES,
-  CUTE_MISC_TYPES,
 } from "~/constants/datatypes";
 import { FORBIDDEN_PATTERNS } from "~/constants/forbidden";
 
+/** Parameter.type is always C-style (float, int, size_t, uint64_t, etc.). */
+function resolveCppType(type: string): string {
+  return CPP_TYPES[type] ?? type;
+}
+
+function resolvePythonType(type: string): string {
+  return PYTHON_TYPES[type] ?? type;
+}
+
+function resolveMojoType(type: string): string {
+  return MOJO_TYPES[type] ?? type;
+}
+
+function resolveCuteType(type: string): string {
+  return CUTE_TYPES[type] ?? type;
+}
+
 export const generateStarterCode = (
   parameters: Parameter[],
-  language: string,
-  dataType: DataType
+  language: string
 ) => {
   if (language === "cuda") {
     const names = parameters
@@ -25,12 +38,12 @@ export const generateStarterCode = (
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.const === "true" ? "const " : ""}${parameter.type === "[VAR]" ? CPP_TYPES[dataType] : parameter.type}${parameter.pointer === "true" ? "*" : ""} ${parameter.name}`
+          `${parameter.const === "true" ? "const " : ""}${resolveCppType(parameter.type)}${parameter.pointer === "true" ? "*" : ""} ${parameter.name}`
       )
       .join(", ");
     return `#include <cuda_runtime.h>
 
-// Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
+// Note: ${names.join(", ")} are device pointers
 extern "C" void solution(${paramStr}) {
 }`;
   }
@@ -43,36 +56,54 @@ extern "C" void solution(${paramStr}) {
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.name}${parameter.pointer === "true" ? "" : parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[dataType]}` : `: ${PYTHON_MISC_TYPES[parameter.type]}`}`
+          `${parameter.name}${parameter.pointer === "true" ? "" : `: ${resolvePythonType(parameter.type)}`}`
       )
       .join(", ");
     return `import triton
 import triton.language as tl
 
-# Note: ${names.join(", ")} are all ${dataType} device tensors
+# Note: ${names.join(", ")} are device tensors
 def solution(${paramStr}):
     `;
   }
   if (language === "mojo") {
-    const names = parameters
-      .map((parameter: Parameter) =>
-        parameter.pointer === "true" ? parameter.name : null
-      )
-      .filter(Boolean);
+    const pointerParams = parameters.filter((p) => p.pointer === "true");
+    const names = pointerParams.map((p) => p.name).filter(Boolean);
+    const firstPtrType = pointerParams[0]?.type ?? "float";
+    const dtypeConst = MOJO_DTYPE_CONST[firstPtrType] ?? "DType.float32";
+    const dtypeDisplay = firstPtrType;
+
+    const usesDType = pointerParams.length > 0;
+
     const paramStr = parameters
-      .map(
-        (parameter: Parameter) =>
-          `${parameter.name}: ${parameter.pointer === "true" ? `UnsafePointer[${MOJO_TYPES[dataType]}]` : parameter.type === "[VAR]" ? MOJO_TYPES[dataType] : MOJO_MISC_TYPES[parameter.type]}`
+      .map((p) =>
+        p.pointer === "true"
+          ? `${p.name}_addr: Int`
+          : `${p.name}: ${resolveMojoType(p.type)}`
       )
       .join(", ");
-    return `from gpu.host import DeviceContext
-from gpu.id import block_dim, block_idx, thread_idx
-from memory import UnsafePointer
 
-# Note: ${names.join(", ")} are all device pointers to ${dataType} arrays
+    const ptrTypeComment = `${dtypeDisplay} arrays`;
+
+    const pointerSetup = pointerParams
+      .map((p) => {
+        const varName = p.name.startsWith("d_") ? p.name.slice(2) : p.name;
+        return `    ${varName} = UnsafePointer[Scalar[dtype], MutExternalOrigin](unsafe_from_address=${p.name}_addr)`;
+      })
+      .join("\n");
+
+    const dtypeBlock = usesDType ? `comptime dtype = ${dtypeConst}` : "";
+
+    return `from gpu import thread_idx, block_idx, block_dim
+from gpu.host import DeviceContext
+from memory import UnsafePointer 
+
+${dtypeBlock ? dtypeBlock : ""}
+
+# Note: ${names.join(", ")} are device pointers to ${ptrTypeComment}
 @export
 fn solution(${paramStr}) raises:
-    `;
+${pointerSetup ? pointerSetup + "\n" : ""}    `;
   }
   if (language == "cute") {
     const names = parameters
@@ -83,7 +114,7 @@ fn solution(${paramStr}) raises:
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.name}${parameter.pointer === "true" ? `: cute.Tensor` : parameter.type === "[VAR]" ? `: ${CUTE_TYPES[dataType]}` : `: ${CUTE_MISC_TYPES[parameter.type]}`}`
+          `${parameter.name}${parameter.pointer === "true" ? `: cute.Tensor` : `: ${resolveCuteType(parameter.type)}`}`
       )
       .filter(Boolean)
       .join(", ");
@@ -104,14 +135,14 @@ def solution(${paramStr}):
     const paramStr = parameters
       .map(
         (parameter: Parameter) =>
-          `${parameter.name}${parameter.pointer === "true" ? "" : parameter.type === "[VAR]" ? `: ${PYTHON_TYPES[dataType]}` : `: ${PYTHON_MISC_TYPES[parameter.type]}`}`
+          `${parameter.name}${parameter.pointer === "true" ? "" : `: ${resolvePythonType(parameter.type)}`}`
       )
       .join(", ");
     return `import cuda.tile as ct
 import cupy
 
 # You can use cupy.cuda.get_current_stream() to get the current stream to launch cuTile kernels.
-# Note: ${names.join(", ")} are all ${dataType} device tensors
+# Note: ${names.join(", ")} are device tensors
 def solution(${paramStr}):
     `;
   }

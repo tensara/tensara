@@ -4,21 +4,22 @@ import {
   Box,
   Text,
   Button,
-  IconButton,
   Flex,
   Menu,
   MenuButton,
   MenuList,
   MenuItem,
   Tooltip,
+  IconButton,
 } from "@chakra-ui/react";
-import { type DataType, type ProgrammingLanguage } from "~/types/misc";
+import { type ProgrammingLanguage } from "~/types/misc";
 
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
 import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
 
 import { IoRepeat } from "react-icons/io5";
-import { FaInfoCircle, FaChevronDown } from "react-icons/fa";
+import { FaChevronDown, FaInfoCircle } from "react-icons/fa";
+import { FiList } from "react-icons/fi";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
@@ -28,14 +29,15 @@ interface SubmissionFormProps {
   setSelectedGpuType: (gpuType: string) => void;
   selectedLanguage: ProgrammingLanguage;
   setSelectedLanguage: (language: ProgrammingLanguage) => void;
-  selectedDataType: DataType;
-  setSelectedDataType: (dataType: DataType) => void;
   isCodeDirty: boolean;
   onResetClick: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
   onRun?: () => void;
   isRunning?: boolean;
+  onViewParameters?: () => void;
+  hasParameters?: boolean;
+  parameterCount?: number;
 }
 
 const SubmissionForm = ({
@@ -43,14 +45,15 @@ const SubmissionForm = ({
   setSelectedGpuType,
   selectedLanguage,
   setSelectedLanguage,
-  selectedDataType,
-  setSelectedDataType,
   isCodeDirty,
   onResetClick,
   onSubmit,
   isSubmitting,
   onRun,
   isRunning,
+  onViewParameters,
+  hasParameters = false,
+  parameterCount = 0,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
@@ -61,11 +64,11 @@ const SubmissionForm = ({
       id="form-container"
       w="100%"
       justifyContent="space-between"
-      alignItems={{ base: "flex-start", md: "center" }}
+      alignItems={{ base: "flex-start", md: "flex-end" }}
       flexDirection={{ base: "column", md: "row" }}
       gap={3}
     >
-      <HStack spacing={2} flexWrap="wrap" gap={2}>
+      <HStack spacing={2} flexWrap="wrap" gap={2} align="flex-end">
         <Box>
           <Text fontSize="sm" color="whiteAlpha.700">
             GPU Type
@@ -233,92 +236,43 @@ const SubmissionForm = ({
         </Box>
         <Box>
           <Text fontSize="sm" color="whiteAlpha.700">
-            Data Type
-            {/* dummy button to align -- terrible hack */}
+            Parameters
             <IconButton
-              aria-label="Data Type Information"
+              aria-label="Parameter Information"
               icon={<FaInfoCircle />}
               size="sm"
               variant="ghost"
-              color="transparent"
-              visibility="hidden"
+              isDisabled
+              color="gray.400"
+              _hover={{ color: "white", bg: "transparent" }}
               bg="transparent"
+              visibility="hidden"
+              pointerEvents="none"
+              tabIndex={-1}
             />
           </Text>
-          <Menu>
-            <MenuButton
-              size="sm"
-              as={Button}
-              rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
-              bg="whiteAlpha.50"
-              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-              _active={{ bg: "whiteAlpha.150" }}
-              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-              color="white"
-              w={{ base: "110px", md: "140px" }}
-              fontWeight="normal"
-              textAlign="left"
-              justifyContent="flex-start"
-              borderRadius="lg"
-            >
-              {selectedDataType}
-            </MenuButton>
-            <MenuList
-              bg="brand.secondary"
-              borderColor="gray.800"
-              p={0}
-              borderRadius="lg"
-              minW="140px"
-            >
-              <MenuItem
-                key="float32"
-                onClick={() => setSelectedDataType("float32")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                float32
-              </MenuItem>
-              <MenuItem
-                key="float16"
-                onClick={() => setSelectedDataType("float16")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                isDisabled={true}
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                float16
-              </MenuItem>
-              <MenuItem
-                key="int32"
-                onClick={() => setSelectedDataType("int32")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                isDisabled={true}
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                int32
-              </MenuItem>
-              <MenuItem
-                key="int16"
-                onClick={() => setSelectedDataType("int16")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                isDisabled={true}
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                int16
-              </MenuItem>
-            </MenuList>
-          </Menu>
+          <Button
+            size="sm"
+            onClick={onViewParameters}
+            isDisabled={!onViewParameters}
+            leftIcon={<FiList size={14} />}
+            bg={hasParameters ? "whiteAlpha.50" : "whiteAlpha.100"}
+            _hover={{
+              bg: hasParameters ? "whiteAlpha.100" : "whiteAlpha.100",
+              borderColor: "gray.600",
+            }}
+            _active={{ bg: "whiteAlpha.150" }}
+            _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+            color={hasParameters ? "white" : "gray.400"}
+            w={{ base: "110px", md: "140px" }}
+            fontWeight="normal"
+            justifyContent="flex-start"
+            borderRadius="lg"
+          >
+            {hasParameters
+              ? `${parameterCount} ${parameterCount === 1 ? "param" : "params"}`
+              : "No params"}
+          </Button>
         </Box>
       </HStack>
 

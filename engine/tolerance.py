@@ -38,7 +38,7 @@ def compute_tolerances_for_problem(
                 "reason": "is_exact=True - tolerances not needed for exact problems",
             }
 
-        test_cases = problem.generate_test_cases(torch.float32)
+        test_cases = problem.generate_test_cases()
 
         rtol_list = []
         atol_list = []

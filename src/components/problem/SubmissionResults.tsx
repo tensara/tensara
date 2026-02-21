@@ -234,6 +234,19 @@ const SubmissionResults = ({
   const { splitRatio } = useSplitPanel();
   const useCompactLabels = splitRatio < 40;
   if (!metaStatus) return null;
+  const acceptedAvgGflops = getTypedResponse(
+    SubmissionStatus.ACCEPTED
+  )?.avg_gflops;
+  const benchmarkedAvgGflops = getTypedResponse(
+    SubmissionStatus.BENCHMARKED
+  )?.avg_gflops;
+  const showGflopsColumn =
+    Boolean(hasFlopsCode) ||
+    benchmarkResults.some(
+      (result) => (result.result.avg_gflops ?? result.result.gflops) != null
+    ) ||
+    acceptedAvgGflops != null ||
+    benchmarkedAvgGflops != null;
 
   return (
     <VStack spacing={4} align="stretch" p={6}>
@@ -385,29 +398,31 @@ const SubmissionResults = ({
                             <Th color="whiteAlpha.700" py={3} isNumeric>
                               Runtime
                             </Th>
-                            <Th color="whiteAlpha.700" py={3} isNumeric>
-                              <HStack spacing={1} justify="flex-start">
-                                <Text>GFLOPS</Text>
-                                {hasFlopsCode && onViewFlops && (
-                                  <IconButton
-                                    aria-label="View FLOPs Calculation"
-                                    icon={<Icon as={FiHash} />}
-                                    size="xs"
-                                    variant="ghost"
-                                    color="gray.500"
-                                    _hover={{
-                                      color: "white",
-                                      bg: "transparent",
-                                    }}
-                                    bg="transparent"
-                                    minW="auto"
-                                    h="auto"
-                                    p={0}
-                                    onClick={onViewFlops}
-                                  />
-                                )}
-                              </HStack>
-                            </Th>
+                            {showGflopsColumn && (
+                              <Th color="whiteAlpha.700" py={3} isNumeric>
+                                <HStack spacing={1} justify="flex-start">
+                                  <Text>GFLOPS</Text>
+                                  {hasFlopsCode && onViewFlops && (
+                                    <IconButton
+                                      aria-label="View FLOPs Calculation"
+                                      icon={<Icon as={FiHash} />}
+                                      size="xs"
+                                      variant="ghost"
+                                      color="gray.500"
+                                      _hover={{
+                                        color: "white",
+                                        bg: "transparent",
+                                      }}
+                                      bg="transparent"
+                                      minW="auto"
+                                      h="auto"
+                                      p={0}
+                                      onClick={onViewFlops}
+                                    />
+                                  )}
+                                </HStack>
+                              </Th>
+                            )}
                           </Tr>
                         </Thead>
                         <Tbody>
@@ -442,13 +457,15 @@ const SubmissionResults = ({
                                       : "-"}
                                   </Text>
                                 </Td>
-                                <Td py={3} isNumeric>
-                                  <Text>
-                                    {gflops !== undefined
-                                      ? gflops.toFixed(2)
-                                      : "-"}
-                                  </Text>
-                                </Td>
+                                {showGflopsColumn && (
+                                  <Td py={3} isNumeric>
+                                    <Text>
+                                      {gflops !== undefined && gflops !== null
+                                        ? gflops.toFixed(2)
+                                        : "-"}
+                                    </Text>
+                                  </Td>
+                                )}
                               </Tr>
                             );
 
@@ -526,9 +543,11 @@ const SubmissionResults = ({
                                     <Td py={3} isNumeric>
                                       -
                                     </Td>
-                                    <Td py={3} isNumeric>
-                                      -
-                                    </Td>
+                                    {showGflopsColumn && (
+                                      <Td py={3} isNumeric>
+                                        -
+                                      </Td>
+                                    )}
                                   </Tr>
                                 );
                               }

@@ -1,7 +1,7 @@
 // Parameter(s) for the solution function of a problem
 export interface Parameter {
   name: string;
-  type: string; // eg. "[VAR]"
+  type: string; // C-style e.g. "float", "int", "size_t", "uint64_t"
   const: string; // "true" or "false"
   pointer: string; // "true" or "false"
 }
