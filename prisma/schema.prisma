@@ -38,6 +38,8 @@ model User {
   snapshots                 Snapshot[]
   submissions               Submission[]
   workspaces                Workspace[]
+  groupMemberships          GroupMember[]
+  groupProblemsAdded        GroupProblem[]  @relation("GroupProblemAddedBy")
 
   @@index([email])
   @@index([createdAt])
@@ -113,6 +115,7 @@ model Problem {
   getFlops           String?
   User               User?        @relation(fields: [userId], references: [id])
   submissions        Submission[]
+  groupProblems      GroupProblem[]
 
   @@index([author])
   @@index([difficulty])
@@ -386,4 +389,52 @@ enum TagCategory {
   OPTIMIZATION
   DIFFICULTY
   TOPIC
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Group {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  members     GroupMember[]
+  problems    GroupProblem[]
+
+  @@index([slug])
+}
+
+model GroupMember {
+  id       String    @id @default(cuid())
+  groupId  String
+  userId   String
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+model GroupProblem {
+  id        String   @id @default(cuid())
+  groupId   String
+  problemId String
+  addedAt   DateTime @default(now())
+  addedById String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  addedBy   User     @relation("GroupProblemAddedBy", fields: [addedById], references: [id])
+
+  @@unique([groupId, problemId])
+  @@index([groupId])
+  @@index([problemId])
 }
