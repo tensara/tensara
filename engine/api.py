@@ -131,8 +131,7 @@ def binary_runner(
             }
             return
 
-
-          if type == "sample":
+        if type == "sample":
             # this should not be reached
             raise ValueError("This code path should not be reached")
         elif type == "checker":
