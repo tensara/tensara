@@ -24,18 +24,20 @@ import requests
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-API_KEY  = os.environ.get("TENSARA_CI_API_KEY", "")
+API_KEY = os.environ.get("TENSARA_CI_API_KEY", "")
 BASE_URL = os.environ.get("TENSARA_URL", "https://tensara.org")
 GPU_TYPE = os.environ.get("CI_GPU_TYPE", "T4")
-LANGUAGE = os.environ.get("CI_LANGUAGE", "").strip()     # backwards compat: single language
-LANGUAGES = os.environ.get("CI_LANGUAGES", "").strip()   # comma-separated languages
-SAMPLE   = int(os.environ.get("CI_SAMPLE_SIZE", "0"))  # 0 = all
-SPECIFIC = os.environ.get("CI_PROBLEMS", "")           # comma-separated slugs
-TIMEOUT  = int(os.environ.get("CI_TIMEOUT_SECONDS", "300"))
+LANGUAGE = os.environ.get(
+    "CI_LANGUAGE", ""
+).strip()  # backwards compat: single language
+LANGUAGES = os.environ.get("CI_LANGUAGES", "").strip()  # comma-separated languages
+SAMPLE = int(os.environ.get("CI_SAMPLE_SIZE", "0"))  # 0 = all
+SPECIFIC = os.environ.get("CI_PROBLEMS", "")  # comma-separated slugs
+TIMEOUT = int(os.environ.get("CI_TIMEOUT_SECONDS", "300"))
 SEED_RAW = os.environ.get("CI_SEED", "").strip()
 
 SOLUTIONS_DIR = os.path.join(os.path.dirname(__file__), "solutions")
-ENDPOINT      = f"{BASE_URL}/api/submissions/sample"
+ENDPOINT = f"{BASE_URL}/api/submissions/sample"
 
 # Terminal SSE statuses
 TERMINAL_PASS = {"PASSED"}
@@ -47,16 +49,24 @@ TERMINAL_FAIL = {
     "COMPILE_ERROR",
     "RATE_LIMIT_EXCEEDED",
 }
-TERMINAL   = TERMINAL_PASS | TERMINAL_FAIL
+TERMINAL = TERMINAL_PASS | TERMINAL_FAIL
 SKIP_PRINT = {"PTX", "SASS"}  # huge payloads, skip
 
 GREEN = "\033[92m"
-RED   = "\033[91m"
+RED = "\033[91m"
 RESET = "\033[0m"
 
-def ok(msg):   print(f"{GREEN}✓{RESET} {msg}")
-def fail(msg): print(f"{RED}✗{RESET} {msg}", file=sys.stderr)
-def info(msg): print(f"  → {msg}")
+
+def ok(msg):
+    print(f"{GREEN}✓{RESET} {msg}")
+
+
+def fail(msg):
+    print(f"{RED}✗{RESET} {msg}", file=sys.stderr)
+
+
+def info(msg):
+    print(f"  → {msg}")
 
 
 EXT_TO_LANGUAGE = {
@@ -145,7 +155,9 @@ def fmt_val(v) -> str:
     return str(v)
 
 
-def print_test_result(tc_name: str, passed: bool, debug_info: dict, runtime_ms: float | None):
+def print_test_result(
+    tc_name: str, passed: bool, debug_info: dict, runtime_ms: float | None
+):
     indent = "    "
     rt = f"  {runtime_ms:.2f}ms" if runtime_ms is not None else ""
     if passed:
@@ -166,7 +178,11 @@ def print_test_result(tc_name: str, passed: bool, debug_info: dict, runtime_ms: 
         print()
     if msg:
         print(f"{indent}  {msg}")
-    sample = debug_info.get("sample_differences") or debug_info.get("sample_mismatches") or {}
+    sample = (
+        debug_info.get("sample_differences")
+        or debug_info.get("sample_mismatches")
+        or {}
+    )
     if sample:
         print(f"{indent}  sample diffs:")
         for k, v in list(sample.items())[:3]:
@@ -234,10 +250,14 @@ def submit(*, slug: str, code: str, language: str) -> dict:
             elif status == "CHECKING":
                 pass
             elif status == "TEST_RESULT":
-                tc_name   = data.get("testCaseName") or data.get("test_case_name") or data.get("name", "?")
+                tc_name = (
+                    data.get("testCaseName")
+                    or data.get("test_case_name")
+                    or data.get("name", "?")
+                )
                 tc_passed = data.get("passed", False)
-                tc_debug  = data.get("debugInfo") or data.get("debug_info") or {}
-                tc_rt     = data.get("runtimeMs") or data.get("runtime_ms")
+                tc_debug = data.get("debugInfo") or data.get("debug_info") or {}
+                tc_rt = data.get("runtimeMs") or data.get("runtime_ms")
                 print_test_result(tc_name, tc_passed, tc_debug, tc_rt)
                 if not tc_passed:
                     any_test_failed = True
@@ -251,7 +271,9 @@ def submit(*, slug: str, code: str, language: str) -> dict:
     raise RuntimeError("SSE stream ended without a terminal status event")
 
 
-def run_checks(*, language: str, solutions: dict[str, str], problems: list[str]) -> tuple[list[str], list[dict]]:
+def run_checks(
+    *, language: str, solutions: dict[str, str], problems: list[str]
+) -> tuple[list[str], list[dict]]:
     passed_list: list[str] = []
     failed_list: list[dict] = []
 
@@ -259,7 +281,9 @@ def run_checks(*, language: str, solutions: dict[str, str], problems: list[str])
         code_path = solutions.get(slug)
         if not code_path:
             fail(f"Missing solution for language={language} slug={slug}")
-            failed_list.append({"language": language, "problem": slug, "status": "MISSING_SOLUTION"})
+            failed_list.append(
+                {"language": language, "problem": slug, "status": "MISSING_SOLUTION"}
+            )
             continue
 
         code = open(code_path).read()
@@ -286,12 +310,21 @@ def run_checks(*, language: str, solutions: dict[str, str], problems: list[str])
                     if k not in ("code",) and not isinstance(v, (bytes,))
                 }
                 info(f"raw result: {json.dumps(raw_keys, default=str)[:600]}")
-                failed_list.append({"language": language, "problem": slug, "status": status})
+                failed_list.append(
+                    {"language": language, "problem": slug, "status": status}
+                )
 
         except Exception as e:
             elapsed = time.time() - start
             fail(f"Exception after {elapsed:.1f}s: {e}")
-            failed_list.append({"language": language, "problem": slug, "status": "EXCEPTION", "error": str(e)})
+            failed_list.append(
+                {
+                    "language": language,
+                    "problem": slug,
+                    "status": "EXCEPTION",
+                    "error": str(e),
+                }
+            )
 
     return passed_list, failed_list
 
@@ -328,7 +361,9 @@ def main():
 
     for lang in languages:
         all_slugs = sorted(solutions_by_language[lang].keys())
-        problems = select_problems(all_slugs, rng=rng, specific_slugs=specific_slugs, language=lang)
+        problems = select_problems(
+            all_slugs, rng=rng, specific_slugs=specific_slugs, language=lang
+        )
         if not problems:
             info(f"Skipping language {lang}: no matching solution(s) selected")
             skipped_languages.append(lang)
@@ -340,7 +375,9 @@ def main():
             print(f"  (random sample of {SAMPLE})", end="")
         print()
 
-        passed_list, failed_list = run_checks(language=lang, solutions=solutions_by_language[lang], problems=problems)
+        passed_list, failed_list = run_checks(
+            language=lang, solutions=solutions_by_language[lang], problems=problems
+        )
         total_passed += len(passed_list)
         total_failed += len(failed_list)
         all_failures.extend(failed_list)
