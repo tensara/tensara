@@ -1300,6 +1300,7 @@ def _try_run(cmd: list[str]):
         ) from e
 
 
+#  NOTE TO SELF: We need to generate GPU specific PTX/SASS for Mojo solutions, but Mojo doesn't currently have flags to emit PTX or SASS directly. We have to do something smart about this. Do NOT push this out yet. 
 def generate_mojo_ptx_sass(gpu: str, solution_code: str) -> tuple[str, str]:
     """Best-effort PTX/SASS generation for Mojo kernels.
 
