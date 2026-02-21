@@ -1297,6 +1297,9 @@ def yield_ptx_sass(gpu: str, solution_code: str):
         yield {"status": "WARNING", "message": f"PTX/SASS generation failed: {str(e)}"}
 
 
+
+
+
 @hash_dict
 @lru_cache(maxsize=512)
 def run_nvcc_and_return_executable(gpu: str, solution_code: str) -> bytes:
