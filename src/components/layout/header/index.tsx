@@ -54,6 +54,7 @@ export function Header() {
     { label: "Problems", href: "/problems" },
     { label: "Sandbox", href: "/sandbox" },
     { label: "Leaderboards", href: "/leaderboard" },
+    { label: "Groups", href: "/groups" },
     { label: "Blog", href: "/blog" },
     { label: "Contests", href: "/contests" },
   ];
