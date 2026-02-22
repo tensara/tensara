@@ -257,7 +257,7 @@ def submit(*, slug: str, code: str, language: str) -> dict:
                 )
                 tc_passed = data.get("passed", False)
                 tc_debug = data.get("debugInfo") or data.get("debug_info") or {}
-                tc_rt = data.get("runtimeMs") or data.get("runtime_ms")
+                tc_rt = data.get("runtimeMs") if "runtimeMs" in data else data.get("runtime_ms")
                 print_test_result(tc_name, tc_passed, tc_debug, tc_rt)
                 if not tc_passed:
                     any_test_failed = True
