@@ -1,0 +1,57 @@
+name: Sanity Check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sample_size:
+        description: "Problems to sample (0 = all)"
+        default: "5"
+        required: false
+      problems:
+        description: "Specific slugs (comma-separated), overrides sample_size"
+        default: ""
+        required: false
+      gpu_type:
+        description: "GPU type"
+        default: "T4"
+        required: false
+        type: choice
+        options: [T4, A100, H100]
+
+jobs:
+  sanity-check:
+    name: "Sanity Check (${{ github.event.inputs.gpu_type || 'T4' }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run sanity check
+        env:
+          TENSARA_CI_API_KEY: ${{ secrets.CI_KEY }}
+          TENSARA_URL: https://tensara.org
+          CI_GPU_TYPE: ${{ github.event.inputs.gpu_type || 'T4' }}
+          CI_SAMPLE_SIZE: ${{ github.event.inputs.sample_size || (github.event_name == 'pull_request' && '5' || '0') }}
+          CI_PROBLEMS: ${{ github.event.inputs.problems || '' }}
+          CI_TIMEOUT_SECONDS: "300"
+        run: python testing/sanity_check.py
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Sanity Check" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Trigger | \`${{ github.event_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| GPU | \`${{ github.event.inputs.gpu_type || 'T4' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
