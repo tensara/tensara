@@ -75,6 +75,7 @@
     "zod": "^3.23.3"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.1.6",
     "@testing-library/cypress": "^10.0.3",
     "@types/eslint": "^8.56.10",
     "@types/katex": "^0.16.7",
