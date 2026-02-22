@@ -212,61 +212,64 @@ def submit(*, slug: str, code: str, language: str) -> dict:
         timeout=TIMEOUT,
     )
 
-    if resp.status_code == 401:
-        fail("Authentication failed — check TENSARA_CI_API_KEY secret")
-        sys.exit(1)
-    if resp.status_code == 404:
-        raise RuntimeError(f"Problem '{slug}' not found in DB (404)")
-    if not resp.ok:
-        raise RuntimeError(f"Endpoint returned {resp.status_code}: {resp.text[:300]}")
+    try:
+        if resp.status_code == 401:
+            fail("Authentication failed — check TENSARA_CI_API_KEY secret")
+            sys.exit(1)
+        if resp.status_code == 404:
+            raise RuntimeError(f"Problem '{slug}' not found in DB (404)")
+        if not resp.ok:
+            raise RuntimeError(f"Endpoint returned {resp.status_code}: {resp.text[:300]}")
 
-    current_event = None
-    printed_compiling = False
-    any_test_failed = False
+        current_event = None
+        printed_compiling = False
+        any_test_failed = False
 
-    for raw in resp.iter_lines(decode_unicode=True):
-        if not raw:
-            current_event = None
-            continue
-
-        if raw.startswith("event: "):
-            current_event = raw[7:].strip()
-            continue
-
-        if raw.startswith("data: "):
-            try:
-                data = json.loads(raw[6:])
-            except json.JSONDecodeError:
+        for raw in resp.iter_lines(decode_unicode=True):
+            if not raw:
+                current_event = None
                 continue
 
-            status = data.get("status") or current_event or ""
+            if raw.startswith("event: "):
+                current_event = raw[7:].strip()
+                continue
 
-            if status in SKIP_PRINT:
-                pass
-            elif status == "COMPILING":
-                if not printed_compiling:
-                    info("compiling...")
-                    printed_compiling = True
-            elif status == "CHECKING":
-                pass
-            elif status == "TEST_RESULT":
-                tc_name = (
-                    data.get("testCaseName")
-                    or data.get("test_case_name")
-                    or data.get("name", "?")
-                )
-                tc_passed = data.get("passed", False)
-                tc_debug = data.get("debugInfo") or data.get("debug_info") or {}
-                tc_rt = data.get("runtimeMs") if "runtimeMs" in data else data.get("runtime_ms")
-                print_test_result(tc_name, tc_passed, tc_debug, tc_rt)
-                if not tc_passed:
-                    any_test_failed = True
-            elif status not in TERMINAL:
-                info(status)
+            if raw.startswith("data: "):
+                try:
+                    data = json.loads(raw[6:])
+                except json.JSONDecodeError:
+                    continue
 
-            if status in TERMINAL:
-                data["_any_test_failed"] = any_test_failed
-                return data
+                status = data.get("status") or current_event or ""
+
+                if status in SKIP_PRINT:
+                    pass
+                elif status == "COMPILING":
+                    if not printed_compiling:
+                        info("compiling...")
+                        printed_compiling = True
+                elif status == "CHECKING":
+                    pass
+                elif status == "TEST_RESULT":
+                    tc_name = (
+                        data.get("testCaseName")
+                        or data.get("test_case_name")
+                        or data.get("name", "?")
+                    )
+                    tc_passed = data.get("passed", False)
+                    tc_debug = data.get("debugInfo") or data.get("debug_info") or {}
+                    tc_rt = data.get("runtimeMs") or data.get("runtime_ms")
+                    print_test_result(tc_name, tc_passed, tc_debug, tc_rt)
+                    if not tc_passed:
+                        any_test_failed = True
+                elif status not in TERMINAL:
+                    info(status)
+
+                if status in TERMINAL:
+                    data["_any_test_failed"] = any_test_failed
+                    return data
+    finally:
+        resp.close()
 
     raise RuntimeError("SSE stream ended without a terminal status event")
 
