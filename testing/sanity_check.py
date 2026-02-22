@@ -84,7 +84,7 @@ def parse_languages() -> list[str]:
         return langs or ["cuda"]
     if LANGUAGE:
         return [LANGUAGE]
-    return ["cuda", "mojo"]
+    return ["cuda", "mojo", "python"]
 
 
 def parse_specific_slugs() -> list[str]:
