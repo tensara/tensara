@@ -25,6 +25,7 @@ import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useState, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/router";
 import {
   FaSearch,
   FaChevronDown,
@@ -70,6 +71,23 @@ const getDifficultyValue = (difficulty: string) => {
   }
 };
 
+const SortIcon = ({
+  field,
+  sortField,
+  sortDirection,
+}: {
+  field: SortField;
+  sortField: SortField;
+  sortDirection: SortDirection;
+}) => {
+  if (sortField !== field) return null;
+  return sortDirection === "asc" ? (
+    <FaChevronUp color="#d4d4d8" size={10} />
+  ) : (
+    <FaChevronDown color="#d4d4d8" size={10} />
+  );
+};
+
 export const getServerSideProps: GetServerSideProps = async () => {
   const helpers = createServerSideHelpers({
     router: appRouter,
@@ -87,6 +105,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
 };
 
 export default function ProblemsPage() {
+  const router = useRouter();
   const { data: problems = [], isLoading } = api.problems.getAll.useQuery(
     undefined,
     {
@@ -145,13 +164,10 @@ export default function ProblemsPage() {
 
   const handleProblemClick = (e: React.MouseEvent, problemSlug: string) => {
     const url = `/problems/${problemSlug}`;
-    // Check for modifier keys (Cmd on Mac, Ctrl on Windows/Linux)
     if (e.metaKey || e.ctrlKey) {
-      // Open in new tab
       window.open(url, "_blank");
     } else {
-      // Navigate in same tab
-      window.location.href = url;
+      void router.push(url);
     }
   };
 
@@ -224,15 +240,6 @@ export default function ProblemsPage() {
       </Layout>
     );
   }
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortDirection === "asc" ? (
-      <FaChevronUp color="#d4d4d8" size={10} />
-    ) : (
-      <FaChevronDown color="#d4d4d8" size={10} />
-    );
-  };
 
   return (
     <Layout
@@ -438,7 +445,11 @@ export default function ProblemsPage() {
                           <Box w="16px" h="16px" />
                         </Box>
                         <Text>Title</Text>
-                        <SortIcon field="title" />
+                        <SortIcon
+                          field="title"
+                          sortField={sortField}
+                          sortDirection={sortDirection}
+                        />
                       </HStack>
                     </Th>
                     <Th
@@ -453,7 +464,11 @@ export default function ProblemsPage() {
                     >
                       <HStack spacing={2}>
                         <Text>Difficulty</Text>
-                        <SortIcon field="difficulty" />
+                        <SortIcon
+                          field="difficulty"
+                          sortField={sortField}
+                          sortDirection={sortDirection}
+                        />
                       </HStack>
                     </Th>
                     <Th
@@ -480,7 +495,11 @@ export default function ProblemsPage() {
                     >
                       <HStack spacing={2}>
                         <Text>Submissions</Text>
-                        <SortIcon field="submissionCount" />
+                        <SortIcon
+                          field="submissionCount"
+                          sortField={sortField}
+                          sortDirection={sortDirection}
+                        />
                       </HStack>
                     </Th>
                   </Tr>

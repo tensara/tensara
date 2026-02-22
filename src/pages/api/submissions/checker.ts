@@ -165,6 +165,7 @@ export default async function handler(
     let passedTests = 0;
     let totalTests = 0;
     let partialMessage = "";
+    const decoder = new TextDecoder();
 
     const processedTestIds = new Set<number>();
 
@@ -173,7 +174,7 @@ export default async function handler(
         const { done, value } = await reader.read();
         if (done) break;
 
-        const text = new TextDecoder().decode(value);
+        const text = decoder.decode(value, { stream: true });
         partialMessage += text;
 
         const messages = partialMessage.split("\n\n");
@@ -184,7 +185,10 @@ export default async function handler(
 
           try {
             const response_json = message.slice(6).trim();
-            const parsed = JSON.parse(response_json) as {
+            const parsed = JSON.parse(response_json) as Record<
+              string,
+              unknown
+            > & {
               status: string;
             };
             if (!parsed) {
@@ -193,7 +197,7 @@ export default async function handler(
             const response_status = parsed.status;
 
             if (response_status === SubmissionStatus.TEST_RESULT) {
-              const response = JSON.parse(response_json) as TestResultResponse;
+              const response = parsed as unknown as TestResultResponse;
 
               if (response.result) {
                 if (!processedTestIds.has(response.result.test_id)) {
@@ -207,7 +211,7 @@ export default async function handler(
                 }
               }
             } else if (response_status === SubmissionStatus.CHECKED) {
-              const response = JSON.parse(response_json) as CheckedResponse;
+              const response = parsed as unknown as CheckedResponse;
               if (
                 response.total_tests !== undefined &&
                 response.passed_tests !== undefined
@@ -233,7 +237,7 @@ export default async function handler(
                 status: SubmissionStatus.CHECKING,
               });
             } else if (response_status === SubmissionStatus.WRONG_ANSWER) {
-              const response = JSON.parse(response_json) as WrongAnswerResponse;
+              const response = parsed as unknown as WrongAnswerResponse;
               const failedTest = response.test_results?.find(
                 (t: TestResult) => t.status === "FAILED"
               );
@@ -256,16 +260,7 @@ export default async function handler(
               res.end();
               return;
             } else if (isSubmissionError(response_status)) {
-              const response = JSON.parse(response_json) as {
-                status: SubmissionErrorType;
-                error: string;
-                details: string;
-              };
-
-              console.log("Submission error:", response);
-
-              sendSSE(response_status, response);
-
+              sendSSE(response_status, parsed);
               res.end();
               return;
             } else if (
