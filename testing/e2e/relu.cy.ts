@@ -1,6 +1,8 @@
-import { Conv1DSolutions } from "cypress/support/solutions";
+// cypress/e2e/problem-navigation.cy.js
 
-describe("Conv1D Problem Tests", () => {
+import { ReluSolutions } from "testing/support/solutions";
+
+describe("ReLU Problem Tests", () => {
   beforeEach(() => {
     // Start each test from the homepage
     cy.visit("/");
@@ -12,9 +14,9 @@ describe("Conv1D Problem Tests", () => {
   });
 
   it("submits correct solution", () => {
-    cy.visit("/problems/conv-1d");
+    cy.visit("/problems/relu");
     // Get the correct solution from the fixtures
-    const correct_solution = Conv1DSolutions.correct;
+    const correct_solution = ReluSolutions.correct;
     //wait for editor to load
     cy.get(".monaco-editor").should("exist");
     //wait for editor to be visible
@@ -33,12 +35,9 @@ describe("Conv1D Problem Tests", () => {
   });
 
   it("submits compile error solution", () => {
-    if (Conv1DSolutions.compile_error.trim() === "") {
-      return;
-    }
-    cy.visit("/problems/conv-1d");
+    cy.visit("/problems/relu");
     // Get the compile error solution from the fixtures
-    const compile_error_solution = Conv1DSolutions.compile_error;
+    const compile_error_solution = ReluSolutions.compile_error;
     //wait for editor to load
     cy.get(".monaco-editor").should("exist");
     //wait for editor to be visible
@@ -57,12 +56,9 @@ describe("Conv1D Problem Tests", () => {
   });
 
   it("submits runtime error solution", () => {
-    if (Conv1DSolutions.runtime_error.trim() === "") {
-      it.skip("No runtime error solution provided");
-    }
-    cy.visit("/problems/conv-1d");
+    cy.visit("/problems/relu");
     // Get the runtime error solution from the fixtures
-    const runtime_error_solution = Conv1DSolutions.runtime_error;
+    const runtime_error_solution = ReluSolutions.runtime_error;
     //wait for editor to load
     cy.get(".monaco-editor").should("exist");
     //wait for editor to be visible
@@ -81,12 +77,9 @@ describe("Conv1D Problem Tests", () => {
   });
 
   it("submits wrong answer solution", () => {
-    if (Conv1DSolutions.wrong_answer.trim() === "") {
-      it.skip("No wrong answer solution provided");
-    }
-    cy.visit("/problems/conv-1d");
+    cy.visit("/problems/relu");
     // Get the runtime error solution from the fixtures
-    const wrong_answer_solution = Conv1DSolutions.wrong_answer;
+    const wrong_answer_solution = ReluSolutions.wrong_answer;
     //wait for editor to load
     cy.get(".monaco-editor").should("exist");
     //wait for editor to be visible
