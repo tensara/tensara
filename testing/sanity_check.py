@@ -8,7 +8,8 @@ Catches regressions in the checker/engine across languages.
 Usage:
     python testing/sanity_check.py                              # run all (cuda)
     CI_SAMPLE_SIZE=5 python testing/sanity_check.py             # random sample (cuda)
-    CI_LANGUAGES=cuda,mojo python testing/sanity_check.py       # run across languages
+    CI_LANGUAGES=cuda,mojo,python python testing/sanity_check.py  # run across languages
+    CI_LANGUAGES=triton python testing/sanity_check.py          # alias for python (Triton)
     CI_PROBLEMS=vector-addition python testing/sanity_check.py  # specific slugs
     CI_SEED=123 CI_SAMPLE_SIZE=5 python testing/sanity_check.py # reproducible sampling
     TENSARA_URL=http://localhost:3000 python testing/sanity_check.py  # local dev
@@ -77,13 +78,25 @@ EXT_TO_LANGUAGE = {
     ".cutile": "cutile",
 }
 
+LANGUAGE_ALIASES = {
+    "py": "python",
+    "triton": "python", 
+    "cpp": "cuda",
+    "c++": "cuda",
+}
+
+
+def normalize_language(lang: str) -> str:
+    lang = (lang or "").strip().lower()
+    return LANGUAGE_ALIASES.get(lang, lang)
+
 
 def parse_languages() -> list[str]:
     if LANGUAGES:
-        langs = [p.strip() for p in LANGUAGES.split(",") if p.strip()]
+        langs = [normalize_language(p) for p in LANGUAGES.split(",") if p.strip()]
         return langs or ["cuda"]
     if LANGUAGE:
-        return [LANGUAGE]
+        return [normalize_language(LANGUAGE)]
     return ["cuda", "mojo", "python"]
 
 
