@@ -7,7 +7,7 @@
 
 - 
 
-## Migration
+## Database Changes
 
 - [ ] None
 - [ ] Additive (safe for prod)
