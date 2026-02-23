@@ -28,6 +28,8 @@ interface SplitPanelProps {
   containerId?: string;
   allowCollapse?: boolean;
   snapOffsetPx?: number;
+  collapsedLeftLabel?: string;
+  collapsedRightLabel?: string;
 }
 
 const SplitPanel = ({
@@ -41,6 +43,8 @@ const SplitPanel = ({
   containerId = "split-container",
   allowCollapse = false,
   snapOffsetPx = 28,
+  collapsedLeftLabel,
+  collapsedRightLabel,
 }: SplitPanelProps) => {
   const [uncontrolledRatio, setUncontrolledRatio] = useState(initialRatio);
   const [isResizing, setIsResizing] = useState(false);
@@ -166,7 +170,7 @@ const SplitPanel = ({
                 ? "translateX(-100%)"
                 : "translateX(-50%)"
           }
-          width={isCollapsedLeft || isCollapsedRight ? "14px" : "10px"}
+          width={isCollapsedLeft || isCollapsedRight ? "22px" : "10px"}
           height="100%"
           cursor="col-resize"
           zIndex={2}
@@ -196,6 +200,32 @@ const SplitPanel = ({
               isResizing ? "0 0 0 1px rgba(78, 201, 176, 0.35)" : "none"
             }
           />
+          {(isCollapsedLeft || isCollapsedRight) &&
+            !isResizing &&
+            (isCollapsedLeft ? collapsedLeftLabel : collapsedRightLabel) && (
+              <Box
+                position="absolute"
+                inset={0}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                pointerEvents="none"
+                userSelect="none"
+              >
+                <Box
+                  as="span"
+                  fontSize="10px"
+                  fontWeight="600"
+                  color="gray.400"
+                  transform="rotate(-90deg)"
+                  whiteSpace="nowrap"
+                  letterSpacing="0.06em"
+                  textTransform="uppercase"
+                >
+                  {isCollapsedLeft ? collapsedLeftLabel : collapsedRightLabel}
+                </Box>
+              </Box>
+            )}
         </Box>
 
         {/* Right Panel */}

@@ -650,6 +650,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
           minBottomHeight={0}
           allowCollapse
           snapOffsetPx={16}
+          collapsedTopLabel="Editor"
+          collapsedBottomLabel="Console"
         />
       </Box>
     </VStack>
@@ -706,6 +708,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
             minRightWidth={0}
             allowCollapse
             snapOffsetPx={16}
+            collapsedLeftLabel="Problem"
+            collapsedRightLabel="Editor"
           />
         </Box>
         {mobileWarning}

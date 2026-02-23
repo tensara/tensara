@@ -12,6 +12,8 @@ interface VerticalSplitPanelProps {
   containerId?: string;
   allowCollapse?: boolean;
   snapOffsetPx?: number;
+  collapsedTopLabel?: string;
+  collapsedBottomLabel?: string;
 }
 
 const VerticalSplitPanel = ({
@@ -25,6 +27,8 @@ const VerticalSplitPanel = ({
   containerId = "vertical-split-container",
   allowCollapse = false,
   snapOffsetPx = 24,
+  collapsedTopLabel,
+  collapsedBottomLabel,
 }: VerticalSplitPanelProps) => {
   const [uncontrolledRatio, setUncontrolledRatio] = useState(initialRatio);
   const [isResizing, setIsResizing] = useState(false);
@@ -129,7 +133,7 @@ const VerticalSplitPanel = ({
 
       {/* Resizer Handle */}
       <Box
-        h={isCollapsedTop || isCollapsedBottom ? "14px" : "10px"}
+        h={isCollapsedTop || isCollapsedBottom ? "18px" : "10px"}
         cursor="row-resize"
         display="flex"
         alignItems="center"
@@ -141,6 +145,7 @@ const VerticalSplitPanel = ({
           isCollapsedTop || isCollapsedBottom ? "whiteAlpha.50" : "transparent"
         }
         _hover={{ bg: "whiteAlpha.50" }}
+        position="relative"
       >
         <Box
           height="2px"
@@ -150,6 +155,31 @@ const VerticalSplitPanel = ({
           transition="all 0.2s ease"
           _hover={{ bg: "whiteAlpha.300" }}
         />
+        {(isCollapsedTop || isCollapsedBottom) &&
+          !isResizing &&
+          (isCollapsedTop ? collapsedTopLabel : collapsedBottomLabel) && (
+            <Box
+              position="absolute"
+              top="50%"
+              left="50%"
+              transform="translate(-50%, -50%)"
+              fontSize="10px"
+              fontWeight="600"
+              color="gray.400"
+              pointerEvents="none"
+              userSelect="none"
+              letterSpacing="0.06em"
+              textTransform="uppercase"
+              bg="brand.secondary"
+              px={2}
+              py={0.5}
+              borderRadius="md"
+              border="1px solid"
+              borderColor="whiteAlpha.100"
+            >
+              {isCollapsedTop ? collapsedTopLabel : collapsedBottomLabel}
+            </Box>
+          )}
       </Box>
 
       {/* Bottom Panel */}
