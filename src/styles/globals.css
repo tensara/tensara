@@ -105,6 +105,42 @@ a {
   margin: 0.5rem 0;
 }
 
+/* Problem page: avoid "squeezing" by clipping + horizontal scroll instead of reflow */
+@media (min-width: 48em) {
+  .markdownNoSqueeze {
+    overflow-x: auto;
+  }
+
+  .markdownNoSqueeze p,
+  .markdownNoSqueeze li,
+  .markdownNoSqueeze h1,
+  .markdownNoSqueeze h2,
+  .markdownNoSqueeze h3,
+  .markdownNoSqueeze h4,
+  .markdownNoSqueeze h5,
+  .markdownNoSqueeze h6 {
+    white-space: nowrap;
+  }
+
+  .markdownNoSqueeze pre,
+  .markdownNoSqueeze blockquote {
+    white-space: normal;
+  }
+
+  .markdownNoSqueeze table {
+    width: auto;
+    max-width: none;
+    display: inline-block;
+    overflow-x: auto;
+  }
+
+  .markdownNoSqueeze table th,
+  .markdownNoSqueeze table td {
+    white-space: nowrap;
+  }
+
+}
+
 /* KaTeX Math Styles */
 .katex {
   font-size: 1.1em;
