@@ -175,7 +175,7 @@ def run_sample_case(
     Run the sample test case of a problem and return result + output.
     """
     try:
-        problem = utils.load_problem_module(problem_name, problem_def)
+        problem = utils.load_problem_module(None, problem_def)
         solution_func = utils.make_solution_func(language, solution_code, compiled_lib, problem)
 
         sample = problem.generate_sample()
