@@ -119,8 +119,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const toast = useToast();
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
-  const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(30);
+  const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(42);
   const [verticalSplitRatio, setVerticalSplitRatio] = useState(75);
+  const [problemBaselineWidthPx, setProblemBaselineWidthPx] = useState<
+    number | null
+  >(null);
+  const HORIZONTAL_DEFAULT_RATIO = 42;
+  const splitContainerId = "problem-split-container";
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isParametersOpen,
@@ -516,6 +521,35 @@ export default function ProblemPage({ slug }: { slug: string }) {
     setIsVimModeEnabled((prev) => !prev);
   });
 
+  useEffect(() => {
+    let ro: ResizeObserver | null = null;
+    let raf = 0;
+
+    const tryInit = () => {
+      const el = document.getElementById(splitContainerId);
+      if (!el) {
+        raf = window.requestAnimationFrame(tryInit);
+        return;
+      }
+
+      const update = () => {
+        const width = el.getBoundingClientRect().width;
+        const baseline = Math.round((width * HORIZONTAL_DEFAULT_RATIO) / 100);
+        setProblemBaselineWidthPx(baseline);
+      };
+
+      update();
+      ro = new ResizeObserver(update);
+      ro.observe(el);
+    };
+
+    tryInit();
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      ro?.disconnect();
+    };
+  }, [HORIZONTAL_DEFAULT_RATIO, splitContainerId]);
+
   if (isLoading) {
     return (
       <Layout title="Loading...">
@@ -587,10 +621,23 @@ export default function ProblemPage({ slug }: { slug: string }) {
         h="100%"
         minH={0}
         overflowY="auto"
+        overflowX="hidden"
         pr={{ base: 0, md: 2 }}
         p={viewType === "problem" ? 4 : 0}
       >
-        {leftInnerContent}
+        <Box
+          sx={
+            viewType === "problem" && problemBaselineWidthPx
+              ? {
+                  "@media screen and (min-width: 48em)": {
+                    minWidth: `${problemBaselineWidthPx}px`,
+                  },
+                }
+              : undefined
+          }
+        >
+          {leftInnerContent}
+        </Box>
       </Box>
     </Box>
   );
@@ -700,6 +747,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
       >
         <Box flex="1" overflow="hidden" mb={2} minH={0}>
           <SplitPanel
+            containerId={splitContainerId}
             leftContent={leftContent}
             rightContent={rightContent}
             splitRatio={horizontalSplitRatio}

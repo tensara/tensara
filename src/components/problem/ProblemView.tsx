@@ -32,14 +32,7 @@ const ProblemView = ({
 }: ProblemViewProps) => {
   return (
     <Box>
-      <Heading
-        as="h1"
-        size="lg"
-        mb={2}
-        whiteSpace={{ base: "normal", md: "nowrap" }}
-        overflow={{ base: "visible", md: "hidden" }}
-        textOverflow={{ base: "clip", md: "ellipsis" }}
-      >
+      <Heading as="h1" size="lg" mb={2}>
         {problem.title}
       </Heading>
       <HStack
@@ -130,7 +123,7 @@ const ProblemView = ({
         )}
       </HStack>
 
-      <Box className="markdown markdownNoSqueeze" color="gray.100">
+      <Box className="markdown" color="gray.100">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeKatex, rehypeHighlight]}
