@@ -119,6 +119,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const toast = useToast();
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
+  const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(30);
+  const [verticalSplitRatio, setVerticalSplitRatio] = useState(75);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isParametersOpen,
@@ -539,8 +541,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     );
   }
 
-  // Generate left content for split panel based on view type
-  const leftContent = (() => {
+  const leftInnerContent = (() => {
     switch (viewType) {
       case "submissions":
         return (
@@ -580,9 +581,22 @@ export default function ProblemPage({ slug }: { slug: string }) {
     }
   })();
 
-  // Right panel - Editor and controls
+  const leftContent = (
+    <Box h="100%" minH={0} overflow="hidden">
+      <Box
+        h="100%"
+        minH={0}
+        overflowY="auto"
+        pr={{ base: 0, md: 2 }}
+        p={viewType === "problem" ? 4 : 0}
+      >
+        {leftInnerContent}
+      </Box>
+    </Box>
+  );
+
   const rightContent = (
-    <VStack w="100%" h="100%" spacing={2}>
+    <VStack w="100%" h="100%" spacing={1} minH={0}>
       <SubmissionForm
         selectedGpuType={selectedGpuType}
         setSelectedGpuType={setSelectedGpuType}
@@ -598,7 +612,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
         hasParameters={parameters.length > 0}
         parameterCount={parameters.length}
       />
-      <Box flex={1} w="100%" minH={0}>
+      <Box flex={1} w="100%" minH={0} overflow="hidden">
         <VerticalSplitPanel
           topContent={
             <CodeEditor
@@ -630,9 +644,12 @@ export default function ProblemPage({ slug }: { slug: string }) {
               isRunning={isRunning}
             />
           }
-          initialRatio={75}
-          minTopHeight={40}
-          minBottomHeight={20}
+          splitRatio={verticalSplitRatio}
+          onSplitRatioChange={setVerticalSplitRatio}
+          minTopHeight={0}
+          minBottomHeight={0}
+          allowCollapse
+          snapOffsetPx={16}
         />
       </Box>
     </VStack>
@@ -673,13 +690,23 @@ export default function ProblemPage({ slug }: { slug: string }) {
         border="1px solid"
         borderColor="gray.800"
         h="100%"
-        p={{ base: 3, md: 4 }}
-        overflow="auto"
+        p={{ base: 2, md: 2 }}
+        overflow="hidden"
         display="flex"
         flexDirection="column"
+        minH={0}
       >
-        <Box flex="1" overflow="auto" mb={2}>
-          <SplitPanel leftContent={leftContent} rightContent={rightContent} />
+        <Box flex="1" overflow="hidden" mb={2} minH={0}>
+          <SplitPanel
+            leftContent={leftContent}
+            rightContent={rightContent}
+            splitRatio={horizontalSplitRatio}
+            onSplitRatioChange={setHorizontalSplitRatio}
+            minLeftWidth={0}
+            minRightWidth={0}
+            allowCollapse
+            snapOffsetPx={16}
+          />
         </Box>
         {mobileWarning}
         <ResetCodeModal

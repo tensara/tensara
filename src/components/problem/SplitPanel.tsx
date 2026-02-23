@@ -23,6 +23,11 @@ interface SplitPanelProps {
   initialRatio?: number;
   minLeftWidth?: number;
   minRightWidth?: number;
+  splitRatio?: number;
+  onSplitRatioChange?: (ratio: number) => void;
+  containerId?: string;
+  allowCollapse?: boolean;
+  snapOffsetPx?: number;
 }
 
 const SplitPanel = ({
@@ -31,9 +36,17 @@ const SplitPanel = ({
   initialRatio = 30,
   minLeftWidth = 30,
   minRightWidth = 50,
+  splitRatio: controlledRatio,
+  onSplitRatioChange,
+  containerId = "split-container",
+  allowCollapse = false,
+  snapOffsetPx = 28,
 }: SplitPanelProps) => {
-  const [splitRatio, setSplitRatio] = useState(initialRatio);
+  const [uncontrolledRatio, setUncontrolledRatio] = useState(initialRatio);
   const [isResizing, setIsResizing] = useState(false);
+  const splitRatio = controlledRatio ?? uncontrolledRatio;
+  const isCollapsedLeft = allowCollapse && splitRatio <= 0.5;
+  const isCollapsedRight = allowCollapse && splitRatio >= 99.5;
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -45,7 +58,7 @@ const SplitPanel = ({
       if (!isResizing) return;
 
       const containerRect = document
-        .getElementById("split-container")
+        .getElementById(containerId)
         ?.getBoundingClientRect();
 
       if (!containerRect) return;
@@ -54,19 +67,43 @@ const SplitPanel = ({
       const mouseX = e.clientX - containerRect.left;
       let newRatio = (mouseX / containerWidth) * 100;
 
+      if (allowCollapse) {
+        if (mouseX <= snapOffsetPx) {
+          newRatio = 0;
+        } else if (mouseX >= containerWidth - snapOffsetPx) {
+          newRatio = 100;
+        }
+      }
+
       // Apply min-width constraints
       const minLeftPixels = (containerWidth * minLeftWidth) / 100;
       const minRightPixels = (containerWidth * minRightWidth) / 100;
 
-      if (mouseX < minLeftPixels) {
+      if (newRatio !== 0 && newRatio !== 100 && mouseX < minLeftPixels) {
         newRatio = minLeftWidth;
-      } else if (mouseX > containerWidth - minRightPixels) {
+      } else if (
+        newRatio !== 0 &&
+        newRatio !== 100 &&
+        mouseX > containerWidth - minRightPixels
+      ) {
         newRatio = 100 - minRightWidth;
       }
 
-      setSplitRatio(newRatio);
+      onSplitRatioChange?.(newRatio);
+      if (controlledRatio === undefined) {
+        setUncontrolledRatio(newRatio);
+      }
     },
-    [isResizing, minLeftWidth, minRightWidth]
+    [
+      isResizing,
+      minLeftWidth,
+      minRightWidth,
+      containerId,
+      onSplitRatioChange,
+      controlledRatio,
+      allowCollapse,
+      snapOffsetPx,
+    ]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -91,21 +128,22 @@ const SplitPanel = ({
   return (
     <SplitPanelContext.Provider value={{ splitRatio }}>
       <Box
-        id="split-container"
+        id={containerId}
         display="flex"
         flexDirection={{ base: "column", md: "row" }}
         h="100%"
-        maxH="calc(100vh - 120px)"
         position="relative"
       >
         {/* Left Panel */}
         <Box
           w={{ base: "100%", md: `${splitRatio}%` }}
           h={{ base: "auto", md: "100%" }}
-          overflowY="auto"
-          pr={{ base: 0, md: 4 }}
+          overflow="hidden"
+          minH={0}
+          pr={0}
           mb={{ base: 4, md: 0 }}
           maxH={{ base: "auto", md: "100%" }}
+          display={{ base: "block", md: isCollapsedLeft ? "none" : "block" }}
         >
           {leftContent}
         </Box>
@@ -114,50 +152,60 @@ const SplitPanel = ({
         <Box
           display={{ base: "none", md: "block" }}
           position="absolute"
-          left={`${splitRatio}%`}
-          transform="translateX(-50%)"
-          width="6px"
+          left={
+            isCollapsedLeft
+              ? "0%"
+              : isCollapsedRight
+                ? "100%"
+                : `${splitRatio}%`
+          }
+          transform={
+            isCollapsedLeft
+              ? "translateX(0)"
+              : isCollapsedRight
+                ? "translateX(-100%)"
+                : "translateX(-50%)"
+          }
+          width={isCollapsedLeft || isCollapsedRight ? "14px" : "10px"}
           height="100%"
           cursor="col-resize"
           zIndex={2}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={handleMouseDown}
+          bg={
+            isCollapsedLeft || isCollapsedRight
+              ? "whiteAlpha.50"
+              : "transparent"
+          }
+          _hover={{ bg: "whiteAlpha.50" }}
         >
           <Box
             position="absolute"
-            left="50%"
-            top="50%"
-            transform="translate(-50%, -50%)"
-            width="6px"
-            height={isResizing ? "120px" : "80px"}
-            bg={"whiteAlpha.200"}
+            left={isCollapsedLeft ? "6px" : isCollapsedRight ? "8px" : "50%"}
+            top="0"
+            transform={
+              isCollapsedLeft || isCollapsedRight ? "none" : "translateX(-50%)"
+            }
+            width="2px"
+            height="100%"
+            bg={"whiteAlpha.100"}
             borderRadius="full"
             transition="all 0.2s ease"
-            boxShadow={isResizing ? "0 0 10px 2px brand.dark" : "none"}
+            _hover={{ bg: "whiteAlpha.300" }}
+            boxShadow={
+              isResizing ? "0 0 0 1px rgba(78, 201, 176, 0.35)" : "none"
+            }
           />
-
-          {/* GPU Icon */}
-          <Box
-            position="absolute"
-            left="50%"
-            top="calc(50% + 50px)"
-            transform="translate(-50%, -50%)"
-            width="24px"
-            height="24px"
-            opacity={isResizing ? 0.9 : 0.5}
-            transition="all 0.3s ease"
-            _hover={{ opacity: 0.9 }}
-            filter={isResizing ? "brightness(1.5)" : "brightness(1)"}
-          ></Box>
         </Box>
 
         {/* Right Panel */}
         <Box
-          display={{ base: "none", md: "block" }}
+          display={{ base: "none", md: isCollapsedRight ? "none" : "block" }}
           w={{ base: "100%", md: `${100 - splitRatio}%` }}
           h={{ base: "auto", md: "100%" }}
           minH={{ base: "50vh", md: "auto" }}
-          pl={{ base: 0, md: 4 }}
+          pl={0}
+          overflow="hidden"
         >
           {rightContent}
         </Box>

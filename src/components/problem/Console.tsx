@@ -12,7 +12,7 @@ const pulseAnimation = keyframes`
   100% { opacity: 0.6; }
 `;
 
-const StatusBadge = ({
+export const ConsoleStatusBadge = ({
   status,
   isRunning,
 }: {
@@ -186,11 +186,25 @@ type ConsoleProps = {
   output: SampleOutput | null;
   status: SampleStatusType;
   isRunning: boolean;
+  embedded?: boolean;
+  hideHeader?: boolean;
 };
 
-const ResizableConsole = ({ output, status, isRunning }: ConsoleProps) => {
+const ResizableConsole = ({
+  output,
+  status,
+  isRunning,
+  embedded = false,
+  hideHeader = false,
+}: ConsoleProps) => {
   return (
-    <Box w="100%" h="100%" bg="#111111" borderRadius="xl" overflow="hidden">
+    <Box
+      w="100%"
+      h="100%"
+      bg={embedded ? "transparent" : "#111111"}
+      borderRadius={embedded ? "0" : "xl"}
+      overflow="hidden"
+    >
       <Box
         px={4}
         py={3}
@@ -214,21 +228,20 @@ const ResizableConsole = ({ output, status, isRunning }: ConsoleProps) => {
       >
         {!output && status === SampleStatus.IDLE ? (
           <VStack align="center" justify="center" h="100%" spacing={3}>
-            <Text color="#858585" fontSize="lg">
-              Sample Run Results
-            </Text>
             <Text color="#858585" fontSize="sm" textAlign="center">
               Hit &#34;Run&#34; to test your code with sample inputs
             </Text>
           </VStack>
         ) : (
           <VStack align="stretch" spacing={4}>
-            <HStack justify="space-between" align="center">
-              <Text color="#D4D4D4" fontSize="md" fontWeight="600">
-                Sample Run Results
-              </Text>
-              <StatusBadge status={status} isRunning={isRunning} />
-            </HStack>
+            {!hideHeader && (
+              <HStack justify="space-between" align="center">
+                <Text color="#D4D4D4" fontSize="md" fontWeight="600">
+                  Sample Run Results
+                </Text>
+                <ConsoleStatusBadge status={status} isRunning={isRunning} />
+              </HStack>
+            )}
 
             <VStack align="stretch" spacing={3}>
               <OutputBox content={output?.input} type="input" />

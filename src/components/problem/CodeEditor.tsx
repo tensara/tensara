@@ -33,6 +33,7 @@ interface CodeEditorProps {
   sassDirty?: boolean;
   enableVimMode?: boolean;
   onToggleVimMode?: (enabled: boolean) => void;
+  embedded?: boolean;
 }
 
 const PTX_LINE_SEARCH_RADIUS = 50;
@@ -546,6 +547,7 @@ const CodeEditor = ({
   sassDirty,
   enableVimMode = false,
   onToggleVimMode,
+  embedded = false,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
   const [isSplitViewOpen, setIsSplitViewOpen] = useState(false);
@@ -1207,8 +1209,8 @@ const CodeEditor = ({
       <Box
         w="100%"
         h="100%"
-        bg="brand.secondary"
-        borderRadius="xl"
+        bg={embedded ? "transparent" : "brand.secondary"}
+        borderRadius={embedded ? "0" : "xl"}
         overflow="hidden"
         position="relative"
       >
