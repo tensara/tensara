@@ -116,6 +116,10 @@ export default async function handler(
     language,
   };
 
+  console.log("[sample] MODAL_ENDPOINT:", env.MODAL_ENDPOINT);
+  console.log("[sample] proxying to:", `${env.MODAL_ENDPOINT}/sample-${gpuType}`);
+  console.log("[sample] payload:", payload);
+
   try {
     // No-op onEvent: we don't need server-side taps for Sample
     const result = await proxyUpstreamSSE(
