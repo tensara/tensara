@@ -46,6 +46,7 @@ export const generateStarterCode = (
     if (paramTypes.has("float16")) extraIncludes.push("#include <cuda_fp16.h>");
     if (paramTypes.has("float4")) extraIncludes.push("#include <cuda_fp4.h>");
     if (paramTypes.has("float8")) extraIncludes.push("#include <cuda_fp8.h>");
+    if (paramTypes.has("uint8_t")) extraIncludes.push("#include <cstdint>");
     if (paramTypes.has("float4") || paramTypes.has("float8")) {
       extraIncludes.push("#include <cstdint>");
     }

@@ -11,7 +11,6 @@ import {
   Link,
   Divider,
   Flex,
-  CloseButton,
 } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion"; // Import AnimatePresence
 import React, { useState, useEffect, useCallback } from "react"; // Import useCallback
@@ -998,7 +997,6 @@ export default function HomePage() {
           </Container>
         </Box>
       </Box>
-
     </Layout>
   );
 }
