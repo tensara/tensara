@@ -129,7 +129,12 @@ export default function GroupDashboardPage() {
   }
 
   return (
-    <Layout title={group.name} ogTitle={`${group.name} | Tensara Groups`}>
+    <Layout
+      title={group.name}
+      ogTitle={group.name}
+      ogDescription={group.description || `A group on Tensara with ${group.memberCount} members and ${group.problemCount} GPU programming problems.`}
+      ogImgSubtitle={`${group.memberCount} members · ${group.problemCount} problems`}
+    >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         {/* Header */}
         <VStack align="stretch" spacing={4} mb={6}>
