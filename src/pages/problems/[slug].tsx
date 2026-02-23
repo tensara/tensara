@@ -172,12 +172,25 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [isVimModeEnabled, setIsVimModeEnabled] = useState(false);
   const [hasLoadedVimPreference, setHasLoadedVimPreference] = useState(false);
 
+  const allowedGpus = useMemo(() => {
+    const gpus = (problem as { gpus?: string[] } | null)?.gpus;
+    return gpus?.length ? gpus : undefined;
+  }, [problem]);
+
   // Update GPU type when saved preferences are loaded
   useEffect(() => {
     if (savedGpuType) {
       setSelectedGpuType(savedGpuType);
     }
   }, [savedGpuType]);
+
+  // If problem restricts GPUs and current selection isn't allowed, pick first allowed
+  useEffect(() => {
+    if (!allowedGpus?.length) return;
+    setSelectedGpuType((current) =>
+      allowedGpus.includes(current) ? current : (allowedGpus[0] ?? "T4")
+    );
+  }, [allowedGpus]);
 
   useEffect(() => {
     const stored = loadVimModePreference();
@@ -597,6 +610,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
         onViewParameters={onParametersOpen}
         hasParameters={parameters.length > 0}
         parameterCount={parameters.length}
+        allowedGpus={allowedGpus}
       />
       <Box flex={1} w="100%" minH={0}>
         <VerticalSplitPanel

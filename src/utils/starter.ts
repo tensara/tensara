@@ -49,10 +49,9 @@ export const generateStarterCode = (
     if (paramTypes.has("float4") || paramTypes.has("float8")) {
       extraIncludes.push("#include <cstdint>");
     }
-    const includesBlock = [
-      "#include <cuda_runtime.h>",
-      ...extraIncludes,
-    ].join("\n");
+    const includesBlock = ["#include <cuda_runtime.h>", ...extraIncludes].join(
+      "\n"
+    );
     return `${includesBlock}
 
 // Note: ${names.join(", ")} are device pointers

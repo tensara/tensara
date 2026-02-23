@@ -87,6 +87,7 @@ export const tags = [
   "scan",
   "statistics",
   "reduction",
+  "quantization",
 ] as const;
 
 export const tagNames = {
@@ -107,6 +108,7 @@ export const tagNames = {
   scan: "Scan",
   statistics: "Statistics",
   reduction: "Reduction",
+  quantization: "Quantization",
 } as const;
 
 export const tagAltNames = {
@@ -127,4 +129,5 @@ export const tagAltNames = {
   scan: "Scan",
   statistics: "Statistics",
   reduction: "Reduction",
+  quantization: "Quantization",
 } as const;

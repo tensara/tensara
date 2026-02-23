@@ -1137,7 +1137,9 @@ def normalize_outputs(ref_return):
     return tuple(ref_return)
 
 
-def make_parameters(language: str, solution_func, input_tensors, actual_outputs, problem, test_case):
+def make_parameters(
+    language: str, solution_func, input_tensors, actual_outputs, problem, test_case
+):
     if language in COMPILED_LANGUAGES:
         input_ptrs = cast_to_ctype(
             input_tensors, solution_func.argtypes[: len(input_tensors)], language

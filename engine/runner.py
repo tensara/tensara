@@ -195,9 +195,7 @@ def run_sample_case(
         expected_outputs = tuple(
             t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
         )
-        actual_outputs = [
-            torch.zeros_like(e, device="cuda").contiguous() for e in expected_outputs
-        ]
+        actual_outputs = [torch.zeros_like(e, device="cuda").contiguous() for e in expected_outputs]
         if param_func is None:
             parameters, _keep_alive = utils.make_parameters(
                 language, solution_func, input_tensors, actual_outputs, problem, sample

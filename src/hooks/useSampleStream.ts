@@ -178,7 +178,9 @@ export function useSampleStream() {
                 setOutput(() => ({
                   status: data.status,
                   input: data.input ? formatParameters(data.input) : undefined,
-                  output: data.output ? formatOutputOrOutputs(data.output) : undefined,
+                  output: data.output
+                    ? formatOutputOrOutputs(data.output)
+                    : undefined,
                   stdout: data.stdout,
                   stderr: data.stderr,
                   expected_output: data.expected_output
