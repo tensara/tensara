@@ -35,12 +35,21 @@ const ProblemView = ({
       <Heading as="h1" size="lg" mb={2}>
         {problem.title}
       </Heading>
-      <HStack spacing={2} align="center" mb={6}>
+      <HStack
+        spacing={2}
+        align="center"
+        mb={6}
+        w="100%"
+        minW={0}
+        flexWrap={{ base: "wrap", md: "nowrap" }}
+        overflow={{ base: "visible", md: "hidden" }}
+      >
         <Badge
           colorScheme={getDifficultyColor(problem.difficulty)}
           px={2}
           py={1}
           borderRadius="lg"
+          flexShrink={0}
         >
           {problem.difficulty}
         </Badge>
@@ -56,6 +65,8 @@ const ProblemView = ({
           borderColor="whiteAlpha.200"
           color="gray.300"
           cursor="pointer"
+          flexShrink={0}
+          whiteSpace="nowrap"
           _hover={{
             bg: "whiteAlpha.50",
             color: "white",
@@ -78,6 +89,8 @@ const ProblemView = ({
           borderColor="whiteAlpha.200"
           color="gray.300"
           cursor="pointer"
+          flexShrink={0}
+          whiteSpace="nowrap"
           _hover={{
             bg: "whiteAlpha.50",
             color: "white",
@@ -98,6 +111,8 @@ const ProblemView = ({
             borderColor="whiteAlpha.200"
             color="gray.300"
             cursor="pointer"
+            flexShrink={0}
+            whiteSpace="nowrap"
             _hover={{
               bg: "whiteAlpha.50",
               color: "white",

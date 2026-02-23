@@ -68,213 +68,229 @@ const SubmissionForm = ({
       flexDirection={{ base: "column", md: "row" }}
       gap={3}
     >
-      <HStack spacing={2} flexWrap="wrap" gap={2} align="flex-end">
-        <Box>
-          <Text fontSize="sm" color="whiteAlpha.700">
-            GPU Type
-            <GpuInfoModal />
-          </Text>
-          <Menu>
-            <MenuButton
-              size="sm"
-              as={Button}
-              rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
-              bg="whiteAlpha.50"
-              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-              _active={{ bg: "whiteAlpha.150" }}
-              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-              color="white"
-              w={{ base: "110px", md: "140px" }}
-              fontWeight="normal"
-              textAlign="left"
-              justifyContent="flex-start"
-              borderRadius="lg"
-            >
-              {GPU_DISPLAY_NAMES[selectedGpuType]}
-            </MenuButton>
-            <MenuList
-              bg="brand.secondary"
-              borderColor="gray.800"
-              p={0}
-              borderRadius="lg"
-              minW="140px"
-            >
-              {Object.entries(GPU_DISPLAY_NAMES)
-                .filter(([key]) => key !== "all")
-                .map(([key, value]) => {
-                  const isDisabledForCutile =
-                    selectedLanguage === "cutile" && key !== "B200";
-                  return (
-                    <Tooltip
-                      key={key}
-                      label="cuTile requires B200"
-                      isDisabled={!isDisabledForCutile}
-                      placement="right"
-                    >
-                      <MenuItem
-                        onClick={() => {
-                          setSelectedGpuType(key);
-                        }}
-                        bg="brand.secondary"
-                        _hover={{
-                          bg: isDisabledForCutile
-                            ? "brand.secondary"
-                            : "gray.700",
-                        }}
-                        color={isDisabledForCutile ? "gray.500" : "white"}
-                        borderRadius="lg"
-                        fontSize="sm"
-                        isDisabled={isDisabledForCutile}
+      <Box flex="1" minW={0} overflow={{ base: "visible", md: "hidden" }}>
+        <HStack
+          spacing={2}
+          flexWrap={{ base: "wrap", md: "nowrap" }}
+          gap={2}
+          align="flex-end"
+          w="100%"
+          minW={0}
+          overflow={{ base: "visible", md: "hidden" }}
+        >
+          <Box flexShrink={0}>
+            <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
+              GPU Type
+              <GpuInfoModal />
+            </Text>
+            <Menu>
+              <MenuButton
+                size="sm"
+                as={Button}
+                rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
+                bg="whiteAlpha.50"
+                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                _active={{ bg: "whiteAlpha.150" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                color="white"
+                w={{ base: "110px", md: "140px" }}
+                fontWeight="normal"
+                textAlign="left"
+                justifyContent="flex-start"
+                borderRadius="lg"
+                flexShrink={0}
+              >
+                {GPU_DISPLAY_NAMES[selectedGpuType]}
+              </MenuButton>
+              <MenuList
+                bg="brand.secondary"
+                borderColor="gray.800"
+                p={0}
+                borderRadius="lg"
+                minW="140px"
+              >
+                {Object.entries(GPU_DISPLAY_NAMES)
+                  .filter(([key]) => key !== "all")
+                  .map(([key, value]) => {
+                    const isDisabledForCutile =
+                      selectedLanguage === "cutile" && key !== "B200";
+                    return (
+                      <Tooltip
+                        key={key}
+                        label="cuTile requires B200"
+                        isDisabled={!isDisabledForCutile}
+                        placement="right"
                       >
-                        {value}
-                      </MenuItem>
-                    </Tooltip>
-                  );
-                })}
-            </MenuList>
-          </Menu>
-        </Box>
-        <Box>
-          <Text fontSize="sm" color="whiteAlpha.700">
-            Language
-            <LanguageInfoModal />
-          </Text>
-          <Menu>
-            <MenuButton
-              size="sm"
-              as={Button}
-              rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
-              bg="whiteAlpha.50"
-              _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-              _active={{ bg: "whiteAlpha.150" }}
-              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-              color="white"
-              w={{ base: "110px", md: "140px" }}
-              fontWeight="normal"
-              textAlign="left"
-              justifyContent="flex-start"
-              borderRadius="lg"
-            >
-              {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
-            </MenuButton>
-            <MenuList
-              bg="brand.secondary"
-              borderColor="gray.800"
-              p={0}
-              borderRadius="lg"
-              minW="140px"
-            >
-              <MenuItem
-                key="cuda"
-                onClick={() => setSelectedLanguage("cuda")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
+                        <MenuItem
+                          onClick={() => {
+                            setSelectedGpuType(key);
+                          }}
+                          bg="brand.secondary"
+                          _hover={{
+                            bg: isDisabledForCutile
+                              ? "brand.secondary"
+                              : "gray.700",
+                          }}
+                          color={isDisabledForCutile ? "gray.500" : "white"}
+                          borderRadius="lg"
+                          fontSize="sm"
+                          isDisabled={isDisabledForCutile}
+                        >
+                          {value}
+                        </MenuItem>
+                      </Tooltip>
+                    );
+                  })}
+              </MenuList>
+            </Menu>
+          </Box>
+          <Box flexShrink={0}>
+            <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
+              Language
+              <LanguageInfoModal />
+            </Text>
+            <Menu>
+              <MenuButton
+                size="sm"
+                as={Button}
+                rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
+                bg="whiteAlpha.50"
+                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                _active={{ bg: "whiteAlpha.150" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
                 color="white"
+                w={{ base: "110px", md: "140px" }}
+                fontWeight="normal"
+                textAlign="left"
+                justifyContent="flex-start"
                 borderRadius="lg"
-                fontSize="sm"
+                flexShrink={0}
               >
-                CUDA C++
-              </MenuItem>
-              <MenuItem
-                key="python"
-                onClick={() => setSelectedLanguage("python")}
+                {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
+              </MenuButton>
+              <MenuList
                 bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
+                borderColor="gray.800"
+                p={0}
                 borderRadius="lg"
-                fontSize="sm"
-              >
-                Triton
-              </MenuItem>
-              <MenuItem
-                key="mojo"
-                onClick={() => setSelectedLanguage("mojo")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                Mojo
-              </MenuItem>
-              <MenuItem
-                key="cute"
-                onClick={() => setSelectedLanguage("cute")}
-                bg="brand.secondary"
-                _hover={{ bg: "gray.700" }}
-                color="white"
-                borderRadius="lg"
-                fontSize="sm"
-              >
-                CuTe DSL
-              </MenuItem>
-              <Tooltip
-                label="Only available on B200"
-                isDisabled={selectedGpuType === "B200"}
-                placement="right"
+                minW="140px"
               >
                 <MenuItem
-                  key="cutile"
-                  onClick={() => setSelectedLanguage("cutile")}
+                  key="cuda"
+                  onClick={() => setSelectedLanguage("cuda")}
                   bg="brand.secondary"
-                  _hover={{
-                    bg:
-                      selectedGpuType === "B200"
-                        ? "gray.700"
-                        : "brand.secondary",
-                  }}
-                  color={selectedGpuType === "B200" ? "white" : "gray.500"}
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
                   borderRadius="lg"
                   fontSize="sm"
-                  isDisabled={selectedGpuType !== "B200"}
                 >
-                  cuTile Python
+                  CUDA C++
                 </MenuItem>
-              </Tooltip>
-            </MenuList>
-          </Menu>
-        </Box>
-        <Box>
-          <Text fontSize="sm" color="whiteAlpha.700">
-            Parameters
-            <IconButton
-              aria-label="Parameter Information"
-              icon={<FaInfoCircle />}
+                <MenuItem
+                  key="python"
+                  onClick={() => setSelectedLanguage("python")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="lg"
+                  fontSize="sm"
+                >
+                  Triton
+                </MenuItem>
+                <MenuItem
+                  key="mojo"
+                  onClick={() => setSelectedLanguage("mojo")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="lg"
+                  fontSize="sm"
+                >
+                  Mojo
+                </MenuItem>
+                <MenuItem
+                  key="cute"
+                  onClick={() => setSelectedLanguage("cute")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="lg"
+                  fontSize="sm"
+                >
+                  CuTe DSL
+                </MenuItem>
+                <Tooltip
+                  label="Only available on B200"
+                  isDisabled={selectedGpuType === "B200"}
+                  placement="right"
+                >
+                  <MenuItem
+                    key="cutile"
+                    onClick={() => setSelectedLanguage("cutile")}
+                    bg="brand.secondary"
+                    _hover={{
+                      bg:
+                        selectedGpuType === "B200"
+                          ? "gray.700"
+                          : "brand.secondary",
+                    }}
+                    color={selectedGpuType === "B200" ? "white" : "gray.500"}
+                    borderRadius="lg"
+                    fontSize="sm"
+                    isDisabled={selectedGpuType !== "B200"}
+                  >
+                    cuTile Python
+                  </MenuItem>
+                </Tooltip>
+              </MenuList>
+            </Menu>
+          </Box>
+          <Box flexShrink={0}>
+            <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
+              Parameters
+              <IconButton
+                aria-label="Parameter Information"
+                icon={<FaInfoCircle />}
+                size="sm"
+                variant="ghost"
+                isDisabled
+                color="gray.400"
+                _hover={{ color: "white", bg: "transparent" }}
+                bg="transparent"
+                visibility="hidden"
+                pointerEvents="none"
+                tabIndex={-1}
+              />
+            </Text>
+            <Button
               size="sm"
-              variant="ghost"
-              isDisabled
-              color="gray.400"
-              _hover={{ color: "white", bg: "transparent" }}
-              bg="transparent"
-              visibility="hidden"
-              pointerEvents="none"
-              tabIndex={-1}
-            />
-          </Text>
-          <Button
-            size="sm"
-            onClick={onViewParameters}
-            isDisabled={!onViewParameters}
-            leftIcon={<FiList size={14} />}
-            bg={hasParameters ? "whiteAlpha.50" : "whiteAlpha.100"}
-            _hover={{
-              bg: hasParameters ? "whiteAlpha.100" : "whiteAlpha.100",
-              borderColor: "gray.600",
-            }}
-            _active={{ bg: "whiteAlpha.150" }}
-            _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-            color={hasParameters ? "white" : "gray.400"}
-            w={{ base: "110px", md: "140px" }}
-            fontWeight="normal"
-            justifyContent="flex-start"
-            borderRadius="lg"
-          >
-            {hasParameters
-              ? `${parameterCount} ${parameterCount === 1 ? "param" : "params"}`
-              : "No params"}
-          </Button>
-        </Box>
-      </HStack>
+              onClick={onViewParameters}
+              isDisabled={!onViewParameters}
+              leftIcon={<FiList size={14} />}
+              bg={hasParameters ? "whiteAlpha.50" : "whiteAlpha.100"}
+              _hover={{
+                bg: hasParameters ? "whiteAlpha.100" : "whiteAlpha.100",
+                borderColor: "gray.600",
+              }}
+              _active={{ bg: "whiteAlpha.150" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+              color={hasParameters ? "white" : "gray.400"}
+              w={{ base: "110px", md: "140px" }}
+              fontWeight="normal"
+              justifyContent="flex-start"
+              borderRadius="lg"
+              flexShrink={0}
+              whiteSpace="nowrap"
+            >
+              {hasParameters
+                ? `${parameterCount} ${
+                    parameterCount === 1 ? "param" : "params"
+                  }`
+                : "No params"}
+            </Button>
+          </Box>
+        </HStack>
+      </Box>
 
       <HStack
         ref={buttonContainerRef}
