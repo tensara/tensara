@@ -26,7 +26,7 @@ import requests
 # Config
 # ---------------------------------------------------------------------------
 API_KEY = os.environ.get("TENSARA_CI_API_KEY", "")
-BASE_URL = os.environ.get("TENSARA_URL", "https://tensara.org")
+BASE_URL = "http://localhost:3000"
 GPU_TYPE = os.environ.get("CI_GPU_TYPE", "T4")
 LANGUAGE = os.environ.get(
     "CI_LANGUAGE", ""

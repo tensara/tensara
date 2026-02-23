@@ -24,28 +24,84 @@ jobs:
   sanity-check:
     name: "Sanity Check (${{ github.event.inputs.gpu_type || 'T4' }})"
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    environment: tensara
 
     steps:
       - uses: actions/checkout@v4
 
+      # ── Python (for modal + sanity_check.py) ──────────────────────────────
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
-      - name: Install dependencies
-        run: pip install requests
+      - name: Install Python deps
+        run: pip install requests modal
 
+      # ── Node / pnpm (for Next.js) ─────────────────────────────────────────
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install Node deps
+        run: pnpm install
+
+      # ── Start Modal serve (engine from this PR branch) ────────────────────
+      - name: Start Modal serve
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          cd engine
+          modal serve api.py > /tmp/modal.log 2>&1 &
+          echo "MODAL_PID=$!" >> $GITHUB_ENV
+          sleep 10
+
+      # ── Start Next.js dev server ──────────────────────────────────────────
+      - name: Start Next.js dev server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
+          AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+        run: |
+          pnpm dev > /tmp/nextjs.log 2>&1 &
+          echo "NEXTJS_PID=$!" >> $GITHUB_ENV
+          echo "Waiting for Next.js to be ready..."
+          npx wait-on http://localhost:3000 --timeout 60000
+          echo "Next.js is up"
+
+      # ── Run the sanity check against localhost ────────────────────────────
       - name: Run sanity check
         env:
-          TENSARA_CI_API_KEY: ${{ secrets.CI_KEY }}
-          TENSARA_URL: https://tensara.org
+          TENSARA_CI_API_KEY: ${{ secrets.AUTH_SECRET }}
+          TENSARA_URL: "http://localhost:3000"
           CI_GPU_TYPE: ${{ github.event.inputs.gpu_type || 'T4' }}
           CI_SAMPLE_SIZE: ${{ github.event.inputs.sample_size || (github.event_name == 'pull_request' && '5' || '0') }}
           CI_PROBLEMS: ${{ github.event.inputs.problems || '' }}
           CI_TIMEOUT_SECONDS: "300"
         run: python testing/sanity_check.py
 
+      # ── Logs on failure ───────────────────────────────────────────────────
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          echo "=== Modal logs ===" && cat /tmp/modal.log || true
+          echo "=== Next.js logs ===" && cat /tmp/nextjs.log || true
+
+      # ── Cleanup ───────────────────────────────────────────────────────────
+      - name: Stop background processes
+        if: always()
+        run: |
+          [ -n "$MODAL_PID" ] && kill $MODAL_PID 2>/dev/null || true
+          [ -n "$NEXTJS_PID" ] && kill $NEXTJS_PID 2>/dev/null || true
+
+      # ── Job summary ───────────────────────────────────────────────────────
       - name: Write job summary
         if: always()
         run: |
@@ -55,3 +111,4 @@ jobs:
           echo "| Trigger | \`${{ github.event_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| GPU | \`${{ github.event.inputs.gpu_type || 'T4' }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.head_ref || github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
