@@ -87,7 +87,7 @@ jobs:
       # ── Run the sanity check against localhost ────────────────────────────
       - name: Run sanity check
         env:
-          TENSARA_CI_API_KEY: ${{ secrets.AUTH_SECRET }}
+          TENSARA_CI_API_KEY: ${{ secrets.CI_KEY }}
           TENSARA_URL: "http://localhost:3000"
           CI_GPU_TYPE: ${{ github.event.inputs.gpu_type || 'T4' }}
           CI_SAMPLE_SIZE: ${{ github.event.inputs.sample_size || (github.event_name == 'pull_request' && '5' || '0') }}
