@@ -67,7 +67,7 @@ jobs:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
           AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
-          MODAL_ENDPOINT: ${{ secrets.MODAL_ENDPOINT }}
+          MODAL_ENDPOINT: ${{ secrets.MODAL_LOCAL_ENDPOINT }}
           NEXT_PUBLIC_GA_ID: "PLACEHOLDER"
           NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
           NEXTAUTH_URL: "http://localhost:3000"
