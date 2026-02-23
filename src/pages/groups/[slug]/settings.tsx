@@ -125,11 +125,11 @@ export default function GroupSettingsPage() {
               </HStack>
               <HStack justify="space-between">
                 <Text color="gray.400">Members</Text>
-                <Text color="white">{group._count.members}</Text>
+                <Text color="white">{group.memberCount}</Text>
               </HStack>
               <HStack justify="space-between">
                 <Text color="gray.400">Problems</Text>
-                <Text color="white">{group._count.problems}</Text>
+                <Text color="white">{group.problemCount}</Text>
               </HStack>
               <HStack justify="space-between">
                 <Text color="gray.400">Your Role</Text>

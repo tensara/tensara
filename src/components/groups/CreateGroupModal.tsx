@@ -138,8 +138,8 @@ export function CreateGroupModal({ isOpen, onClose }: CreateGroupModalProps) {
             Cancel
           </Button>
           <Button
-            bg="brand.primary"
-            color="white"
+            bg="rgba(34, 197, 94, 0.1)"
+            color="rgb(34, 197, 94)"
             _hover={{ opacity: 0.9 }}
             onClick={handleSubmit}
             isLoading={createGroup.isPending}

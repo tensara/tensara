@@ -4,6 +4,7 @@ import {
   ModalContent,
   ModalHeader,
   ModalBody,
+  ModalFooter,
   ModalCloseButton,
   Input,
   InputGroup,
@@ -13,9 +14,11 @@ import {
   Text,
   Badge,
   Box,
+  Button,
+  Checkbox,
   Spinner,
 } from "@chakra-ui/react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { api } from "~/utils/api";
 import { FaSearch } from "react-icons/fa";
 
@@ -40,16 +43,18 @@ export function AddProblemModal({
   existingProblemSlugs,
 }: AddProblemModalProps) {
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const utils = api.useUtils();
 
   const { data: allProblems, isLoading } = api.problems.getAll.useQuery(undefined, {
     enabled: isOpen,
   });
 
-  const addProblem = api.groups.addProblem.useMutation({
+  const addProblems = api.groups.addProblems.useMutation({
     onSuccess: async () => {
       await utils.groups.getProblems.invalidate({ groupSlug });
       await utils.groups.getBySlug.invalidate({ slug: groupSlug });
+      handleClose();
     },
   });
 
@@ -63,18 +68,44 @@ export function AddProblemModal({
     );
   }, [allProblems, existingProblemSlugs, search]);
 
-  const handleAdd = (problemSlug: string) => {
-    addProblem.mutate({ groupSlug, problemSlug });
+  const toggleProblem = useCallback((slug: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleClose = () => {
+    setSearch("");
+    setSelected(new Set());
+    onClose();
+  };
+
+  const handleAdd = () => {
+    if (selected.size === 0) return;
+    addProblems.mutate({ groupSlug, problemSlugs: Array.from(selected) });
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg" scrollBehavior="inside">
+    <Modal isOpen={isOpen} onClose={handleClose} isCentered size="lg" scrollBehavior="inside">
       <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent bg="brand.secondary" border="1px solid" borderColor="whiteAlpha.100" maxH="70vh">
-        <ModalHeader color="white">Add Problem</ModalHeader>
+      <ModalContent bg="brand.secondary" border="1px solid" borderColor="whiteAlpha.100" maxH="75vh">
+        <ModalHeader color="white">
+          Add Problems
+          {selected.size > 0 && (
+            <Badge ml={2} colorScheme="green" fontSize="sm" verticalAlign="middle">
+              {selected.size} selected
+            </Badge>
+          )}
+        </ModalHeader>
         <ModalCloseButton color="white" />
-        <ModalBody pb={6}>
-          <VStack spacing={4} align="stretch">
+        <ModalBody pb={2}>
+          <VStack spacing={3} align="stretch">
             <InputGroup>
               <InputLeftElement pointerEvents="none">
                 <FaSearch color="#a0aec0" />
@@ -99,32 +130,59 @@ export function AddProblemModal({
                 {search ? "No matching problems found" : "All problems have been added"}
               </Text>
             ) : (
-              filtered.map((problem) => (
-                <Box
-                  key={problem.id}
-                  px={4}
-                  py={3}
-                  borderRadius="lg"
-                  bg="whiteAlpha.50"
-                  _hover={{ bg: "whiteAlpha.100", cursor: "pointer" }}
-                  transition="all 0.15s"
-                  onClick={() => handleAdd(problem.slug)}
-                >
-                  <HStack justify="space-between">
-                    <VStack align="start" spacing={0}>
-                      <Text color="white" fontWeight="medium">
-                        {problem.title}
-                      </Text>
-                    </VStack>
-                    <Badge colorScheme={difficultyColor[problem.difficulty]} fontSize="xs">
-                      {problem.difficulty}
-                    </Badge>
-                  </HStack>
-                </Box>
-              ))
+              filtered.map((problem) => {
+                const isChecked = selected.has(problem.slug);
+                return (
+                  <Box
+                    key={problem.id}
+                    px={4}
+                    py={3}
+                    borderRadius="lg"
+                    bg={isChecked ? "whiteAlpha.100" : "whiteAlpha.50"}
+                    border="1px solid"
+                    borderColor={isChecked ? "brand.primary" : "transparent"}
+                    _hover={{ bg: "whiteAlpha.100", cursor: "pointer" }}
+                    transition="all 0.15s"
+                    onClick={() => toggleProblem(problem.slug)}
+                  >
+                    <HStack justify="space-between">
+                      <HStack spacing={3}>
+                        <Checkbox
+                          isChecked={isChecked}
+                          onChange={() => toggleProblem(problem.slug)}
+                          colorScheme="green"
+                          borderColor="gray.500"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Text color="white" fontWeight="medium">
+                          {problem.title}
+                        </Text>
+                      </HStack>
+                      <Badge colorScheme={difficultyColor[problem.difficulty]} fontSize="xs">
+                        {problem.difficulty}
+                      </Badge>
+                    </HStack>
+                  </Box>
+                );
+              })
             )}
           </VStack>
         </ModalBody>
+        <ModalFooter borderTop="1px solid" borderColor="whiteAlpha.100">
+          <Button variant="ghost" color="gray.400" mr={3} onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            bg="brand.primary"
+            color="white"
+            _hover={{ opacity: 0.9 }}
+            onClick={handleAdd}
+            isLoading={addProblems.isPending}
+            isDisabled={selected.size === 0}
+          >
+            Add {selected.size > 0 ? `${selected.size} problem${selected.size > 1 ? "s" : ""}` : ""}
+          </Button>
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );

@@ -42,7 +42,6 @@ import {
 import { FiArrowLeft } from "react-icons/fi";
 import { AddMemberModal } from "~/components/groups/AddMemberModal";
 import { AddProblemModal } from "~/components/groups/AddProblemModal";
-
 const difficultyColor: Record<string, string> = {
   EASY: "green",
   MEDIUM: "yellow",
@@ -157,7 +156,7 @@ export default function GroupDashboardPage() {
                 </Text>
               )}
               <Text color="gray.500" fontSize="xs">
-                {group._count.members} members &middot; {group._count.problems} problems
+                {group.memberCount} members &middot; {group.problemCount} problems
               </Text>
             </VStack>
 
@@ -186,14 +185,14 @@ export default function GroupDashboardPage() {
               pb={3}
               mr={4}
             >
-              Problems ({group._count.problems})
+              Problems ({group.problemCount})
             </Tab>
             <Tab
               color="gray.400"
               _selected={{ color: "white", borderBottom: "2px solid", borderColor: "brand.primary" }}
               pb={3}
             >
-              Members ({group._count.members})
+              Members ({group.memberCount})
             </Tab>
           </TabList>
 
@@ -204,8 +203,8 @@ export default function GroupDashboardPage() {
                 <Box mb={4}>
                   <Button
                     size="sm"
-                    bg="brand.primary"
-                    color="white"
+                    bg="rgba(34, 197, 94, 0.1)"
+                    color="rgb(34, 197, 94)"
                     _hover={{ opacity: 0.9 }}
                     leftIcon={<FaPlus />}
                     onClick={onProblemOpen}
@@ -365,8 +364,8 @@ export default function GroupDashboardPage() {
                     {isAdmin && (
                       <Button
                         size="sm"
-                        bg="brand.primary"
-                        color="white"
+                        bg="rgba(34, 197, 94, 0.1)"
+                        color="rgb(34, 197, 94)"
                         _hover={{ opacity: 0.9 }}
                         leftIcon={<FaPlus />}
                         onClick={onProblemOpen}
@@ -385,8 +384,8 @@ export default function GroupDashboardPage() {
                 <Box mb={4}>
                   <Button
                     size="sm"
-                    bg="brand.primary"
-                    color="white"
+                    bg="rgba(34, 197, 94, 0.1)"
+                    color="rgb(34, 197, 94)"
                     _hover={{ opacity: 0.9 }}
                     leftIcon={<FaUserPlus />}
                     onClick={onMemberOpen}

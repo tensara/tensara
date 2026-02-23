@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import type { PrismaClient } from "@prisma/client";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -14,7 +15,7 @@ const slugSchema = z
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens");
 
 async function assertGroupMembership(
-  db: Parameters<Parameters<typeof protectedProcedure.query>[0]>["ctx"]["db"],
+  db: PrismaClient,
   groupId: string,
   userId: string
 ) {
@@ -28,7 +29,7 @@ async function assertGroupMembership(
 }
 
 async function assertGroupAdmin(
-  db: Parameters<Parameters<typeof protectedProcedure.query>[0]>["ctx"]["db"],
+  db: PrismaClient,
   groupId: string,
   userId: string
 ) {
@@ -40,7 +41,7 @@ async function assertGroupAdmin(
 }
 
 async function assertGroupOwner(
-  db: Parameters<Parameters<typeof protectedProcedure.query>[0]>["ctx"]["db"],
+  db: PrismaClient,
   groupId: string,
   userId: string
 ) {
@@ -98,7 +99,14 @@ export const groupsRouter = createTRPCRouter({
     });
 
     return memberships.map((m) => ({
-      ...m.group,
+      id: m.group.id,
+      name: m.group.name,
+      slug: m.group.slug,
+      description: m.group.description,
+      createdAt: m.group.createdAt,
+      updatedAt: m.group.updatedAt,
+      memberCount: m.group._count.members,
+      problemCount: m.group._count.problems,
       role: m.role,
       joinedAt: m.joinedAt,
     }));
@@ -124,7 +132,17 @@ export const groupsRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN", message: "You are not a member of this group" });
       }
 
-      return { ...group, currentUserRole: membership.role };
+      return {
+        id: group.id,
+        name: group.name,
+        slug: group.slug,
+        description: group.description,
+        createdAt: group.createdAt,
+        updatedAt: group.updatedAt,
+        memberCount: group._count.members,
+        problemCount: group._count.problems,
+        currentUserRole: membership.role,
+      };
     }),
 
   getMembers: protectedProcedure
@@ -326,6 +344,48 @@ export const groupsRouter = createTRPCRouter({
       });
 
       return groupProblem;
+    }),
+
+  addProblems: protectedProcedure
+    .input(z.object({ groupSlug: z.string(), problemSlugs: z.array(z.string()).min(1).max(50) }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      if (!group) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+      }
+
+      await assertGroupAdmin(ctx.db, group.id, ctx.session.user.id);
+
+      const problems = await ctx.db.problem.findMany({
+        where: { slug: { in: input.problemSlugs } },
+        select: { id: true, slug: true },
+      });
+
+      if (problems.length === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No valid problems found" });
+      }
+
+      const existing = await ctx.db.groupProblem.findMany({
+        where: { groupId: group.id, problemId: { in: problems.map((p) => p.id) } },
+        select: { problemId: true },
+      });
+      const existingIds = new Set(existing.map((e) => e.problemId));
+      const newProblems = problems.filter((p) => !existingIds.has(p.id));
+
+      if (newProblems.length === 0) {
+        return { added: 0 };
+      }
+
+      await ctx.db.groupProblem.createMany({
+        data: newProblems.map((p) => ({
+          groupId: group.id,
+          problemId: p.id,
+          addedById: ctx.session.user.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      return { added: newProblems.length };
     }),
 
   removeProblem: protectedProcedure

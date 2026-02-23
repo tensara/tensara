@@ -16,7 +16,6 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { FaPlus, FaUsers, FaBook } from "react-icons/fa";
 import { CreateGroupModal } from "~/components/groups/CreateGroupModal";
-
 const roleColor: Record<string, string> = {
   OWNER: "green",
   ADMIN: "blue",
@@ -69,8 +68,8 @@ export default function GroupsPage() {
             My Groups
           </Heading>
           <Button
-            bg="brand.primary"
-            color="white"
+            bg="rgba(34, 197, 94, 0.1)"
+            color="rgb(34, 197, 94)"
             _hover={{ opacity: 0.9 }}
             leftIcon={<FaPlus />}
             onClick={onOpen}
@@ -102,9 +101,6 @@ export default function GroupsPage() {
                       <Text color="white" fontWeight="bold" fontSize="lg" noOfLines={1}>
                         {group.name}
                       </Text>
-                      <Badge colorScheme={roleColor[group.role]} fontSize="xs">
-                        {group.role}
-                      </Badge>
                     </HStack>
 
                     {group.description && (
@@ -117,13 +113,13 @@ export default function GroupsPage() {
                       <HStack spacing={1}>
                         <FaUsers color="#a0aec0" size={14} />
                         <Text color="gray.400" fontSize="sm">
-                          {group._count.members}
+                          {group.memberCount}
                         </Text>
                       </HStack>
                       <HStack spacing={1}>
                         <FaBook color="#a0aec0" size={14} />
                         <Text color="gray.400" fontSize="sm">
-                          {group._count.problems} problems
+                          {group.problemCount} problems
                         </Text>
                       </HStack>
                     </HStack>
@@ -150,8 +146,8 @@ export default function GroupsPage() {
                 Create a group and invite friends to compete on problem sets.
               </Text>
               <Button
-                bg="brand.primary"
-                color="white"
+                bg="rgba(34, 197, 94, 0.1)"
+                color="rgb(34, 197, 94)"
                 _hover={{ opacity: 0.9 }}
                 leftIcon={<FaPlus />}
                 onClick={onOpen}
