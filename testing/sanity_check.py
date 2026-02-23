@@ -80,7 +80,7 @@ EXT_TO_LANGUAGE = {
 
 LANGUAGE_ALIASES = {
     "py": "python",
-    "triton": "python", 
+    "triton": "python",
     "cpp": "cuda",
     "c++": "cuda",
 }
@@ -232,7 +232,9 @@ def submit(*, slug: str, code: str, language: str) -> dict:
         if resp.status_code == 404:
             raise RuntimeError(f"Problem '{slug}' not found in DB (404)")
         if not resp.ok:
-            raise RuntimeError(f"Endpoint returned {resp.status_code}: {resp.text[:300]}")
+            raise RuntimeError(
+                f"Endpoint returned {resp.status_code}: {resp.text[:300]}"
+            )
 
         current_event = None
         printed_compiling = False

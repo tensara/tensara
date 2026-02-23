@@ -27,4 +27,3 @@ def solution(input, output, n: int, m: int, alpha: float):
 
     grid = (triton.cdiv(num_elements, BLOCK_SIZE),)
     elu_kernel[grid](input, output, num_elements, alpha, BLOCK_SIZE=BLOCK_SIZE)
-
