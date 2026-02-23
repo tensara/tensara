@@ -678,7 +678,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
         display="flex"
         flexDirection="column"
       >
-        <Box flex="1" overflow="auto" mb={2}>
+        <Box flex="1" minH={0} overflow="hidden" mb={2}>
           <SplitPanel leftContent={leftContent} rightContent={rightContent} />
         </Box>
         {mobileWarning}

@@ -810,7 +810,7 @@ def run_dynamic_benchmark(
     test_id,
     test_case,
     input_tensors,
-    actual_output,
+    actual_outputs,
     language="cuda",
     min_iterations=5,
     max_iterations=15,
@@ -830,7 +830,7 @@ def run_dynamic_benchmark(
         test_id: Test case ID
         test_case: The specific test case to benchmark
         input_tensors: Input tensors for the CUDA function
-        actual_output: Output tensor for the CUDA function
+        actual_outputs: Sequence of output tensors for the CUDA function
         language: Programming language of the solution ("cuda", "mojo", or "python")
         min_iterations: Minimum number of iterations to run
         max_iterations: Maximum number of iterations to run
@@ -846,11 +846,11 @@ def run_dynamic_benchmark(
     # Prepare pointers for CUDA
     if param_func is None:
         parameters, _keep_alive = make_parameters(
-            language, solution_func, input_tensors, actual_output, problem, test_case
+            language, solution_func, input_tensors, actual_outputs, problem, test_case
         )
     else:
         parameters, _keep_alive = param_func(
-            language, solution_func, input_tensors, actual_output, problem, test_case
+            language, solution_func, input_tensors, actual_outputs, problem, test_case
         )
 
     if language == "cute":
@@ -866,8 +866,9 @@ def run_dynamic_benchmark(
     prepare_gpu()
     torch.cuda.synchronize()
 
-    actual_output.fill_(1.0)
-    warmup_checksum_before = actual_output.sum().item()
+    for t in actual_outputs:
+        t.fill_(1.0)
+    warmup_checksums_before = [t.sum().item() for t in actual_outputs]
 
     start_event = torch.cuda.Event(enable_timing=True)
     end_event = torch.cuda.Event(enable_timing=True)
@@ -877,16 +878,17 @@ def run_dynamic_benchmark(
     end_event.record()
     torch.cuda.synchronize()
 
-    warmup_checksum_after = actual_output.sum().item()
-    if warmup_checksum_after == warmup_checksum_before:
-        return {
-            "name": test_case["name"],
-            "test_id": test_id,
-            "status": "WRONG_ANSWER",
-            "debug_info": {
-                "message": f"Mismatched checksum, solution did not modify output ({warmup_checksum_after} != {warmup_checksum_before})",
-            },
-        }
+    warmup_checksums_after = [t.sum().item() for t in actual_outputs]
+    for i, (before, after) in enumerate(zip(warmup_checksums_before, warmup_checksums_after)):
+        if after == before:
+            return {
+                "name": test_case["name"],
+                "test_id": test_id,
+                "status": "WRONG_ANSWER",
+                "debug_info": {
+                    "message": f"Mismatched checksum, solution did not modify output {i} ({after} != {before})",
+                },
+            }
 
     initial_runtime = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
 
@@ -910,8 +912,9 @@ def run_dynamic_benchmark(
     for iteration in range(target_iterations):
         flush_l2_cache()
 
-        actual_output.fill_(1.0)
-        iter_checksum_before = actual_output.sum().item()
+        for t in actual_outputs:
+            t.fill_(1.0)
+        iter_checksums_before = [t.sum().item() for t in actual_outputs]
 
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
@@ -932,20 +935,20 @@ def run_dynamic_benchmark(
         end_event.record()
         torch.cuda.synchronize()
 
-        iter_checksum_after = actual_output.sum().item()
-        if iter_checksum_after == iter_checksum_before:
-            # Stop monitoring before returning error
-            if gpu_monitor:
-                gpu_monitor.current_run_key = None
-                gpu_monitor.stop()
-            return {
-                "name": test_case["name"],
-                "test_id": test_id,
-                "status": "WRONG_ANSWER",
-                "debug_info": {
-                    "message": f"Mismatched checksum, solution did not modify output ({iter_checksum_after} != {iter_checksum_before})",
-                },
-            }
+        iter_checksums_after = [t.sum().item() for t in actual_outputs]
+        for i, (before, after) in enumerate(zip(iter_checksums_before, iter_checksums_after)):
+            if after == before:
+                if gpu_monitor:
+                    gpu_monitor.current_run_key = None
+                    gpu_monitor.stop()
+                return {
+                    "name": test_case["name"],
+                    "test_id": test_id,
+                    "status": "WRONG_ANSWER",
+                    "debug_info": {
+                        "message": f"Mismatched checksum, solution did not modify output {i} ({after} != {before})",
+                    },
+                }
 
         elapsed_time = start_event.elapsed_time(end_event) / 1000.0  # Convert to seconds
         runtimes.append(elapsed_time)
@@ -1119,29 +1122,43 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         raise ValueError(f"Unsupported language: {language}")
 
 
-def make_parameters(language: str, solution_func, input_tensors, actual_output, problem, test_case):
+def normalize_outputs(ref_return):
+    """
+    Normalize reference_solution return to a tuple of tensors.
+    Single tensor -> (tensor,); tuple/list -> tuple of tensors.
+    """
+    if isinstance(ref_return, torch.Tensor):
+        return (ref_return,)
+    return tuple(ref_return)
+
+
+def make_parameters(language: str, solution_func, input_tensors, actual_outputs, problem, test_case):
+    """Build solution parameters: input_ptrs + output_ptrs + extra_params. actual_outputs is a sequence of tensors."""
     if language == "cuda" or language == "mojo":
         input_ptrs = cast_to_ctype(
             input_tensors, solution_func.argtypes[: len(input_tensors)], language
         )
-        output_ptr = ctypes.cast(actual_output.data_ptr(), solution_func.argtypes[len(input_ptrs)])
+        n_inputs = len(input_ptrs)
+        output_ptrs = [
+            ctypes.cast(t.data_ptr(), solution_func.argtypes[n_inputs + i])
+            for i, t in enumerate(actual_outputs)
+        ]
         extra_params = problem.get_extra_params(test_case)
         extra_params_casted = cast_to_ctype(
             extra_params, solution_func.argtypes[-len(extra_params) :], language
         )
-        # Return both the casted params AND the original tensors to keep them alive
-        return input_ptrs + [output_ptr] + extra_params_casted, extra_params
+        return input_ptrs + output_ptrs + extra_params_casted, extra_params
     elif language == "cute":
         from cutlass.cute.runtime import from_dlpack
 
         input_ptrs = cast_to_cute(input_tensors)
-        output_ptr = from_dlpack(actual_output, assumed_align=16)
+        output_ptrs = [from_dlpack(t, assumed_align=16) for t in actual_outputs]
         extra_params = problem.get_extra_params(test_case)
         extra_params_casted = cast_to_cute(extra_params)
-        return input_ptrs + [output_ptr] + extra_params_casted, extra_params
+        return input_ptrs + output_ptrs + extra_params_casted, extra_params
     else:
         extra_params = problem.get_extra_params(test_case)
-        return list(input_tensors) + [actual_output] + list(extra_params), extra_params
+        return list(input_tensors) + list(actual_outputs) + list(extra_params), extra_params
 
 
 class SystemOutputCapture:

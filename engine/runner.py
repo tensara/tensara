@@ -62,20 +62,26 @@ def run_checker(
             test_name = test_case["name"]
             input_tensors = test_case["create_inputs"]()
 
-            # Get the reference solution and move it to CPU
+            # Get the reference solution and normalize to tuple of tensors on CPU
             with utils.ReferenceSolutionContext():
-                expected_output = problem.reference_solution(*input_tensors).cpu()
+                ref_return = problem.reference_solution(*input_tensors)
+                expected_outputs = utils.normalize_outputs(ref_return)
+                expected_outputs = tuple(
+                    t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
+                )
 
-            # Create actual_output with the same shape as expected_output
-            actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
+            # Create actual_outputs with same shapes as expected_outputs
+            actual_outputs = [
+                torch.zeros_like(e, device="cuda").contiguous() for e in expected_outputs
+            ]
 
             if param_func is None:
                 parameters, _keep_alive = utils.make_parameters(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, solution_func, input_tensors, actual_outputs, problem, test_case
                 )
             else:
                 parameters, _keep_alive = param_func(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, solution_func, input_tensors, actual_outputs, problem, test_case
                 )
             solution_func(*parameters)
 
@@ -89,11 +95,15 @@ def run_checker(
                 }
                 return
 
-            # Move to CPU for comparison
-            is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
+            actual_outputs_cpu = [t.cpu() for t in actual_outputs]
+            if len(expected_outputs) == 1 and len(actual_outputs_cpu) == 1:
+                exp, act = expected_outputs[0], actual_outputs_cpu[0]
+            else:
+                exp, act = expected_outputs, actual_outputs_cpu
+            is_correct, debug_info = problem.verify_result(exp, act)
 
             # Clean up memory
-            del input_tensors, expected_output, actual_output, parameters
+            del input_tensors, expected_outputs, actual_outputs, parameters
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -170,15 +180,21 @@ def run_sample_case(
 
         sample = problem.generate_sample()
         input_tensors = sample["create_inputs"]()
-        expected_output = problem.reference_solution(*input_tensors).cpu()
-        actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
+        ref_return = problem.reference_solution(*input_tensors)
+        expected_outputs = utils.normalize_outputs(ref_return)
+        expected_outputs = tuple(
+            t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
+        )
+        actual_outputs = [
+            torch.zeros_like(e, device="cuda").contiguous() for e in expected_outputs
+        ]
         if param_func is None:
             parameters, _keep_alive = utils.make_parameters(
-                language, solution_func, input_tensors, actual_output, problem, sample
+                language, solution_func, input_tensors, actual_outputs, problem, sample
             )
         else:
             parameters, _keep_alive = param_func(
-                language, solution_func, input_tensors, actual_output, problem, sample
+                language, solution_func, input_tensors, actual_outputs, problem, sample
             )
 
         if language in ("cuda", "mojo"):
@@ -197,14 +213,27 @@ def run_sample_case(
             captured_stderr = stderr_buf.getvalue()
 
         torch.cuda.synchronize()
-        is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
+        actual_outputs_cpu = [t.cpu() for t in actual_outputs]
+        if len(expected_outputs) == 1 and len(actual_outputs_cpu) == 1:
+            exp, act = expected_outputs[0], actual_outputs_cpu[0]
+        else:
+            exp, act = expected_outputs, actual_outputs_cpu
+        is_correct, debug_info = problem.verify_result(exp, act)
         yield {
             "status": "PASSED" if is_correct else "FAILED",
             "input": utils.to_lossless_jsonable(
                 [t if not isinstance(t, torch.Tensor) else t for t in input_tensors]
             ),
-            "output": utils.to_lossless_jsonable(actual_output),
-            "expected_output": utils.to_lossless_jsonable(expected_output),
+            "output": (
+                utils.to_lossless_jsonable(actual_outputs_cpu[0])
+                if len(actual_outputs_cpu) == 1
+                else {"multi": True, "values": utils.to_lossless_jsonable(actual_outputs_cpu)}
+            ),
+            "expected_output": (
+                utils.to_lossless_jsonable(expected_outputs[0])
+                if len(expected_outputs) == 1
+                else {"multi": True, "values": utils.to_lossless_jsonable(expected_outputs)}
+            ),
             "debug_info": utils.to_lossless_jsonable(debug_info),
             "stdout": captured_stdout,
             "stderr": captured_stderr,
@@ -250,20 +279,26 @@ def run_sanity_check(
             test_name = test_case["name"]
             input_tensors = test_case["create_inputs"]()
 
-            # Get the reference solution and move it to CPU
+            # Get the reference solution and normalize to tuple of tensors on CPU
             with utils.ReferenceSolutionContext():
-                expected_output = problem.reference_solution(*input_tensors).cpu()
+                ref_return = problem.reference_solution(*input_tensors)
+                expected_outputs = utils.normalize_outputs(ref_return)
+                expected_outputs = tuple(
+                    t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
+                )
 
-            # Create actual_output with the same shape as expected_output
-            actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
+            # Create actual_outputs with same shapes as expected_outputs
+            actual_outputs = [
+                torch.zeros_like(e, device="cuda").contiguous() for e in expected_outputs
+            ]
 
             if param_func is None:
                 parameters, _keep_alive = utils.make_parameters(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, solution_func, input_tensors, actual_outputs, problem, test_case
                 )
             else:
                 parameters, _keep_alive = param_func(
-                    language, solution_func, input_tensors, actual_output, problem, test_case
+                    language, solution_func, input_tensors, actual_outputs, problem, test_case
                 )
             solution_func(*parameters)
 
@@ -277,11 +312,16 @@ def run_sanity_check(
                 }
                 return
 
-            # Move to CPU for comparison
-            is_correct, debug_info = problem.verify_result(expected_output, actual_output.cpu())
+            # Move to CPU for comparison; unwrap single-output so verify_result gets two tensors
+            actual_outputs_cpu = [t.cpu() for t in actual_outputs]
+            if len(expected_outputs) == 1 and len(actual_outputs_cpu) == 1:
+                exp, act = expected_outputs[0], actual_outputs_cpu[0]
+            else:
+                exp, act = expected_outputs, actual_outputs_cpu
+            is_correct, debug_info = problem.verify_result(exp, act)
 
             # Clean up memory
-            del input_tensors, expected_output, actual_output, parameters
+            del input_tensors, expected_outputs, actual_outputs, parameters
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -369,8 +409,14 @@ def run_benchmark(
             try:
                 # Create inputs and reference output
                 input_tensors = test_case["create_inputs"]()
-                expected_output = problem.reference_solution(*input_tensors).cpu()
-                actual_output = torch.zeros_like(expected_output, device="cuda").contiguous()
+                ref_return = problem.reference_solution(*input_tensors)
+                expected_outputs = utils.normalize_outputs(ref_return)
+                expected_outputs = tuple(
+                    t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
+                )
+                actual_outputs = [
+                    torch.zeros_like(e, device="cuda").contiguous() for e in expected_outputs
+                ]
 
                 benchmark_result = utils.run_dynamic_benchmark(
                     solution_func,
@@ -378,7 +424,7 @@ def run_benchmark(
                     test_id,
                     test_case,
                     input_tensors,
-                    actual_output,
+                    actual_outputs,
                     language=language,
                     min_iterations=5,
                     max_iterations=20,
@@ -404,7 +450,7 @@ def run_benchmark(
                 }
 
                 # Clean up memory
-                del input_tensors, expected_output, actual_output
+                del input_tensors, expected_outputs, actual_outputs
                 gc.collect()
                 torch.cuda.empty_cache()
 

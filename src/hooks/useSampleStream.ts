@@ -21,7 +21,7 @@ import {
 
 const formatVector = (data: unknown): string => {
   if (Array.isArray(data)) {
-    if (Array.isArray(data[0])) {
+    if (data.length > 0 && Array.isArray(data[0])) {
       return "[" + data.map((row) => formatVector(row)).join("\n") + "]";
     }
     return (
@@ -36,6 +36,28 @@ const formatVector = (data: unknown): string => {
     );
   }
   return String(data);
+};
+
+function isMultiOutput(
+  data: unknown
+): data is { multi: true; values: unknown[] } {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "multi" in data &&
+    (data as { multi?: boolean }).multi === true &&
+    "values" in data &&
+    Array.isArray((data as { values?: unknown }).values)
+  );
+}
+
+const formatOutputOrOutputs = (data: unknown): string => {
+  if (isMultiOutput(data)) {
+    return data.values
+      .map((v, i) => `Output ${i + 1}:\n${formatVector(v)}`)
+      .join("\n\n");
+  }
+  return formatVector(data);
 };
 
 const formatParameters = (data: unknown): string =>
@@ -156,11 +178,11 @@ export function useSampleStream() {
                 setOutput(() => ({
                   status: data.status,
                   input: data.input ? formatParameters(data.input) : undefined,
-                  output: data.output ? formatVector(data.output) : undefined,
+                  output: data.output ? formatOutputOrOutputs(data.output) : undefined,
                   stdout: data.stdout,
                   stderr: data.stderr,
                   expected_output: data.expected_output
-                    ? formatVector(data.expected_output)
+                    ? formatOutputOrOutputs(data.expected_output)
                     : undefined,
                   ptx: ptxContent ?? undefined,
                   sass: sassContent ?? undefined,
