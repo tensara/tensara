@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Union
 import ctypes
 import hashlib
 import torch
@@ -7,7 +7,11 @@ import torch
 TYPE_TO_CTYPE = {
     "float": ctypes.c_float,
     "double": ctypes.c_double,
+    "float16": ctypes.c_uint16,
+    "float8": ctypes.c_uint8,
+    "float4": ctypes.c_uint8,
     "int": ctypes.c_int,
+    "uint8_t": ctypes.c_uint8,
     "size_t": ctypes.c_size_t,
     "uint32_t": ctypes.c_uint32,
     "uint64_t": ctypes.c_uint64,
@@ -16,7 +20,11 @@ TYPE_TO_CTYPE = {
 TYPE_TO_TORCH_DTYPE = {
     "float": torch.float32,
     "double": torch.float64,
+    "float16": torch.float16,
+    "float8": getattr(torch, "float8_e4m3fn", torch.uint8),
+    "float4": getattr(torch, "float4_e2m1fn_x2", torch.uint8),
     "int": torch.int32,
+    "uint8_t": torch.uint8,
     "size_t": torch.int64,
     "uint32_t": torch.int32,
     "uint64_t": torch.int64,
@@ -72,14 +80,19 @@ class Problem(ABC):
 
     @abstractmethod
     def verify_result(
-        self, expected_output: torch.Tensor, actual_output: torch.Tensor
+        self,
+        expected_output: Union[torch.Tensor, Tuple[torch.Tensor, ...]],
+        actual_output: Union[torch.Tensor, Tuple[torch.Tensor, ...]],
     ) -> Tuple[bool, Dict[str, Any]]:
         """
         Verify if the actual output matches the expected output.
 
+        The runner unwraps single-output: you receive two tensors. For multi-output
+        problems you receive two tuples of tensors (same length).
+
         Args:
-            expected_output: Output from reference solution
-            actual_output: Output from submitted solution
+            expected_output: Output(s) from reference solution (Tensor or tuple of)
+            actual_output: Output(s) from submitted solution (Tensor or tuple of)
 
         Returns:
             Tuple of (is_correct, debug_info)

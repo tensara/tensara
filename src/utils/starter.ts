@@ -41,7 +41,18 @@ export const generateStarterCode = (
           `${parameter.const === "true" ? "const " : ""}${resolveCppType(parameter.type)}${parameter.pointer === "true" ? "*" : ""} ${parameter.name}`
       )
       .join(", ");
-    return `#include <cuda_runtime.h>
+    const paramTypes = new Set(parameters.map((p) => p.type));
+    const extraIncludes: string[] = [];
+    if (paramTypes.has("float16")) extraIncludes.push("#include <cuda_fp16.h>");
+    if (paramTypes.has("float4")) extraIncludes.push("#include <cuda_fp4.h>");
+    if (paramTypes.has("float8")) extraIncludes.push("#include <cuda_fp8.h>");
+    if (paramTypes.has("float4") || paramTypes.has("float8")) {
+      extraIncludes.push("#include <cstdint>");
+    }
+    const includesBlock = ["#include <cuda_runtime.h>", ...extraIncludes].join(
+      "\n"
+    );
+    return `${includesBlock}
 
 // Note: ${names.join(", ")} are device pointers
 extern "C" void solution(${paramStr}) {
@@ -69,11 +80,18 @@ def solution(${paramStr}):
   if (language === "mojo") {
     const pointerParams = parameters.filter((p) => p.pointer === "true");
     const names = pointerParams.map((p) => p.name).filter(Boolean);
-    const firstPtrType = pointerParams[0]?.type ?? "float";
-    const dtypeConst = MOJO_DTYPE_CONST[firstPtrType] ?? "DType.float32";
-    const dtypeDisplay = firstPtrType;
-
+    const uniquePtrTypes = [...new Set(pointerParams.map((p) => p.type))];
     const usesDType = pointerParams.length > 0;
+
+    const dtypeVarForType = (t: string) => `dtype_${t}`;
+    const dtypeBlock = usesDType
+      ? uniquePtrTypes
+          .map(
+            (t) =>
+              `comptime ${dtypeVarForType(t)} = ${MOJO_DTYPE_CONST[t] ?? "DType.float32"}`
+          )
+          .join("\n")
+      : "";
 
     const paramStr = parameters
       .map((p) =>
@@ -83,16 +101,18 @@ def solution(${paramStr}):
       )
       .join(", ");
 
-    const ptrTypeComment = `${dtypeDisplay} arrays`;
+    const ptrTypeComment =
+      uniquePtrTypes.length === 1
+        ? `${uniquePtrTypes[0]} arrays`
+        : "mixed-dtype arrays";
 
     const pointerSetup = pointerParams
       .map((p) => {
         const varName = p.name.startsWith("d_") ? p.name.slice(2) : p.name;
-        return `    ${varName} = UnsafePointer[Scalar[dtype], MutExternalOrigin](unsafe_from_address=${p.name}_addr)`;
+        const dtypeVar = dtypeVarForType(p.type);
+        return `    ${varName} = UnsafePointer[Scalar[${dtypeVar}], MutExternalOrigin](unsafe_from_address=${p.name}_addr)`;
       })
       .join("\n");
-
-    const dtypeBlock = usesDType ? `comptime dtype = ${dtypeConst}` : "";
 
     return `from gpu import thread_idx, block_idx, block_dim
 from gpu.host import DeviceContext

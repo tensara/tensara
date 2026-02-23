@@ -217,6 +217,26 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
   const { data: problem, isLoading: isProblemLoading } =
     api.problems.getById.useQuery({ slug }, { enabled: !!slug });
 
+  const problemGpus = (problem as { gpus?: string[] } | null)?.gpus;
+
+  const gpuDropdownOptions = useMemo(() => {
+    const entries = Object.entries(GPU_DISPLAY_NAMES);
+    if (problemGpus?.length) {
+      return entries.filter(
+        ([key]) => key === "all" || problemGpus.includes(key)
+      );
+    }
+    return entries;
+  }, [problemGpus]);
+
+  useEffect(() => {
+    if (!problemGpus?.length) return;
+    const allowed = new Set(["all", ...problemGpus]);
+    if (!allowed.has(selectedGpu)) {
+      setSelectedGpu(allowed.has("all") ? "all" : (problemGpus[0] ?? "all"));
+    }
+  }, [problemGpus, selectedGpu]);
+
   // Get leaderboard data from the new optimized endpoint
   const { data: leaderboardEntries = [], isLoading: isLeaderboardLoading } =
     api.submissions.getProblemLeaderboard.useQuery<ProblemLeaderboardEntry[]>(
@@ -404,7 +424,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                   {GPU_DISPLAY_NAMES[selectedGpu]}
                 </MenuButton>
                 <MenuList bg="brand.secondary" borderColor="gray.800" p={0}>
-                  {Object.entries(GPU_DISPLAY_NAMES).map(([key, value]) => (
+                  {gpuDropdownOptions.map(([key, value]) => (
                     <MenuItem
                       key={key}
                       onClick={() => setSelectedGpu(key)}
