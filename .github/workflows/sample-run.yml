@@ -30,13 +30,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── Python (for modal + sanity_check.py) ──────────────────────────────
+      # ── Python ────────────────────────────────────────────────────────────
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: Install Python deps
         run: pip install requests modal "fastapi[standard]" torch numpy
+
+      # ── Node / pnpm ───────────────────────────────────────────────────────
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install Node deps
+        run: pnpm install
 
       # ── Start Modal serve (engine from this PR branch) ────────────────────
       - name: Start Modal serve
@@ -59,13 +70,19 @@ jobs:
           MODAL_ENDPOINT: ${{ secrets.MODAL_ENDPOINT }}
           NEXT_PUBLIC_GA_ID: "PLACEHOLDER"
           NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
-
+          NEXTAUTH_URL: "http://localhost:3000"
         run: |
           pnpm dev > /tmp/nextjs.log 2>&1 &
           echo "NEXTJS_PID=$!" >> $GITHUB_ENV
-          echo "Waiting for Next.js to be ready..."
-          npx wait-on http://localhost:3000 --timeout 60000
-          echo "Next.js is up"
+          for i in $(seq 1 12); do
+            sleep 5
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Next.js is up"
+              exit 0
+            fi
+          done
+          cat /tmp/nextjs.log
+          exit 1
 
       # ── Run the sanity check against localhost ────────────────────────────
       - name: Run sanity check
