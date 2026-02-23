@@ -1,6 +1,6 @@
 from threading import Thread
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 import modal
 from pathlib import Path
 import utils
@@ -176,7 +176,7 @@ def gen_wrapper(gen):
 async def checker(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
-        return 404
+        return JSONResponse(status_code=404, content={"error": f"GPU '{gpu}' not supported"})
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
@@ -246,7 +246,7 @@ async def checker(gpu: str, request: Request):
 async def benchmark(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
-        return 404
+        return JSONResponse(status_code=404, content={"error": f"GPU '{gpu}' not supported"})
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
@@ -310,7 +310,7 @@ async def benchmark(gpu: str, request: Request):
 async def sample_runner(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
-        return 404
+        return JSONResponse(status_code=404, content={"error": f"GPU '{gpu}' not supported"})
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]
@@ -368,8 +368,7 @@ async def sample_runner(gpu: str, request: Request):
 async def sandbox(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
-        print("gpu not in gpu_runners")
-        return 404
+        return JSONResponse(status_code=404, content={"error": f"GPU '{gpu}' not supported"})
 
     solution_code = req["code"]
     language = req.get("language", "cuda")
@@ -445,7 +444,7 @@ async def sandbox(gpu: str, request: Request):
 async def benchmark_cli(gpu: str, request: Request):
     req = await request.json()
     if gpu not in gpu_runners:
-        return 404
+        return JSONResponse(status_code=404, content={"error": f"GPU '{gpu}' not supported"})
 
     solution_code = req["solution_code"]
     problem_def = req["problem_def"]

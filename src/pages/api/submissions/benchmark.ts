@@ -158,13 +158,14 @@ export default async function handler(
 
     const benchmarkResults: BenchmarkResultResponse["result"][] = [];
     let partialMessage = "";
+    const decoder = new TextDecoder();
 
     try {
       while (true) {
         const { done, value } = await benchmarkReader.read();
         if (done) break;
 
-        const text = new TextDecoder().decode(value);
+        const text = decoder.decode(value, { stream: true });
         partialMessage += text;
 
         const messages = partialMessage.split("\n\n");
@@ -175,14 +176,16 @@ export default async function handler(
 
           try {
             const response_json = message.slice(6).trim();
-            const parsed = JSON.parse(response_json) as {
+            const parsed = JSON.parse(response_json) as Record<
+              string,
+              unknown
+            > & {
               status: string;
             };
             if (!parsed) {
               continue;
             }
             const response_status = parsed.status;
-            console.log(response_status);
 
             if (response_status === "COMPILING") {
               sendSSE(SubmissionStatus.COMPILING, {
@@ -198,15 +201,13 @@ export default async function handler(
               });
             }
             if (response_status === SubmissionStatus.BENCHMARK_RESULT) {
-              const response = JSON.parse(
-                response_json
-              ) as BenchmarkResultResponse;
+              const response = parsed as unknown as BenchmarkResultResponse;
               if (response.result) {
                 benchmarkResults.push(response.result);
                 sendSSE(response_status, response);
               }
             } else if (response_status === SubmissionStatus.BENCHMARKED) {
-              const response = JSON.parse(response_json) as BenchmarkedResponse;
+              const response = parsed as unknown as BenchmarkedResponse;
               if (response.avg_gflops && response.avg_runtime_ms) {
                 const averageGflops = response.avg_gflops;
                 const averageRuntime = response.avg_runtime_ms;
@@ -235,13 +236,7 @@ export default async function handler(
                 return;
               }
             } else if (isSubmissionError(response_status)) {
-              const response = JSON.parse(response_json) as {
-                status: SubmissionErrorType;
-                error: string;
-                details: string;
-              };
-
-              sendSSE(response_status, response);
+              sendSSE(response_status, parsed);
               res.end();
               return;
             }

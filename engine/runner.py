@@ -19,6 +19,22 @@ from gpu_monitor import GPUMonitor
 MAX_SANDBOX_OUTPUT_BYTES = 64 * 1024  # Cap console streaming to 64 KiB for responsiveness
 
 
+def _cleanup_gpu_memory():
+    """Clean up GPU memory after test execution."""
+    gc.collect()
+    torch.cuda.empty_cache()
+
+
+def _cleanup_solution_temp_dir(language: str, solution_func):
+    """Clean up temporary directory for script-based solutions."""
+    if language in ("python", "triton", "cute", "cutile"):
+        try:
+            temp_dir = os.path.dirname(solution_func.__code__.co_filename)
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
+
+
 def run_checker(
     problem_name: str, problem_def: str, solution_func, language: str, param_func=None
 ) -> Iterator[str]:
@@ -104,8 +120,7 @@ def run_checker(
 
             # Clean up memory
             del input_tensors, expected_outputs, actual_outputs, parameters
-            gc.collect()
-            torch.cuda.empty_cache()
+            _cleanup_gpu_memory()
 
             test_result = {
                 "test_id": test_id,
@@ -135,12 +150,7 @@ def run_checker(
                 "total_tests": total_tests,
             }
 
-        if language == "python" or language == "cutile":
-            try:
-                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
-                shutil.rmtree(temp_dir)
-            except Exception:
-                pass
+        _cleanup_solution_temp_dir(language, solution_func)
 
         # Final status message
         yield {"status": "CHECKED", "test_results": test_results, "total_tests": total_tests}
@@ -197,7 +207,7 @@ def run_sample_case(
                 language, solution_func, input_tensors, actual_outputs, problem, sample
             )
 
-        if language in ("cuda", "mojo"):
+        if language in utils.COMPILED_LANGUAGES:
             with utils.SystemOutputCapture() as capture:
                 solution_func(*parameters)
 
@@ -322,8 +332,7 @@ def run_sanity_check(
 
             # Clean up memory
             del input_tensors, expected_outputs, actual_outputs, parameters
-            gc.collect()
-            torch.cuda.empty_cache()
+            _cleanup_gpu_memory()
 
             test_result = {
                 "test_id": test_id,
@@ -342,12 +351,7 @@ def run_sanity_check(
                 }
                 return
 
-        if language == "python" or language == "cutile":
-            try:
-                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
-                shutil.rmtree(temp_dir)
-            except Exception:
-                pass
+        _cleanup_solution_temp_dir(language, solution_func)
 
     except utils.NVCCError as e:
         yield {
@@ -451,8 +455,7 @@ def run_benchmark(
 
                 # Clean up memory
                 del input_tensors, expected_outputs, actual_outputs
-                gc.collect()
-                torch.cuda.empty_cache()
+                _cleanup_gpu_memory()
 
             except Exception as e:
                 yield {
@@ -483,12 +486,7 @@ def run_benchmark(
             avg_runtime_ms = 0
             avg_gflops = None
 
-        if language == "python" or language == "cutile":
-            try:
-                temp_dir = os.path.dirname(solution_func.__code__.co_filename)
-                shutil.rmtree(temp_dir)
-            except Exception:
-                pass
+        _cleanup_solution_temp_dir(language, solution_func)
 
         # Return final summary with additional metrics
         summary = {
