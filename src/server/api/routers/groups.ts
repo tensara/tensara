@@ -464,7 +464,6 @@ export const groupsRouter = createTRPCRouter({
           status: "ACCEPTED",
         },
         select: { problemId: true, userId: true, createdAt: true },
-        distinct: ["problemId", "userId"],
       });
 
       // Build a map of problemId -> set of userIds who solved it (only after problem was added)
@@ -544,7 +543,7 @@ export const groupsRouter = createTRPCRouter({
           language: true,
           problemId: true,
           createdAt: true,
-          user: { select: { username: true } },
+          user: { select: { id: true, username: true } },
         },
         orderBy: { runtime: "asc" },
       });
@@ -558,10 +557,9 @@ export const groupsRouter = createTRPCRouter({
           byProblem.set(sub.problemId, new Map());
         }
         const userMap = byProblem.get(sub.problemId)!;
-        const username = sub.user.username ?? "anonymous";
-        const current = userMap.get(username);
+        const current = userMap.get(sub.user.id);
         if (!current || (sub.runtime ?? Infinity) < (current.runtime ?? Infinity)) {
-          userMap.set(username, sub);
+          userMap.set(sub.user.id, sub);
         }
       }
 
