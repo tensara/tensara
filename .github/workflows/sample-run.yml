@@ -59,7 +59,17 @@ jobs:
           modal serve api.py > /tmp/modal.log 2>&1 &
           echo "MODAL_PID=$!" >> $GITHUB_ENV
           sleep 10
-
+      
+      - name: Debug DB
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python -c "
+          import subprocess, os
+          url = os.environ['DATABASE_URL']
+          print('DB host:', url.split('@')[1].split('/')[0] if '@' in url else 'unknown')
+          "
+          
       # ── Start Next.js dev server ──────────────────────────────────────────
       - name: Start Next.js dev server
         env:
