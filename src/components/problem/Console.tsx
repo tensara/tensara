@@ -1,10 +1,21 @@
-import { Box, Text, VStack, HStack, Spinner, Badge } from "@chakra-ui/react";
+import {
+  Box,
+  Text,
+  VStack,
+  HStack,
+  Spinner,
+  Badge,
+  IconButton,
+  Tooltip,
+  useClipboard,
+} from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import {
   SampleStatus,
   type SampleStatusType,
   type SampleOutput,
 } from "~/types/submission";
+import { FiCheck, FiCopy } from "react-icons/fi";
 
 const pulseAnimation = keyframes`
   0% { opacity: 0.6; }
@@ -114,6 +125,7 @@ const OutputBox = ({
   content?: string;
   type?: "input" | "output" | "expected" | "error" | "default";
 }) => {
+  const { hasCopied, onCopy } = useClipboard(content ?? "");
   if (!content) return null;
 
   const getTypeProps = () => {
@@ -160,12 +172,30 @@ const OutputBox = ({
       borderRadius="md"
       overflow="hidden"
       bg="#111111"
+      role="group"
     >
-      <Box px={3} py={1} bg="#111111">
+      <HStack px={3} py={1} bg="#111111" justify="space-between">
         <Text fontSize="xs" fontWeight="500" color={props.color}>
           {props.label}
         </Text>
-      </Box>
+        <Tooltip label={hasCopied ? "Copied" : "Copy"} placement="top" hasArrow>
+          <IconButton
+            aria-label={hasCopied ? "Copied" : "Copy"}
+            icon={hasCopied ? <FiCheck size={14} /> : <FiCopy size={14} />}
+            size="xs"
+            variant="ghost"
+            color="gray.400"
+            _hover={{ color: "gray.200", bg: "whiteAlpha.50" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+            opacity={0}
+            _groupHover={{ opacity: 1 }}
+            transition="opacity 0.15s ease"
+          />
+        </Tooltip>
+      </HStack>
       <Box px={3} py={2} bg="#111111">
         <Text
           fontFamily="JetBrains Mono, monospace"
