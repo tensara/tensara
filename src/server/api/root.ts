@@ -10,6 +10,7 @@ import { commentRouter } from "./routers/comment";
 import { postupvoteRouter } from "./routers/postupvote";
 import { commentupvoteRouter } from "./routers/commentupvote";
 import { tagRouter } from "./routers/tag";
+import { groupsRouter } from "./routers/groups";
 
 /**
  * This is the primary router for your server.
@@ -28,6 +29,7 @@ export const appRouter = createTRPCRouter({
   postUpvote: postupvoteRouter,
   commentUpvote: commentupvoteRouter,
   tag: tagRouter,
+  groups: groupsRouter,
 });
 
 // export type definition of API

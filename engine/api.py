@@ -55,7 +55,9 @@ def b200_image():
         .env({"PATH": "/root/.local/bin:$PATH"})
         .env(CUBLAS_ENV)
         .run_commands("curl -LsSf https://astral.sh/uv/install.sh | sh")
-        .run_commands(UV_PREFIX + " ".join(PIP_PACKAGES + ["cuda-tile", "cupy-cuda13x"]))
+        .run_commands(
+            UV_PREFIX + " ".join(PIP_PACKAGES + ["cuda-tile", "cupy-cuda13x", "flashinfer-python"])
+        )
         .run_commands(f"uv pip install --system mojo --extra-index-url {MODULAR_INDEX}")
         # install torch separately with CUDA 12.8
         .run_commands(

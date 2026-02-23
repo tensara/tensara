@@ -38,6 +38,7 @@ interface SubmissionFormProps {
   onViewParameters?: () => void;
   hasParameters?: boolean;
   parameterCount?: number;
+  allowedGpus?: string[];
 }
 
 const SubmissionForm = ({
@@ -54,9 +55,15 @@ const SubmissionForm = ({
   onViewParameters,
   hasParameters = false,
   parameterCount = 0,
+  allowedGpus,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
+
+  const gpuOptions = Object.entries(GPU_DISPLAY_NAMES).filter(
+    ([key]) =>
+      key !== "all" && (!allowedGpus?.length || allowedGpus.includes(key))
+  );
 
   return (
     <Flex
@@ -110,38 +117,36 @@ const SubmissionForm = ({
                 borderRadius="lg"
                 minW="140px"
               >
-                {Object.entries(GPU_DISPLAY_NAMES)
-                  .filter(([key]) => key !== "all")
-                  .map(([key, value]) => {
-                    const isDisabledForCutile =
-                      selectedLanguage === "cutile" && key !== "B200";
-                    return (
-                      <Tooltip
-                        key={key}
-                        label="cuTile requires B200"
-                        isDisabled={!isDisabledForCutile}
-                        placement="right"
+                {gpuOptions.map(([key, value]) => {
+                  const isDisabledForCutile =
+                    selectedLanguage === "cutile" && key !== "B200";
+                  return (
+                    <Tooltip
+                      key={key}
+                      label="cuTile requires B200"
+                      isDisabled={!isDisabledForCutile}
+                      placement="right"
+                    >
+                      <MenuItem
+                        onClick={() => {
+                          setSelectedGpuType(key);
+                        }}
+                        bg="brand.secondary"
+                        _hover={{
+                          bg: isDisabledForCutile
+                            ? "brand.secondary"
+                            : "gray.700",
+                        }}
+                        color={isDisabledForCutile ? "gray.500" : "white"}
+                        borderRadius="lg"
+                        fontSize="sm"
+                        isDisabled={isDisabledForCutile}
                       >
-                        <MenuItem
-                          onClick={() => {
-                            setSelectedGpuType(key);
-                          }}
-                          bg="brand.secondary"
-                          _hover={{
-                            bg: isDisabledForCutile
-                              ? "brand.secondary"
-                              : "gray.700",
-                          }}
-                          color={isDisabledForCutile ? "gray.500" : "white"}
-                          borderRadius="lg"
-                          fontSize="sm"
-                          isDisabled={isDisabledForCutile}
-                        >
-                          {value}
-                        </MenuItem>
-                      </Tooltip>
-                    );
-                  })}
+                        {value}
+                      </MenuItem>
+                    </Tooltip>
+                  );
+                })}
               </MenuList>
             </Menu>
           </Box>
