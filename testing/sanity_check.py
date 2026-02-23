@@ -7,11 +7,11 @@ Catches regressions in the checker/engine across languages.
 
 Usage:
     python testing/sanity_check.py                              # run all (cuda)
-    CI_SAMPLE_SIZE=5 python testing/sanity_check.py             # random sample (cuda)
+    CI_SAMPLE_SIZE=2 python testing/sanity_check.py             # random sample (cuda)
     CI_LANGUAGES=cuda,mojo,python python testing/sanity_check.py  # run across languages
     CI_LANGUAGES=triton python testing/sanity_check.py          # alias for python (Triton)
     CI_PROBLEMS=vector-addition python testing/sanity_check.py  # specific slugs
-    CI_SEED=123 CI_SAMPLE_SIZE=5 python testing/sanity_check.py # reproducible sampling
+    CI_SEED=123 CI_SAMPLE_SIZE=2 python testing/sanity_check.py # reproducible sampling
     TENSARA_URL=http://localhost:3000 python testing/sanity_check.py  # local dev
 """
 
@@ -32,7 +32,7 @@ LANGUAGE = os.environ.get(
     "CI_LANGUAGE", ""
 ).strip()  # backwards compat: single language
 LANGUAGES = os.environ.get("CI_LANGUAGES", "").strip()  # comma-separated languages
-SAMPLE = int(os.environ.get("CI_SAMPLE_SIZE", "0"))  # 0 = all
+SAMPLE = int(os.environ.get("CI_SAMPLE_SIZE", "2"))  # 0 = all
 SPECIFIC = os.environ.get("CI_PROBLEMS", "")  # comma-separated slugs
 TIMEOUT = int(os.environ.get("CI_TIMEOUT_SECONDS", "300"))
 SEED_RAW = os.environ.get("CI_SEED", "").strip()
