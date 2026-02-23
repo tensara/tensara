@@ -1,6 +1,7 @@
 import triton
 import triton.language as tl
 
+
 @triton.jit
 def vector_add_kernel(input1_ptr, input2_ptr, output_ptr, n, BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(0)
@@ -12,10 +13,12 @@ def vector_add_kernel(input1_ptr, input2_ptr, output_ptr, n, BLOCK_SIZE: tl.cons
     input2 = tl.load(input2_ptr + offsets, mask=mask)
     tl.store(output_ptr + offsets, input1 + input2, mask=mask)
 
+
 def solution(d_input1, d_input2, d_output, n: int):
     BLOCK_SIZE = 256
     num_blocks = (n + BLOCK_SIZE - 1) // BLOCK_SIZE
     # print("Hoi")
 
-    vector_add_kernel[(num_blocks,)](d_input1, d_input2, d_output, n, BLOCK_SIZE=BLOCK_SIZE)
-  
+    vector_add_kernel[(num_blocks,)](
+        d_input1, d_input2, d_output, n, BLOCK_SIZE=BLOCK_SIZE
+    )
