@@ -28,6 +28,7 @@ interface SplitPanelProps {
   containerId?: string;
   allowCollapse?: boolean;
   snapOffsetPx?: number;
+  resizerLineInsetTopPx?: number;
   collapsedLeftLabel?: string;
   collapsedRightLabel?: string;
 }
@@ -43,6 +44,7 @@ const SplitPanel = ({
   containerId = "split-container",
   allowCollapse = false,
   snapOffsetPx = 28,
+  resizerLineInsetTopPx = 0,
   collapsedLeftLabel,
   collapsedRightLabel,
 }: SplitPanelProps) => {
@@ -186,12 +188,16 @@ const SplitPanel = ({
           <Box
             position="absolute"
             left={isCollapsedLeft ? "6px" : isCollapsedRight ? "8px" : "50%"}
-            top="0"
+            top={`${Math.max(0, resizerLineInsetTopPx)}px`}
             transform={
               isCollapsedLeft || isCollapsedRight ? "none" : "translateX(-50%)"
             }
             width="2px"
-            height="100%"
+            height={
+              resizerLineInsetTopPx > 0
+                ? `calc(100% - ${Math.max(0, resizerLineInsetTopPx)}px)`
+                : "100%"
+            }
             bg={"whiteAlpha.100"}
             borderRadius="full"
             transition="all 0.2s ease"

@@ -77,6 +77,7 @@ const SubmissionForm = ({
           w="100%"
           minW={0}
           overflow={{ base: "visible", md: "hidden" }}
+          pl={{ base: 0, md: 2 }}
         >
           <Box flexShrink={0}>
             <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">

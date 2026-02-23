@@ -708,6 +708,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             minRightWidth={0}
             allowCollapse
             snapOffsetPx={16}
+            resizerLineInsetTopPx={88}
             collapsedLeftLabel="Problem"
             collapsedRightLabel="Editor"
           />
