@@ -227,6 +227,9 @@ export const groupsRouter = createTRPCRouter({
       if (targetMember.role === "OWNER") {
         throw new TRPCError({ code: "FORBIDDEN", message: "Cannot remove the group owner" });
       }
+      if (targetMember.role === "ADMIN") {
+        await assertGroupOwner(ctx.db, group.id, ctx.session.user.id);
+      }
 
       await ctx.db.groupMember.delete({
         where: { groupId_userId: { groupId: group.id, userId: input.userId } },
@@ -498,6 +501,13 @@ export const groupsRouter = createTRPCRouter({
       const problem = await ctx.db.problem.findUnique({ where: { slug: input.problemSlug } });
       if (!problem) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Problem not found" });
+      }
+
+      const groupProblem = await ctx.db.groupProblem.findUnique({
+        where: { groupId_problemId: { groupId: group.id, problemId: problem.id } },
+      });
+      if (!groupProblem) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Problem is not part of this group" });
       }
 
       const memberUserIds = (
