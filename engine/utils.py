@@ -58,8 +58,8 @@ def _strip_c_like_comments_and_strings(s: str) -> str:
         return s
     import re
 
-    s = re.sub(r'"(?:\\.|[^"\\])*"', "", s, flags=re.DOTALL)
-    s = re.sub(r"'(?:\\.|[^'\\])*'", "", s, flags=re.DOTALL)
+    s = re.sub(r'"(?:\\.|[^"\\\n])*"', "", s)
+    s = re.sub(r"'(?:\\.|[^'\\\n])*'", "", s)
     s = re.sub(r"/\*.*?\*/", "", s, flags=re.DOTALL)
     s = re.sub(r"//.*?$", "", s, flags=re.MULTILINE)
 
