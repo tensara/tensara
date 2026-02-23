@@ -36,18 +36,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install Python deps
-        run: pip install requests modal "fastapi[standard]"
-
-      # ── Node / pnpm (for Next.js) ─────────────────────────────────────────
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
-
-      - name: Install Node deps
-        run: pnpm install
+        run: pip install requests modal "fastapi[standard]" torch numpy
 
       # ── Start Modal serve (engine from this PR branch) ────────────────────
       - name: Start Modal serve
