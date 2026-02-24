@@ -13,6 +13,8 @@ interface LayoutProps {
   ogImgSubtitle?: string;
   ogImage?: string;
   useDefaultOg?: boolean;
+  isCodingMode?: boolean;
+  headerToolbar?: ReactNode;
 }
 
 export function Layout({
@@ -23,6 +25,8 @@ export function Layout({
   ogImgSubtitle = "",
   ogImage,
   useDefaultOg = true,
+  isCodingMode = false,
+  headerToolbar,
 }: LayoutProps) {
   const siteTitle = title ? `${title} | Tensara` : "Tensara";
 
@@ -64,8 +68,11 @@ export function Layout({
       <GoogleAnalytics gaId={env.NEXT_PUBLIC_GA_ID} />
 
       <Box h="100vh" bg="brand.dark" display="flex" flexDirection="column">
-        <Box px={{ base: 2, md: 2 }} py={{ base: 2, md: 1 }}>
-          <Header />
+        <Box
+          px={{ base: 2, md: 2 }}
+          py={{ base: 2, md: isCodingMode ? 0.5 : 1 }}
+        >
+          <Header isCodingMode={isCodingMode} toolbar={headerToolbar} />
         </Box>
         <Box
           flex="1"

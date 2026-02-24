@@ -39,6 +39,7 @@ interface SubmissionFormProps {
   hasParameters?: boolean;
   parameterCount?: number;
   allowedGpus?: string[];
+  compact?: boolean;
 }
 
 const SubmissionForm = ({
@@ -56,6 +57,7 @@ const SubmissionForm = ({
   hasParameters = false,
   parameterCount = 0,
   allowedGpus,
+  compact = false,
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
@@ -71,26 +73,28 @@ const SubmissionForm = ({
       id="form-container"
       w="100%"
       justifyContent="space-between"
-      alignItems={{ base: "flex-start", md: "flex-end" }}
+      alignItems={compact ? "center" : { base: "flex-start", md: "flex-end" }}
       flexDirection={{ base: "column", md: "row" }}
-      gap={3}
+      gap={compact ? 2 : 3}
     >
       <Box flex="1" minW={0} overflow={{ base: "visible", md: "hidden" }}>
         <HStack
           spacing={2}
           flexWrap={{ base: "wrap", md: "nowrap" }}
           gap={2}
-          align="flex-end"
+          align={compact ? "center" : "flex-end"}
           w="100%"
           minW={0}
           overflow={{ base: "visible", md: "hidden" }}
-          pl={{ base: 0, md: 2 }}
+          pl={compact ? 0 : { base: 0, md: 2 }}
         >
           <Box flexShrink={0}>
-            <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
-              GPU Type
-              <GpuInfoModal />
-            </Text>
+            {!compact && (
+              <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
+                GPU Type
+                <GpuInfoModal />
+              </Text>
+            )}
             <Menu>
               <MenuButton
                 size="sm"
@@ -101,7 +105,12 @@ const SubmissionForm = ({
                 _active={{ bg: "whiteAlpha.150" }}
                 _focus={{ borderColor: "blue.500", boxShadow: "none" }}
                 color="white"
-                w={{ base: "110px", md: "140px" }}
+                w={
+                  compact
+                    ? { base: "140px", md: "176px" }
+                    : { base: "110px", md: "140px" }
+                }
+                fontSize={compact ? "xs" : "sm"}
                 fontWeight="normal"
                 textAlign="left"
                 justifyContent="flex-start"
@@ -151,10 +160,12 @@ const SubmissionForm = ({
             </Menu>
           </Box>
           <Box flexShrink={0}>
-            <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
-              Language
-              <LanguageInfoModal />
-            </Text>
+            {!compact && (
+              <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
+                Language
+                <LanguageInfoModal />
+              </Text>
+            )}
             <Menu>
               <MenuButton
                 size="sm"
@@ -165,7 +176,12 @@ const SubmissionForm = ({
                 _active={{ bg: "whiteAlpha.150" }}
                 _focus={{ borderColor: "blue.500", boxShadow: "none" }}
                 color="white"
-                w={{ base: "110px", md: "140px" }}
+                w={
+                  compact
+                    ? { base: "140px", md: "176px" }
+                    : { base: "110px", md: "140px" }
+                }
+                fontSize={compact ? "xs" : "sm"}
                 fontWeight="normal"
                 textAlign="left"
                 justifyContent="flex-start"
@@ -252,22 +268,24 @@ const SubmissionForm = ({
             </Menu>
           </Box>
           <Box flexShrink={0}>
-            <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
-              Parameters
-              <IconButton
-                aria-label="Parameter Information"
-                icon={<FaInfoCircle />}
-                size="sm"
-                variant="ghost"
-                isDisabled
-                color="gray.400"
-                _hover={{ color: "white", bg: "transparent" }}
-                bg="transparent"
-                visibility="hidden"
-                pointerEvents="none"
-                tabIndex={-1}
-              />
-            </Text>
+            {!compact && (
+              <Text fontSize="sm" color="whiteAlpha.700" whiteSpace="nowrap">
+                Parameters
+                <IconButton
+                  aria-label="Parameter Information"
+                  icon={<FaInfoCircle />}
+                  size="sm"
+                  variant="ghost"
+                  isDisabled
+                  color="gray.400"
+                  _hover={{ color: "white", bg: "transparent" }}
+                  bg="transparent"
+                  visibility="hidden"
+                  pointerEvents="none"
+                  tabIndex={-1}
+                />
+              </Text>
+            )}
             <Button
               size="sm"
               onClick={onViewParameters}
@@ -281,7 +299,12 @@ const SubmissionForm = ({
               _active={{ bg: "whiteAlpha.150" }}
               _focus={{ borderColor: "blue.500", boxShadow: "none" }}
               color={hasParameters ? "white" : "gray.400"}
-              w={{ base: "110px", md: "140px" }}
+              w={
+                compact
+                  ? { base: "120px", md: "136px" }
+                  : { base: "110px", md: "140px" }
+              }
+              fontSize={compact ? "xs" : "sm"}
               fontWeight="normal"
               justifyContent="flex-start"
               borderRadius="lg"
@@ -289,10 +312,14 @@ const SubmissionForm = ({
               whiteSpace="nowrap"
             >
               {hasParameters
-                ? `${parameterCount} ${
-                    parameterCount === 1 ? "param" : "params"
-                  }`
-                : "No params"}
+                ? compact
+                  ? "Params"
+                  : `${parameterCount} ${
+                      parameterCount === 1 ? "param" : "params"
+                    }`
+                : compact
+                  ? "Params"
+                  : "No params"}
             </Button>
           </Box>
         </HStack>
@@ -301,11 +328,11 @@ const SubmissionForm = ({
       <HStack
         ref={buttonContainerRef}
         spacing={2}
-        mt={{ base: 2, md: 0 }}
+        mt={compact ? 0 : { base: 2, md: 0 }}
         minW="90px"
         flexShrink={0}
       >
-        {isCodeDirty && (
+        {!compact && isCodeDirty && (
           <>
             <Button
               size="md"

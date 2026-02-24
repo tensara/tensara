@@ -5,10 +5,11 @@ import {
   Badge,
   Button,
   Icon,
+  IconButton,
   Text,
 } from "@chakra-ui/react";
 import { IoMdTime } from "react-icons/io";
-import { FiTrendingUp, FiBookOpen } from "react-icons/fi";
+import { FiTrendingUp, FiBookOpen, FiArrowLeft } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -23,18 +24,35 @@ interface ProblemViewProps {
   problem: Problem;
   onViewSubmissions: () => void;
   onViewReference?: () => void;
+  showBackArrow?: boolean;
 }
 
 const ProblemView = ({
   problem,
   onViewSubmissions,
   onViewReference,
+  showBackArrow = false,
 }: ProblemViewProps) => {
   return (
     <Box>
-      <Heading as="h1" size="lg" mb={2}>
-        {problem.title}
-      </Heading>
+      <HStack spacing={2} align="center" mb={2}>
+        {showBackArrow && (
+          <IconButton
+            aria-label="Back to problems"
+            icon={<FiArrowLeft size={16} />}
+            size="sm"
+            variant="ghost"
+            color="gray.300"
+            _hover={{ bg: "whiteAlpha.100", color: "white" }}
+            onClick={() => {
+              window.location.href = "/problems";
+            }}
+          />
+        )}
+        <Heading as="h1" size="lg">
+          {problem.title}
+        </Heading>
+      </HStack>
       <HStack
         spacing={2}
         align="center"

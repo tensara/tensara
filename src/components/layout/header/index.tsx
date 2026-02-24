@@ -28,7 +28,12 @@ import { useState, useEffect } from "react";
 import { LayoutGroup, motion } from "framer-motion";
 import React from "react";
 
-export function Header() {
+interface HeaderProps {
+  isCodingMode?: boolean;
+  toolbar?: React.ReactNode;
+}
+
+export function Header({ isCodingMode = false, toolbar }: HeaderProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -128,7 +133,12 @@ export function Header() {
               }}
               transition="all 0.3s ease"
             >
-              <HStack spacing={3} py={2} px={7} borderRadius="lg">
+              <HStack
+                spacing={isCodingMode ? 1 : 3}
+                py={isCodingMode ? 1 : 2}
+                px={isCodingMode ? 2 : 7}
+                borderRadius="lg"
+              >
                 <motion.div
                   whileHover={{ scale: 1.1 }}
                   transition={{
@@ -149,28 +159,32 @@ export function Header() {
                     transition="all 0.3s ease"
                   />
                 </motion.div>
-                <Text color="white" fontSize="sm" fontWeight="medium">
-                  {session.user?.username}
-                </Text>
-                <motion.div
-                  style={{
-                    display: "inline-flex",
-                    transformOrigin: "center center",
-                    width: "16px",
-                    height: "16px",
-                  }}
-                  animate={{
-                    rotate: menuIsOpen ? 180 : 0,
-                  }}
-                  transition={{
-                    duration: 0.3,
-                    type: "spring",
-                    stiffness: 200,
-                    damping: 25,
-                  }}
-                >
-                  <Icon as={FiChevronDown} color="white" />
-                </motion.div>
+                {!isCodingMode && (
+                  <>
+                    <Text color="white" fontSize="sm" fontWeight="medium">
+                      {session.user?.username}
+                    </Text>
+                    <motion.div
+                      style={{
+                        display: "inline-flex",
+                        transformOrigin: "center center",
+                        width: "16px",
+                        height: "16px",
+                      }}
+                      animate={{
+                        rotate: menuIsOpen ? 180 : 0,
+                      }}
+                      transition={{
+                        duration: 0.3,
+                        type: "spring",
+                        stiffness: 200,
+                        damping: 25,
+                      }}
+                    >
+                      <Icon as={FiChevronDown} color="white" />
+                    </motion.div>
+                  </>
+                )}
               </HStack>
             </MenuButton>
             <MenuList
@@ -252,11 +266,15 @@ export function Header() {
             variant="ghost"
             color="white"
             onClick={handleSignIn}
-            leftIcon={<Icon as={FiGithub} boxSize={5} />}
+            size={isCodingMode ? "sm" : "md"}
+            fontSize={isCodingMode ? "11px" : "sm"}
+            leftIcon={<Icon as={FiGithub} boxSize={isCodingMode ? 4 : 5} />}
             bg="#24292e"
             _hover={{
               bg: "#2f363d",
             }}
+            h={isCodingMode ? "30px" : undefined}
+            px={isCodingMode ? 3 : undefined}
           >
             Sign in with GitHub
           </Button>
@@ -266,8 +284,14 @@ export function Header() {
   };
 
   return (
-    <Box bg="" h="full" borderRadius="xl" px={4} pt={2}>
-      <Flex h="full" alignItems="center" justifyContent="space-between">
+    <Box
+      bg=""
+      h="full"
+      borderRadius="xl"
+      px={isCodingMode ? 2 : 4}
+      py={isCodingMode ? 0.5 : 1}
+    >
+      <Flex h="full" alignItems="center" justifyContent="space-between" gap={2}>
         <HStack>
           <Link href="/" passHref legacyBehavior>
             <HStack as="a">
@@ -280,7 +304,7 @@ export function Header() {
                 ml={2}
               />
               <Text
-                fontSize="xl"
+                fontSize={isCodingMode ? "lg" : "xl"}
                 fontWeight="bold"
                 color="white"
                 fontFamily="DM Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif"
@@ -292,15 +316,40 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          {!isMobile && (
+          {!isMobile && !isCodingMode && (
             <HStack ml={6} spacing={3} pt={2}>
               <NavLinks />
             </HStack>
           )}
+
+          {isCodingMode && (
+            <IconButton
+              aria-label="Open menu"
+              icon={<FiMenu />}
+              variant="ghost"
+              color="white"
+              size="sm"
+              borderRadius="md"
+              _hover={{ bg: "whiteAlpha.200" }}
+              onClick={onOpen}
+            />
+          )}
         </HStack>
 
+        {isCodingMode && (
+          <Box
+            flex={1}
+            minW={0}
+            px={2}
+            overflow="hidden"
+            display={{ base: "none", md: "block" }}
+          >
+            {toolbar}
+          </Box>
+        )}
+
         {/* Mobile Menu Button */}
-        {isMobile && (
+        {isMobile && !isCodingMode && (
           <IconButton
             aria-label="Open menu"
             icon={<FiMenu />}
@@ -314,20 +363,54 @@ export function Header() {
         {!isMobile && <AuthSection />}
 
         {/* Mobile Drawer */}
-        <Drawer isOpen={isOpen} placement="right" onClose={onClose}>
+        <Drawer
+          isOpen={isOpen}
+          placement={isCodingMode ? "left" : "right"}
+          onClose={onClose}
+        >
           <DrawerOverlay />
-          <DrawerContent bg="gray.900">
+          <DrawerContent
+            bg="gray.900"
+            maxW={isCodingMode ? "220px" : undefined}
+          >
             <DrawerCloseButton color="white" />
-            <DrawerHeader borderBottomWidth="1px" color="white">
-              Menu
-            </DrawerHeader>
+            {!isCodingMode && (
+              <DrawerHeader borderBottomWidth="1px" color="white">
+                Menu
+              </DrawerHeader>
+            )}
             <DrawerBody>
-              <VStack align="stretch" spacing={4} mt={4}>
-                <NavLinks />
-                <Box pt={4} borderTopWidth="1px">
-                  <AuthSection />
-                </Box>
-              </VStack>
+              {isCodingMode ? (
+                <VStack align="stretch" spacing={1} mt={10}>
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      passHref
+                      onClick={onClose}
+                    >
+                      <Box
+                        px={3}
+                        py={2}
+                        borderRadius="md"
+                        color="gray.200"
+                        fontSize="sm"
+                        fontWeight="medium"
+                        _hover={{ bg: "whiteAlpha.200", color: "white" }}
+                      >
+                        {item.label}
+                      </Box>
+                    </Link>
+                  ))}
+                </VStack>
+              ) : (
+                <VStack align="stretch" spacing={4} mt={4}>
+                  <NavLinks />
+                  <Box pt={4} borderTopWidth="1px">
+                    <AuthSection />
+                  </Box>
+                </VStack>
+              )}
             </DrawerBody>
           </DrawerContent>
         </Drawer>

@@ -1,8 +1,15 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Box,
+  Button,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
   Spinner,
   Text,
+  Tooltip,
   VStack,
   HStack,
   Badge,
@@ -30,14 +37,15 @@ import { Layout } from "~/components/layout";
 import MySubmissions from "~/components/problem/MySubmissions";
 import ProblemView from "~/components/problem/ProblemView";
 import CodeEditor from "~/components/problem/CodeEditor";
-import SubmissionForm from "~/components/problem/SubmissionForm";
 import SubmissionResults from "~/components/problem/SubmissionResults";
 import ResetCodeModal from "~/components/problem/ResetCodeModal";
 import SplitPanel from "~/components/problem/SplitPanel";
 import ResizableConsole from "~/components/problem/Console";
 import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
 
-import { FaExclamationCircle } from "react-icons/fa";
+import { FaChevronDown, FaExclamationCircle } from "react-icons/fa";
+import { FiList } from "react-icons/fi";
+import { IoRepeat } from "react-icons/io5";
 
 import { useCodePersistence } from "~/hooks/useCodePersistence";
 import { useSubmissionStream } from "~/hooks/useSubmissionStream";
@@ -61,6 +69,10 @@ import { appRouter } from "~/server/api/root";
 import { api } from "~/utils/api";
 import Editor from "@monaco-editor/react";
 import { FlopsModal } from "~/components/misc/FlopsModal";
+import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
+import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
+import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 
 type ViewType = "submissions" | "problem" | "result";
 
@@ -120,7 +132,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
   const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(42);
-  const [verticalSplitRatio, setVerticalSplitRatio] = useState(75);
+  const [leftConsoleSplitRatio, setLeftConsoleSplitRatio] = useState(68);
   const [problemBaselineWidthPx, setProblemBaselineWidthPx] = useState<
     number | null
   >(null);
@@ -623,12 +635,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
             problem={problem}
             onViewSubmissions={() => setViewType("submissions")}
             onViewReference={onOpen}
+            showBackArrow
           />
         );
     }
   })();
 
-  const leftContent = (
+  const leftMainContent = (
     <Box h="100%" minH={0} overflow="hidden">
       <Box
         h="100%"
@@ -655,67 +668,370 @@ export default function ProblemPage({ slug }: { slug: string }) {
     </Box>
   );
 
-  const rightContent = (
-    <VStack w="100%" h="100%" spacing={1} minH={0}>
-      <SubmissionForm
-        selectedGpuType={selectedGpuType}
-        setSelectedGpuType={setSelectedGpuType}
-        selectedLanguage={selectedLanguage}
-        setSelectedLanguage={setSelectedLanguage}
-        isCodeDirty={isCodeDirty}
-        onResetClick={() => setIsResetModalOpen(true)}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        onRun={handleRun}
-        isRunning={isRunning}
-        onViewParameters={onParametersOpen}
-        hasParameters={parameters.length > 0}
-        parameterCount={parameters.length}
-        allowedGpus={allowedGpus}
+  const leftContent = (
+    <Box w="100%" h="100%" minH={0} overflow="hidden">
+      <VerticalSplitPanel
+        topContent={leftMainContent}
+        bottomContent={
+          <ResizableConsole
+            output={consoleOutput}
+            status={status}
+            isRunning={isRunning}
+          />
+        }
+        splitRatio={leftConsoleSplitRatio}
+        onSplitRatioChange={setLeftConsoleSplitRatio}
+        minTopHeight={0}
+        minBottomHeight={0}
+        allowCollapse
+        snapOffsetPx={16}
+        collapsedTopLabel="Problem"
+        collapsedBottomLabel="Console"
       />
-      <Box flex={1} w="100%" minH={0} overflow="hidden">
-        <VerticalSplitPanel
-          topContent={
-            <CodeEditor
-              key={`problem-editor-${isVimModeEnabled ? "vim" : "std"}`}
-              code={code}
-              setCode={handleSetCode}
-              selectedLanguage={selectedLanguage}
-              enableVimMode={isVimModeEnabled}
-              onToggleVimMode={setIsVimModeEnabled}
-              ptxContent={
-                submissionPtxTimestamp > samplePtxTimestamp
-                  ? (submissionPtxContent ?? ptxContent)
-                  : (ptxContent ?? submissionPtxContent)
-              }
-              sassContent={
-                submissionSassTimestamp > sampleSassTimestamp
-                  ? (submissionSassContent ?? sassContent)
-                  : (sassContent ?? submissionSassContent)
-              }
-              enablePtxSassView={selectedLanguage === "cuda"}
-              ptxDirty={ptxDirty}
-              sassDirty={sassDirty}
-            />
-          }
-          bottomContent={
-            <ResizableConsole
-              output={consoleOutput}
-              status={status}
-              isRunning={isRunning}
-            />
-          }
-          splitRatio={verticalSplitRatio}
-          onSplitRatioChange={setVerticalSplitRatio}
-          minTopHeight={0}
-          minBottomHeight={0}
-          allowCollapse
-          snapOffsetPx={16}
-          collapsedTopLabel="Editor"
-          collapsedBottomLabel="Console"
+    </Box>
+  );
+
+  const gpuOptions = Object.entries(GPU_DISPLAY_NAMES).filter(
+    ([key]) =>
+      key !== "all" && (!allowedGpus?.length || allowedGpus.includes(key))
+  );
+
+  const editorToolbar = (
+    <HStack
+      h="38px"
+      px={1.5}
+      spacing={1.5}
+      borderBottom="1px solid"
+      borderColor="#232323"
+      bg="#101010"
+      overflowX="auto"
+      overflowY="hidden"
+      css={{ scrollbarWidth: "none" }}
+      sx={{ "&::-webkit-scrollbar": { display: "none" } }}
+    >
+      <HStack spacing={0.5} flexShrink={0}>
+        <Menu>
+          <MenuButton
+            as={Button}
+            size="sm"
+            rightIcon={<FaChevronDown size={11} color="#A1A1AA" />}
+            bg="#171717"
+            _hover={{ bg: "#1D1D1D", borderColor: "#2F2F2F" }}
+            _active={{ bg: "#202020" }}
+            color="gray.200"
+            h="30px"
+            w="174px"
+            justifyContent="space-between"
+            textAlign="left"
+            fontWeight="normal"
+            fontSize="xs"
+            borderRadius="8px"
+            border="1px solid"
+            borderColor="#2A2A2A"
+            px={2.5}
+            flexShrink={0}
+          >
+            {GPU_DISPLAY_NAMES[selectedGpuType]}
+          </MenuButton>
+          <MenuList
+            bg="brand.secondary"
+            borderColor="gray.800"
+            p={0}
+            minW="186px"
+          >
+            {gpuOptions.map(([key, value]) => {
+              const isDisabledForCutile =
+                selectedLanguage === "cutile" && key !== "B200";
+              return (
+                <Tooltip
+                  key={key}
+                  label="cuTile requires B200"
+                  isDisabled={!isDisabledForCutile}
+                  placement="right"
+                >
+                  <MenuItem
+                    onClick={() => setSelectedGpuType(key)}
+                    bg="brand.secondary"
+                    _hover={{
+                      bg: isDisabledForCutile ? "brand.secondary" : "gray.700",
+                    }}
+                    color={isDisabledForCutile ? "gray.500" : "white"}
+                    borderRadius="md"
+                    fontSize="sm"
+                    isDisabled={isDisabledForCutile}
+                  >
+                    {value}
+                  </MenuItem>
+                </Tooltip>
+              );
+            })}
+          </MenuList>
+        </Menu>
+        <GpuInfoModal compact />
+      </HStack>
+
+      <HStack spacing={0.5} flexShrink={0}>
+        <Menu>
+          <MenuButton
+            as={Button}
+            size="sm"
+            rightIcon={<FaChevronDown size={11} color="#A1A1AA" />}
+            bg="#171717"
+            _hover={{ bg: "#1D1D1D", borderColor: "#2F2F2F" }}
+            _active={{ bg: "#202020" }}
+            color="gray.200"
+            h="30px"
+            w="174px"
+            justifyContent="space-between"
+            textAlign="left"
+            fontWeight="normal"
+            fontSize="xs"
+            borderRadius="8px"
+            border="1px solid"
+            borderColor="#2A2A2A"
+            px={2.5}
+            flexShrink={0}
+          >
+            {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
+          </MenuButton>
+          <MenuList
+            bg="brand.secondary"
+            borderColor="gray.800"
+            p={0}
+            minW="186px"
+          >
+            <MenuItem
+              onClick={() => setSelectedLanguage("cuda")}
+              bg="brand.secondary"
+              _hover={{ bg: "gray.700" }}
+              color="white"
+              borderRadius="md"
+              fontSize="sm"
+            >
+              CUDA C++
+            </MenuItem>
+            <MenuItem
+              onClick={() => setSelectedLanguage("python")}
+              bg="brand.secondary"
+              _hover={{ bg: "gray.700" }}
+              color="white"
+              borderRadius="md"
+              fontSize="sm"
+            >
+              Triton
+            </MenuItem>
+            <MenuItem
+              onClick={() => setSelectedLanguage("mojo")}
+              bg="brand.secondary"
+              _hover={{ bg: "gray.700" }}
+              color="white"
+              borderRadius="md"
+              fontSize="sm"
+            >
+              Mojo
+            </MenuItem>
+            <MenuItem
+              onClick={() => setSelectedLanguage("cute")}
+              bg="brand.secondary"
+              _hover={{ bg: "gray.700" }}
+              color="white"
+              borderRadius="md"
+              fontSize="sm"
+            >
+              CuTe DSL
+            </MenuItem>
+            <Tooltip
+              label="Only available on B200"
+              isDisabled={selectedGpuType === "B200"}
+              placement="right"
+            >
+              <MenuItem
+                onClick={() => setSelectedLanguage("cutile")}
+                bg="brand.secondary"
+                _hover={{
+                  bg:
+                    selectedGpuType === "B200" ? "gray.700" : "brand.secondary",
+                }}
+                color={selectedGpuType === "B200" ? "white" : "gray.500"}
+                borderRadius="md"
+                fontSize="sm"
+                isDisabled={selectedGpuType !== "B200"}
+              >
+                cuTile Python
+              </MenuItem>
+            </Tooltip>
+          </MenuList>
+        </Menu>
+        <LanguageInfoModal compact />
+      </HStack>
+
+      <Button
+        size="sm"
+        onClick={onParametersOpen}
+        leftIcon={<FiList size={13} />}
+        bg="#171717"
+        _hover={{
+          bg: "#1D1D1D",
+          borderColor: "#2F2F2F",
+        }}
+        color={parameters.length > 0 ? "gray.200" : "gray.500"}
+        border="1px solid"
+        borderColor="#2A2A2A"
+        h="30px"
+        w="104px"
+        fontSize="xs"
+        fontWeight="normal"
+        justifyContent="flex-start"
+        borderRadius="8px"
+        px={2.5}
+        flexShrink={0}
+      >
+        Params
+      </Button>
+
+      <Tooltip label="Reset code">
+        <IconButton
+          aria-label="Reset code"
+          icon={<IoRepeat size={15} />}
+          size="sm"
+          onClick={() => setIsResetModalOpen(true)}
+          isDisabled={!isCodeDirty}
+          color={isCodeDirty ? "gray.200" : "gray.600"}
+          bg="#171717"
+          border="1px solid"
+          borderColor="#2A2A2A"
+          _hover={{
+            bg: isCodeDirty ? "#1D1D1D" : "#171717",
+          }}
+          h="30px"
+          minW="30px"
+          borderRadius="8px"
+          flexShrink={0}
         />
-      </Box>
-    </VStack>
+      </Tooltip>
+
+      <Button
+        size="sm"
+        borderRadius="8px"
+        bg={isVimModeEnabled ? "rgba(72, 187, 120, 0.14)" : "#171717"}
+        color={isVimModeEnabled ? "#63D297" : "#A0A0A0"}
+        border="1px solid"
+        borderColor={isVimModeEnabled ? "#3EA96A" : "#2A2A2A"}
+        _hover={{
+          bg: isVimModeEnabled ? "rgba(72, 187, 120, 0.2)" : "#1D1D1D",
+          color: isVimModeEnabled ? "#63D297" : "#CCCCCC",
+          borderColor: isVimModeEnabled ? "#63D297" : "#3A3A3A",
+        }}
+        onClick={() => setIsVimModeEnabled((prev) => !prev)}
+        fontSize="xs"
+        fontWeight="500"
+        h="30px"
+        px={3}
+        flexShrink={0}
+      >
+        Vim
+      </Button>
+    </HStack>
+  );
+
+  const headerToolbar = (
+    <HStack justify="flex-end" spacing={2}>
+      <Tooltip
+        label="⌘ + '"
+        placement="bottom"
+        bg="transparent"
+        color="gray.400"
+        fontSize="xs"
+        hasArrow
+      >
+        <Button
+          bg="rgba(59, 130, 246, 0.1)"
+          color="rgb(59, 130, 246)"
+          size="sm"
+          onClick={handleRun}
+          isLoading={isRunning}
+          loadingText="Run"
+          spinner={<></>}
+          disabled={isRunning}
+          borderRadius="lg"
+          h="32px"
+          fontSize="sm"
+          fontWeight="semibold"
+          px={4}
+          minW="68px"
+          _hover={{
+            bg: "rgba(59, 130, 246, 0.2)",
+            transform: "translateY(-1px)",
+          }}
+          _active={{
+            bg: "rgba(59, 130, 246, 0.25)",
+          }}
+        >
+          Run
+        </Button>
+      </Tooltip>
+      <Tooltip
+        label="⌘ + ⏎"
+        placement="bottom"
+        bg="transparent"
+        color="gray.400"
+        fontSize="xs"
+        hasArrow
+      >
+        <Button
+          bg="rgba(34, 197, 94, 0.1)"
+          color="rgb(34, 197, 94)"
+          size="sm"
+          onClick={handleSubmit}
+          isLoading={isSubmitting}
+          loadingText="Submit"
+          spinner={<></>}
+          disabled={isSubmitting}
+          borderRadius="lg"
+          h="32px"
+          fontSize="sm"
+          fontWeight="semibold"
+          px={4}
+          minW="78px"
+          _hover={{
+            bg: "rgba(34, 197, 94, 0.2)",
+            transform: "translateY(-1px)",
+          }}
+          _active={{
+            bg: "rgba(34, 197, 94, 0.25)",
+          }}
+        >
+          Submit
+        </Button>
+      </Tooltip>
+    </HStack>
+  );
+
+  const rightContent = (
+    <Box w="100%" h="100%" minH={0} overflow="hidden">
+      <CodeEditor
+        key={`problem-editor-${isVimModeEnabled ? "vim" : "std"}`}
+        code={code}
+        setCode={handleSetCode}
+        selectedLanguage={selectedLanguage}
+        toolbar={editorToolbar}
+        codeFontSize={12}
+        enableVimMode={isVimModeEnabled}
+        ptxContent={
+          submissionPtxTimestamp > samplePtxTimestamp
+            ? (submissionPtxContent ?? ptxContent)
+            : (ptxContent ?? submissionPtxContent)
+        }
+        sassContent={
+          submissionSassTimestamp > sampleSassTimestamp
+            ? (submissionSassContent ?? sassContent)
+            : (sassContent ?? submissionSassContent)
+        }
+        enablePtxSassView={selectedLanguage === "cuda"}
+        ptxDirty={ptxDirty}
+        sassDirty={sassDirty}
+      />
+    </Box>
   );
 
   // Mobile warning
@@ -746,6 +1062,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
       title={problem.title}
       ogTitle={`${problem.title}`}
       ogImgSubtitle={`${problem.difficulty.charAt(0) + problem.difficulty.toLowerCase().slice(1)} | Problems | Tensara`}
+      isCodingMode
+      headerToolbar={headerToolbar}
     >
       <Box
         bg="brand.secondary"
@@ -770,7 +1088,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             minRightWidth={0}
             allowCollapse
             snapOffsetPx={16}
-            resizerLineInsetTopPx={88}
+            resizerLineInsetTopPx={0}
             collapsedLeftLabel="Problem"
             collapsedRightLabel="Editor"
           />

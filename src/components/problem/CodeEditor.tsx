@@ -15,7 +15,13 @@ import {
 import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
-import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { FiX, FiAlertTriangle } from "react-icons/fi";
 import type { editor as MonacoEditor } from "monaco-editor";
@@ -25,6 +31,8 @@ interface CodeEditorProps {
   code: string;
   setCode: (code: string) => void;
   selectedLanguage: ProgrammingLanguage;
+  toolbar?: ReactNode;
+  codeFontSize?: number;
   isEditable?: boolean;
   ptxContent?: string | null;
   sassContent?: string | null;
@@ -32,7 +40,6 @@ interface CodeEditorProps {
   ptxDirty?: boolean;
   sassDirty?: boolean;
   enableVimMode?: boolean;
-  onToggleVimMode?: (enabled: boolean) => void;
   embedded?: boolean;
 }
 
@@ -539,6 +546,8 @@ const CodeEditor = ({
   code,
   setCode,
   selectedLanguage,
+  toolbar,
+  codeFontSize = 14,
   isEditable = true,
   ptxContent,
   sassContent,
@@ -546,7 +555,6 @@ const CodeEditor = ({
   ptxDirty,
   sassDirty,
   enableVimMode = false,
-  onToggleVimMode,
   embedded = false,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
@@ -897,7 +905,7 @@ const CodeEditor = ({
         loading={null}
         options={{
           minimap: { enabled: false },
-          fontSize: 14,
+          fontSize: codeFontSize,
           lineNumbers: "on",
           scrollBeyondLastLine: false,
           automaticLayout: true,
@@ -939,8 +947,7 @@ const CodeEditor = ({
           minW="90px"
         />
       )}
-      {(isEditable && onToggleVimMode) ||
-      (hasPtxSassContent && !isSplitViewOpen) ? (
+      {hasPtxSassContent && !isSplitViewOpen ? (
         <Box
           position="absolute"
           top="8px"
@@ -950,29 +957,6 @@ const CodeEditor = ({
           zIndex={10}
           pointerEvents="none"
         >
-          {isEditable && onToggleVimMode && (
-            <Button
-              size="sm"
-              borderRadius="md"
-              bg={enableVimMode ? "rgba(72, 187, 120, 0.16)" : "#1A1A1A"}
-              color={enableVimMode ? "#48BB78" : "#858585"}
-              border="1px solid"
-              borderColor={enableVimMode ? "#48BB78" : "#2A2A2A"}
-              _hover={{
-                bg: enableVimMode ? "rgba(72, 187, 120, 0.25)" : "#252525",
-                color: enableVimMode ? "#63D297" : "#CCCCCC",
-                borderColor: enableVimMode ? "#63D297" : "#3A3A3A",
-              }}
-              onClick={() => onToggleVimMode?.(!enableVimMode)}
-              fontSize="14px"
-              fontWeight="500"
-              h="36px"
-              px={4}
-              pointerEvents="auto"
-            >
-              Vim
-            </Button>
-          )}
           {hasPtxSassContent && !isSplitViewOpen && (
             <Button
               size="sm"
@@ -1213,47 +1197,52 @@ const CodeEditor = ({
         borderRadius={embedded ? "0" : "xl"}
         overflow="hidden"
         position="relative"
+        display="flex"
+        flexDirection="column"
       >
-        {isSplitViewOpen && enablePtxSassView ? (
-          <Box
-            id="code-editor-split-container"
-            display="flex"
-            h="100%"
-            position="relative"
-          >
-            {/* Left Panel - Code Editor */}
-            <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
-              {codeEditorPanel}
-            </Box>
-
-            {/* Minimal Divider */}
+        {toolbar}
+        <Box flex="1" minH={0}>
+          {isSplitViewOpen && enablePtxSassView ? (
             <Box
-              position="absolute"
-              left={`${splitRatio}%`}
-              transform="translateX(-50%)"
-              width="1px"
-              height="100%"
-              bg="#2A2A2A"
-              cursor="col-resize"
-              zIndex={2}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={handleMouseDown}
-              _hover={{
-                bg: "#4EC9B0",
-                width: "2px",
-                opacity: 0.6,
-              }}
-              transition="all 0.15s ease"
-            />
+              id="code-editor-split-container"
+              display="flex"
+              h="100%"
+              position="relative"
+            >
+              {/* Left Panel - Code Editor */}
+              <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
+                {codeEditorPanel}
+              </Box>
 
-            {/* Right Panel - PTX/SASS */}
-            <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
-              {ptxSassPanel}
+              {/* Minimal Divider */}
+              <Box
+                position="absolute"
+                left={`${splitRatio}%`}
+                transform="translateX(-50%)"
+                width="1px"
+                height="100%"
+                bg="#2A2A2A"
+                cursor="col-resize"
+                zIndex={2}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={handleMouseDown}
+                _hover={{
+                  bg: "#4EC9B0",
+                  width: "2px",
+                  opacity: 0.6,
+                }}
+                transition="all 0.15s ease"
+              />
+
+              {/* Right Panel - PTX/SASS */}
+              <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
+                {ptxSassPanel}
+              </Box>
             </Box>
-          </Box>
-        ) : (
-          codeEditorPanel
-        )}
+          ) : (
+            codeEditorPanel
+          )}
+        </Box>
       </Box>
       <style jsx global>{`
         .ptx-highlight-line {

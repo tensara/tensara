@@ -457,6 +457,11 @@ const ResizableConsole = ({
       >
         {!output && status === SampleStatus.IDLE ? (
           <VStack align="center" justify="center" h="100%" spacing={3}>
+            {!hideHeader && (
+              <Text color="#858585" fontSize="lg" textAlign="center">
+                Sample Run Results
+              </Text>
+            )}
             <Text color="#858585" fontSize="sm" textAlign="center">
               Hit &#34;Run&#34; to test your code with sample inputs
             </Text>
@@ -471,7 +476,6 @@ const ResizableConsole = ({
                 <ConsoleStatusBadge status={status} isRunning={isRunning} />
               </HStack>
             )}
-
             <VStack align="stretch" spacing={3}>
               <OutputBox content={output?.input} type="input" />
               <OutputBox content={output?.output} type="output" />

@@ -31,7 +31,11 @@ import {
 } from "~/constants/deviceQuery";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 
-export const GpuInfoModal = () => {
+interface GpuInfoModalProps {
+  compact?: boolean;
+}
+
+export const GpuInfoModal = ({ compact = false }: GpuInfoModalProps) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const formatBytes = (bytes: number, decimals = 2) => {
@@ -303,12 +307,14 @@ export const GpuInfoModal = () => {
       <IconButton
         aria-label="GPU Information"
         icon={<FaInfoCircle />}
-        size="sm"
+        size={compact ? "xs" : "sm"}
         variant="ghost"
         onClick={onOpen}
         color="gray.400"
         _hover={{ color: "white", bg: "transparent" }}
         bg="transparent"
+        minW={compact ? "24px" : undefined}
+        h={compact ? "24px" : undefined}
       />
 
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="6xl">
