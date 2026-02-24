@@ -88,6 +88,9 @@ export const tags = [
   "statistics",
   "reduction",
   "quantization",
+  "nvfp4",
+  "mxfp8",
+  "mxfp4"
 ] as const;
 
 export const tagNames = {
@@ -109,6 +112,9 @@ export const tagNames = {
   statistics: "Statistics",
   reduction: "Reduction",
   quantization: "Quantization",
+  nvfp4: "NVFP4",
+  mxfp8: "MXFP8",
+  mxfp4: "MXFP4"
 } as const;
 
 export const tagAltNames = {
@@ -130,4 +136,7 @@ export const tagAltNames = {
   statistics: "Statistics",
   reduction: "Reduction",
   quantization: "Quantization",
+  nvfp4: "NVFP4",
+  mxfp8: "MXFP8",
+  mxfp4: "MXFP4"
 } as const;
