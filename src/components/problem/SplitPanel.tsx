@@ -43,7 +43,7 @@ const SplitPanel = ({
   onSplitRatioChange,
   containerId = "split-container",
   allowCollapse = false,
-  snapOffsetPx = 28,
+  snapOffsetPx: _snapOffsetPx = 28,
   resizerLineInsetTopPx = 0,
   collapsedLeftLabel,
   collapsedRightLabel,
@@ -53,6 +53,15 @@ const SplitPanel = ({
   const splitRatio = controlledRatio ?? uncontrolledRatio;
   const isCollapsedLeft = allowCollapse && splitRatio <= 0.5;
   const isCollapsedRight = allowCollapse && splitRatio >= 99.5;
+  const setRatio = useCallback(
+    (ratio: number) => {
+      onSplitRatioChange?.(ratio);
+      if (controlledRatio === undefined) {
+        setUncontrolledRatio(ratio);
+      }
+    },
+    [onSplitRatioChange, controlledRatio]
+  );
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -73,43 +82,19 @@ const SplitPanel = ({
       const mouseX = e.clientX - containerRect.left;
       let newRatio = (mouseX / containerWidth) * 100;
 
-      if (allowCollapse) {
-        if (mouseX <= snapOffsetPx) {
-          newRatio = 0;
-        } else if (mouseX >= containerWidth - snapOffsetPx) {
-          newRatio = 100;
-        }
-      }
-
       // Apply min-width constraints
       const minLeftPixels = (containerWidth * minLeftWidth) / 100;
       const minRightPixels = (containerWidth * minRightWidth) / 100;
 
-      if (newRatio !== 0 && newRatio !== 100 && mouseX < minLeftPixels) {
+      if (mouseX < minLeftPixels) {
         newRatio = minLeftWidth;
-      } else if (
-        newRatio !== 0 &&
-        newRatio !== 100 &&
-        mouseX > containerWidth - minRightPixels
-      ) {
+      } else if (mouseX > containerWidth - minRightPixels) {
         newRatio = 100 - minRightWidth;
       }
 
-      onSplitRatioChange?.(newRatio);
-      if (controlledRatio === undefined) {
-        setUncontrolledRatio(newRatio);
-      }
+      setRatio(newRatio);
     },
-    [
-      isResizing,
-      minLeftWidth,
-      minRightWidth,
-      containerId,
-      onSplitRatioChange,
-      controlledRatio,
-      allowCollapse,
-      snapOffsetPx,
-    ]
+    [isResizing, minLeftWidth, minRightWidth, containerId, setRatio]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -232,6 +217,52 @@ const SplitPanel = ({
                 </Box>
               </Box>
             )}
+          {allowCollapse && !isResizing && (
+            <Box
+              as="button"
+              type="button"
+              position="absolute"
+              top="8px"
+              left="50%"
+              transform="translateX(-50%)"
+              w="16px"
+              h="16px"
+              borderRadius="full"
+              border="1px solid"
+              borderColor="whiteAlpha.300"
+              color="gray.300"
+              fontSize="11px"
+              lineHeight="1"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              bg="rgba(17, 17, 17, 0.9)"
+              _hover={{ bg: "whiteAlpha.200", color: "white" }}
+              pointerEvents="auto"
+              onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                const minOpen = Math.max(0, minLeftWidth);
+                const maxOpen = Math.min(100, 100 - minRightWidth);
+                const fallback = Math.min(
+                  maxOpen,
+                  Math.max(minOpen, initialRatio)
+                );
+
+                if (isCollapsedLeft) {
+                  setRatio(fallback);
+                  return;
+                }
+
+                setRatio(0);
+              }}
+              aria-label={
+                isCollapsedLeft ? "Expand problem panel" : "Expand editor"
+              }
+            >
+              {isCollapsedLeft ? "›" : "‹"}
+            </Box>
+          )}
         </Box>
 
         {/* Right Panel */}

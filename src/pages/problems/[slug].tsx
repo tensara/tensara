@@ -429,6 +429,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
   // Handle submission
   const handleSubmit = useCallback(() => {
+    setHorizontalSplitRatio((current) =>
+      current <= 0.5 ? HORIZONTAL_DEFAULT_RATIO : current
+    );
+
     if (!session?.user) {
       toast({
         title: "Not signed in",
@@ -470,9 +474,14 @@ export default function ProblemPage({ slug }: { slug: string }) {
     processSubmission,
     startSubmission,
     setViewType,
+    HORIZONTAL_DEFAULT_RATIO,
     toast,
   ]);
   const handleRun = useCallback(async () => {
+    setHorizontalSplitRatio((current) =>
+      current <= 0.5 ? HORIZONTAL_DEFAULT_RATIO : current
+    );
+
     if (!session?.user) {
       toast({
         title: "Not signed in",
@@ -509,6 +518,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     selectedLanguage,
     selectedGpuType,
     slug,
+    HORIZONTAL_DEFAULT_RATIO,
     toast,
   ]);
 
@@ -1084,10 +1094,10 @@ export default function ProblemPage({ slug }: { slug: string }) {
             rightContent={rightContent}
             splitRatio={horizontalSplitRatio}
             onSplitRatioChange={setHorizontalSplitRatio}
-            minLeftWidth={0}
+            minLeftWidth={28}
             minRightWidth={0}
             allowCollapse
-            snapOffsetPx={16}
+            snapOffsetPx={18}
             resizerLineInsetTopPx={0}
             collapsedLeftLabel="Problem"
             collapsedRightLabel="Editor"
