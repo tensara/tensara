@@ -89,7 +89,7 @@ const formatRating = (rating: number | null | undefined): string => {
 
 const formatRuntime = (runtime: number | null | undefined): string => {
   if (runtime == null) return "N/A";
-  if (runtime < 1) {
+  if (runtime <= 1) {
     const microseconds = runtime * 1000;
     return `${microseconds.toFixed(2)} μs`;
   }
