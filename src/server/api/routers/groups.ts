@@ -1,4 +1,5 @@
 import { z } from "zod";
+import crypto from "crypto";
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
 import {
@@ -7,6 +8,17 @@ import {
 } from "~/server/api/trpc";
 
 const MAX_GROUP_SIZE = 256;
+
+function generateInviteCode() {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.randomBytes(8);
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars[bytes[i]! % chars.length];
+  }
+  return code;
+}
+
 
 const slugSchema = z
   .string()
@@ -72,6 +84,7 @@ export const groupsRouter = createTRPCRouter({
           name: input.name,
           slug: input.slug,
           description: input.description,
+          inviteCode: generateInviteCode(),
           members: {
             create: {
               userId: ctx.session.user.id,
@@ -132,6 +145,8 @@ export const groupsRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN", message: "You are not a member of this group" });
       }
 
+      const isAdminOrOwner = membership.role === "OWNER" || membership.role === "ADMIN";
+
       return {
         id: group.id,
         name: group.name,
@@ -142,6 +157,7 @@ export const groupsRouter = createTRPCRouter({
         memberCount: group._count.members,
         problemCount: group._count.problems,
         currentUserRole: membership.role,
+        inviteCode: isAdminOrOwner ? group.inviteCode : null,
       };
     }),
 
@@ -294,6 +310,82 @@ export const groupsRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  getGroupPreview: protectedProcedure
+    .input(z.object({ slug: z.string(), code: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.slug },
+        include: { _count: { select: { members: true, problems: true } } },
+      });
+      if (!group || group.inviteCode !== input.code) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invalid invite link" });
+      }
+
+      const existingMember = await ctx.db.groupMember.findUnique({
+        where: { groupId_userId: { groupId: group.id, userId: ctx.session.user.id } },
+      });
+
+      return {
+        name: group.name,
+        slug: group.slug,
+        description: group.description,
+        memberCount: group._count.members,
+        problemCount: group._count.problems,
+        alreadyMember: !!existingMember,
+      };
+    }),
+
+  joinByCode: protectedProcedure
+    .input(z.object({ slug: z.string(), code: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.slug },
+        include: { _count: { select: { members: true } } },
+      });
+      if (!group || group.inviteCode !== input.code) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invalid invite link" });
+      }
+
+      const existingMember = await ctx.db.groupMember.findUnique({
+        where: { groupId_userId: { groupId: group.id, userId: ctx.session.user.id } },
+      });
+      if (existingMember) {
+        throw new TRPCError({ code: "CONFLICT", message: "You are already a member of this group" });
+      }
+
+      if (group._count.members >= MAX_GROUP_SIZE) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Group has reached the maximum size of ${MAX_GROUP_SIZE} members`,
+        });
+      }
+
+      await ctx.db.groupMember.create({
+        data: { groupId: group.id, userId: ctx.session.user.id, role: "MEMBER" },
+      });
+
+      return { slug: group.slug, name: group.name };
+    }),
+
+  regenerateInviteCode: protectedProcedure
+    .input(z.object({ groupSlug: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      if (!group) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+      }
+
+      await assertGroupAdmin(ctx.db, group.id, ctx.session.user.id);
+
+      const newCode = generateInviteCode();
+      await ctx.db.group.update({
+        where: { id: group.id },
+        data: { inviteCode: newCode },
+      });
+
+      return { inviteCode: newCode };
     }),
 
   deleteGroup: protectedProcedure
