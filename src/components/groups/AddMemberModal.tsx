@@ -21,7 +21,11 @@ interface AddMemberModalProps {
   groupSlug: string;
 }
 
-export function AddMemberModal({ isOpen, onClose, groupSlug }: AddMemberModalProps) {
+export function AddMemberModal({
+  isOpen,
+  onClose,
+  groupSlug,
+}: AddMemberModalProps) {
   const [username, setUsername] = useState("");
   const utils = api.useUtils();
 
@@ -42,7 +46,11 @@ export function AddMemberModal({ isOpen, onClose, groupSlug }: AddMemberModalPro
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered size="sm">
       <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent bg="brand.secondary" border="1px solid" borderColor="whiteAlpha.100">
+      <ModalContent
+        bg="brand.secondary"
+        border="1px solid"
+        borderColor="whiteAlpha.100"
+      >
         <ModalHeader color="white">Add Member</ModalHeader>
         <ModalCloseButton color="white" />
         <ModalBody>

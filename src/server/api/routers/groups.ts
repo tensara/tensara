@@ -1,10 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 const MAX_GROUP_SIZE = 256;
 
@@ -12,7 +9,10 @@ const slugSchema = z
   .string()
   .min(2)
   .max(48)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens");
+  .regex(
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+    "Slug must be lowercase alphanumeric with hyphens"
+  );
 
 async function assertGroupMembership(
   db: PrismaClient,
@@ -23,7 +23,10 @@ async function assertGroupMembership(
     where: { groupId_userId: { groupId, userId } },
   });
   if (!member) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "You are not a member of this group" });
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You are not a member of this group",
+    });
   }
   return member;
 }
@@ -35,7 +38,10 @@ async function assertGroupAdmin(
 ) {
   const member = await assertGroupMembership(db, groupId, userId);
   if (member.role !== "OWNER" && member.role !== "ADMIN") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Only owners and admins can perform this action" });
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Only owners and admins can perform this action",
+    });
   }
   return member;
 }
@@ -47,7 +53,10 @@ async function assertGroupOwner(
 ) {
   const member = await assertGroupMembership(db, groupId, userId);
   if (member.role !== "OWNER") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Only the group owner can perform this action" });
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Only the group owner can perform this action",
+    });
   }
   return member;
 }
@@ -62,9 +71,14 @@ export const groupsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.group.findUnique({ where: { slug: input.slug } });
+      const existing = await ctx.db.group.findUnique({
+        where: { slug: input.slug },
+      });
       if (existing) {
-        throw new TRPCError({ code: "CONFLICT", message: "A group with this slug already exists" });
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "A group with this slug already exists",
+        });
       }
 
       const group = await ctx.db.group.create({
@@ -125,11 +139,16 @@ export const groupsRouter = createTRPCRouter({
       }
 
       const membership = await ctx.db.groupMember.findUnique({
-        where: { groupId_userId: { groupId: group.id, userId: ctx.session.user.id } },
+        where: {
+          groupId_userId: { groupId: group.id, userId: ctx.session.user.id },
+        },
       });
 
       if (!membership) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "You are not a member of this group" });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not a member of this group",
+        });
       }
 
       return {
@@ -148,7 +167,9 @@ export const groupsRouter = createTRPCRouter({
   getMembers: protectedProcedure
     .input(z.object({ groupSlug: z.string() }))
     .query(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
@@ -188,7 +209,9 @@ export const groupsRouter = createTRPCRouter({
         });
       }
 
-      const targetUser = await ctx.db.user.findFirst({ where: { username: input.username } });
+      const targetUser = await ctx.db.user.findFirst({
+        where: { username: input.username },
+      });
       if (!targetUser) {
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
@@ -197,12 +220,19 @@ export const groupsRouter = createTRPCRouter({
         where: { groupId_userId: { groupId: group.id, userId: targetUser.id } },
       });
       if (existingMember) {
-        throw new TRPCError({ code: "CONFLICT", message: "User is already a member of this group" });
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "User is already a member of this group",
+        });
       }
 
       const member = await ctx.db.groupMember.create({
         data: { groupId: group.id, userId: targetUser.id, role: "MEMBER" },
-        include: { user: { select: { id: true, username: true, name: true, image: true } } },
+        include: {
+          user: {
+            select: { id: true, username: true, name: true, image: true },
+          },
+        },
       });
 
       return member;
@@ -211,7 +241,9 @@ export const groupsRouter = createTRPCRouter({
   removeMember: protectedProcedure
     .input(z.object({ groupSlug: z.string(), userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
@@ -225,7 +257,10 @@ export const groupsRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
       }
       if (targetMember.role === "OWNER") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Cannot remove the group owner" });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Cannot remove the group owner",
+        });
       }
       if (targetMember.role === "ADMIN") {
         await assertGroupOwner(ctx.db, group.id, ctx.session.user.id);
@@ -247,7 +282,9 @@ export const groupsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
@@ -261,7 +298,10 @@ export const groupsRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
       }
       if (targetMember.role === "OWNER") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Cannot change the owner's role" });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Cannot change the owner's role",
+        });
       }
 
       const updated = await ctx.db.groupMember.update({
@@ -275,22 +315,31 @@ export const groupsRouter = createTRPCRouter({
   leaveGroup: protectedProcedure
     .input(z.object({ groupSlug: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
 
-      const member = await assertGroupMembership(ctx.db, group.id, ctx.session.user.id);
+      const member = await assertGroupMembership(
+        ctx.db,
+        group.id,
+        ctx.session.user.id
+      );
 
       if (member.role === "OWNER") {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: "The owner cannot leave. Transfer ownership or delete the group.",
+          message:
+            "The owner cannot leave. Transfer ownership or delete the group.",
         });
       }
 
       await ctx.db.groupMember.delete({
-        where: { groupId_userId: { groupId: group.id, userId: ctx.session.user.id } },
+        where: {
+          groupId_userId: { groupId: group.id, userId: ctx.session.user.id },
+        },
       });
 
       return { success: true };
@@ -299,7 +348,9 @@ export const groupsRouter = createTRPCRouter({
   deleteGroup: protectedProcedure
     .input(z.object({ groupSlug: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
@@ -314,23 +365,35 @@ export const groupsRouter = createTRPCRouter({
   addProblem: protectedProcedure
     .input(z.object({ groupSlug: z.string(), problemSlug: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
 
       await assertGroupAdmin(ctx.db, group.id, ctx.session.user.id);
 
-      const problem = await ctx.db.problem.findUnique({ where: { slug: input.problemSlug } });
+      const problem = await ctx.db.problem.findUnique({
+        where: { slug: input.problemSlug },
+      });
       if (!problem) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Problem not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Problem not found",
+        });
       }
 
       const existing = await ctx.db.groupProblem.findUnique({
-        where: { groupId_problemId: { groupId: group.id, problemId: problem.id } },
+        where: {
+          groupId_problemId: { groupId: group.id, problemId: problem.id },
+        },
       });
       if (existing) {
-        throw new TRPCError({ code: "CONFLICT", message: "Problem is already in this group" });
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Problem is already in this group",
+        });
       }
 
       const groupProblem = await ctx.db.groupProblem.create({
@@ -341,7 +404,13 @@ export const groupsRouter = createTRPCRouter({
         },
         include: {
           problem: {
-            select: { id: true, title: true, slug: true, difficulty: true, tags: true },
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              difficulty: true,
+              tags: true,
+            },
           },
         },
       });
@@ -350,9 +419,16 @@ export const groupsRouter = createTRPCRouter({
     }),
 
   addProblems: protectedProcedure
-    .input(z.object({ groupSlug: z.string(), problemSlugs: z.array(z.string()).min(1).max(50) }))
+    .input(
+      z.object({
+        groupSlug: z.string(),
+        problemSlugs: z.array(z.string()).min(1).max(50),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
@@ -365,11 +441,17 @@ export const groupsRouter = createTRPCRouter({
       });
 
       if (problems.length === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "No valid problems found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No valid problems found",
+        });
       }
 
       const existing = await ctx.db.groupProblem.findMany({
-        where: { groupId: group.id, problemId: { in: problems.map((p) => p.id) } },
+        where: {
+          groupId: group.id,
+          problemId: { in: problems.map((p) => p.id) },
+        },
         select: { problemId: true },
       });
       const existingIds = new Set(existing.map((e) => e.problemId));
@@ -394,20 +476,29 @@ export const groupsRouter = createTRPCRouter({
   removeProblem: protectedProcedure
     .input(z.object({ groupSlug: z.string(), problemSlug: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
 
       await assertGroupAdmin(ctx.db, group.id, ctx.session.user.id);
 
-      const problem = await ctx.db.problem.findUnique({ where: { slug: input.problemSlug } });
+      const problem = await ctx.db.problem.findUnique({
+        where: { slug: input.problemSlug },
+      });
       if (!problem) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Problem not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Problem not found",
+        });
       }
 
       await ctx.db.groupProblem.delete({
-        where: { groupId_problemId: { groupId: group.id, problemId: problem.id } },
+        where: {
+          groupId_problemId: { groupId: group.id, problemId: problem.id },
+        },
       });
 
       return { success: true };
@@ -416,7 +507,9 @@ export const groupsRouter = createTRPCRouter({
   getProblems: protectedProcedure
     .input(z.object({ groupSlug: z.string() }))
     .query(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
@@ -491,23 +584,35 @@ export const groupsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const group = await ctx.db.group.findUnique({ where: { slug: input.groupSlug } });
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
       }
 
       await assertGroupMembership(ctx.db, group.id, ctx.session.user.id);
 
-      const problem = await ctx.db.problem.findUnique({ where: { slug: input.problemSlug } });
+      const problem = await ctx.db.problem.findUnique({
+        where: { slug: input.problemSlug },
+      });
       if (!problem) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Problem not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Problem not found",
+        });
       }
 
       const groupProblem = await ctx.db.groupProblem.findUnique({
-        where: { groupId_problemId: { groupId: group.id, problemId: problem.id } },
+        where: {
+          groupId_problemId: { groupId: group.id, problemId: problem.id },
+        },
       });
       if (!groupProblem) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Problem is not part of this group" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Problem is not part of this group",
+        });
       }
 
       const memberUserIds = (
@@ -544,7 +649,10 @@ export const groupsRouter = createTRPCRouter({
       const userBestMap = new Map<string, (typeof submissions)[0]>();
       for (const sub of submissions) {
         const current = userBestMap.get(sub.user.id);
-        if (!current || (sub.runtime ?? Infinity) < (current.runtime ?? Infinity)) {
+        if (
+          !current ||
+          (sub.runtime ?? Infinity) < (current.runtime ?? Infinity)
+        ) {
           userBestMap.set(sub.user.id, sub);
         }
       }

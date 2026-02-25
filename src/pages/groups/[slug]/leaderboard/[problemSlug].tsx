@@ -33,7 +33,10 @@ import { FiArrowLeft } from "react-icons/fi";
 const LanguageLogo = ({ language }: { language: string | null }) => {
   if (!language) return <Text color="gray.400">-</Text>;
 
-  const logoMap: Record<string, { src?: string; emoji?: string; label: string }> = {
+  const logoMap: Record<
+    string,
+    { src?: string; emoji?: string; label: string }
+  > = {
     cuda: { src: "/cuda-icon.svg", label: "CUDA C++" },
     python: { src: "/triton-logo.png", label: "Triton" },
     mojo: { emoji: "🔥", label: "Mojo" },
@@ -54,7 +57,12 @@ const LanguageLogo = ({ language }: { language: string | null }) => {
     <Tooltip label={logo.label}>
       <Flex align="center" justify="center">
         {logo.src ? (
-          <Image src={logo.src} alt={logo.label} boxSize="24px" objectFit="contain" />
+          <Image
+            src={logo.src}
+            alt={logo.label}
+            boxSize="24px"
+            objectFit="contain"
+          />
         ) : (
           <Text fontSize="xl" lineHeight={1}>
             {logo.emoji}
@@ -84,15 +92,21 @@ export default function GroupProblemLeaderboardPage() {
     { enabled: !!problemSlug }
   );
 
-  const { data: entries, isLoading } = api.groups.getProblemLeaderboard.useQuery(
-    { groupSlug: slug, problemSlug, gpuType: selectedGpu },
-    { enabled: !!slug && !!problemSlug }
-  );
+  const { data: entries, isLoading } =
+    api.groups.getProblemLeaderboard.useQuery(
+      { groupSlug: slug, problemSlug, gpuType: selectedGpu },
+      { enabled: !!slug && !!problemSlug }
+    );
 
   if (isLoading) {
     return (
       <Layout title="Group Leaderboard">
-        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="50vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -249,17 +263,21 @@ export default function GroupProblemLeaderboardPage() {
                       <Tr
                         key={entry.submissionId}
                         cursor="pointer"
-                        onClick={() => void router.push(`/submissions/${entry.submissionId}`)}
+                        onClick={() =>
+                          void router.push(`/submissions/${entry.submissionId}`)
+                        }
                         _hover={{ bg: "whiteAlpha.100" }}
                         borderBottom="1px solid"
                         borderColor="whiteAlpha.100"
                         bg={
                           medalColor
-                            ? `rgba(${medalColor
-                                .replace("#", "")
-                                .match(/../g)
-                                ?.map((hex) => parseInt(hex, 16))
-                                .join(",") ?? "0,0,0"}, 0.08)`
+                            ? `rgba(${
+                                medalColor
+                                  .replace("#", "")
+                                  .match(/../g)
+                                  ?.map((hex) => parseInt(hex, 16))
+                                  .join(",") ?? "0,0,0"
+                              }, 0.08)`
                             : "brand.secondary"
                         }
                       >
@@ -331,7 +349,8 @@ export default function GroupProblemLeaderboardPage() {
                             )}
                           >
                             <Text color="gray.400" fontSize="sm">
-                              {formatDistanceToNow(new Date(entry.createdAt))} ago
+                              {formatDistanceToNow(new Date(entry.createdAt))}{" "}
+                              ago
                             </Text>
                           </Tooltip>
                         </Td>
@@ -352,7 +371,9 @@ export default function GroupProblemLeaderboardPage() {
             >
               <Text color="gray.400">
                 No submissions yet
-                {selectedGpu !== "all" && ` for ${GPU_DISPLAY_NAMES[selectedGpu]}`}.
+                {selectedGpu !== "all" &&
+                  ` for ${GPU_DISPLAY_NAMES[selectedGpu]}`}
+                .
               </Text>
             </Box>
           )}

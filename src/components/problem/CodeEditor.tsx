@@ -40,6 +40,7 @@ interface CodeEditorProps {
   ptxDirty?: boolean;
   sassDirty?: boolean;
   enableVimMode?: boolean;
+  onToggleVimMode?: (enabled: boolean) => void;
   embedded?: boolean;
 }
 
@@ -555,6 +556,7 @@ const CodeEditor = ({
   ptxDirty,
   sassDirty,
   enableVimMode = false,
+  onToggleVimMode,
   embedded = false,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
@@ -947,7 +949,8 @@ const CodeEditor = ({
           minW="90px"
         />
       )}
-      {hasPtxSassContent && !isSplitViewOpen ? (
+      {(isEditable && onToggleVimMode && !toolbar) ||
+      (hasPtxSassContent && !isSplitViewOpen) ? (
         <Box
           position="absolute"
           top="8px"
@@ -957,6 +960,29 @@ const CodeEditor = ({
           zIndex={10}
           pointerEvents="none"
         >
+          {isEditable && onToggleVimMode && !toolbar && (
+            <Button
+              size="sm"
+              borderRadius="md"
+              bg={enableVimMode ? "rgba(72, 187, 120, 0.16)" : "#1A1A1A"}
+              color={enableVimMode ? "#48BB78" : "#858585"}
+              border="1px solid"
+              borderColor={enableVimMode ? "#48BB78" : "#2A2A2A"}
+              _hover={{
+                bg: enableVimMode ? "rgba(72, 187, 120, 0.25)" : "#252525",
+                color: enableVimMode ? "#63D297" : "#CCCCCC",
+                borderColor: enableVimMode ? "#63D297" : "#3A3A3A",
+              }}
+              onClick={() => onToggleVimMode?.(!enableVimMode)}
+              fontSize="14px"
+              fontWeight="500"
+              h="36px"
+              px={4}
+              pointerEvents="auto"
+            >
+              Vim
+            </Button>
+          )}
           {hasPtxSassContent && !isSplitViewOpen && (
             <Button
               size="sm"

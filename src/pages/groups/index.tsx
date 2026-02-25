@@ -24,9 +24,12 @@ const roleColor: Record<string, string> = {
 
 export default function GroupsPage() {
   const { data: session } = useSession();
-  const { data: groups, isLoading } = api.groups.getMyGroups.useQuery(undefined, {
-    enabled: !!session,
-  });
+  const { data: groups, isLoading } = api.groups.getMyGroups.useQuery(
+    undefined,
+    {
+      enabled: !!session,
+    }
+  );
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   if (!session) {
@@ -49,7 +52,12 @@ export default function GroupsPage() {
   if (isLoading) {
     return (
       <Layout title="Groups">
-        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="50vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -98,7 +106,12 @@ export default function GroupsPage() {
                 >
                   <VStack align="stretch" spacing={3}>
                     <HStack justify="space-between">
-                      <Text color="white" fontWeight="bold" fontSize="lg" noOfLines={1}>
+                      <Text
+                        color="white"
+                        fontWeight="bold"
+                        fontSize="lg"
+                        noOfLines={1}
+                      >
                         {group.name}
                       </Text>
                     </HStack>

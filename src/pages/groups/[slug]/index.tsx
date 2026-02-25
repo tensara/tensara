@@ -59,18 +59,12 @@ export default function GroupDashboardPage() {
   const router = useRouter();
   const slug = router.query.slug as string;
 
-  const { data: group, isLoading: groupLoading } = api.groups.getBySlug.useQuery(
-    { slug },
-    { enabled: !!slug }
-  );
-  const { data: problems, isLoading: problemsLoading } = api.groups.getProblems.useQuery(
-    { groupSlug: slug },
-    { enabled: !!slug }
-  );
-  const { data: members, isLoading: membersLoading } = api.groups.getMembers.useQuery(
-    { groupSlug: slug },
-    { enabled: !!slug }
-  );
+  const { data: group, isLoading: groupLoading } =
+    api.groups.getBySlug.useQuery({ slug }, { enabled: !!slug });
+  const { data: problems, isLoading: problemsLoading } =
+    api.groups.getProblems.useQuery({ groupSlug: slug }, { enabled: !!slug });
+  const { data: members, isLoading: membersLoading } =
+    api.groups.getMembers.useQuery({ groupSlug: slug }, { enabled: !!slug });
 
   const utils = api.useUtils();
 
@@ -105,13 +99,19 @@ export default function GroupDashboardPage() {
     onClose: onProblemClose,
   } = useDisclosure();
 
-  const isAdmin = group?.currentUserRole === "OWNER" || group?.currentUserRole === "ADMIN";
+  const isAdmin =
+    group?.currentUserRole === "OWNER" || group?.currentUserRole === "ADMIN";
   const isOwner = group?.currentUserRole === "OWNER";
 
   if (groupLoading) {
     return (
       <Layout title="Group">
-        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="50vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -122,7 +122,9 @@ export default function GroupDashboardPage() {
     return (
       <Layout title="Group">
         <Box maxW="7xl" mx="auto" px={4} py={8}>
-          <Text color="gray.400">Group not found or you don&apos;t have access.</Text>
+          <Text color="gray.400">
+            Group not found or you don&apos;t have access.
+          </Text>
         </Box>
       </Layout>
     );
@@ -132,14 +134,23 @@ export default function GroupDashboardPage() {
     <Layout
       title={group.name}
       ogTitle={group.name}
-      ogDescription={group.description || `A group on Tensara with ${group.memberCount} members and ${group.problemCount} GPU programming problems.`}
+      ogDescription={
+        group.description ||
+        `A group on Tensara with ${group.memberCount} members and ${group.problemCount} GPU programming problems.`
+      }
       ogImgSubtitle={`${group.memberCount} members · ${group.problemCount} problems`}
     >
       <Box maxW="7xl" mx="auto" px={4} py={8}>
         {/* Header */}
         <VStack align="stretch" spacing={4} mb={6}>
           <Link href="/groups" passHref>
-            <HStack spacing={1} color="gray.400" _hover={{ color: "white" }} cursor="pointer" w="fit-content">
+            <HStack
+              spacing={1}
+              color="gray.400"
+              _hover={{ color: "white" }}
+              cursor="pointer"
+              w="fit-content"
+            >
               <FiArrowLeft />
               <Text fontSize="sm">Back to groups</Text>
             </HStack>
@@ -151,7 +162,10 @@ export default function GroupDashboardPage() {
                 <Heading size="lg" color="white">
                   {group.name}
                 </Heading>
-                <Badge colorScheme={roleColor[group.currentUserRole]} fontSize="xs">
+                <Badge
+                  colorScheme={roleColor[group.currentUserRole]}
+                  fontSize="xs"
+                >
                   {group.currentUserRole}
                 </Badge>
               </HStack>
@@ -161,7 +175,8 @@ export default function GroupDashboardPage() {
                 </Text>
               )}
               <Text color="gray.500" fontSize="xs">
-                {group.memberCount} members &middot; {group.problemCount} problems
+                {group.memberCount} members &middot; {group.problemCount}{" "}
+                problems
               </Text>
             </VStack>
 
@@ -186,7 +201,11 @@ export default function GroupDashboardPage() {
           <TabList borderBottom="1px solid" borderColor="whiteAlpha.100" mb={4}>
             <Tab
               color="gray.400"
-              _selected={{ color: "white", borderBottom: "2px solid", borderColor: "brand.primary" }}
+              _selected={{
+                color: "white",
+                borderBottom: "2px solid",
+                borderColor: "brand.primary",
+              }}
               pb={3}
               mr={4}
             >
@@ -194,7 +213,11 @@ export default function GroupDashboardPage() {
             </Tab>
             <Tab
               color="gray.400"
-              _selected={{ color: "white", borderBottom: "2px solid", borderColor: "brand.primary" }}
+              _selected={{
+                color: "white",
+                borderBottom: "2px solid",
+                borderColor: "brand.primary",
+              }}
               pb={3}
             >
               Members ({group.memberCount})
@@ -294,7 +317,11 @@ export default function GroupDashboardPage() {
                           <Td color="white" borderBottom="none">
                             <HStack spacing={3}>
                               {problem.solvedByCurrentUser && (
-                                <FaCheckCircle color="#4ade80" size={14} opacity={0.68} />
+                                <FaCheckCircle
+                                  color="#4ade80"
+                                  size={14}
+                                  opacity={0.68}
+                                />
                               )}
                               <Link href={`/problems/${problem.slug}`}>
                                 <Text _hover={{ textDecoration: "underline" }}>
@@ -319,7 +346,9 @@ export default function GroupDashboardPage() {
                             </Text>
                           </Td>
                           <Td borderBottom="none">
-                            <Link href={`/groups/${slug}/leaderboard/${problem.slug}`}>
+                            <Link
+                              href={`/groups/${slug}/leaderboard/${problem.slug}`}
+                            >
                               <Button
                                 size="xs"
                                 variant="ghost"
@@ -339,7 +368,10 @@ export default function GroupDashboardPage() {
                                   size="xs"
                                   variant="ghost"
                                   color="gray.500"
-                                  _hover={{ color: "red.400", bg: "whiteAlpha.100" }}
+                                  _hover={{
+                                    color: "red.400",
+                                    bg: "whiteAlpha.100",
+                                  }}
                                   onClick={() =>
                                     removeProblem.mutate({
                                       groupSlug: slug,
@@ -466,7 +498,9 @@ export default function GroupDashboardPage() {
                               />
                               <Link href={`/user/${member.user.username}`}>
                                 <Text _hover={{ textDecoration: "underline" }}>
-                                  {member.user.username ?? member.user.name ?? "Unknown"}
+                                  {member.user.username ??
+                                    member.user.name ??
+                                    "Unknown"}
                                 </Text>
                               </Link>
                             </HStack>
@@ -482,7 +516,10 @@ export default function GroupDashboardPage() {
                                   color="gray.300"
                                   _hover={{ bg: "whiteAlpha.100" }}
                                 >
-                                  <Badge colorScheme={roleColor[member.role]} fontSize="xs">
+                                  <Badge
+                                    colorScheme={roleColor[member.role]}
+                                    fontSize="xs"
+                                  >
                                     {member.role}
                                   </Badge>
                                 </MenuButton>
@@ -524,7 +561,10 @@ export default function GroupDashboardPage() {
                                 </MenuList>
                               </Menu>
                             ) : (
-                              <Badge colorScheme={roleColor[member.role]} fontSize="xs">
+                              <Badge
+                                colorScheme={roleColor[member.role]}
+                                fontSize="xs"
+                              >
                                 {member.role}
                               </Badge>
                             )}
@@ -539,7 +579,10 @@ export default function GroupDashboardPage() {
                                     size="xs"
                                     variant="ghost"
                                     color="gray.500"
-                                    _hover={{ color: "red.400", bg: "whiteAlpha.100" }}
+                                    _hover={{
+                                      color: "red.400",
+                                      bg: "whiteAlpha.100",
+                                    }}
                                     onClick={() =>
                                       removeMember.mutate({
                                         groupSlug: slug,
@@ -562,7 +605,11 @@ export default function GroupDashboardPage() {
         </Tabs>
       </Box>
 
-      <AddMemberModal isOpen={isMemberOpen} onClose={onMemberClose} groupSlug={slug} />
+      <AddMemberModal
+        isOpen={isMemberOpen}
+        onClose={onMemberClose}
+        groupSlug={slug}
+      />
       <AddProblemModal
         isOpen={isProblemOpen}
         onClose={onProblemClose}
