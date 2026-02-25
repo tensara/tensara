@@ -33,6 +33,14 @@ import {
   Flex,
   Icon,
   Link as ChakraLink,
+  useClipboard,
+  Input,
+  InputGroup,
+  InputRightElement,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
@@ -49,7 +57,7 @@ import {
   FaExternalLinkAlt,
   FaExclamationCircle,
 } from "react-icons/fa";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiCopy, FiCheck, FiLink } from "react-icons/fi";
 import { AddMemberModal } from "~/components/groups/AddMemberModal";
 import { AddProblemModal } from "~/components/groups/AddProblemModal";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
@@ -149,6 +157,13 @@ export default function GroupDashboardPage() {
   const isAdmin = group?.currentUserRole === "OWNER" || group?.currentUserRole === "ADMIN";
   const isOwner = group?.currentUserRole === "OWNER";
 
+  const inviteLink = (() => {
+    if (!group?.inviteCode) return "";
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://tensara.org";
+    return `${origin}/groups/${group.slug}/join?code=${group.inviteCode}`;
+  })();
+  const { hasCopied, onCopy } = useClipboard(inviteLink);
+
   if (groupLoading) {
     return (
       <Layout title="Group">
@@ -206,8 +221,61 @@ export default function GroupDashboardPage() {
               </Text>
             </VStack>
 
-            {isAdmin && (
-              <HStack spacing={2}>
+            <HStack spacing={2}>
+              {isAdmin && group.inviteCode && (
+                <Popover placement="bottom-end">
+                  <PopoverTrigger>
+                    <Button
+                      size="sm"
+                      leftIcon={<FiLink />}
+                      variant="outline"
+                      color="gray.300"
+                      borderColor="whiteAlpha.200"
+                      _hover={{ bg: "whiteAlpha.100", borderColor: "whiteAlpha.400" }}
+                    >
+                      Invite
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    bg="brand.secondary"
+                    border="1px solid"
+                    borderColor="whiteAlpha.200"
+                    w="360px"
+                    _focus={{ boxShadow: "none" }}
+                  >
+                    <PopoverBody p={3}>
+                      <Text color="gray.400" fontSize="xs" mb={2}>
+                        Share this link to invite people
+                      </Text>
+                      <InputGroup size="sm">
+                        <Input
+                          value={inviteLink}
+                          isReadOnly
+                          bg="whiteAlpha.50"
+                          color="white"
+                          fontSize="xs"
+                          pr="2.5rem"
+                          borderColor="whiteAlpha.100"
+                          _hover={{ borderColor: "whiteAlpha.300" }}
+                          _focus={{ borderColor: "brand.primary", boxShadow: "none" }}
+                        />
+                        <InputRightElement>
+                          <IconButton
+                            aria-label="Copy invite link"
+                            icon={hasCopied ? <FiCheck /> : <FiCopy />}
+                            size="xs"
+                            variant="ghost"
+                            color={hasCopied ? "green.400" : "gray.400"}
+                            _hover={{ color: "white" }}
+                            onClick={onCopy}
+                          />
+                        </InputRightElement>
+                      </InputGroup>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Popover>
+              )}
+              {isAdmin && (
                 <Link href={`/groups/${slug}/settings`} passHref>
                   <IconButton
                     aria-label="Settings"
@@ -217,8 +285,8 @@ export default function GroupDashboardPage() {
                     _hover={{ color: "white", bg: "whiteAlpha.100" }}
                   />
                 </Link>
-              </HStack>
-            )}
+              )}
+            </HStack>
           </HStack>
         </VStack>
 
@@ -231,7 +299,7 @@ export default function GroupDashboardPage() {
               pb={3}
               mr={4}
             >
-              Problems ({group.problemCount})
+              Problems
             </Tab>
             <Tab
               color="gray.400"
@@ -239,7 +307,7 @@ export default function GroupDashboardPage() {
               pb={3}
               mr={4}
             >
-              Members ({group.memberCount})
+              Members
             </Tab>
             <Tab
               color="gray.400"
