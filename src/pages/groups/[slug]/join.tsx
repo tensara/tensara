@@ -7,17 +7,70 @@ import {
   HStack,
   Spinner,
 } from "@chakra-ui/react";
+import type { GetServerSideProps } from "next";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { FaUsers, FaBook } from "react-icons/fa";
+import { db } from "~/server/db";
 
-export default function JoinGroupPage() {
+interface JoinPageProps {
+  ogGroupName: string | null;
+  ogGroupDescription: string | null;
+  ogMemberCount: number;
+  ogProblemCount: number;
+}
+
+export const getServerSideProps: GetServerSideProps<JoinPageProps> = async (context) => {
+  const slug = context.params?.slug as string;
+  const code = (context.query.code as string) ?? "";
+
+  const group = await db.group.findUnique({
+    where: { slug },
+    select: {
+      name: true,
+      description: true,
+      inviteCode: true,
+      _count: { select: { members: true, problems: true } },
+    },
+  });
+
+  if (!group || group.inviteCode !== code) {
+    return {
+      props: {
+        ogGroupName: null,
+        ogGroupDescription: null,
+        ogMemberCount: 0,
+        ogProblemCount: 0,
+      },
+    };
+  }
+
+  return {
+    props: {
+      ogGroupName: group.name,
+      ogGroupDescription: group.description,
+      ogMemberCount: group._count.members,
+      ogProblemCount: group._count.problems,
+    },
+  };
+};
+
+export default function JoinGroupPage({
+  ogGroupName,
+  ogGroupDescription,
+  ogMemberCount,
+  ogProblemCount,
+}: JoinPageProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const slug = router.query.slug as string;
   const code = router.query.code as string;
+
+  const ogTitle = ogGroupName ? `Join ${ogGroupName}` : "Join Group";
+  const ogDesc = ogGroupDescription || (ogGroupName ? `Join ${ogGroupName} on Tensara.` : undefined);
+  const ogSub = ogGroupName ? `${ogMemberCount} members · ${ogProblemCount} problems` : "";
 
   const { data: preview, isLoading, error } = api.groups.getGroupPreview.useQuery(
     { slug, code },
@@ -32,7 +85,7 @@ export default function JoinGroupPage() {
 
   if (!session) {
     return (
-      <Layout title="Join Group">
+      <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
         <Box maxW="7xl" mx="auto" px={4} py={8}>
           <VStack spacing={6} align="center" py={20}>
             <Heading size="lg" color="white">
@@ -49,7 +102,7 @@ export default function JoinGroupPage() {
 
   if (!code) {
     return (
-      <Layout title="Join Group">
+      <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
         <Box maxW="md" mx="auto" px={4} py={16}>
           <VStack spacing={4} align="center">
             <Heading size="lg" color="white">
@@ -64,7 +117,7 @@ export default function JoinGroupPage() {
 
   if (isLoading) {
     return (
-      <Layout title="Join Group">
+      <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
         <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
           <Spinner size="xl" />
         </Box>
@@ -74,7 +127,7 @@ export default function JoinGroupPage() {
 
   if (error || !preview) {
     return (
-      <Layout title="Join Group">
+      <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
         <Box maxW="md" mx="auto" px={4} py={16}>
           <VStack spacing={4} align="center">
             <Heading size="lg" color="white">
@@ -90,7 +143,7 @@ export default function JoinGroupPage() {
   }
 
   return (
-    <Layout title={`Join ${preview.name}`}>
+    <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
       <Box maxW="md" mx="auto" px={4} py={16}>
         <VStack spacing={6} align="stretch">
           <Box
