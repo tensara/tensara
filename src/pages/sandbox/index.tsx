@@ -527,11 +527,13 @@ export default function SandboxHome() {
                     borderRadius="lg"
                     h="40px"
                   >
-                    {(["cuda", "mojo"] as ProgrammingLanguage[]).map((lang) => (
-                      <option key={lang} value={lang}>
-                        {getLanguageDisplay(lang)}
-                      </option>
-                    ))}
+                    {(["cuda", "mojo", "cute"] as ProgrammingLanguage[]).map(
+                      (lang) => (
+                        <option key={lang} value={lang}>
+                          {getLanguageDisplay(lang)}
+                        </option>
+                      )
+                    )}
                   </Select>
                 </Box>
               </VStack>
