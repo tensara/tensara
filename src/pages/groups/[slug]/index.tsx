@@ -64,7 +64,7 @@ import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 const formatRuntime = (runtime: number | null | undefined): string => {
   if (runtime == null) return "N/A";
-  if (runtime < 1) return `${(runtime * 1000).toFixed(2)} μs`;
+  if (runtime <= 1) return `${(runtime * 1000).toFixed(2)} μs`;
   if (runtime >= 1000) return `${(runtime / 1000).toFixed(2)} s`;
   return `${runtime.toFixed(2)} ms`;
 };
