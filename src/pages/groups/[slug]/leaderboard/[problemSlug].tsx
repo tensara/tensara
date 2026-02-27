@@ -22,6 +22,7 @@ import {
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { api } from "~/utils/api";
+import { formatRuntime } from "~/utils/format";
 import { Layout } from "~/components/layout";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -313,7 +314,7 @@ export default function GroupProblemLeaderboardPage() {
                             fontWeight={entry.rank <= 3 ? "bold" : "normal"}
                             style={{ fontVariantNumeric: "tabular-nums" }}
                           >
-                            {entry.runtime?.toFixed(2) ?? "N/A"}
+                            {formatRuntime(entry.runtime)}
                           </Text>
                         </Td>
                         <Td borderBottom="none" py={3} isNumeric>
