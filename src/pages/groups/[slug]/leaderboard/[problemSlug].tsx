@@ -210,7 +210,7 @@ export default function GroupProblemLeaderboardPage() {
                       py={4}
                       isNumeric
                     >
-                      Runtime (ms)
+                      Runtime
                     </Th>
                     <Th
                       color="gray.300"
