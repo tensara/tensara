@@ -72,7 +72,11 @@ export function CreateGroupModal({ isOpen, onClose }: CreateGroupModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered size="md">
       <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent bg="brand.secondary" border="1px solid" borderColor="whiteAlpha.100">
+      <ModalContent
+        bg="brand.secondary"
+        border="1px solid"
+        borderColor="whiteAlpha.100"
+      >
         <ModalHeader color="white">Create a Group</ModalHeader>
         <ModalCloseButton color="white" />
         <ModalBody>

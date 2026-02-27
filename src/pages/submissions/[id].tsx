@@ -42,6 +42,7 @@ import {
   getStatusColor,
   getStatusIcon,
 } from "~/constants/problem";
+import { formatRuntime } from "~/utils/format";
 import { FiCopy, FiHash } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
@@ -392,15 +393,7 @@ const SubmissionPage: NextPage<{
                         fontWeight="bold"
                         color={`${getStatusColor(submission.status)}.400`}
                       >
-                        {submission.runtime.toFixed(2)}
-                        <Text
-                          as="span"
-                          fontSize="sm"
-                          color="whiteAlpha.600"
-                          ml={1}
-                        >
-                          ms
-                        </Text>
+                        {formatRuntime(submission.runtime)}
                       </Text>
                     </VStack>
                   )}
@@ -679,7 +672,7 @@ const SubmissionPage: NextPage<{
                           <thead>
                             <tr>
                               <th style={thStyle}>Test Case</th>
-                              <th style={thStyle}>Runtime (ms)</th>
+                              <th style={thStyle}>Runtime</th>
                               {hasGflops && (
                                 <th style={thStyle}>
                                   <HStack spacing={1} justify="center">
@@ -724,7 +717,7 @@ const SubmissionPage: NextPage<{
                                   <tr key={index}>
                                     <td style={tdStyle}>{result.name}</td>
                                     <td style={tdStyle}>
-                                      {result.runtime_ms.toFixed(2)}
+                                      {formatRuntime(result.runtime_ms)}
                                     </td>
                                     {hasGflops && (
                                       <td style={tdStyle}>
@@ -813,10 +806,7 @@ const SubmissionPage: NextPage<{
                         const createdStr = new Date(
                           submission.createdAt
                         ).toLocaleString();
-                        const runtimeStr =
-                          submission.runtime != null
-                            ? submission.runtime.toFixed(2)
-                            : "N/A";
+                        const runtimeStr = formatRuntime(submission.runtime);
                         const gflopsStr =
                           submission.gflops != null
                             ? submission.gflops.toFixed(2)
@@ -836,7 +826,7 @@ const SubmissionPage: NextPage<{
 
 **Submitted on:** \`${createdStr}\`
 
-- **Runtime:** \`${runtimeStr} ms\`
+- **Runtime:** \`${runtimeStr}\`
 - **Performance:** \`${gflopsStr} GFLOPS\`
 - **Tests:** \`${testsStr}\`
 

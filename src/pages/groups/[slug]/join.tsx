@@ -22,7 +22,9 @@ interface JoinPageProps {
   ogProblemCount: number;
 }
 
-export const getServerSideProps: GetServerSideProps<JoinPageProps> = async (context) => {
+export const getServerSideProps: GetServerSideProps<JoinPageProps> = async (
+  context
+) => {
   const slug = context.params?.slug as string;
   const code = (context.query.code as string) ?? "";
 
@@ -69,10 +71,18 @@ export default function JoinGroupPage({
   const code = router.query.code as string;
 
   const ogTitle = ogGroupName ? `Join ${ogGroupName}` : "Join Group";
-  const ogDesc = ogGroupDescription || (ogGroupName ? `Join ${ogGroupName} on Tensara.` : undefined);
-  const ogSub = ogGroupName ? `${ogMemberCount} members · ${ogProblemCount} problems` : "";
+  const ogDesc =
+    ogGroupDescription ||
+    (ogGroupName ? `Join ${ogGroupName} on Tensara.` : undefined);
+  const ogSub = ogGroupName
+    ? `${ogMemberCount} members · ${ogProblemCount} problems`
+    : "";
 
-  const { data: preview, isLoading, error } = api.groups.getGroupPreview.useQuery(
+  const {
+    data: preview,
+    isLoading,
+    error,
+  } = api.groups.getGroupPreview.useQuery(
     { slug, code },
     { enabled: !!slug && !!code && !!session }
   );
@@ -85,7 +95,12 @@ export default function JoinGroupPage({
 
   if (!session) {
     return (
-      <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
+      <Layout
+        title={ogTitle}
+        ogTitle={ogTitle}
+        ogDescription={ogDesc}
+        ogImgSubtitle={ogSub}
+      >
         <Box maxW="7xl" mx="auto" px={4} py={8}>
           <VStack spacing={6} align="center" py={20}>
             <Heading size="lg" color="white">
@@ -102,7 +117,12 @@ export default function JoinGroupPage({
 
   if (!code) {
     return (
-      <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
+      <Layout
+        title={ogTitle}
+        ogTitle={ogTitle}
+        ogDescription={ogDesc}
+        ogImgSubtitle={ogSub}
+      >
         <Box maxW="md" mx="auto" px={4} py={16}>
           <VStack spacing={4} align="center">
             <Heading size="lg" color="white">
@@ -117,8 +137,18 @@ export default function JoinGroupPage({
 
   if (isLoading) {
     return (
-      <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
-        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+      <Layout
+        title={ogTitle}
+        ogTitle={ogTitle}
+        ogDescription={ogDesc}
+        ogImgSubtitle={ogSub}
+      >
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="50vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -127,7 +157,12 @@ export default function JoinGroupPage({
 
   if (error || !preview) {
     return (
-      <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
+      <Layout
+        title={ogTitle}
+        ogTitle={ogTitle}
+        ogDescription={ogDesc}
+        ogImgSubtitle={ogSub}
+      >
         <Box maxW="md" mx="auto" px={4} py={16}>
           <VStack spacing={4} align="center">
             <Heading size="lg" color="white">
@@ -143,7 +178,12 @@ export default function JoinGroupPage({
   }
 
   return (
-    <Layout title={ogTitle} ogTitle={ogTitle} ogDescription={ogDesc} ogImgSubtitle={ogSub}>
+    <Layout
+      title={ogTitle}
+      ogTitle={ogTitle}
+      ogDescription={ogDesc}
+      ogImgSubtitle={ogSub}
+    >
       <Box maxW="md" mx="auto" px={4} py={16}>
         <VStack spacing={6} align="stretch">
           <Box
@@ -155,7 +195,12 @@ export default function JoinGroupPage({
           >
             <VStack spacing={5}>
               <VStack spacing={2}>
-                <Text color="gray.400" fontSize="sm" textTransform="uppercase" letterSpacing="wide">
+                <Text
+                  color="gray.400"
+                  fontSize="sm"
+                  textTransform="uppercase"
+                  letterSpacing="wide"
+                >
                   You&apos;ve been invited to join
                 </Text>
                 <Heading size="lg" color="white" textAlign="center">

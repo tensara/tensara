@@ -47,6 +47,7 @@ import { FiArrowLeft, FiExternalLink } from "react-icons/fi";
 import NextLink from "next/link";
 
 import { getStatusIcon } from "~/constants/problem";
+import { formatRuntime } from "~/utils/format";
 import { useSplitPanel } from "./SplitPanel";
 import { GPUMetricInfoPopover } from "~/components/misc/GPUMetricInfoPopover";
 import { FiHash } from "react-icons/fi";
@@ -453,7 +454,7 @@ const SubmissionResults = ({
                                 <Td py={3} isNumeric>
                                   <Text>
                                     {runtime !== undefined
-                                      ? `${runtime.toFixed(2)} ms`
+                                      ? formatRuntime(runtime)
                                       : "-"}
                                   </Text>
                                 </Td>
@@ -589,10 +590,10 @@ const SubmissionResults = ({
                   Runtime
                 </Text>
                 <Text fontSize="xl" fontWeight="bold" color="white">
-                  {getTypedResponse(
-                    SubmissionStatus.ACCEPTED
-                  )?.avg_runtime_ms?.toFixed(2) ?? "N/A"}{" "}
-                  ms
+                  {formatRuntime(
+                    getTypedResponse(SubmissionStatus.ACCEPTED)
+                      ?.avg_runtime_ms ?? null
+                  )}
                 </Text>
               </Box>
               {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==

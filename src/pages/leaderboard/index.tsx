@@ -52,6 +52,7 @@ import superjson from "superjson";
 import type { GetServerSideProps } from "next";
 import { GPU_DISPLAY_NAMES, gpuTypes } from "~/constants/gpu";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
+import { formatRuntime } from "~/utils/format";
 import { motion } from "framer-motion";
 import {
   FaExclamationCircle,
@@ -85,19 +86,6 @@ type UserRanking = {
 const formatRating = (rating: number | null | undefined): string => {
   if (!rating) return "0";
   return rating.toFixed(0);
-};
-
-const formatRuntime = (runtime: number | null | undefined): string => {
-  if (runtime == null) return "N/A";
-  if (runtime <= 1) {
-    const microseconds = runtime * 1000;
-    return `${microseconds.toFixed(2)} μs`;
-  }
-  if (runtime >= 1000) {
-    const seconds = runtime / 1000;
-    return `${seconds.toFixed(2)} s`;
-  }
-  return `${runtime.toFixed(2)} ms`;
 };
 
 const formatGFLOPS = (gflops: number | null | undefined): string => {
