@@ -76,7 +76,10 @@ export default function GroupSettingsPage() {
 
   const inviteLink = useMemo(() => {
     if (!group?.inviteCode) return "";
-    const origin = typeof window !== "undefined" ? window.location.origin : "https://tensara.org";
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://tensara.org";
     return `${origin}/groups/${group.slug}/join?code=${group.inviteCode}`;
   }, [group?.inviteCode]);
 
@@ -85,7 +88,12 @@ export default function GroupSettingsPage() {
   if (isLoading) {
     return (
       <Layout title="Settings">
-        <Box display="flex" justifyContent="center" alignItems="center" h="50vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          h="50vh"
+        >
           <Spinner size="xl" />
         </Box>
       </Layout>
@@ -96,7 +104,9 @@ export default function GroupSettingsPage() {
     return (
       <Layout title="Settings">
         <Box maxW="7xl" mx="auto" px={4} py={8}>
-          <Text color="gray.400">Group not found or you don&apos;t have access.</Text>
+          <Text color="gray.400">
+            Group not found or you don&apos;t have access.
+          </Text>
         </Box>
       </Layout>
     );
@@ -279,15 +289,30 @@ export default function GroupSettingsPage() {
       </Box>
 
       {/* Delete Confirmation */}
-      <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelRef} onClose={onDeleteClose} isCentered>
+      <AlertDialog
+        isOpen={isDeleteOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onDeleteClose}
+        isCentered
+      >
         <AlertDialogOverlay bg="blackAlpha.700">
-          <AlertDialogContent bg="brand.secondary" border="1px solid" borderColor="whiteAlpha.100">
+          <AlertDialogContent
+            bg="brand.secondary"
+            border="1px solid"
+            borderColor="whiteAlpha.100"
+          >
             <AlertDialogHeader color="white">Delete Group</AlertDialogHeader>
             <AlertDialogBody color="gray.300">
-              Are you sure you want to delete <strong>{group.name}</strong>? This cannot be undone.
+              Are you sure you want to delete <strong>{group.name}</strong>?
+              This cannot be undone.
             </AlertDialogBody>
             <AlertDialogFooter>
-              <Button ref={cancelRef} variant="ghost" color="gray.400" onClick={onDeleteClose}>
+              <Button
+                ref={cancelRef}
+                variant="ghost"
+                color="gray.400"
+                onClick={onDeleteClose}
+              >
                 Cancel
               </Button>
               <Button
@@ -304,15 +329,29 @@ export default function GroupSettingsPage() {
       </AlertDialog>
 
       {/* Leave Confirmation */}
-      <AlertDialog isOpen={isLeaveOpen} leastDestructiveRef={cancelRef} onClose={onLeaveClose} isCentered>
+      <AlertDialog
+        isOpen={isLeaveOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onLeaveClose}
+        isCentered
+      >
         <AlertDialogOverlay bg="blackAlpha.700">
-          <AlertDialogContent bg="brand.secondary" border="1px solid" borderColor="whiteAlpha.100">
+          <AlertDialogContent
+            bg="brand.secondary"
+            border="1px solid"
+            borderColor="whiteAlpha.100"
+          >
             <AlertDialogHeader color="white">Leave Group</AlertDialogHeader>
             <AlertDialogBody color="gray.300">
               Are you sure you want to leave <strong>{group.name}</strong>?
             </AlertDialogBody>
             <AlertDialogFooter>
-              <Button ref={cancelRef} variant="ghost" color="gray.400" onClick={onLeaveClose}>
+              <Button
+                ref={cancelRef}
+                variant="ghost"
+                color="gray.400"
+                onClick={onLeaveClose}
+              >
                 Cancel
               </Button>
               <Button

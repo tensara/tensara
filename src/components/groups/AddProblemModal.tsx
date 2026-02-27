@@ -46,9 +46,12 @@ export function AddProblemModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const utils = api.useUtils();
 
-  const { data: allProblems, isLoading } = api.problems.getAll.useQuery(undefined, {
-    enabled: isOpen,
-  });
+  const { data: allProblems, isLoading } = api.problems.getAll.useQuery(
+    undefined,
+    {
+      enabled: isOpen,
+    }
+  );
 
   const addProblems = api.groups.addProblems.useMutation({
     onSuccess: async () => {
@@ -92,13 +95,29 @@ export function AddProblemModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} isCentered size="lg" scrollBehavior="inside">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      isCentered
+      size="lg"
+      scrollBehavior="inside"
+    >
       <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent bg="brand.secondary" border="1px solid" borderColor="whiteAlpha.100" maxH="75vh">
+      <ModalContent
+        bg="brand.secondary"
+        border="1px solid"
+        borderColor="whiteAlpha.100"
+        maxH="75vh"
+      >
         <ModalHeader color="white">
           Add Problems
           {selected.size > 0 && (
-            <Badge ml={2} colorScheme="green" fontSize="sm" verticalAlign="middle">
+            <Badge
+              ml={2}
+              colorScheme="green"
+              fontSize="sm"
+              verticalAlign="middle"
+            >
               {selected.size} selected
             </Badge>
           )}
@@ -127,7 +146,9 @@ export function AddProblemModal({
               </Box>
             ) : filtered.length === 0 ? (
               <Text color="gray.400" textAlign="center" py={8}>
-                {search ? "No matching problems found" : "All problems have been added"}
+                {search
+                  ? "No matching problems found"
+                  : "All problems have been added"}
               </Text>
             ) : (
               filtered.map((problem) => {
@@ -158,7 +179,10 @@ export function AddProblemModal({
                           {problem.title}
                         </Text>
                       </HStack>
-                      <Badge colorScheme={difficultyColor[problem.difficulty]} fontSize="xs">
+                      <Badge
+                        colorScheme={difficultyColor[problem.difficulty]}
+                        fontSize="xs"
+                      >
                         {problem.difficulty}
                       </Badge>
                     </HStack>
@@ -180,7 +204,10 @@ export function AddProblemModal({
             isLoading={addProblems.isPending}
             isDisabled={selected.size === 0}
           >
-            Add {selected.size > 0 ? `${selected.size} problem${selected.size > 1 ? "s" : ""}` : ""}
+            Add{" "}
+            {selected.size > 0
+              ? `${selected.size} problem${selected.size > 1 ? "s" : ""}`
+              : ""}
           </Button>
         </ModalFooter>
       </ModalContent>

@@ -10,4 +10,3 @@ export const formatRuntime = (runtime: number | null | undefined): string => {
   }
   return `${runtime.toFixed(2)} ms`;
 };
-

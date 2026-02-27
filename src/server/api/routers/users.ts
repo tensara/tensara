@@ -363,7 +363,7 @@ export const usersRouter = createTRPCRouter({
           problemName: sub.problem.title,
           date: sub.createdAt.toISOString().split("T")[0],
           status: (sub.status ?? "pending").toLowerCase(),
-          runtime: sub.runtime ?? null,
+          runtime: sub.runtime ? `${sub.runtime.toFixed(2)}ms` : "N/A",
           gflops: sub.gflops ? `${sub.gflops.toFixed(2)}` : "N/A",
           gpuType: sub.gpuType,
           language: sub.language,

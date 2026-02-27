@@ -591,8 +591,8 @@ const SubmissionResults = ({
                 </Text>
                 <Text fontSize="xl" fontWeight="bold" color="white">
                   {formatRuntime(
-                    getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_runtime_ms ??
-                      null
+                    getTypedResponse(SubmissionStatus.ACCEPTED)
+                      ?.avg_runtime_ms ?? null
                   )}
                 </Text>
               </Box>
