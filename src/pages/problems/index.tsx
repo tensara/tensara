@@ -20,6 +20,10 @@ import {
   MenuItem,
   Button,
   Link,
+  Wrap,
+  WrapItem,
+  CloseButton,
+  Divider,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
@@ -120,7 +124,8 @@ export default function ProblemsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
-  const [tagFilter, setTagFilter] = useState("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
   const [problemStatusFilter, setProblemStatusFilter] =
     useState<ProblemStatus>("all");
   const [sortField, setSortField] = useState<SortField>("difficulty");
@@ -145,6 +150,33 @@ export default function ProblemsPage() {
     });
     return Array.from(tags).sort();
   }, [problems]);
+  const popularTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    problems.forEach((problem) => {
+      problem.tags?.forEach((tag: string) => {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      });
+    });
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tag]) => tag);
+  }, [problems]);
+  const filteredTags = useMemo(() => {
+    const query = tagSearchQuery.trim().toLowerCase();
+    if (!query) return allTags;
+    return allTags.filter((tag) => {
+      const displayName = (
+        tagAltNames[tag as keyof typeof tagAltNames] ?? tag
+      ).toLowerCase();
+      return tag.toLowerCase().includes(query) || displayName.includes(query);
+    });
+  }, [allTags, tagSearchQuery]);
+  const visibleTags = useMemo(() => {
+    if (tagSearchQuery.trim()) return filteredTags;
+    return filteredTags.filter((tag) => !popularTags.includes(tag));
+  }, [filteredTags, popularTags, tagSearchQuery]);
 
   const statusOptions: { label: string; value: ProblemStatus }[] = [
     { label: "All", value: "all" },
@@ -183,8 +215,8 @@ export default function ProblemsPage() {
         difficultyFilter === "all" ||
         problem.difficulty.toLowerCase() === difficultyFilter.toLowerCase();
       const matchesTag =
-        tagFilter === "all" ||
-        problem.tags?.some((tag: string) => tag === tagFilter);
+        selectedTags.length === 0 ||
+        selectedTags.some((tag) => problem.tags?.includes(tag));
 
       const matchesStatus = (() => {
         switch (problemStatusFilter) {
@@ -267,7 +299,7 @@ export default function ProblemsPage() {
             </InputGroup>
 
             <HStack spacing={4} justify="flex-end" flexWrap="wrap">
-              <Menu>
+              <Menu closeOnSelect={false}>
                 <MenuButton
                   as={Button}
                   rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
@@ -321,35 +353,104 @@ export default function ProblemsPage() {
                   textAlign="left"
                   justifyContent="flex-start"
                 >
-                  {tagFilter === "all"
+                  {selectedTags.length === 0
                     ? "All Tags"
-                    : tagAltNames[tagFilter as keyof typeof tagAltNames]}
+                    : `${selectedTags.length} tag${
+                        selectedTags.length > 1 ? "s" : ""
+                      }`}
                 </MenuButton>
                 <MenuList
                   bg="brand.secondary"
                   borderColor="gray.800"
                   p={0}
                   minW="200px"
+                  maxH="380px"
+                  overflowY="auto"
                 >
                   <MenuItem
-                    onClick={() => setTagFilter("all")}
-                    bg="brand.secondary"
-                    _hover={{ bg: "gray.700" }}
-                    color="white"
+                    onClick={() => setSelectedTags([])}
+                    bg="whiteAlpha.100"
+                    _hover={{ bg: "whiteAlpha.200" }}
+                    color="brand.primary"
                     borderRadius="md"
+                    justifyContent="center"
+                    fontWeight="semibold"
                   >
-                    All Tags
+                    Clear Tags
                   </MenuItem>
-                  {allTags.map((tag: string) => (
+                  <Box px={3} py={2}>
+                    <Input
+                      size="sm"
+                      placeholder="Search tags..."
+                      value={tagSearchQuery}
+                      onChange={(e) => setTagSearchQuery(e.target.value)}
+                      bg="whiteAlpha.100"
+                      _hover={{ borderColor: "gray.600" }}
+                      _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                      color="white"
+                    />
+                  </Box>
+                  {!tagSearchQuery.trim() && popularTags.length > 0 ? (
+                    <>
+                      {popularTags.map((tag: string) => (
+                        <MenuItem
+                          key={`popular-${tag}`}
+                          onClick={() =>
+                            setSelectedTags((prev) =>
+                              prev.includes(tag)
+                                ? prev.filter((t) => t !== tag)
+                                : [...prev, tag]
+                            )
+                          }
+                          bg="brand.secondary"
+                          _hover={{ bg: "gray.700" }}
+                          color="white"
+                          borderRadius="md"
+                        >
+                          <HStack w="full" justify="space-between">
+                            <Text>
+                              {tagAltNames[tag as keyof typeof tagAltNames]}
+                            </Text>
+                            {selectedTags.includes(tag) ? (
+                              <FaCheckCircle
+                                color="#4ade80"
+                                size={12}
+                                opacity={0.68}
+                              />
+                            ) : null}
+                          </HStack>
+                        </MenuItem>
+                      ))}
+                      <Divider borderColor="gray.700" my={1} />
+                    </>
+                  ) : null}
+                  {visibleTags.map((tag: string) => (
                     <MenuItem
                       key={tag}
-                      onClick={() => setTagFilter(tag)}
+                      onClick={() =>
+                        setSelectedTags((prev) =>
+                          prev.includes(tag)
+                            ? prev.filter((t) => t !== tag)
+                            : [...prev, tag]
+                        )
+                      }
                       bg="brand.secondary"
                       _hover={{ bg: "gray.700" }}
                       color="white"
                       borderRadius="md"
                     >
-                      {tagAltNames[tag as keyof typeof tagAltNames]}
+                      <HStack w="full" justify="space-between">
+                        <Text>
+                          {tagAltNames[tag as keyof typeof tagAltNames]}
+                        </Text>
+                        {selectedTags.includes(tag) ? (
+                          <FaCheckCircle
+                            color="#4ade80"
+                            size={12}
+                            opacity={0.68}
+                          />
+                        ) : null}
+                      </HStack>
                     </MenuItem>
                   ))}
                 </MenuList>
@@ -396,6 +497,51 @@ export default function ProblemsPage() {
               ) : null}
             </HStack>
           </HStack>
+          {selectedTags.length > 0 ? (
+            <Wrap spacing={2}>
+              {selectedTags.map((tag) => (
+                <WrapItem key={tag}>
+                  <HStack
+                    bg="whiteAlpha.100"
+                    border="1px solid"
+                    borderColor="whiteAlpha.200"
+                    borderRadius="md"
+                    px={2}
+                    py={1}
+                    spacing={1}
+                  >
+                    <Text color="gray.200" fontSize="sm">
+                      {tagAltNames[tag as keyof typeof tagAltNames]}
+                    </Text>
+                    <CloseButton
+                      size="sm"
+                      color="gray.300"
+                      onClick={() =>
+                        setSelectedTags((prev) => prev.filter((t) => t !== tag))
+                      }
+                    />
+                  </HStack>
+                </WrapItem>
+              ))}
+              <WrapItem>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  borderColor="brand.primary"
+                  color="brand.primary"
+                  _hover={{
+                    bg: "whiteAlpha.100",
+                    borderColor: "brand.primary",
+                  }}
+                  _active={{ bg: "whiteAlpha.200" }}
+                  onClick={() => setSelectedTags([])}
+                  w="100%"
+                >
+                  Clear tags
+                </Button>
+              </WrapItem>
+            </Wrap>
+          ) : null}
 
           <Text color="gray.400" fontSize="sm">
             Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "}
