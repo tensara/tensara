@@ -68,17 +68,15 @@ export function Layout({
       <GoogleAnalytics gaId={env.NEXT_PUBLIC_GA_ID} />
 
       <Box h="100vh" bg="brand.dark" display="flex" flexDirection="column">
-        <Box
-          px={{ base: 2, md: 2 }}
-          py={{ base: 2, md: isCodingMode ? 0.5 : 1 }}
-        >
+        <Box p={{ base: 2, md: 2 }}>
           <Header isCodingMode={isCodingMode} toolbar={headerToolbar} />
         </Box>
         <Box
           flex="1"
           borderRadius="xl"
           h="100%"
-          p={{ base: 4, md: 2 }}
+          px={{ base: 4, md: 2 }}
+          py={{ base: isCodingMode ? 0 : 4, md: isCodingMode ? 0 : 2 }}
           overflow="auto"
         >
           {children}

@@ -71,6 +71,8 @@ export function Header({ isCodingMode = false, toolbar }: HeaderProps) {
     signOut({ callbackUrl: "/" }).catch(console.error);
   };
 
+  const showBackToProblems = router.pathname === "/problems/[slug]";
+
   const NavLinks = () => {
     return (
       <LayoutGroup>
@@ -314,6 +316,21 @@ export function Header({ isCodingMode = false, toolbar }: HeaderProps) {
               </Text>
             </HStack>
           </Link>
+
+          {isCodingMode && showBackToProblems && (
+            <Button
+              variant="ghost"
+              size="sm"
+              color="gray.300"
+              ml={2}
+              _hover={{ bg: "whiteAlpha.200", color: "white" }}
+              onClick={() => {
+                void router.push("/problems");
+              }}
+            >
+              All Problems
+            </Button>
+          )}
 
           {/* Desktop Navigation */}
           {!isMobile && !isCodingMode && (

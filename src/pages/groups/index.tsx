@@ -6,7 +6,6 @@ import {
   SimpleGrid,
   VStack,
   HStack,
-  Badge,
   Spinner,
   useDisclosure,
 } from "@chakra-ui/react";
@@ -16,11 +15,6 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { FaPlus, FaUsers, FaBook } from "react-icons/fa";
 import { CreateGroupModal } from "~/components/groups/CreateGroupModal";
-const roleColor: Record<string, string> = {
-  OWNER: "green",
-  ADMIN: "blue",
-  MEMBER: "gray",
-};
 
 export default function GroupsPage() {
   const { data: session } = useSession();

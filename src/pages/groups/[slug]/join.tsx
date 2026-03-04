@@ -72,7 +72,7 @@ export default function JoinGroupPage({
 
   const ogTitle = ogGroupName ? `Join ${ogGroupName}` : "Join Group";
   const ogDesc =
-    ogGroupDescription ||
+    ogGroupDescription ??
     (ogGroupName ? `Join ${ogGroupName} on Tensara.` : undefined);
   const ogSub = ogGroupName
     ? `${ogMemberCount} members · ${ogProblemCount} problems`

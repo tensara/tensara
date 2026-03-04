@@ -194,7 +194,7 @@ export default function GroupDashboardPage() {
       title={group.name}
       ogTitle={group.name}
       ogDescription={
-        group.description ||
+        group.description ??
         `A group on Tensara with ${group.memberCount} members and ${group.problemCount} GPU programming problems.`
       }
       ogImgSubtitle={`${group.memberCount} members · ${group.problemCount} problems`}

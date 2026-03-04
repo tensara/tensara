@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Box,
   Button,
+  Flex,
   IconButton,
   Menu,
   MenuButton,
@@ -132,10 +133,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [viewType, setViewType] = useState<ViewType>("problem");
   const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(42);
-  const [leftConsoleSplitRatio, setLeftConsoleSplitRatio] = useState(68);
-  const [problemBaselineWidthPx, setProblemBaselineWidthPx] = useState<
-    number | null
-  >(null);
+  const [leftConsoleSplitRatio, setLeftConsoleSplitRatio] = useState(100);
   const HORIZONTAL_DEFAULT_RATIO = 42;
   const splitContainerId = "problem-split-container";
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -253,6 +251,29 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [sampleSassTimestamp, setSampleSassTimestamp] = useState<number>(0);
   const [ptxDirty, setPtxDirty] = useState(false);
   const [sassDirty, setSassDirty] = useState(false);
+  const [isPtxSassOpen, setIsPtxSassOpen] = useState(false);
+  const hasPtxOrSass = useMemo(() => {
+    const effectivePtx =
+      (submissionPtxTimestamp > samplePtxTimestamp
+        ? (submissionPtxContent ?? ptxContent)
+        : (ptxContent ?? submissionPtxContent)) ?? null;
+
+    const effectiveSass =
+      (submissionSassTimestamp > sampleSassTimestamp
+        ? (submissionSassContent ?? sassContent)
+        : (sassContent ?? submissionSassContent)) ?? null;
+
+    return Boolean(effectivePtx ?? effectiveSass);
+  }, [
+    submissionPtxTimestamp,
+    samplePtxTimestamp,
+    submissionPtxContent,
+    ptxContent,
+    submissionSassTimestamp,
+    sampleSassTimestamp,
+    submissionSassContent,
+    sassContent,
+  ]);
 
   const parameters = useMemo<ProblemParameter[]>(() => {
     const raw = problem?.parameters;
@@ -482,6 +503,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
       current <= 0.5 ? HORIZONTAL_DEFAULT_RATIO : current
     );
 
+    setLeftConsoleSplitRatio((current) => (current >= 99.5 ? 68 : current));
+
     if (!session?.user) {
       toast({
         title: "Not signed in",
@@ -513,6 +536,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     });
   }, [
     startSampleRun,
+    setLeftConsoleSplitRatio,
     session?.user,
     code,
     selectedLanguage,
@@ -555,35 +579,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
   useHotkey("meta+shift+v", () => {
     setIsVimModeEnabled((prev) => !prev);
   });
-
-  useEffect(() => {
-    let ro: ResizeObserver | null = null;
-    let raf = 0;
-
-    const tryInit = () => {
-      const el = document.getElementById(splitContainerId);
-      if (!el) {
-        raf = window.requestAnimationFrame(tryInit);
-        return;
-      }
-
-      const update = () => {
-        const width = el.getBoundingClientRect().width;
-        const baseline = Math.round((width * HORIZONTAL_DEFAULT_RATIO) / 100);
-        setProblemBaselineWidthPx(baseline);
-      };
-
-      update();
-      ro = new ResizeObserver(update);
-      ro.observe(el);
-    };
-
-    tryInit();
-    return () => {
-      if (raf) window.cancelAnimationFrame(raf);
-      ro?.disconnect();
-    };
-  }, [HORIZONTAL_DEFAULT_RATIO, splitContainerId]);
 
   if (isLoading) {
     return (
@@ -645,7 +640,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
             problem={problem}
             onViewSubmissions={() => setViewType("submissions")}
             onViewReference={onOpen}
-            showBackArrow
           />
         );
     }
@@ -659,19 +653,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
         overflowY="auto"
         overflowX="hidden"
         pr={{ base: 0, md: 2 }}
-        p={viewType === "problem" ? 4 : 0}
+        p={viewType === "problem" ? 3 : 0}
       >
-        <Box
-          sx={
-            viewType === "problem" && problemBaselineWidthPx
-              ? {
-                  "@media screen and (min-width: 48em)": {
-                    minWidth: `${problemBaselineWidthPx}px`,
-                  },
-                }
-              : undefined
-          }
-        >
+        <Box w="100%" minW={0}>
           {leftInnerContent}
         </Box>
       </Box>
@@ -711,236 +695,266 @@ export default function ProblemPage({ slug }: { slug: string }) {
       h="38px"
       px={1.5}
       spacing={1.5}
-      borderBottom="1px solid"
-      borderColor="#232323"
-      bg="#101010"
+      pt={0}
+      pb={1.5}
+      bg="transparent"
       overflowX="auto"
       overflowY="hidden"
       css={{ scrollbarWidth: "none" }}
       sx={{ "&::-webkit-scrollbar": { display: "none" } }}
     >
-      <HStack spacing={0.5} flexShrink={0}>
-        <Menu>
-          <MenuButton
-            as={Button}
-            size="sm"
-            rightIcon={<FaChevronDown size={11} color="#A1A1AA" />}
-            bg="#171717"
-            _hover={{ bg: "#1D1D1D", borderColor: "#2F2F2F" }}
-            _active={{ bg: "#202020" }}
-            color="gray.200"
-            h="30px"
-            w="174px"
-            justifyContent="space-between"
-            textAlign="left"
-            fontWeight="normal"
-            fontSize="xs"
-            borderRadius="8px"
-            border="1px solid"
-            borderColor="#2A2A2A"
-            px={2.5}
-            flexShrink={0}
-          >
-            {GPU_DISPLAY_NAMES[selectedGpuType]}
-          </MenuButton>
-          <MenuList
-            bg="brand.secondary"
-            borderColor="gray.800"
-            p={0}
-            minW="186px"
-          >
-            {gpuOptions.map(([key, value]) => {
-              const isDisabledForCutile =
-                selectedLanguage === "cutile" && key !== "B200";
-              return (
+      <Flex w="100%" minW="0" align="center" justify="space-between" gap={2}>
+        <HStack spacing={1.5} flexShrink={0}>
+          <HStack spacing={0.5} flexShrink={0}>
+            <Menu>
+              <MenuButton
+                as={Button}
+                size="sm"
+                rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
+                bg="whiteAlpha.50"
+                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                _active={{ bg: "whiteAlpha.150" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                color="white"
+                h="30px"
+                w={{ base: "140px", md: "176px" }}
+                justifyContent="flex-start"
+                textAlign="left"
+                fontSize="sm"
+                fontWeight="normal"
+                borderRadius="lg"
+                px={2.5}
+                flexShrink={0}
+              >
+                {GPU_DISPLAY_NAMES[selectedGpuType]}
+              </MenuButton>
+              <MenuList
+                bg="brand.secondary"
+                borderColor="gray.800"
+                p={0}
+                minW="186px"
+              >
+                {gpuOptions.map(([key, value]) => {
+                  const isDisabledForCutile =
+                    selectedLanguage === "cutile" && key !== "B200";
+                  return (
+                    <Tooltip
+                      key={key}
+                      label="cuTile requires B200"
+                      isDisabled={!isDisabledForCutile}
+                      placement="right"
+                    >
+                      <MenuItem
+                        onClick={() => setSelectedGpuType(key)}
+                        bg="brand.secondary"
+                        _hover={{
+                          bg: isDisabledForCutile
+                            ? "brand.secondary"
+                            : "gray.700",
+                        }}
+                        color={isDisabledForCutile ? "gray.500" : "white"}
+                        borderRadius="md"
+                        fontSize="sm"
+                        isDisabled={isDisabledForCutile}
+                      >
+                        {value}
+                      </MenuItem>
+                    </Tooltip>
+                  );
+                })}
+              </MenuList>
+            </Menu>
+            <GpuInfoModal compact />
+          </HStack>
+
+          <HStack spacing={0.5} flexShrink={0}>
+            <Menu>
+              <MenuButton
+                as={Button}
+                size="sm"
+                rightIcon={<FaChevronDown size={12} color="#a1a1aa" />}
+                bg="whiteAlpha.50"
+                _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                _active={{ bg: "whiteAlpha.150" }}
+                _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                color="white"
+                h="30px"
+                w={{ base: "140px", md: "176px" }}
+                justifyContent="flex-start"
+                textAlign="left"
+                fontSize="sm"
+                fontWeight="normal"
+                borderRadius="lg"
+                px={2.5}
+                flexShrink={0}
+              >
+                {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
+              </MenuButton>
+              <MenuList
+                bg="brand.secondary"
+                borderColor="gray.800"
+                p={0}
+                minW="186px"
+              >
+                <MenuItem
+                  onClick={() => setSelectedLanguage("cuda")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="md"
+                  fontSize="sm"
+                >
+                  CUDA C++
+                </MenuItem>
+                <MenuItem
+                  onClick={() => setSelectedLanguage("python")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="md"
+                  fontSize="sm"
+                >
+                  Triton
+                </MenuItem>
+                <MenuItem
+                  onClick={() => setSelectedLanguage("mojo")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="md"
+                  fontSize="sm"
+                >
+                  Mojo
+                </MenuItem>
+                <MenuItem
+                  onClick={() => setSelectedLanguage("cute")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="md"
+                  fontSize="sm"
+                >
+                  CuTe DSL
+                </MenuItem>
                 <Tooltip
-                  key={key}
-                  label="cuTile requires B200"
-                  isDisabled={!isDisabledForCutile}
+                  label="Only available on B200"
+                  isDisabled={selectedGpuType === "B200"}
                   placement="right"
                 >
                   <MenuItem
-                    onClick={() => setSelectedGpuType(key)}
+                    onClick={() => setSelectedLanguage("cutile")}
                     bg="brand.secondary"
                     _hover={{
-                      bg: isDisabledForCutile ? "brand.secondary" : "gray.700",
+                      bg:
+                        selectedGpuType === "B200"
+                          ? "gray.700"
+                          : "brand.secondary",
                     }}
-                    color={isDisabledForCutile ? "gray.500" : "white"}
+                    color={selectedGpuType === "B200" ? "white" : "gray.500"}
                     borderRadius="md"
                     fontSize="sm"
-                    isDisabled={isDisabledForCutile}
+                    isDisabled={selectedGpuType !== "B200"}
                   >
-                    {value}
+                    cuTile Python
                   </MenuItem>
                 </Tooltip>
-              );
-            })}
-          </MenuList>
-        </Menu>
-        <GpuInfoModal compact />
-      </HStack>
+              </MenuList>
+            </Menu>
+            <LanguageInfoModal compact />
+          </HStack>
 
-      <HStack spacing={0.5} flexShrink={0}>
-        <Menu>
-          <MenuButton
-            as={Button}
-            size="sm"
-            rightIcon={<FaChevronDown size={11} color="#A1A1AA" />}
-            bg="#171717"
-            _hover={{ bg: "#1D1D1D", borderColor: "#2F2F2F" }}
-            _active={{ bg: "#202020" }}
-            color="gray.200"
-            h="30px"
-            w="174px"
-            justifyContent="space-between"
-            textAlign="left"
-            fontWeight="normal"
-            fontSize="xs"
-            borderRadius="8px"
-            border="1px solid"
-            borderColor="#2A2A2A"
-            px={2.5}
-            flexShrink={0}
+          <Tooltip
+            label={
+              parameters.length > 0
+                ? "View parameters"
+                : "No parameters available"
+            }
+            hasArrow
+            placement="bottom"
           >
-            {LANGUAGE_DISPLAY_NAMES[selectedLanguage]}
-          </MenuButton>
-          <MenuList
-            bg="brand.secondary"
-            borderColor="gray.800"
-            p={0}
-            minW="186px"
-          >
-            <MenuItem
-              onClick={() => setSelectedLanguage("cuda")}
-              bg="brand.secondary"
-              _hover={{ bg: "gray.700" }}
-              color="white"
-              borderRadius="md"
-              fontSize="sm"
-            >
-              CUDA C++
-            </MenuItem>
-            <MenuItem
-              onClick={() => setSelectedLanguage("python")}
-              bg="brand.secondary"
-              _hover={{ bg: "gray.700" }}
-              color="white"
-              borderRadius="md"
-              fontSize="sm"
-            >
-              Triton
-            </MenuItem>
-            <MenuItem
-              onClick={() => setSelectedLanguage("mojo")}
-              bg="brand.secondary"
-              _hover={{ bg: "gray.700" }}
-              color="white"
-              borderRadius="md"
-              fontSize="sm"
-            >
-              Mojo
-            </MenuItem>
-            <MenuItem
-              onClick={() => setSelectedLanguage("cute")}
-              bg="brand.secondary"
-              _hover={{ bg: "gray.700" }}
-              color="white"
-              borderRadius="md"
-              fontSize="sm"
-            >
-              CuTe DSL
-            </MenuItem>
-            <Tooltip
-              label="Only available on B200"
-              isDisabled={selectedGpuType === "B200"}
-              placement="right"
-            >
-              <MenuItem
-                onClick={() => setSelectedLanguage("cutile")}
-                bg="brand.secondary"
+            <IconButton
+              aria-label="View parameters"
+              icon={<FiList size={14} />}
+              size="sm"
+              variant="ghost"
+              onClick={onParametersOpen}
+              isDisabled={parameters.length === 0}
+              borderRadius="lg"
+              h="30px"
+              minW="30px"
+              color="gray.400"
+              _hover={{
+                color: "white",
+              }}
+            />
+          </Tooltip>
+        </HStack>
+
+        <HStack spacing={1.5} flexShrink={0}>
+          {selectedLanguage === "cuda" && hasPtxOrSass && (
+            <Box flexShrink={0}>
+              <Button
+                size="sm"
+                variant="ghost"
+                borderRadius="lg"
+                h="30px"
+                fontSize="xs"
+                fontWeight="normal"
+                color={isPtxSassOpen ? "white" : "gray.300"}
+                px={3}
+                onClick={() => setIsPtxSassOpen((prev) => !prev)}
                 _hover={{
-                  bg:
-                    selectedGpuType === "B200" ? "gray.700" : "brand.secondary",
+                  bg: "whiteAlpha.50",
+                  color: "white",
                 }}
-                color={selectedGpuType === "B200" ? "white" : "gray.500"}
-                borderRadius="md"
-                fontSize="sm"
-                isDisabled={selectedGpuType !== "B200"}
               >
-                cuTile Python
-              </MenuItem>
-            </Tooltip>
-          </MenuList>
-        </Menu>
-        <LanguageInfoModal compact />
-      </HStack>
+                {isPtxSassOpen ? "Hide PTX/SASS" : "View PTX/SASS"}
+              </Button>
+            </Box>
+          )}
+          {isCodeDirty && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIsResetModalOpen(true)}
+              borderRadius="lg"
+              h="30px"
+              fontSize="xs"
+              fontWeight="semibold"
+              color="gray.300"
+              leftIcon={<IoRepeat size={15} />}
+              iconSpacing={2}
+              px={3}
+              _hover={{
+                bg: "whiteAlpha.50",
+                color: "white",
+              }}
+            >
+              Reset Code
+            </Button>
+          )}
 
-      <Button
-        size="sm"
-        onClick={onParametersOpen}
-        leftIcon={<FiList size={13} />}
-        bg="#171717"
-        _hover={{
-          bg: "#1D1D1D",
-          borderColor: "#2F2F2F",
-        }}
-        color={parameters.length > 0 ? "gray.200" : "gray.500"}
-        border="1px solid"
-        borderColor="#2A2A2A"
-        h="30px"
-        w="104px"
-        fontSize="xs"
-        fontWeight="normal"
-        justifyContent="flex-start"
-        borderRadius="8px"
-        px={2.5}
-        flexShrink={0}
-      >
-        Params
-      </Button>
-
-      <Tooltip label="Reset code">
-        <IconButton
-          aria-label="Reset code"
-          icon={<IoRepeat size={15} />}
-          size="sm"
-          onClick={() => setIsResetModalOpen(true)}
-          isDisabled={!isCodeDirty}
-          color={isCodeDirty ? "gray.200" : "gray.600"}
-          bg="#171717"
-          border="1px solid"
-          borderColor="#2A2A2A"
-          _hover={{
-            bg: isCodeDirty ? "#1D1D1D" : "#171717",
-          }}
-          h="30px"
-          minW="30px"
-          borderRadius="8px"
-          flexShrink={0}
-        />
-      </Tooltip>
-
-      <Button
-        size="sm"
-        borderRadius="8px"
-        bg={isVimModeEnabled ? "rgba(72, 187, 120, 0.14)" : "#171717"}
-        color={isVimModeEnabled ? "#63D297" : "#A0A0A0"}
-        border="1px solid"
-        borderColor={isVimModeEnabled ? "#3EA96A" : "#2A2A2A"}
-        _hover={{
-          bg: isVimModeEnabled ? "rgba(72, 187, 120, 0.2)" : "#1D1D1D",
-          color: isVimModeEnabled ? "#63D297" : "#CCCCCC",
-          borderColor: isVimModeEnabled ? "#63D297" : "#3A3A3A",
-        }}
-        onClick={() => setIsVimModeEnabled((prev) => !prev)}
-        fontSize="xs"
-        fontWeight="500"
-        h="30px"
-        px={3}
-        flexShrink={0}
-      >
-        Vim
-      </Button>
+          <IconButton
+            aria-label="Toggle Vim mode"
+            icon={
+              <Text fontSize="xs" fontWeight="500">
+                Vim
+              </Text>
+            }
+            size="sm"
+            variant="ghost"
+            onClick={() => setIsVimModeEnabled((prev) => !prev)}
+            borderRadius="lg"
+            h="30px"
+            minW="36px"
+            color={isVimModeEnabled ? "#63D297" : "gray.300"}
+            _hover={{
+              bg: "rgba(72, 187, 120, 0.16)",
+              color: "#63D297",
+            }}
+          />
+        </HStack>
+      </Flex>
     </HStack>
   );
 
@@ -1040,6 +1054,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
         enablePtxSassView={selectedLanguage === "cuda"}
         ptxDirty={ptxDirty}
         sassDirty={sassDirty}
+        isPtxSassOpen={isPtxSassOpen}
+        onPtxSassOpenChange={setIsPtxSassOpen}
       />
     </Box>
   );

@@ -83,7 +83,7 @@ const MySubmissions = ({
   ];
 
   return (
-    <VStack spacing={4} align="stretch" p={6}>
+    <VStack spacing={4} align="stretch" p={3}>
       <VStack spacing={4} align="stretch">
         <HStack justify="space-between">
           <Heading size="md">My Submissions</Heading>

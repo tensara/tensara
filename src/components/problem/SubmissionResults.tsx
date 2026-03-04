@@ -250,7 +250,7 @@ const SubmissionResults = ({
     benchmarkedAvgGflops != null;
 
   return (
-    <VStack spacing={4} align="stretch" p={6}>
+    <VStack spacing={4} align="stretch" p={3}>
       <HStack justify="space-between">
         <Heading size="md">Results</Heading>
         <HStack>
@@ -318,7 +318,81 @@ const SubmissionResults = ({
           </VStack>
         </HStack>
       </Box>
-      {/* Test Case Results Table */}
+      {/* Performance and Runtime Stats (when submission is accepted) */}
+      {Boolean(metaStatus) && metaStatus === SubmissionStatus.ACCEPTED && (
+        <Box>
+          <Text
+            fontSize="xs"
+            color="whiteAlpha.600"
+            fontWeight="medium"
+            mb={2}
+            letterSpacing="wide"
+            textTransform="uppercase"
+          >
+            Performance
+          </Text>
+          <Box bg="whiteAlpha.50" borderRadius="xl" overflow="hidden">
+            <SimpleGrid columns={2} spacing={0}>
+              {/* Runtime */}
+              <Box p={4}>
+                <Text
+                  fontSize="xs"
+                  color="whiteAlpha.500"
+                  textTransform="uppercase"
+                  letterSpacing="wide"
+                  mb={1}
+                >
+                  Runtime
+                </Text>
+                <Text fontSize="xl" fontWeight="bold" color="white">
+                  {formatRuntime(
+                    getTypedResponse(SubmissionStatus.ACCEPTED)
+                      ?.avg_runtime_ms ?? null
+                  )}
+                </Text>
+              </Box>
+              {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==
+                undefined && (
+                <Box p={4}>
+                  <HStack spacing={1} mb={1}>
+                    <Text
+                      fontSize="xs"
+                      color="whiteAlpha.500"
+                      textTransform="uppercase"
+                      letterSpacing="wide"
+                    >
+                      Throughput
+                    </Text>
+                    {hasFlopsCode && onViewFlops && (
+                      <IconButton
+                        aria-label="View FLOPs Calculation"
+                        icon={<Icon as={FiHash} />}
+                        size="xs"
+                        variant="ghost"
+                        color="gray.500"
+                        _hover={{ color: "white", bg: "transparent" }}
+                        bg="transparent"
+                        minW="auto"
+                        h="auto"
+                        p={0}
+                        onClick={onViewFlops}
+                      />
+                    )}
+                  </HStack>
+                  <Text fontSize="xl" fontWeight="bold" color="white">
+                    {getTypedResponse(
+                      SubmissionStatus.ACCEPTED
+                    )!.avg_gflops!.toFixed(2)}{" "}
+                    GFLOPS
+                  </Text>
+                </Box>
+              )}
+            </SimpleGrid>
+          </Box>
+        </Box>
+      )}
+
+      {/* Test Case Results / Benchmark View */}
       {testResults.length > 0 &&
         metaStatus !== SubmissionStatus.WRONG_ANSWER &&
         metaResponse && (
@@ -562,80 +636,6 @@ const SubmissionResults = ({
             </VStack>
           </Box>
         )}
-
-      {/* Performance and Runtime Stats (when submission is accepted) */}
-      {Boolean(metaStatus) && metaStatus === SubmissionStatus.ACCEPTED && (
-        <Box>
-          <Text
-            fontSize="xs"
-            color="whiteAlpha.600"
-            fontWeight="medium"
-            mb={2}
-            letterSpacing="wide"
-            textTransform="uppercase"
-          >
-            Performance
-          </Text>
-          <Box bg="whiteAlpha.50" borderRadius="xl" overflow="hidden">
-            <SimpleGrid columns={2} spacing={0}>
-              {/* Runtime */}
-              <Box p={4}>
-                <Text
-                  fontSize="xs"
-                  color="whiteAlpha.500"
-                  textTransform="uppercase"
-                  letterSpacing="wide"
-                  mb={1}
-                >
-                  Runtime
-                </Text>
-                <Text fontSize="xl" fontWeight="bold" color="white">
-                  {formatRuntime(
-                    getTypedResponse(SubmissionStatus.ACCEPTED)
-                      ?.avg_runtime_ms ?? null
-                  )}
-                </Text>
-              </Box>
-              {getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops !==
-                undefined && (
-                <Box p={4}>
-                  <HStack spacing={1} mb={1}>
-                    <Text
-                      fontSize="xs"
-                      color="whiteAlpha.500"
-                      textTransform="uppercase"
-                      letterSpacing="wide"
-                    >
-                      Throughput
-                    </Text>
-                    {hasFlopsCode && onViewFlops && (
-                      <IconButton
-                        aria-label="View FLOPs Calculation"
-                        icon={<Icon as={FiHash} />}
-                        size="xs"
-                        variant="ghost"
-                        color="gray.500"
-                        _hover={{ color: "white", bg: "transparent" }}
-                        bg="transparent"
-                        minW="auto"
-                        h="auto"
-                        p={0}
-                        onClick={onViewFlops}
-                      />
-                    )}
-                  </HStack>
-                  <Text fontSize="xl" fontWeight="bold" color="white">
-                    {getTypedResponse(
-                      SubmissionStatus.ACCEPTED
-                    )!.avg_gflops!.toFixed(2)}{" "}
-                    GFLOPS
-                  </Text>
-                </Box>
-              )}
-            </SimpleGrid>
-          </Box>
-        </Box>
-      )}
 
       {/* GPU Metrics (when benchmarks complete and we have data) */}
       {Boolean(metaStatus) &&

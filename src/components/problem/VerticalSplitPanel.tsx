@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { Box } from "@chakra-ui/react";
+import { FaChevronUp, FaChevronDown } from "react-icons/fa";
 
 interface VerticalSplitPanelProps {
   topContent: React.ReactNode;
@@ -35,6 +36,19 @@ const VerticalSplitPanel = ({
   const splitRatio = controlledRatio ?? uncontrolledRatio;
   const isCollapsedTop = allowCollapse && splitRatio <= 0.5;
   const isCollapsedBottom = allowCollapse && splitRatio >= 99.5;
+  const [lastRatioBeforeCollapse, setLastRatioBeforeCollapse] = useState<
+    number | null
+  >(null);
+
+  const setRatio = useCallback(
+    (ratio: number) => {
+      onSplitRatioChange?.(ratio);
+      if (controlledRatio === undefined) {
+        setUncontrolledRatio(ratio);
+      }
+    },
+    [onSplitRatioChange, controlledRatio]
+  );
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -77,18 +91,14 @@ const VerticalSplitPanel = ({
         newRatio = 100 - minBottomHeight;
       }
 
-      onSplitRatioChange?.(newRatio);
-      if (controlledRatio === undefined) {
-        setUncontrolledRatio(newRatio);
-      }
+      setRatio(newRatio);
     },
     [
       isResizing,
       minTopHeight,
       minBottomHeight,
       containerId,
-      onSplitRatioChange,
-      controlledRatio,
+      setRatio,
       allowCollapse,
       snapOffsetPx,
     ]
@@ -97,6 +107,12 @@ const VerticalSplitPanel = ({
   const handleMouseUp = useCallback(() => {
     setIsResizing(false);
   }, []);
+
+  useEffect(() => {
+    if (!isCollapsedBottom && splitRatio !== 0 && splitRatio !== 100) {
+      setLastRatioBeforeCollapse(splitRatio);
+    }
+  }, [isCollapsedBottom, splitRatio]);
 
   useEffect(() => {
     if (isResizing) {
@@ -155,6 +171,49 @@ const VerticalSplitPanel = ({
           transition="all 0.2s ease"
           _hover={{ bg: "whiteAlpha.300" }}
         />
+        {allowCollapse && !isResizing && (
+          <Box
+            as="button"
+            type="button"
+            position="absolute"
+            top="50%"
+            left="10px"
+            transform="translateY(-50%)"
+            w="16px"
+            h="16px"
+            borderRadius="full"
+            border="1px solid"
+            borderColor="whiteAlpha.300"
+            color="gray.300"
+            fontSize="11px"
+            lineHeight="1"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            bg="rgba(17, 17, 17, 0.9)"
+            _hover={{ bg: "whiteAlpha.200", color: "white" }}
+            pointerEvents="auto"
+            onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              if (isCollapsedBottom) {
+                setRatio(lastRatioBeforeCollapse ?? initialRatio);
+                return;
+              }
+
+              setRatio(100);
+            }}
+            aria-label={
+              isCollapsedBottom ? "Expand console panel" : "Collapse console"
+            }
+          >
+            {isCollapsedBottom ? (
+              <FaChevronUp size={9} />
+            ) : (
+              <FaChevronDown size={9} />
+            )}
+          </Box>
+        )}
         {(isCollapsedTop || isCollapsedBottom) &&
           !isResizing &&
           (isCollapsedTop ? collapsedTopLabel : collapsedBottomLabel) && (

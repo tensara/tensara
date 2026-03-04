@@ -6,6 +6,7 @@ import React, {
   useContext,
 } from "react";
 import { Box } from "@chakra-ui/react";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 // Create context for split ratio
 export const SplitPanelContext = createContext<{
@@ -43,7 +44,7 @@ const SplitPanel = ({
   onSplitRatioChange,
   containerId = "split-container",
   allowCollapse = false,
-  snapOffsetPx: _snapOffsetPx = 28,
+  snapOffsetPx = 28,
   resizerLineInsetTopPx = 0,
   collapsedLeftLabel,
   collapsedRightLabel,
@@ -82,19 +83,39 @@ const SplitPanel = ({
       const mouseX = e.clientX - containerRect.left;
       let newRatio = (mouseX / containerWidth) * 100;
 
+      if (allowCollapse) {
+        if (mouseX <= snapOffsetPx) {
+          newRatio = 0;
+        } else if (mouseX >= containerWidth - snapOffsetPx) {
+          newRatio = 100;
+        }
+      }
+
       // Apply min-width constraints
       const minLeftPixels = (containerWidth * minLeftWidth) / 100;
       const minRightPixels = (containerWidth * minRightWidth) / 100;
 
-      if (mouseX < minLeftPixels) {
+      if (newRatio !== 0 && newRatio !== 100 && mouseX < minLeftPixels) {
         newRatio = minLeftWidth;
-      } else if (mouseX > containerWidth - minRightPixels) {
+      } else if (
+        newRatio !== 0 &&
+        newRatio !== 100 &&
+        mouseX > containerWidth - minRightPixels
+      ) {
         newRatio = 100 - minRightWidth;
       }
 
       setRatio(newRatio);
     },
-    [isResizing, minLeftWidth, minRightWidth, containerId, setRatio]
+    [
+      isResizing,
+      minLeftWidth,
+      minRightWidth,
+      containerId,
+      setRatio,
+      allowCollapse,
+      snapOffsetPx,
+    ]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -131,7 +152,7 @@ const SplitPanel = ({
           h={{ base: "auto", md: "100%" }}
           overflow="hidden"
           minH={0}
-          pr={0}
+          pr={{ base: 0, md: 1.5 }}
           mb={{ base: 4, md: 0 }}
           maxH={{ base: "auto", md: "100%" }}
           display={{ base: "block", md: isCollapsedLeft ? "none" : "block" }}
@@ -260,7 +281,11 @@ const SplitPanel = ({
                 isCollapsedLeft ? "Expand problem panel" : "Expand editor"
               }
             >
-              {isCollapsedLeft ? "›" : "‹"}
+              {isCollapsedLeft ? (
+                <FaChevronRight size={9} />
+              ) : (
+                <FaChevronLeft size={9} />
+              )}
             </Box>
           )}
         </Box>
@@ -271,7 +296,7 @@ const SplitPanel = ({
           w={{ base: "100%", md: `${100 - splitRatio}%` }}
           h={{ base: "auto", md: "100%" }}
           minH={{ base: "50vh", md: "auto" }}
-          pl={0}
+          pl={{ base: 0, md: 1.5 }}
           overflow="hidden"
         >
           {rightContent}

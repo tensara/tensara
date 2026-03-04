@@ -42,6 +42,8 @@ interface CodeEditorProps {
   enableVimMode?: boolean;
   onToggleVimMode?: (enabled: boolean) => void;
   embedded?: boolean;
+  isPtxSassOpen?: boolean;
+  onPtxSassOpenChange?: (open: boolean) => void;
 }
 
 const PTX_LINE_SEARCH_RADIUS = 50;
@@ -558,9 +560,25 @@ const CodeEditor = ({
   enableVimMode = false,
   onToggleVimMode,
   embedded = false,
+  isPtxSassOpen,
+  onPtxSassOpenChange,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
-  const [isSplitViewOpen, setIsSplitViewOpen] = useState(false);
+  const [internalSplitViewOpen, setInternalSplitViewOpen] = useState(false);
+  const splitViewControlled = typeof isPtxSassOpen === "boolean";
+  const isSplitViewOpen = splitViewControlled
+    ? isPtxSassOpen
+    : internalSplitViewOpen;
+  const setIsSplitViewOpen = useCallback(
+    (open: boolean) => {
+      if (splitViewControlled) {
+        onPtxSassOpenChange?.(open);
+        return;
+      }
+      setInternalSplitViewOpen(open);
+    },
+    [splitViewControlled, onPtxSassOpenChange]
+  );
   const codeEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const ptxEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const codeCursorDisposableRef = useRef<{ dispose: () => void } | null>(null);
@@ -629,8 +647,6 @@ const CodeEditor = ({
     },
     [codeEditorInstance, enableVimMode, isEditable]
   );
-
-  const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
 
   const highlightPtxLines = useCallback(
     (lineNumbers: number[] | null) => {
@@ -754,7 +770,7 @@ const CodeEditor = ({
     if (!enablePtxSassView && isSplitViewOpen) {
       setIsSplitViewOpen(false);
     }
-  }, [enablePtxSassView, isSplitViewOpen]);
+  }, [enablePtxSassView, isSplitViewOpen, setIsSplitViewOpen]);
 
   useEffect(() => {
     return () => {
@@ -911,7 +927,7 @@ const CodeEditor = ({
           lineNumbers: "on",
           scrollBeyondLastLine: false,
           automaticLayout: true,
-          padding: { top: 16, bottom: 16 },
+          padding: { top: 8, bottom: 8 },
           fontFamily: "JetBrains Mono, monospace",
           readOnly: readOnly,
         }}
@@ -920,7 +936,14 @@ const CodeEditor = ({
   );
 
   const codeEditorPanel = (
-    <Box w="100%" h="100%" position="relative">
+    <Box
+      w="100%"
+      h="100%"
+      position="relative"
+      borderRadius="inherit"
+      overflow="hidden"
+      bg="#111111"
+    >
       {editorContent(
         code,
         selectedLanguage === "cuda"
@@ -949,8 +972,7 @@ const CodeEditor = ({
           minW="90px"
         />
       )}
-      {(isEditable && onToggleVimMode && !toolbar) ||
-      (hasPtxSassContent && !isSplitViewOpen) ? (
+      {isEditable && onToggleVimMode && !toolbar ? (
         <Box
           position="absolute"
           top="8px"
@@ -981,32 +1003,6 @@ const CodeEditor = ({
               pointerEvents="auto"
             >
               Vim
-            </Button>
-          )}
-          {hasPtxSassContent && !isSplitViewOpen && (
-            <Button
-              size="sm"
-              borderRadius="md"
-              bg="#1A1A1A"
-              color="#858585"
-              border="1px solid"
-              borderColor="#2A2A2A"
-              _hover={{
-                bg: "#252525",
-                color: "#CCCCCC",
-                borderColor: "#3A3A3A",
-              }}
-              leftIcon={
-                (ptxDirty ?? sassDirty) ? <FiAlertTriangle /> : undefined
-              }
-              onClick={() => setIsSplitViewOpen(true)}
-              fontSize="14px"
-              fontWeight="500"
-              h="36px"
-              px={4}
-              pointerEvents="auto"
-            >
-              Show PTX/SASS
             </Button>
           )}
         </Box>
@@ -1221,13 +1217,17 @@ const CodeEditor = ({
         h="100%"
         bg={embedded ? "transparent" : "brand.secondary"}
         borderRadius={embedded ? "0" : "xl"}
-        overflow="hidden"
         position="relative"
         display="flex"
         flexDirection="column"
       >
         {toolbar}
-        <Box flex="1" minH={0}>
+        <Box
+          flex="1"
+          minH={0}
+          borderRadius={embedded ? "0" : "xl"}
+          overflow="hidden"
+        >
           {isSplitViewOpen && enablePtxSassView ? (
             <Box
               id="code-editor-split-container"
