@@ -45,7 +45,7 @@ import ResizableConsole from "~/components/problem/Console";
 import VerticalSplitPanel from "~/components/problem/VerticalSplitPanel";
 
 import { FaChevronDown, FaExclamationCircle } from "react-icons/fa";
-import { FiList } from "react-icons/fi";
+import { FiBookOpen, FiList } from "react-icons/fi";
 import { IoRepeat } from "react-icons/io5";
 
 import { useCodePersistence } from "~/hooks/useCodePersistence";
@@ -643,7 +643,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
           <ProblemView
             problem={problem}
             onViewSubmissions={() => setViewType("submissions")}
-            onViewReference={onOpen}
           />
         );
     }
@@ -884,6 +883,32 @@ export default function ProblemPage({ slug }: { slug: string }) {
               variant="ghost"
               onClick={onParametersOpen}
               isDisabled={parameters.length === 0}
+              borderRadius="lg"
+              h="30px"
+              minW="30px"
+              color="gray.400"
+              _hover={{
+                color: "white",
+              }}
+            />
+          </Tooltip>
+
+          <Tooltip
+            label={
+              problem.referenceSolution
+                ? "View reference"
+                : "No reference available"
+            }
+            hasArrow
+            placement="bottom"
+          >
+            <IconButton
+              aria-label="View reference"
+              icon={<FiBookOpen size={14} />}
+              size="sm"
+              variant="ghost"
+              onClick={onOpen}
+              isDisabled={!problem.referenceSolution}
               borderRadius="lg"
               h="30px"
               minW="30px"
