@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { Box } from "@chakra-ui/react";
+import { FaChevronUp, FaChevronDown } from "react-icons/fa";
 
 interface VerticalSplitPanelProps {
   topContent: React.ReactNode;
@@ -7,6 +8,13 @@ interface VerticalSplitPanelProps {
   initialRatio?: number;
   minTopHeight?: number;
   minBottomHeight?: number;
+  splitRatio?: number;
+  onSplitRatioChange?: (ratio: number) => void;
+  containerId?: string;
+  allowCollapse?: boolean;
+  snapOffsetPx?: number;
+  collapsedTopLabel?: string;
+  collapsedBottomLabel?: string;
 }
 
 const VerticalSplitPanel = ({
@@ -15,9 +23,29 @@ const VerticalSplitPanel = ({
   initialRatio = 70,
   minTopHeight = 30,
   minBottomHeight = 20,
+  splitRatio: controlledRatio,
+  onSplitRatioChange,
+  containerId = "vertical-split-container",
+  allowCollapse = false,
+  snapOffsetPx = 24,
+  collapsedTopLabel,
+  collapsedBottomLabel,
 }: VerticalSplitPanelProps) => {
-  const [splitRatio, setSplitRatio] = useState(initialRatio);
+  const [uncontrolledRatio, setUncontrolledRatio] = useState(initialRatio);
   const [isResizing, setIsResizing] = useState(false);
+  const splitRatio = controlledRatio ?? uncontrolledRatio;
+  const isCollapsedTop = allowCollapse && splitRatio <= 0.5;
+  const isCollapsedBottom = allowCollapse && splitRatio >= 99.5;
+
+  const setRatio = useCallback(
+    (ratio: number) => {
+      onSplitRatioChange?.(ratio);
+      if (controlledRatio === undefined) {
+        setUncontrolledRatio(ratio);
+      }
+    },
+    [onSplitRatioChange, controlledRatio]
+  );
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -29,7 +57,7 @@ const VerticalSplitPanel = ({
       if (!isResizing) return;
 
       const containerRect = document
-        .getElementById("vertical-split-container")
+        .getElementById(containerId)
         ?.getBoundingClientRect();
 
       if (!containerRect) return;
@@ -38,19 +66,39 @@ const VerticalSplitPanel = ({
       const mouseY = e.clientY - containerRect.top;
       let newRatio = (mouseY / containerHeight) * 100;
 
+      if (allowCollapse) {
+        if (mouseY <= snapOffsetPx) {
+          newRatio = 0;
+        } else if (mouseY >= containerHeight - snapOffsetPx) {
+          newRatio = 100;
+        }
+      }
+
       // Apply min-height constraints
       const minTopPixels = (containerHeight * minTopHeight) / 100;
       const minBottomPixels = (containerHeight * minBottomHeight) / 100;
 
-      if (mouseY < minTopPixels) {
+      if (newRatio !== 0 && newRatio !== 100 && mouseY < minTopPixels) {
         newRatio = minTopHeight;
-      } else if (mouseY > containerHeight - minBottomPixels) {
+      } else if (
+        newRatio !== 0 &&
+        newRatio !== 100 &&
+        mouseY > containerHeight - minBottomPixels
+      ) {
         newRatio = 100 - minBottomHeight;
       }
 
-      setSplitRatio(newRatio);
+      setRatio(newRatio);
     },
-    [isResizing, minTopHeight, minBottomHeight]
+    [
+      isResizing,
+      minTopHeight,
+      minBottomHeight,
+      containerId,
+      setRatio,
+      allowCollapse,
+      snapOffsetPx,
+    ]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -74,20 +122,25 @@ const VerticalSplitPanel = ({
 
   return (
     <Box
-      id="vertical-split-container"
+      id={containerId}
       display="flex"
       flexDirection="column"
       h="100%"
-      gap={1}
+      gap={0}
     >
       {/* Top Panel */}
-      <Box flex={`${splitRatio}`} overflow="hidden" minH={0}>
+      <Box
+        flex={`${splitRatio}`}
+        overflow="hidden"
+        minH={0}
+        display={isCollapsedTop ? "none" : "block"}
+      >
         {topContent}
       </Box>
 
       {/* Resizer Handle */}
       <Box
-        h="2px"
+        h={isCollapsedTop || isCollapsedBottom ? "18px" : "10px"}
         cursor="row-resize"
         display="flex"
         alignItems="center"
@@ -95,19 +148,106 @@ const VerticalSplitPanel = ({
         onClick={(e) => e.stopPropagation()}
         onMouseDown={handleMouseDown}
         py={0}
+        bg={
+          isCollapsedTop || isCollapsedBottom ? "whiteAlpha.50" : "transparent"
+        }
+        _hover={{ bg: "whiteAlpha.50" }}
+        position="relative"
       >
         <Box
           height="2px"
-          width={isResizing ? "60px" : "40px"}
-          bg="whiteAlpha.200"
+          width="100%"
+          bg={isResizing ? "whiteAlpha.300" : "whiteAlpha.100"}
           borderRadius="full"
           transition="all 0.2s ease"
-          _hover={{ bg: "whiteAlpha.400" }}
+          _hover={{ bg: "whiteAlpha.300" }}
         />
+        {allowCollapse && !isResizing && (
+          <Box
+            as="button"
+            type="button"
+            position="absolute"
+            top="50%"
+            left="10px"
+            transform="translateY(-50%)"
+            w="16px"
+            h="16px"
+            borderRadius="full"
+            border="1px solid"
+            borderColor="whiteAlpha.300"
+            color="gray.300"
+            fontSize="11px"
+            lineHeight="1"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            bg="rgba(17, 17, 17, 0.9)"
+            _hover={{ bg: "whiteAlpha.200", color: "white" }}
+            pointerEvents="auto"
+            onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              const minOpen = Math.max(0, minTopHeight);
+              const maxOpen = Math.min(100, 100 - minBottomHeight);
+              const fallback = Math.min(
+                maxOpen,
+                Math.max(minOpen, initialRatio)
+              );
+
+              if (isCollapsedTop || isCollapsedBottom) {
+                setRatio(fallback);
+                return;
+              }
+
+              setRatio(100);
+            }}
+            aria-label={
+              isCollapsedTop || isCollapsedBottom
+                ? "Restore split view"
+                : "Collapse console"
+            }
+          >
+            {isCollapsedBottom ? (
+              <FaChevronUp size={9} />
+            ) : (
+              <FaChevronDown size={9} />
+            )}
+          </Box>
+        )}
+        {(isCollapsedTop || isCollapsedBottom) &&
+          !isResizing &&
+          (isCollapsedTop ? collapsedTopLabel : collapsedBottomLabel) && (
+            <Box
+              position="absolute"
+              top="50%"
+              left="50%"
+              transform="translate(-50%, -50%)"
+              fontSize="10px"
+              fontWeight="600"
+              color="gray.400"
+              pointerEvents="none"
+              userSelect="none"
+              letterSpacing="0.06em"
+              textTransform="uppercase"
+              bg="brand.secondary"
+              px={2}
+              py={0.5}
+              borderRadius="md"
+              border="1px solid"
+              borderColor="whiteAlpha.100"
+            >
+              {isCollapsedTop ? collapsedTopLabel : collapsedBottomLabel}
+            </Box>
+          )}
       </Box>
 
       {/* Bottom Panel */}
-      <Box flex={`${100 - splitRatio}`} overflow="hidden" minH={0}>
+      <Box
+        flex={`${100 - splitRatio}`}
+        overflow="hidden"
+        minH={0}
+        display={isCollapsedBottom ? "none" : "block"}
+      >
         {bottomContent}
       </Box>
     </Box>

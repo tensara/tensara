@@ -20,8 +20,6 @@ import {
   MenuItem,
   Button,
   Link,
-  Wrap,
-  WrapItem,
   Divider,
   Tooltip,
 } from "@chakra-ui/react";
@@ -391,7 +389,10 @@ export default function ProblemsPage() {
                             h="18px"
                             borderRadius="sm"
                           >
-                            <FaTimes color={isHoveringTagClear ? "white" : "#d4d4d8"} size={10} />
+                            <FaTimes
+                              color={isHoveringTagClear ? "white" : "#d4d4d8"}
+                              size={10}
+                            />
                           </Box>
                         ) : null}
                         <FaChevronDown color="#d4d4d8" size={10} />

@@ -25,7 +25,13 @@ import {
   MOJO_CMD,
 } from "~/constants/deviceQuery";
 
-export const LanguageInfoModal = () => {
+interface LanguageInfoModalProps {
+  compact?: boolean;
+}
+
+export const LanguageInfoModal = ({
+  compact = false,
+}: LanguageInfoModalProps) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const TableWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -51,12 +57,14 @@ export const LanguageInfoModal = () => {
       <IconButton
         aria-label="Framework Information"
         icon={<FaInfoCircle />}
-        size="sm"
+        size={compact ? "xs" : "sm"}
         variant="ghost"
         onClick={onOpen}
         color="gray.400"
         _hover={{ color: "white", bg: "transparent" }}
         bg="transparent"
+        minW={compact ? "24px" : undefined}
+        h={compact ? "24px" : undefined}
       />
 
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="xl">

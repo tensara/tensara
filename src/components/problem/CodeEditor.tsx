@@ -15,7 +15,13 @@ import {
 import { keyframes } from "@emotion/react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { type ProgrammingLanguage } from "~/types/misc";
-import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { FiX, FiAlertTriangle } from "react-icons/fi";
 import type { editor as MonacoEditor } from "monaco-editor";
@@ -25,6 +31,8 @@ interface CodeEditorProps {
   code: string;
   setCode: (code: string) => void;
   selectedLanguage: ProgrammingLanguage;
+  toolbar?: ReactNode;
+  codeFontSize?: number;
   isEditable?: boolean;
   ptxContent?: string | null;
   sassContent?: string | null;
@@ -33,6 +41,9 @@ interface CodeEditorProps {
   sassDirty?: boolean;
   enableVimMode?: boolean;
   onToggleVimMode?: (enabled: boolean) => void;
+  embedded?: boolean;
+  isPtxSassOpen?: boolean;
+  onPtxSassOpenChange?: (open: boolean) => void;
 }
 
 const PTX_LINE_SEARCH_RADIUS = 50;
@@ -538,6 +549,8 @@ const CodeEditor = ({
   code,
   setCode,
   selectedLanguage,
+  toolbar,
+  codeFontSize = 14,
   isEditable = true,
   ptxContent,
   sassContent,
@@ -546,9 +559,26 @@ const CodeEditor = ({
   sassDirty,
   enableVimMode = false,
   onToggleVimMode,
+  embedded = false,
+  isPtxSassOpen,
+  onPtxSassOpenChange,
 }: CodeEditorProps) => {
   const [isEditorLoading, setIsEditorLoading] = useState(true);
-  const [isSplitViewOpen, setIsSplitViewOpen] = useState(false);
+  const [internalSplitViewOpen, setInternalSplitViewOpen] = useState(false);
+  const splitViewControlled = typeof isPtxSassOpen === "boolean";
+  const isSplitViewOpen = splitViewControlled
+    ? isPtxSassOpen
+    : internalSplitViewOpen;
+  const setIsSplitViewOpen = useCallback(
+    (open: boolean) => {
+      if (splitViewControlled) {
+        onPtxSassOpenChange?.(open);
+        return;
+      }
+      setInternalSplitViewOpen(open);
+    },
+    [splitViewControlled, onPtxSassOpenChange]
+  );
   const codeEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const ptxEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const codeCursorDisposableRef = useRef<{ dispose: () => void } | null>(null);
@@ -571,6 +601,7 @@ const CodeEditor = ({
   const [ptxSourceMap, setPtxSourceMap] = useState<PtxSourceMap | null>(null);
   const [maxMappedSourceLine, setMaxMappedSourceLine] = useState(0);
   const debugTag = "[CodeEditor PTX]";
+  const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
   const disposeVimMode = useCallback(() => {
     vimModeAdapterRef.current?.dispose();
     vimModeAdapterRef.current = null;
@@ -617,8 +648,6 @@ const CodeEditor = ({
     },
     [codeEditorInstance, enableVimMode, isEditable]
   );
-
-  const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
 
   const highlightPtxLines = useCallback(
     (lineNumbers: number[] | null) => {
@@ -742,7 +771,7 @@ const CodeEditor = ({
     if (!enablePtxSassView && isSplitViewOpen) {
       setIsSplitViewOpen(false);
     }
-  }, [enablePtxSassView, isSplitViewOpen]);
+  }, [enablePtxSassView, isSplitViewOpen, setIsSplitViewOpen]);
 
   useEffect(() => {
     return () => {
@@ -895,11 +924,11 @@ const CodeEditor = ({
         loading={null}
         options={{
           minimap: { enabled: false },
-          fontSize: 14,
+          fontSize: codeFontSize,
           lineNumbers: "on",
           scrollBeyondLastLine: false,
           automaticLayout: true,
-          padding: { top: 16, bottom: 16 },
+          padding: { top: 8, bottom: 8 },
           fontFamily: "JetBrains Mono, monospace",
           readOnly: readOnly,
         }}
@@ -908,7 +937,14 @@ const CodeEditor = ({
   );
 
   const codeEditorPanel = (
-    <Box w="100%" h="100%" position="relative">
+    <Box
+      w="100%"
+      h="100%"
+      position="relative"
+      borderRadius="inherit"
+      overflow="hidden"
+      bg="#111111"
+    >
       {editorContent(
         code,
         selectedLanguage === "cuda"
@@ -937,8 +973,7 @@ const CodeEditor = ({
           minW="90px"
         />
       )}
-      {(isEditable && onToggleVimMode) ||
-      (hasPtxSassContent && !isSplitViewOpen) ? (
+      {isEditable && onToggleVimMode && !toolbar ? (
         <Box
           position="absolute"
           top="8px"
@@ -948,7 +983,30 @@ const CodeEditor = ({
           zIndex={10}
           pointerEvents="none"
         >
-          {isEditable && onToggleVimMode && (
+          {hasPtxSassContent && !isSplitViewOpen && (
+            <Button
+              size="sm"
+              borderRadius="md"
+              bg="#1A1A1A"
+              color="#CCCCCC"
+              border="1px solid"
+              borderColor="#2A2A2A"
+              _hover={{
+                bg: "#252525",
+                color: "#FFFFFF",
+                borderColor: "#3A3A3A",
+              }}
+              onClick={() => setIsSplitViewOpen(true)}
+              fontSize="14px"
+              fontWeight="500"
+              h="36px"
+              px={4}
+              pointerEvents="auto"
+            >
+              Show PTX/SASS
+            </Button>
+          )}
+          {isEditable && onToggleVimMode && !toolbar && (
             <Button
               size="sm"
               borderRadius="md"
@@ -969,32 +1027,6 @@ const CodeEditor = ({
               pointerEvents="auto"
             >
               Vim
-            </Button>
-          )}
-          {hasPtxSassContent && !isSplitViewOpen && (
-            <Button
-              size="sm"
-              borderRadius="md"
-              bg="#1A1A1A"
-              color="#858585"
-              border="1px solid"
-              borderColor="#2A2A2A"
-              _hover={{
-                bg: "#252525",
-                color: "#CCCCCC",
-                borderColor: "#3A3A3A",
-              }}
-              leftIcon={
-                (ptxDirty ?? sassDirty) ? <FiAlertTriangle /> : undefined
-              }
-              onClick={() => setIsSplitViewOpen(true)}
-              fontSize="14px"
-              fontWeight="500"
-              h="36px"
-              px={4}
-              pointerEvents="auto"
-            >
-              Show PTX/SASS
             </Button>
           )}
         </Box>
@@ -1207,51 +1239,60 @@ const CodeEditor = ({
       <Box
         w="100%"
         h="100%"
-        bg="brand.secondary"
-        borderRadius="xl"
-        overflow="hidden"
+        bg={embedded ? "transparent" : "brand.secondary"}
+        borderRadius={embedded ? "0" : "xl"}
         position="relative"
+        display="flex"
+        flexDirection="column"
       >
-        {isSplitViewOpen && enablePtxSassView ? (
-          <Box
-            id="code-editor-split-container"
-            display="flex"
-            h="100%"
-            position="relative"
-          >
-            {/* Left Panel - Code Editor */}
-            <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
-              {codeEditorPanel}
-            </Box>
-
-            {/* Minimal Divider */}
+        {toolbar}
+        <Box
+          flex="1"
+          minH={0}
+          borderRadius={embedded ? "0" : "xl"}
+          overflow="hidden"
+        >
+          {isSplitViewOpen && enablePtxSassView ? (
             <Box
-              position="absolute"
-              left={`${splitRatio}%`}
-              transform="translateX(-50%)"
-              width="1px"
-              height="100%"
-              bg="#2A2A2A"
-              cursor="col-resize"
-              zIndex={2}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={handleMouseDown}
-              _hover={{
-                bg: "#4EC9B0",
-                width: "2px",
-                opacity: 0.6,
-              }}
-              transition="all 0.15s ease"
-            />
+              id="code-editor-split-container"
+              display="flex"
+              h="100%"
+              position="relative"
+            >
+              {/* Left Panel - Code Editor */}
+              <Box w={`${splitRatio}%`} h="100%" overflow="hidden">
+                {codeEditorPanel}
+              </Box>
 
-            {/* Right Panel - PTX/SASS */}
-            <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
-              {ptxSassPanel}
+              {/* Minimal Divider */}
+              <Box
+                position="absolute"
+                left={`${splitRatio}%`}
+                transform="translateX(-50%)"
+                width="1px"
+                height="100%"
+                bg="#2A2A2A"
+                cursor="col-resize"
+                zIndex={2}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={handleMouseDown}
+                _hover={{
+                  bg: "#4EC9B0",
+                  width: "2px",
+                  opacity: 0.6,
+                }}
+                transition="all 0.15s ease"
+              />
+
+              {/* Right Panel - PTX/SASS */}
+              <Box w={`${100 - splitRatio}%`} h="100%" overflow="hidden">
+                {ptxSassPanel}
+              </Box>
             </Box>
-          </Box>
-        ) : (
-          codeEditorPanel
-        )}
+          ) : (
+            codeEditorPanel
+          )}
+        </Box>
       </Box>
       <style jsx global>{`
         .ptx-highlight-line {

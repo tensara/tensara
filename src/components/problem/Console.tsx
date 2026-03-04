@@ -1,10 +1,22 @@
-import { Box, Text, VStack, HStack, Spinner, Badge } from "@chakra-ui/react";
+import {
+  Box,
+  Text,
+  VStack,
+  HStack,
+  Spinner,
+  Badge,
+  IconButton,
+  Tooltip,
+  useClipboard,
+} from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import {
   SampleStatus,
   type SampleStatusType,
   type SampleOutput,
 } from "~/types/submission";
+import { FiCheck, FiChevronDown, FiChevronRight, FiCopy } from "react-icons/fi";
+import { useState } from "react";
 
 const pulseAnimation = keyframes`
   0% { opacity: 0.6; }
@@ -12,7 +24,7 @@ const pulseAnimation = keyframes`
   100% { opacity: 0.6; }
 `;
 
-const StatusBadge = ({
+export const ConsoleStatusBadge = ({
   status,
   isRunning,
 }: {
@@ -108,12 +120,19 @@ const StatusBadge = ({
 const OutputBox = ({
   title,
   content,
+  renderContent,
+  copyText,
   type = "default",
 }: {
   title?: string;
   content?: string;
+  renderContent?: React.ReactNode;
+  copyText?: string;
   type?: "input" | "output" | "expected" | "error" | "default";
 }) => {
+  const copyValue = copyText ?? content ?? "";
+  const { hasCopied, onCopy } = useClipboard(copyValue);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   if (!content) return null;
 
   const getTypeProps = () => {
@@ -160,37 +179,261 @@ const OutputBox = ({
       borderRadius="md"
       overflow="hidden"
       bg="#111111"
+      role="group"
     >
-      <Box px={3} py={1} bg="#111111">
-        <Text fontSize="xs" fontWeight="500" color={props.color}>
-          {props.label}
-        </Text>
-      </Box>
-      <Box px={3} py={2} bg="#111111">
-        <Text
-          fontFamily="JetBrains Mono, monospace"
-          fontSize="sm"
-          color="#D4D4D4"
-          whiteSpace="pre-wrap"
-          wordBreak="break-word"
-          lineHeight="1.5"
-        >
-          {content}
-        </Text>
-      </Box>
+      <HStack
+        px={3}
+        py={1}
+        bg="#111111"
+        justify="space-between"
+        cursor="pointer"
+        onClick={() => setIsCollapsed((prev) => !prev)}
+      >
+        <HStack spacing={1.5} minW={0}>
+          <IconButton
+            aria-label={isCollapsed ? "Expand" : "Collapse"}
+            icon={
+              isCollapsed ? (
+                <FiChevronRight size={14} />
+              ) : (
+                <FiChevronDown size={14} />
+              )
+            }
+            size="xs"
+            variant="ghost"
+            color="gray.500"
+            _hover={{ color: "gray.200", bg: "whiteAlpha.50" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsCollapsed((prev) => !prev);
+            }}
+          />
+          <Text
+            fontSize="xs"
+            fontWeight="500"
+            color={props.color}
+            noOfLines={1}
+          >
+            {props.label}
+          </Text>
+        </HStack>
+        <Tooltip label={hasCopied ? "Copied" : "Copy"} placement="top" hasArrow>
+          <IconButton
+            aria-label={hasCopied ? "Copied" : "Copy"}
+            icon={hasCopied ? <FiCheck size={14} /> : <FiCopy size={14} />}
+            size="xs"
+            variant="ghost"
+            color="gray.400"
+            _hover={{ color: "gray.200", bg: "whiteAlpha.50" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+            opacity={0}
+            _groupHover={{ opacity: 1 }}
+            transition="opacity 0.15s ease"
+          />
+        </Tooltip>
+      </HStack>
+      {!isCollapsed && (
+        <Box px={3} py={2} bg="#111111">
+          {renderContent ?? (
+            <Text
+              fontFamily="JetBrains Mono, monospace"
+              fontSize="sm"
+              color="#D4D4D4"
+              whiteSpace="pre-wrap"
+              wordBreak="break-word"
+              lineHeight="1.5"
+            >
+              {content}
+            </Text>
+          )}
+        </Box>
+      )}
     </Box>
   );
 };
+
+const normalizeForCompare = (value: string) =>
+  value.replace(/\r\n/g, "\n").replace(/\n+$/g, "");
+
+type DiffLine =
+  | { type: "context"; value: string }
+  | { type: "add"; value: string }
+  | { type: "del"; value: string };
+
+type InlineSegment = { value: string; changed: boolean };
+
+const tokenizeForInlineDiff = (value: string) =>
+  value.match(/(\s+|[^\s]+)/g) ?? [];
+
+function createInlineDiffSegments(
+  before: string,
+  after: string
+): {
+  before: InlineSegment[];
+  after: InlineSegment[];
+} {
+  const a = tokenizeForInlineDiff(before);
+  const b = tokenizeForInlineDiff(after);
+
+  const n = a.length;
+  const m = b.length;
+
+  if (n === 0 && m === 0) return { before: [], after: [] };
+
+  // Keep this bounded; worst-case token count is small for expected output.
+  const maxTokens = 600;
+  if (n > maxTokens || m > maxTokens) {
+    return {
+      before: [{ value: before, changed: true }],
+      after: [{ value: after, changed: true }],
+    };
+  }
+
+  const cols = m + 1;
+  const dp = new Uint16Array((n + 1) * (m + 1));
+
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const idx = i * cols + j;
+      if (a[i - 1] === b[j - 1]) {
+        dp[idx] = (dp[(i - 1) * cols + (j - 1)] ?? 0) + 1;
+      } else {
+        const up = dp[(i - 1) * cols + j] ?? 0;
+        const left = dp[i * cols + (j - 1)] ?? 0;
+        dp[idx] = up >= left ? up : left;
+      }
+    }
+  }
+
+  const beforeSegments: InlineSegment[] = [];
+  const afterSegments: InlineSegment[] = [];
+
+  let i = n;
+  let j = m;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      beforeSegments.push({ value: a[i - 1] ?? "", changed: false });
+      afterSegments.push({ value: b[j - 1] ?? "", changed: false });
+      i--;
+      j--;
+      continue;
+    }
+
+    const up = i > 0 ? (dp[(i - 1) * cols + j] ?? 0) : 0;
+    const left = j > 0 ? (dp[i * cols + (j - 1)] ?? 0) : 0;
+
+    if (j > 0 && (i === 0 || left >= up)) {
+      afterSegments.push({ value: b[j - 1] ?? "", changed: true });
+      j--;
+    } else if (i > 0) {
+      beforeSegments.push({ value: a[i - 1] ?? "", changed: true });
+      i--;
+    }
+  }
+
+  beforeSegments.reverse();
+  afterSegments.reverse();
+
+  return { before: beforeSegments, after: afterSegments };
+}
+
+function createLineDiff(expected: string, actual: string): DiffLine[] | null {
+  const expectedLines = normalizeForCompare(expected).split("\n");
+  const actualLines = normalizeForCompare(actual).split("\n");
+
+  const maxLines = 200;
+  if (expectedLines.length > maxLines || actualLines.length > maxLines) {
+    return null;
+  }
+
+  const n = expectedLines.length;
+  const m = actualLines.length;
+  const cols = m + 1;
+  const dp = new Uint16Array((n + 1) * (m + 1));
+
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const idx = i * cols + j;
+      if (expectedLines[i - 1] === actualLines[j - 1]) {
+        dp[idx] = (dp[(i - 1) * cols + (j - 1)] ?? 0) + 1;
+      } else {
+        const up = dp[(i - 1) * cols + j] ?? 0;
+        const left = dp[i * cols + (j - 1)] ?? 0;
+        dp[idx] = up >= left ? up : left;
+      }
+    }
+  }
+
+  const result: DiffLine[] = [];
+  let i = n;
+  let j = m;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && expectedLines[i - 1] === actualLines[j - 1]) {
+      result.push({ type: "context", value: expectedLines[i - 1] ?? "" });
+      i--;
+      j--;
+      continue;
+    }
+
+    const up = i > 0 ? (dp[(i - 1) * cols + j] ?? 0) : 0;
+    const left = j > 0 ? (dp[i * cols + (j - 1)] ?? 0) : 0;
+    if (j > 0 && (i === 0 || left >= up)) {
+      result.push({ type: "add", value: actualLines[j - 1] ?? "" });
+      j--;
+    } else if (i > 0) {
+      result.push({ type: "del", value: expectedLines[i - 1] ?? "" });
+      i--;
+    }
+  }
+
+  result.reverse();
+  return result;
+}
 
 type ConsoleProps = {
   output: SampleOutput | null;
   status: SampleStatusType;
   isRunning: boolean;
+  embedded?: boolean;
+  hideHeader?: boolean;
 };
 
-const ResizableConsole = ({ output, status, isRunning }: ConsoleProps) => {
+const ResizableConsole = ({
+  output,
+  status,
+  isRunning,
+  embedded = false,
+  hideHeader = false,
+}: ConsoleProps) => {
+  const diff =
+    output?.expected_output && output?.output
+      ? normalizeForCompare(output.expected_output) ===
+        normalizeForCompare(output.output)
+        ? null
+        : createLineDiff(output.expected_output, output.output)
+      : null;
+
+  const diffCopyText = diff
+    ? diff
+        .map((line) => {
+          const prefix =
+            line.type === "add" ? "+ " : line.type === "del" ? "- " : "  ";
+          return `${prefix}${line.value}`;
+        })
+        .join("\n")
+    : null;
+
   return (
-    <Box w="100%" h="100%" bg="#111111" borderRadius="xl" overflow="hidden">
+    <Box
+      w="100%"
+      h="100%"
+      bg={embedded ? "transparent" : "#111111"}
+      borderRadius={embedded ? "0" : "xl"}
+      overflow="hidden"
+    >
       <Box
         px={4}
         py={3}
@@ -214,26 +457,198 @@ const ResizableConsole = ({ output, status, isRunning }: ConsoleProps) => {
       >
         {!output && status === SampleStatus.IDLE ? (
           <VStack align="center" justify="center" h="100%" spacing={3}>
-            <Text color="#858585" fontSize="lg">
-              Sample Run Results
-            </Text>
+            {!hideHeader && (
+              <Text color="#858585" fontSize="lg" textAlign="center">
+                Sample Run Results
+              </Text>
+            )}
             <Text color="#858585" fontSize="sm" textAlign="center">
               Hit &#34;Run&#34; to test your code with sample inputs
             </Text>
           </VStack>
         ) : (
           <VStack align="stretch" spacing={4}>
-            <HStack justify="space-between" align="center">
-              <Text color="#D4D4D4" fontSize="md" fontWeight="600">
-                Sample Run Results
-              </Text>
-              <StatusBadge status={status} isRunning={isRunning} />
-            </HStack>
-
+            {!hideHeader && (
+              <HStack justify="space-between" align="center">
+                <Text color="#D4D4D4" fontSize="md" fontWeight="600">
+                  Sample Run Results
+                </Text>
+                <ConsoleStatusBadge status={status} isRunning={isRunning} />
+              </HStack>
+            )}
             <VStack align="stretch" spacing={3}>
               <OutputBox content={output?.input} type="input" />
               <OutputBox content={output?.output} type="output" />
               <OutputBox content={output?.expected_output} type="expected" />
+              {diff && (
+                <OutputBox
+                  title="Diff"
+                  content=" "
+                  copyText={diffCopyText ?? undefined}
+                  renderContent={
+                    <Box
+                      fontFamily="JetBrains Mono, monospace"
+                      fontSize="sm"
+                      whiteSpace="pre"
+                      lineHeight="1.5"
+                    >
+                      {(() => {
+                        const nodes: React.ReactNode[] = [];
+                        let idx = 0;
+                        while (idx < diff.length) {
+                          const line = diff[idx];
+                          if (!line) break;
+
+                          if (line.type === "del" || line.type === "add") {
+                            let delEnd = idx;
+                            while (
+                              delEnd < diff.length &&
+                              diff[delEnd]?.type === "del"
+                            ) {
+                              delEnd++;
+                            }
+
+                            let addEnd = delEnd;
+                            while (
+                              addEnd < diff.length &&
+                              diff[addEnd]?.type === "add"
+                            ) {
+                              addEnd++;
+                            }
+
+                            const delCount = delEnd - idx;
+                            const addCount = addEnd - delEnd;
+
+                            if (delCount === 1 && addCount === 1) {
+                              const delLine = diff[idx];
+                              const addLine = diff[delEnd];
+
+                              if (
+                                delLine?.type === "del" &&
+                                addLine?.type === "add"
+                              ) {
+                                const inline = createInlineDiffSegments(
+                                  delLine.value,
+                                  addLine.value
+                                );
+                                nodes.push(
+                                  <Text
+                                    key={`del-${idx}`}
+                                    as="div"
+                                    color="red.300"
+                                    whiteSpace="pre"
+                                  >
+                                    {"- "}
+                                    {inline.before.map((seg, i2) => (
+                                      <Box
+                                        key={i2}
+                                        as="span"
+                                        bg={
+                                          seg.changed
+                                            ? "rgba(255, 93, 93, 0.22)"
+                                            : "transparent"
+                                        }
+                                        color={
+                                          seg.changed ? "red.200" : "red.300"
+                                        }
+                                        px={seg.changed ? 0.5 : 0}
+                                        borderRadius={
+                                          seg.changed ? "sm" : "none"
+                                        }
+                                      >
+                                        {seg.value}
+                                      </Box>
+                                    ))}
+                                  </Text>
+                                );
+                                nodes.push(
+                                  <Text
+                                    key={`add-${idx}`}
+                                    as="div"
+                                    color="green.300"
+                                    whiteSpace="pre"
+                                  >
+                                    {"+ "}
+                                    {inline.after.map((seg, i2) => (
+                                      <Box
+                                        key={i2}
+                                        as="span"
+                                        bg={
+                                          seg.changed
+                                            ? "rgba(78, 201, 176, 0.22)"
+                                            : "transparent"
+                                        }
+                                        color={
+                                          seg.changed
+                                            ? "green.200"
+                                            : "green.300"
+                                        }
+                                        px={seg.changed ? 0.5 : 0}
+                                        borderRadius={
+                                          seg.changed ? "sm" : "none"
+                                        }
+                                      >
+                                        {seg.value}
+                                      </Box>
+                                    ))}
+                                  </Text>
+                                );
+                                idx = addEnd;
+                                continue;
+                              }
+                            }
+
+                            for (let j = idx; j < addEnd; j++) {
+                              const blockLine = diff[j];
+                              const prefix =
+                                blockLine?.type === "add"
+                                  ? "+ "
+                                  : blockLine?.type === "del"
+                                    ? "- "
+                                    : "  ";
+                              const color =
+                                blockLine?.type === "add"
+                                  ? "green.300"
+                                  : blockLine?.type === "del"
+                                    ? "red.300"
+                                    : "gray.300";
+
+                              nodes.push(
+                                <Text
+                                  key={j}
+                                  as="div"
+                                  color={color}
+                                  whiteSpace="pre"
+                                >
+                                  {prefix}
+                                  {blockLine?.value ?? ""}
+                                </Text>
+                              );
+                            }
+
+                            idx = addEnd;
+                            continue;
+                          }
+
+                          nodes.push(
+                            <Text
+                              key={idx}
+                              as="div"
+                              color="gray.300"
+                              whiteSpace="pre"
+                            >
+                              {"  "}
+                              {line.value}
+                            </Text>
+                          );
+                          idx++;
+                        }
+                        return nodes;
+                      })()}
+                    </Box>
+                  }
+                />
+              )}
 
               {output?.stdout && (
                 <OutputBox
