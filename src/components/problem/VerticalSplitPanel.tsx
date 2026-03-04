@@ -36,9 +36,6 @@ const VerticalSplitPanel = ({
   const splitRatio = controlledRatio ?? uncontrolledRatio;
   const isCollapsedTop = allowCollapse && splitRatio <= 0.5;
   const isCollapsedBottom = allowCollapse && splitRatio >= 99.5;
-  const [lastRatioBeforeCollapse, setLastRatioBeforeCollapse] = useState<
-    number | null
-  >(null);
 
   const setRatio = useCallback(
     (ratio: number) => {
@@ -107,12 +104,6 @@ const VerticalSplitPanel = ({
   const handleMouseUp = useCallback(() => {
     setIsResizing(false);
   }, []);
-
-  useEffect(() => {
-    if (!isCollapsedBottom && splitRatio !== 0 && splitRatio !== 100) {
-      setLastRatioBeforeCollapse(splitRatio);
-    }
-  }, [isCollapsedBottom, splitRatio]);
 
   useEffect(() => {
     if (isResizing) {
@@ -196,15 +187,24 @@ const VerticalSplitPanel = ({
             onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
             onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
-              if (isCollapsedBottom) {
-                setRatio(lastRatioBeforeCollapse ?? initialRatio);
+              const minOpen = Math.max(0, minTopHeight);
+              const maxOpen = Math.min(100, 100 - minBottomHeight);
+              const fallback = Math.min(
+                maxOpen,
+                Math.max(minOpen, initialRatio)
+              );
+
+              if (isCollapsedTop || isCollapsedBottom) {
+                setRatio(fallback);
                 return;
               }
 
               setRatio(100);
             }}
             aria-label={
-              isCollapsedBottom ? "Expand console panel" : "Collapse console"
+              isCollapsedTop || isCollapsedBottom
+                ? "Restore split view"
+                : "Collapse console"
             }
           >
             {isCollapsedBottom ? (

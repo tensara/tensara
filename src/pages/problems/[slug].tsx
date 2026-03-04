@@ -134,6 +134,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   const [viewType, setViewType] = useState<ViewType>("problem");
   const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(42);
   const [leftConsoleSplitRatio, setLeftConsoleSplitRatio] = useState(100);
+  const LEFT_CONSOLE_DEFAULT_RATIO = 68;
   const HORIZONTAL_DEFAULT_RATIO = 42;
   const splitContainerId = "problem-split-container";
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -503,7 +504,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
       current <= 0.5 ? HORIZONTAL_DEFAULT_RATIO : current
     );
 
-    setLeftConsoleSplitRatio((current) => (current >= 99.5 ? 68 : current));
+    setLeftConsoleSplitRatio((current) =>
+      current >= 99.5 ? LEFT_CONSOLE_DEFAULT_RATIO : current
+    );
 
     if (!session?.user) {
       toast({
@@ -543,6 +546,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     selectedGpuType,
     slug,
     HORIZONTAL_DEFAULT_RATIO,
+    LEFT_CONSOLE_DEFAULT_RATIO,
     toast,
   ]);
 
@@ -673,6 +677,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             isRunning={isRunning}
           />
         }
+        initialRatio={LEFT_CONSOLE_DEFAULT_RATIO}
         splitRatio={leftConsoleSplitRatio}
         onSplitRatioChange={setLeftConsoleSplitRatio}
         minTopHeight={0}
@@ -1108,6 +1113,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             containerId={splitContainerId}
             leftContent={leftContent}
             rightContent={rightContent}
+            initialRatio={HORIZONTAL_DEFAULT_RATIO}
             splitRatio={horizontalSplitRatio}
             onSplitRatioChange={setHorizontalSplitRatio}
             minLeftWidth={28}

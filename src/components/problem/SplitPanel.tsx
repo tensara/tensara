@@ -270,7 +270,7 @@ const SplitPanel = ({
                   Math.max(minOpen, initialRatio)
                 );
 
-                if (isCollapsedLeft) {
+                if (isCollapsedLeft || isCollapsedRight) {
                   setRatio(fallback);
                   return;
                 }
@@ -278,7 +278,9 @@ const SplitPanel = ({
                 setRatio(0);
               }}
               aria-label={
-                isCollapsedLeft ? "Expand problem panel" : "Expand editor"
+                isCollapsedLeft || isCollapsedRight
+                  ? "Restore split view"
+                  : "Expand editor"
               }
             >
               {isCollapsedLeft ? (
