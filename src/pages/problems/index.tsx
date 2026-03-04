@@ -22,8 +22,8 @@ import {
   Link,
   Wrap,
   WrapItem,
-  CloseButton,
   Divider,
+  Tooltip,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
@@ -37,6 +37,7 @@ import {
   FaCheckCircle,
   FaClock,
   FaGithub,
+  FaTimes,
 } from "react-icons/fa";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
@@ -130,6 +131,7 @@ export default function ProblemsPage() {
     useState<ProblemStatus>("all");
   const [sortField, setSortField] = useState<SortField>("difficulty");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [isHoveringTagClear, setIsHoveringTagClear] = useState(false);
 
   useHotkey("meta+f", () => {
     if (!searchInputRef.current) return;
@@ -179,7 +181,7 @@ export default function ProblemsPage() {
   }, [filteredTags, popularTags, tagSearchQuery]);
 
   const statusOptions: { label: string; value: ProblemStatus }[] = [
-    { label: "All", value: "all" },
+    { label: "All Statuses", value: "all" },
     { label: "Solved", value: "solved" },
     { label: "Unsolved", value: "unsolved" },
     { label: "Attempting", value: "attempting" },
@@ -205,6 +207,12 @@ export default function ProblemsPage() {
 
   const contributeUrl = "https://github.com/tensara/problems/";
   const hasSearch = searchQuery.trim().length > 0;
+  const selectedTagsTooltipLabel = useMemo(() => {
+    if (selectedTags.length === 0) return "";
+    return selectedTags
+      .map((tag) => tagAltNames[tag as keyof typeof tagAltNames] ?? tag)
+      .join(", ");
+  }, [selectedTags]);
 
   const filteredAndSortedProblems = problems
     ?.filter((problem) => {
@@ -299,7 +307,7 @@ export default function ProblemsPage() {
             </InputGroup>
 
             <HStack spacing={4} justify="flex-end" flexWrap="wrap">
-              <Menu closeOnSelect={false}>
+              <Menu>
                 <MenuButton
                   as={Button}
                   rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
@@ -339,26 +347,73 @@ export default function ProblemsPage() {
                 </MenuList>
               </Menu>
 
-              <Menu>
-                <MenuButton
-                  as={Button}
-                  rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-                  bg="whiteAlpha.50"
-                  _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-                  _active={{ bg: "whiteAlpha.150" }}
-                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-                  color="white"
-                  w="200px"
-                  fontWeight="normal"
-                  textAlign="left"
-                  justifyContent="flex-start"
+              <Menu closeOnSelect={false}>
+                <Tooltip
+                  label={selectedTagsTooltipLabel}
+                  hasArrow
+                  placement="top"
+                  openDelay={250}
+                  isDisabled={selectedTags.length === 0 || isHoveringTagClear}
+                  bg="brand.secondary"
+                  color="gray.100"
                 >
-                  {selectedTags.length === 0
-                    ? "All Tags"
-                    : `${selectedTags.length} tag${
-                        selectedTags.length > 1 ? "s" : ""
-                      }`}
-                </MenuButton>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={
+                      <HStack spacing={2}>
+                        {selectedTags.length > 0 ? (
+                          <Box
+                            role="button"
+                            aria-label="Clear tag filters"
+                            tabIndex={0}
+                            onMouseEnter={() => setIsHoveringTagClear(true)}
+                            onMouseLeave={() => setIsHoveringTagClear(false)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedTags([]);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedTags([]);
+                              }
+                            }}
+                            display="inline-flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            w="18px"
+                            h="18px"
+                            borderRadius="sm"
+                          >
+                            <FaTimes color={isHoveringTagClear ? "white" : "#d4d4d8"} size={10} />
+                          </Box>
+                        ) : null}
+                        <FaChevronDown color="#d4d4d8" size={10} />
+                      </HStack>
+                    }
+                    bg="whiteAlpha.50"
+                    _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                    _active={{ bg: "whiteAlpha.150" }}
+                    _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                    color="white"
+                    w="200px"
+                    fontWeight="normal"
+                    textAlign="left"
+                    justifyContent="flex-start"
+                  >
+                    {selectedTags.length === 0
+                      ? "All Tags"
+                      : `${selectedTags.length} tag${
+                          selectedTags.length > 1 ? "s" : ""
+                        }`}
+                  </MenuButton>
+                </Tooltip>
                 <MenuList
                   bg="brand.secondary"
                   borderColor="gray.800"
@@ -367,17 +422,6 @@ export default function ProblemsPage() {
                   maxH="380px"
                   overflowY="auto"
                 >
-                  <MenuItem
-                    onClick={() => setSelectedTags([])}
-                    bg="whiteAlpha.100"
-                    _hover={{ bg: "whiteAlpha.200" }}
-                    color="brand.primary"
-                    borderRadius="md"
-                    justifyContent="center"
-                    fontWeight="semibold"
-                  >
-                    Clear Tags
-                  </MenuItem>
                   <Box px={3} py={2}>
                     <Input
                       size="sm"
@@ -497,51 +541,6 @@ export default function ProblemsPage() {
               ) : null}
             </HStack>
           </HStack>
-          {selectedTags.length > 0 ? (
-            <Wrap spacing={2}>
-              {selectedTags.map((tag) => (
-                <WrapItem key={tag}>
-                  <HStack
-                    bg="whiteAlpha.100"
-                    border="1px solid"
-                    borderColor="whiteAlpha.200"
-                    borderRadius="md"
-                    px={2}
-                    py={1}
-                    spacing={1}
-                  >
-                    <Text color="gray.200" fontSize="sm">
-                      {tagAltNames[tag as keyof typeof tagAltNames]}
-                    </Text>
-                    <CloseButton
-                      size="sm"
-                      color="gray.300"
-                      onClick={() =>
-                        setSelectedTags((prev) => prev.filter((t) => t !== tag))
-                      }
-                    />
-                  </HStack>
-                </WrapItem>
-              ))}
-              <WrapItem>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  borderColor="brand.primary"
-                  color="brand.primary"
-                  _hover={{
-                    bg: "whiteAlpha.100",
-                    borderColor: "brand.primary",
-                  }}
-                  _active={{ bg: "whiteAlpha.200" }}
-                  onClick={() => setSelectedTags([])}
-                  w="100%"
-                >
-                  Clear tags
-                </Button>
-              </WrapItem>
-            </Wrap>
-          ) : null}
 
           <Text color="gray.400" fontSize="sm">
             Showing {filteredAndSortedProblems?.length} of {problems?.length}{" "}
