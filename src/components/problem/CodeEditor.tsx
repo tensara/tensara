@@ -601,6 +601,7 @@ const CodeEditor = ({
   const [ptxSourceMap, setPtxSourceMap] = useState<PtxSourceMap | null>(null);
   const [maxMappedSourceLine, setMaxMappedSourceLine] = useState(0);
   const debugTag = "[CodeEditor PTX]";
+  const hasPtxSassContent = enablePtxSassView && (ptxContent ?? sassContent);
   const disposeVimMode = useCallback(() => {
     vimModeAdapterRef.current?.dispose();
     vimModeAdapterRef.current = null;
@@ -982,6 +983,29 @@ const CodeEditor = ({
           zIndex={10}
           pointerEvents="none"
         >
+          {hasPtxSassContent && !isSplitViewOpen && (
+            <Button
+              size="sm"
+              borderRadius="md"
+              bg="#1A1A1A"
+              color="#CCCCCC"
+              border="1px solid"
+              borderColor="#2A2A2A"
+              _hover={{
+                bg: "#252525",
+                color: "#FFFFFF",
+                borderColor: "#3A3A3A",
+              }}
+              onClick={() => setIsSplitViewOpen(true)}
+              fontSize="14px"
+              fontWeight="500"
+              h="36px"
+              px={4}
+              pointerEvents="auto"
+            >
+              Show PTX/SASS
+            </Button>
+          )}
           {isEditable && onToggleVimMode && !toolbar && (
             <Button
               size="sm"
