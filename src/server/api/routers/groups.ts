@@ -1,9 +1,20 @@
 import { z } from "zod";
+import crypto from "crypto";
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 const MAX_GROUP_SIZE = 256;
+
+function generateInviteCode() {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.randomBytes(8);
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars[bytes[i]! % chars.length];
+  }
+  return code;
+}
 
 const slugSchema = z
   .string()
@@ -86,6 +97,7 @@ export const groupsRouter = createTRPCRouter({
           name: input.name,
           slug: input.slug,
           description: input.description,
+          inviteCode: generateInviteCode(),
           members: {
             create: {
               userId: ctx.session.user.id,
@@ -151,6 +163,9 @@ export const groupsRouter = createTRPCRouter({
         });
       }
 
+      const isAdminOrOwner =
+        membership.role === "OWNER" || membership.role === "ADMIN";
+
       return {
         id: group.id,
         name: group.name,
@@ -161,6 +176,7 @@ export const groupsRouter = createTRPCRouter({
         memberCount: group._count.members,
         problemCount: group._count.problems,
         currentUserRole: membership.role,
+        inviteCode: isAdminOrOwner ? group.inviteCode : null,
       };
     }),
 
@@ -343,6 +359,101 @@ export const groupsRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  getGroupPreview: protectedProcedure
+    .input(z.object({ slug: z.string(), code: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.slug },
+        include: { _count: { select: { members: true, problems: true } } },
+      });
+      if (!group || group.inviteCode !== input.code) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invalid invite link",
+        });
+      }
+
+      const existingMember = await ctx.db.groupMember.findUnique({
+        where: {
+          groupId_userId: { groupId: group.id, userId: ctx.session.user.id },
+        },
+      });
+
+      return {
+        name: group.name,
+        slug: group.slug,
+        description: group.description,
+        memberCount: group._count.members,
+        problemCount: group._count.problems,
+        alreadyMember: !!existingMember,
+      };
+    }),
+
+  joinByCode: protectedProcedure
+    .input(z.object({ slug: z.string(), code: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.slug },
+        include: { _count: { select: { members: true } } },
+      });
+      if (!group || group.inviteCode !== input.code) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invalid invite link",
+        });
+      }
+
+      const existingMember = await ctx.db.groupMember.findUnique({
+        where: {
+          groupId_userId: { groupId: group.id, userId: ctx.session.user.id },
+        },
+      });
+      if (existingMember) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "You are already a member of this group",
+        });
+      }
+
+      if (group._count.members >= MAX_GROUP_SIZE) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Group has reached the maximum size of ${MAX_GROUP_SIZE} members`,
+        });
+      }
+
+      await ctx.db.groupMember.create({
+        data: {
+          groupId: group.id,
+          userId: ctx.session.user.id,
+          role: "MEMBER",
+        },
+      });
+
+      return { slug: group.slug, name: group.name };
+    }),
+
+  regenerateInviteCode: protectedProcedure
+    .input(z.object({ groupSlug: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
+      if (!group) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+      }
+
+      await assertGroupAdmin(ctx.db, group.id, ctx.session.user.id);
+
+      const newCode = generateInviteCode();
+      await ctx.db.group.update({
+        where: { id: group.id },
+        data: { inviteCode: newCode },
+      });
+
+      return { inviteCode: newCode };
     }),
 
   deleteGroup: protectedProcedure
@@ -543,6 +654,12 @@ export const groupsRouter = createTRPCRouter({
 
       const problemIds = groupProblems.map((gp) => gp.problem.id);
 
+      // Build addedAt map for filtering submissions after problem was added
+      const addedAtMap = new Map<string, Date>();
+      for (const gp of groupProblems) {
+        addedAtMap.set(gp.problem.id, gp.addedAt);
+      }
+
       // Get accepted submissions from group members for these problems
       const acceptedSubmissions = await ctx.db.submission.findMany({
         where: {
@@ -550,13 +667,14 @@ export const groupsRouter = createTRPCRouter({
           userId: { in: memberUserIds },
           status: "ACCEPTED",
         },
-        select: { problemId: true, userId: true },
-        distinct: ["problemId", "userId"],
+        select: { problemId: true, userId: true, createdAt: true },
       });
 
-      // Build a map of problemId -> set of userIds who solved it
+      // Build a map of problemId -> set of userIds who solved it (only after problem was added)
       const solvedMap = new Map<string, Set<string>>();
       for (const sub of acceptedSubmissions) {
+        const addedAt = addedAtMap.get(sub.problemId);
+        if (addedAt && sub.createdAt < addedAt) continue;
         if (!solvedMap.has(sub.problemId)) {
           solvedMap.set(sub.problemId, new Set());
         }
@@ -571,6 +689,109 @@ export const groupsRouter = createTRPCRouter({
           solvedCount: solvers?.size ?? 0,
           totalMembers,
           solvedByCurrentUser: solvers?.has(ctx.session.user.id) ?? false,
+        };
+      });
+    }),
+
+  getLeaderboardCards: protectedProcedure
+    .input(
+      z.object({
+        groupSlug: z.string(),
+        gpuType: z.string().optional().default("all"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({
+        where: { slug: input.groupSlug },
+      });
+      if (!group) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+      }
+
+      await assertGroupMembership(ctx.db, group.id, ctx.session.user.id);
+
+      const memberUserIds = (
+        await ctx.db.groupMember.findMany({
+          where: { groupId: group.id },
+          select: { userId: true },
+        })
+      ).map((m) => m.userId);
+
+      const groupProblems = await ctx.db.groupProblem.findMany({
+        where: { groupId: group.id },
+        include: {
+          problem: { select: { id: true, title: true, slug: true } },
+        },
+        orderBy: { addedAt: "asc" },
+      });
+
+      const problemIds = groupProblems.map((gp) => gp.problem.id);
+
+      // Build addedAt map for filtering
+      const addedAtMap = new Map<string, Date>();
+      for (const gp of groupProblems) {
+        addedAtMap.set(gp.problem.id, gp.addedAt);
+      }
+
+      const submissions = await ctx.db.submission.findMany({
+        where: {
+          problemId: { in: problemIds },
+          userId: { in: memberUserIds },
+          status: "ACCEPTED",
+          runtime: { not: null },
+          ...(input.gpuType !== "all" ? { gpuType: input.gpuType } : {}),
+        },
+        select: {
+          id: true,
+          runtime: true,
+          gflops: true,
+          gpuType: true,
+          language: true,
+          problemId: true,
+          createdAt: true,
+          user: { select: { id: true, username: true } },
+        },
+        orderBy: { runtime: "asc" },
+      });
+
+      // Group by problem, best per user, top 3 (only submissions after problem was added)
+      const byProblem = new Map<string, Map<string, (typeof submissions)[0]>>();
+      for (const sub of submissions) {
+        const addedAt = addedAtMap.get(sub.problemId);
+        if (addedAt && sub.createdAt < addedAt) continue;
+        if (!byProblem.has(sub.problemId)) {
+          byProblem.set(sub.problemId, new Map());
+        }
+        const userMap = byProblem.get(sub.problemId)!;
+        const current = userMap.get(sub.user.id);
+        if (
+          !current ||
+          (sub.runtime ?? Infinity) < (current.runtime ?? Infinity)
+        ) {
+          userMap.set(sub.user.id, sub);
+        }
+      }
+
+      return groupProblems.map((gp) => {
+        const userMap = byProblem.get(gp.problem.id);
+        const topSubmissions = userMap
+          ? Array.from(userMap.values())
+              .sort((a, b) => (a.runtime ?? Infinity) - (b.runtime ?? Infinity))
+              .slice(0, 3)
+              .map((sub) => ({
+                id: sub.id,
+                username: sub.user.username,
+                runtime: sub.runtime,
+                gflops: sub.gflops,
+                gpuType: sub.gpuType,
+                language: sub.language,
+              }))
+          : [];
+        return {
+          slug: gp.problem.slug,
+          title: gp.problem.title,
+          id: gp.problem.id,
+          topSubmissions,
         };
       });
     }),
@@ -628,6 +849,7 @@ export const groupsRouter = createTRPCRouter({
           userId: { in: memberUserIds },
           status: "ACCEPTED",
           runtime: { not: null },
+          createdAt: { gte: groupProblem.addedAt },
           ...(input.gpuType !== "all" ? { gpuType: input.gpuType } : {}),
         },
         select: {

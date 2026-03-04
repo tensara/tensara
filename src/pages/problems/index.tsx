@@ -20,6 +20,10 @@ import {
   MenuItem,
   Button,
   Link,
+  Wrap,
+  WrapItem,
+  Divider,
+  Tooltip,
 } from "@chakra-ui/react";
 import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
@@ -33,6 +37,7 @@ import {
   FaCheckCircle,
   FaClock,
   FaGithub,
+  FaTimes,
 } from "react-icons/fa";
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "~/server/api/root";
@@ -120,11 +125,13 @@ export default function ProblemsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
-  const [tagFilter, setTagFilter] = useState("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
   const [problemStatusFilter, setProblemStatusFilter] =
     useState<ProblemStatus>("all");
   const [sortField, setSortField] = useState<SortField>("difficulty");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [isHoveringTagClear, setIsHoveringTagClear] = useState(false);
 
   useHotkey("meta+f", () => {
     if (!searchInputRef.current) return;
@@ -145,9 +152,36 @@ export default function ProblemsPage() {
     });
     return Array.from(tags).sort();
   }, [problems]);
+  const popularTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    problems.forEach((problem) => {
+      problem.tags?.forEach((tag: string) => {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      });
+    });
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tag]) => tag);
+  }, [problems]);
+  const filteredTags = useMemo(() => {
+    const query = tagSearchQuery.trim().toLowerCase();
+    if (!query) return allTags;
+    return allTags.filter((tag) => {
+      const displayName = (
+        tagAltNames[tag as keyof typeof tagAltNames] ?? tag
+      ).toLowerCase();
+      return tag.toLowerCase().includes(query) || displayName.includes(query);
+    });
+  }, [allTags, tagSearchQuery]);
+  const visibleTags = useMemo(() => {
+    if (tagSearchQuery.trim()) return filteredTags;
+    return filteredTags.filter((tag) => !popularTags.includes(tag));
+  }, [filteredTags, popularTags, tagSearchQuery]);
 
   const statusOptions: { label: string; value: ProblemStatus }[] = [
-    { label: "All", value: "all" },
+    { label: "All Statuses", value: "all" },
     { label: "Solved", value: "solved" },
     { label: "Unsolved", value: "unsolved" },
     { label: "Attempting", value: "attempting" },
@@ -173,6 +207,12 @@ export default function ProblemsPage() {
 
   const contributeUrl = "https://github.com/tensara/problems/";
   const hasSearch = searchQuery.trim().length > 0;
+  const selectedTagsTooltipLabel = useMemo(() => {
+    if (selectedTags.length === 0) return "";
+    return selectedTags
+      .map((tag) => tagAltNames[tag as keyof typeof tagAltNames] ?? tag)
+      .join(", ");
+  }, [selectedTags]);
 
   const filteredAndSortedProblems = problems
     ?.filter((problem) => {
@@ -183,8 +223,8 @@ export default function ProblemsPage() {
         difficultyFilter === "all" ||
         problem.difficulty.toLowerCase() === difficultyFilter.toLowerCase();
       const matchesTag =
-        tagFilter === "all" ||
-        problem.tags?.some((tag: string) => tag === tagFilter);
+        selectedTags.length === 0 ||
+        selectedTags.some((tag) => problem.tags?.includes(tag));
 
       const matchesStatus = (() => {
         switch (problemStatusFilter) {
@@ -307,49 +347,154 @@ export default function ProblemsPage() {
                 </MenuList>
               </Menu>
 
-              <Menu>
-                <MenuButton
-                  as={Button}
-                  rightIcon={<FaChevronDown color="#d4d4d8" size={10} />}
-                  bg="whiteAlpha.50"
-                  _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
-                  _active={{ bg: "whiteAlpha.150" }}
-                  _focus={{ borderColor: "blue.500", boxShadow: "none" }}
-                  color="white"
-                  w="200px"
-                  fontWeight="normal"
-                  textAlign="left"
-                  justifyContent="flex-start"
+              <Menu closeOnSelect={false}>
+                <Tooltip
+                  label={selectedTagsTooltipLabel}
+                  hasArrow
+                  placement="top"
+                  openDelay={250}
+                  isDisabled={selectedTags.length === 0 || isHoveringTagClear}
+                  bg="brand.secondary"
+                  color="gray.100"
                 >
-                  {tagFilter === "all"
-                    ? "All Tags"
-                    : tagAltNames[tagFilter as keyof typeof tagAltNames]}
-                </MenuButton>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={
+                      <HStack spacing={2}>
+                        {selectedTags.length > 0 ? (
+                          <Box
+                            role="button"
+                            aria-label="Clear tag filters"
+                            tabIndex={0}
+                            onMouseEnter={() => setIsHoveringTagClear(true)}
+                            onMouseLeave={() => setIsHoveringTagClear(false)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedTags([]);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedTags([]);
+                              }
+                            }}
+                            display="inline-flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            w="18px"
+                            h="18px"
+                            borderRadius="sm"
+                          >
+                            <FaTimes color={isHoveringTagClear ? "white" : "#d4d4d8"} size={10} />
+                          </Box>
+                        ) : null}
+                        <FaChevronDown color="#d4d4d8" size={10} />
+                      </HStack>
+                    }
+                    bg="whiteAlpha.50"
+                    _hover={{ bg: "whiteAlpha.100", borderColor: "gray.600" }}
+                    _active={{ bg: "whiteAlpha.150" }}
+                    _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                    color="white"
+                    w="200px"
+                    fontWeight="normal"
+                    textAlign="left"
+                    justifyContent="flex-start"
+                  >
+                    {selectedTags.length === 0
+                      ? "All Tags"
+                      : `${selectedTags.length} tag${
+                          selectedTags.length > 1 ? "s" : ""
+                        }`}
+                  </MenuButton>
+                </Tooltip>
                 <MenuList
                   bg="brand.secondary"
                   borderColor="gray.800"
                   p={0}
                   minW="200px"
+                  maxH="380px"
+                  overflowY="auto"
                 >
-                  <MenuItem
-                    onClick={() => setTagFilter("all")}
-                    bg="brand.secondary"
-                    _hover={{ bg: "gray.700" }}
-                    color="white"
-                    borderRadius="md"
-                  >
-                    All Tags
-                  </MenuItem>
-                  {allTags.map((tag: string) => (
+                  <Box px={3} py={2}>
+                    <Input
+                      size="sm"
+                      placeholder="Search tags..."
+                      value={tagSearchQuery}
+                      onChange={(e) => setTagSearchQuery(e.target.value)}
+                      bg="whiteAlpha.100"
+                      _hover={{ borderColor: "gray.600" }}
+                      _focus={{ borderColor: "blue.500", boxShadow: "none" }}
+                      color="white"
+                    />
+                  </Box>
+                  {!tagSearchQuery.trim() && popularTags.length > 0 ? (
+                    <>
+                      {popularTags.map((tag: string) => (
+                        <MenuItem
+                          key={`popular-${tag}`}
+                          onClick={() =>
+                            setSelectedTags((prev) =>
+                              prev.includes(tag)
+                                ? prev.filter((t) => t !== tag)
+                                : [...prev, tag]
+                            )
+                          }
+                          bg="brand.secondary"
+                          _hover={{ bg: "gray.700" }}
+                          color="white"
+                          borderRadius="md"
+                        >
+                          <HStack w="full" justify="space-between">
+                            <Text>
+                              {tagAltNames[tag as keyof typeof tagAltNames]}
+                            </Text>
+                            {selectedTags.includes(tag) ? (
+                              <FaCheckCircle
+                                color="#4ade80"
+                                size={12}
+                                opacity={0.68}
+                              />
+                            ) : null}
+                          </HStack>
+                        </MenuItem>
+                      ))}
+                      <Divider borderColor="gray.700" my={1} />
+                    </>
+                  ) : null}
+                  {visibleTags.map((tag: string) => (
                     <MenuItem
                       key={tag}
-                      onClick={() => setTagFilter(tag)}
+                      onClick={() =>
+                        setSelectedTags((prev) =>
+                          prev.includes(tag)
+                            ? prev.filter((t) => t !== tag)
+                            : [...prev, tag]
+                        )
+                      }
                       bg="brand.secondary"
                       _hover={{ bg: "gray.700" }}
                       color="white"
                       borderRadius="md"
                     >
-                      {tagAltNames[tag as keyof typeof tagAltNames]}
+                      <HStack w="full" justify="space-between">
+                        <Text>
+                          {tagAltNames[tag as keyof typeof tagAltNames]}
+                        </Text>
+                        {selectedTags.includes(tag) ? (
+                          <FaCheckCircle
+                            color="#4ade80"
+                            size={12}
+                            opacity={0.68}
+                          />
+                        ) : null}
+                      </HStack>
                     </MenuItem>
                   ))}
                 </MenuList>

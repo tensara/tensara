@@ -44,7 +44,7 @@ import {
   FaAngleDoubleLeft,
   FaAngleDoubleRight,
 } from "react-icons/fa";
-
+import { formatRuntime } from "~/utils/format";
 type SortField =
   | "createdAt"
   | "status"
@@ -63,20 +63,6 @@ interface SubmissionWithProblem extends Submission {
     username: string | null;
   };
 }
-
-// Helper function to format runtime numbers
-const formatRuntime = (runtime: number | null | undefined): string => {
-  if (runtime == null) return "N/A";
-  if (runtime < 1) {
-    const microseconds = runtime * 1000;
-    return `${microseconds.toFixed(2)} μs`;
-  }
-  if (runtime >= 1000) {
-    const seconds = runtime / 1000;
-    return `${seconds.toFixed(2)} s`;
-  }
-  return `${runtime.toFixed(2)} ms`;
-};
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await auth(context.req, context.res);

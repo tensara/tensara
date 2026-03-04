@@ -23,6 +23,7 @@ import {
   getStatusColor,
   getStatusIcon,
 } from "~/constants/problem";
+import { formatRuntime } from "~/utils/format";
 import { FaSortAmountDown } from "react-icons/fa";
 import { useState, useMemo } from "react";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
@@ -286,7 +287,7 @@ const MySubmissions = ({
                           Runtime
                         </Text>
                         <Text fontWeight="semibold">
-                          {submission.runtime.toFixed(2)}ms
+                          {formatRuntime(submission.runtime)}
                         </Text>
                       </Box>
                     )}

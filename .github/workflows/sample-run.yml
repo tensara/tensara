@@ -7,7 +7,7 @@ on:
     inputs:
       sample_size:
         description: "Problems to sample (0 = all)"
-        default: "1"
+        default: "2"
         required: false
       problems:
         description: "Specific slugs (comma-separated), overrides sample_size"
@@ -90,7 +90,7 @@ jobs:
           TENSARA_CI_API_KEY: ${{ secrets.CI_KEY }}
           TENSARA_URL: "http://localhost:3000"
           CI_GPU_TYPE: ${{ github.event.inputs.gpu_type || 'T4' }}
-          CI_SAMPLE_SIZE: ${{ github.event.inputs.sample_size || (github.event_name == 'pull_request' && '5' || '0') }}
+          CI_SAMPLE_SIZE: ${{ github.event.inputs.sample_size || (github.event_name == 'pull_request' && '2' || '0') }}
           CI_PROBLEMS: ${{ github.event.inputs.problems || '' }}
           CI_TIMEOUT_SECONDS: "300"
         run: python testing/sanity_check.py

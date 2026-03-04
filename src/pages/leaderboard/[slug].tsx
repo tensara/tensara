@@ -41,6 +41,7 @@ import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { FaChevronDown, FaExternalLinkAlt, FaCode } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { useSession } from "next-auth/react";
+import { formatRuntime } from "~/utils/format";
 
 const BASELINE_DISPLAY_NAMES: Record<string, string> = {
   torch_compile: "PyTorch",
@@ -453,7 +454,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                       User
                     </Th>
                     <Th borderBottom="none" isNumeric py={2} px={4}>
-                      Runtime (ms)
+                      Runtime
                     </Th>
                     {selectedGpu === "all" && (
                       <Th borderBottom="none" py={2} px={3}>
@@ -551,7 +552,7 @@ const LeaderboardPage: NextPage<{ slug: string }> = ({ slug }) => {
                             style={{ fontVariantNumeric: "tabular-nums" }}
                             fontWeight={index < 3 ? "bold" : "normal"}
                           >
-                            {entry.runtime?.toFixed(2) ?? "N/A"}
+                            {formatRuntime(entry.runtime)}
                           </Text>
                         </Td>
                         {selectedGpu === "all" && (

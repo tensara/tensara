@@ -8,6 +8,11 @@ import {
   Spinner,
   Divider,
   useDisclosure,
+  useClipboard,
+  Input,
+  InputGroup,
+  InputRightElement,
+  IconButton,
   AlertDialog,
   AlertDialogBody,
   AlertDialogFooter,
@@ -19,9 +24,9 @@ import { Layout } from "~/components/layout";
 import { api } from "~/utils/api";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiCopy, FiCheck, FiRefreshCw } from "react-icons/fi";
 import { FaSignOutAlt, FaTrash } from "react-icons/fa";
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 
 export default function GroupSettingsPage() {
   const router = useRouter();
@@ -60,7 +65,25 @@ export default function GroupSettingsPage() {
   } = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  const regenerateCode = api.groups.regenerateInviteCode.useMutation({
+    onSuccess: async () => {
+      await utils.groups.getBySlug.invalidate({ slug });
+    },
+  });
+
   const isOwner = group?.currentUserRole === "OWNER";
+  const isAdmin = group?.currentUserRole === "ADMIN" || isOwner;
+
+  const inviteLink = useMemo(() => {
+    if (!group?.inviteCode) return "";
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://tensara.org";
+    return `${origin}/groups/${group.slug}/join?code=${group.inviteCode}`;
+  }, [group?.inviteCode]);
+
+  const { hasCopied, onCopy } = useClipboard(inviteLink);
 
   if (isLoading) {
     return (
@@ -144,6 +167,63 @@ export default function GroupSettingsPage() {
               </HStack>
             </VStack>
           </Box>
+
+          {/* Invite Link */}
+          {isAdmin && group.inviteCode && (
+            <Box
+              bg="brand.secondary"
+              borderRadius="xl"
+              border="1px solid"
+              borderColor="whiteAlpha.100"
+              p={6}
+            >
+              <VStack align="stretch" spacing={3}>
+                <Text color="gray.400" fontSize="sm" fontWeight="medium">
+                  INVITE LINK
+                </Text>
+                <Text color="gray.400" fontSize="sm">
+                  Share this link to let people join your group.
+                </Text>
+                <InputGroup size="md">
+                  <Input
+                    value={inviteLink}
+                    isReadOnly
+                    bg="whiteAlpha.50"
+                    color="white"
+                    pr="4.5rem"
+                    _hover={{ borderColor: "gray.600" }}
+                    _focus={{ borderColor: "brand.primary", boxShadow: "none" }}
+                  />
+                  <InputRightElement width="3rem">
+                    <IconButton
+                      aria-label="Copy invite link"
+                      icon={hasCopied ? <FiCheck /> : <FiCopy />}
+                      size="sm"
+                      variant="ghost"
+                      color={hasCopied ? "green.400" : "gray.400"}
+                      _hover={{ color: "white" }}
+                      onClick={onCopy}
+                    />
+                  </InputRightElement>
+                </InputGroup>
+                <HStack>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    colorScheme="gray"
+                    leftIcon={<FiRefreshCw />}
+                    onClick={() => regenerateCode.mutate({ groupSlug: slug })}
+                    isLoading={regenerateCode.isPending}
+                  >
+                    Regenerate Code
+                  </Button>
+                  <Text color="gray.500" fontSize="xs">
+                    This will invalidate the current invite link.
+                  </Text>
+                </HStack>
+              </VStack>
+            </Box>
+          )}
 
           <Divider borderColor="whiteAlpha.100" />
 
