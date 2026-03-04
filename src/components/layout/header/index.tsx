@@ -318,18 +318,18 @@ export function Header({ isCodingMode = false, toolbar }: HeaderProps) {
           </Link>
 
           {isCodingMode && showBackToProblems && (
-            <Button
-              variant="ghost"
-              size="sm"
-              color="gray.300"
-              ml={2}
-              _hover={{ bg: "whiteAlpha.200", color: "white" }}
-              onClick={() => {
-                void router.push("/problems");
-              }}
-            >
-              All Problems
-            </Button>
+            <Link href="/problems" passHref legacyBehavior>
+              <Button
+                as="a"
+                variant="ghost"
+                size="sm"
+                color="gray.300"
+                ml={2}
+                _hover={{ bg: "whiteAlpha.200", color: "white" }}
+              >
+                All Problems
+              </Button>
+            </Link>
           )}
 
           {/* Desktop Navigation */}
