@@ -494,98 +494,154 @@ const ResizableConsole = ({
                     >
                       {(() => {
                         const nodes: React.ReactNode[] = [];
-                        for (let idx = 0; idx < diff.length; idx++) {
+                        let idx = 0;
+                        while (idx < diff.length) {
                           const line = diff[idx];
-                          const next = diff[idx + 1];
+                          if (!line) break;
 
-                          // When a delete is immediately followed by an add, render inline highlights.
-                          if (line?.type === "del" && next?.type === "add") {
-                            const inline = createInlineDiffSegments(
-                              line.value,
-                              next.value
-                            );
-                            nodes.push(
-                              <Text
-                                key={`del-${idx}`}
-                                as="div"
-                                color="red.300"
-                                whiteSpace="pre"
-                              >
-                                {"- "}
-                                {inline.before.map((seg, i2) => (
-                                  <Box
-                                    key={i2}
-                                    as="span"
-                                    bg={
-                                      seg.changed
-                                        ? "rgba(255, 93, 93, 0.22)"
-                                        : "transparent"
-                                    }
-                                    color={seg.changed ? "red.200" : "red.300"}
-                                    px={seg.changed ? 0.5 : 0}
-                                    borderRadius={seg.changed ? "sm" : "none"}
+                          if (line.type === "del" || line.type === "add") {
+                            let delEnd = idx;
+                            while (
+                              delEnd < diff.length &&
+                              diff[delEnd]?.type === "del"
+                            ) {
+                              delEnd++;
+                            }
+
+                            let addEnd = delEnd;
+                            while (
+                              addEnd < diff.length &&
+                              diff[addEnd]?.type === "add"
+                            ) {
+                              addEnd++;
+                            }
+
+                            const delCount = delEnd - idx;
+                            const addCount = addEnd - delEnd;
+
+                            if (delCount === 1 && addCount === 1) {
+                              const delLine = diff[idx];
+                              const addLine = diff[delEnd];
+
+                              if (
+                                delLine?.type === "del" &&
+                                addLine?.type === "add"
+                              ) {
+                                const inline = createInlineDiffSegments(
+                                  delLine.value,
+                                  addLine.value
+                                );
+                                nodes.push(
+                                  <Text
+                                    key={`del-${idx}`}
+                                    as="div"
+                                    color="red.300"
+                                    whiteSpace="pre"
                                   >
-                                    {seg.value}
-                                  </Box>
-                                ))}
-                              </Text>
-                            );
-                            nodes.push(
-                              <Text
-                                key={`add-${idx}`}
-                                as="div"
-                                color="green.300"
-                                whiteSpace="pre"
-                              >
-                                {"+ "}
-                                {inline.after.map((seg, i2) => (
-                                  <Box
-                                    key={i2}
-                                    as="span"
-                                    bg={
-                                      seg.changed
-                                        ? "rgba(78, 201, 176, 0.22)"
-                                        : "transparent"
-                                    }
-                                    color={
-                                      seg.changed ? "green.200" : "green.300"
-                                    }
-                                    px={seg.changed ? 0.5 : 0}
-                                    borderRadius={seg.changed ? "sm" : "none"}
+                                    {"- "}
+                                    {inline.before.map((seg, i2) => (
+                                      <Box
+                                        key={i2}
+                                        as="span"
+                                        bg={
+                                          seg.changed
+                                            ? "rgba(255, 93, 93, 0.22)"
+                                            : "transparent"
+                                        }
+                                        color={
+                                          seg.changed ? "red.200" : "red.300"
+                                        }
+                                        px={seg.changed ? 0.5 : 0}
+                                        borderRadius={
+                                          seg.changed ? "sm" : "none"
+                                        }
+                                      >
+                                        {seg.value}
+                                      </Box>
+                                    ))}
+                                  </Text>
+                                );
+                                nodes.push(
+                                  <Text
+                                    key={`add-${idx}`}
+                                    as="div"
+                                    color="green.300"
+                                    whiteSpace="pre"
                                   >
-                                    {seg.value}
-                                  </Box>
-                                ))}
-                              </Text>
-                            );
-                            idx++; // consume the paired add line
+                                    {"+ "}
+                                    {inline.after.map((seg, i2) => (
+                                      <Box
+                                        key={i2}
+                                        as="span"
+                                        bg={
+                                          seg.changed
+                                            ? "rgba(78, 201, 176, 0.22)"
+                                            : "transparent"
+                                        }
+                                        color={
+                                          seg.changed
+                                            ? "green.200"
+                                            : "green.300"
+                                        }
+                                        px={seg.changed ? 0.5 : 0}
+                                        borderRadius={
+                                          seg.changed ? "sm" : "none"
+                                        }
+                                      >
+                                        {seg.value}
+                                      </Box>
+                                    ))}
+                                  </Text>
+                                );
+                                idx = addEnd;
+                                continue;
+                              }
+                            }
+
+                            for (let j = idx; j < addEnd; j++) {
+                              const blockLine = diff[j];
+                              const prefix =
+                                blockLine?.type === "add"
+                                  ? "+ "
+                                  : blockLine?.type === "del"
+                                    ? "- "
+                                    : "  ";
+                              const color =
+                                blockLine?.type === "add"
+                                  ? "green.300"
+                                  : blockLine?.type === "del"
+                                    ? "red.300"
+                                    : "gray.300";
+
+                              nodes.push(
+                                <Text
+                                  key={j}
+                                  as="div"
+                                  color={color}
+                                  whiteSpace="pre"
+                                >
+                                  {prefix}
+                                  {blockLine?.value ?? ""}
+                                </Text>
+                              );
+                            }
+
+                            idx = addEnd;
                             continue;
                           }
-
-                          const prefix =
-                            line?.type === "add"
-                              ? "+ "
-                              : line?.type === "del"
-                                ? "- "
-                                : "  ";
-                          const color =
-                            line?.type === "add"
-                              ? "green.300"
-                              : line?.type === "del"
-                                ? "red.300"
-                                : "gray.300";
 
                           nodes.push(
                             <Text
                               key={idx}
                               as="div"
-                              color={color}
+                              color="gray.300"
                               whiteSpace="pre"
                             >
-                              {prefix}
-                              {line?.value ?? ""}
+                              {"  "}
+                              {line.value}
                             </Text>
                           );
+                          idx++;
                         }
                         return nodes;
                       })()}
