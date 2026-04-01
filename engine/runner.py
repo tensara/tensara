@@ -40,9 +40,7 @@ def _reference_outputs_on_cpu(problem, input_tensors):
     with utils.ReferenceSolutionContext():
         ref_return = problem.reference_solution(*input_tensors)
         gpu_outputs = utils.normalize_outputs(ref_return)
-        cpu_outputs = tuple(
-            t.cpu() if isinstance(t, torch.Tensor) else t for t in gpu_outputs
-        )
+        cpu_outputs = tuple(t.cpu() if isinstance(t, torch.Tensor) else t for t in gpu_outputs)
 
     # Drop reference-side GPU tensors before allocating submission outputs.
     del ref_return, gpu_outputs
