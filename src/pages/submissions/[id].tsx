@@ -645,20 +645,22 @@ const SubmissionPage: NextPage<{
                     <Text color="whiteAlpha.700" fontSize="sm">
                       Benchmark Results
                     </Text>
-                    <Tooltip
-                      label="One row per test case with submission and GPU metadata"
-                      hasArrow
-                    >
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        color="blue.200"
-                        onClick={handleDownloadBenchmarkCsv}
-                        _hover={{ bg: "whiteAlpha.100", color: "blue.100" }}
+                    {submission.status === "ACCEPTED" && (
+                      <Tooltip
+                        label="One row per test case with submission and GPU metadata"
+                        hasArrow
                       >
-                        Download CSV
-                      </Button>
-                    </Tooltip>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          color="blue.200"
+                          onClick={handleDownloadBenchmarkCsv}
+                          _hover={{ bg: "whiteAlpha.100", color: "blue.100" }}
+                        >
+                          Download CSV
+                        </Button>
+                      </Tooltip>
+                    )}
                   </HStack>
                   <Box overflowX="auto">
                     {(() => {

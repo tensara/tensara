@@ -264,6 +264,8 @@ const SubmissionResults = ({
     ) ||
     acceptedAvgGflops != null ||
     benchmarkedAvgGflops != null;
+  const canDownloadCsv =
+    metaStatus === SubmissionStatus.ACCEPTED && benchmarkResults.length > 0;
   const exportCsv = () => {
     const csv = buildBenchmarkCsv({
       submission: {
@@ -463,7 +465,7 @@ const SubmissionResults = ({
                   <HStack spacing={2} width="100%">
                     <HStack spacing={2}>
                       <Text fontWeight="semibold">Benchmark Results</Text>
-                      {benchmarkResults.length > 0 && (
+                      {canDownloadCsv && (
                         <Button
                           size="xs"
                           variant="ghost"
