@@ -187,6 +187,46 @@ export const submissionsRouter = createTRPCRouter({
       return submission;
     }),
 
+  getSubmissionsForExport: protectedProcedure
+    .input(
+      z.object({
+        ids: z.array(z.string()).min(1).max(25),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const submissions = await ctx.db.submission.findMany({
+        where: {
+          id: { in: input.ids },
+          userId: ctx.session.user.id,
+          status: "ACCEPTED",
+        },
+        include: {
+          problem: {
+            select: {
+              title: true,
+              slug: true,
+            },
+          },
+          testResults: {
+            include: {
+              runs: true,
+            },
+            orderBy: {
+              testId: "asc",
+            },
+          },
+        },
+      });
+
+      const submissionsById = new Map(
+        submissions.map((submission) => [submission.id, submission])
+      );
+
+      return input.ids
+        .map((id) => submissionsById.get(id))
+        .filter((submission) => Boolean(submission));
+    }),
+
   getBestSubmissionsByProblem: publicProcedure
     .input(
       z.object({

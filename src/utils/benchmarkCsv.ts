@@ -27,6 +27,11 @@ export interface BenchmarkCsvTestCase {
   }>;
 }
 
+export interface BenchmarkCsvSubmissionExport {
+  submission: BenchmarkCsvSubmissionMeta;
+  testCases: BenchmarkCsvTestCase[];
+}
+
 const escapeCsvValue = (value: string): string => {
   if (/[",\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
@@ -112,40 +117,37 @@ export const normalizeLiveBenchmarkResults = (
     })),
   }));
 
-export const buildBenchmarkCsv = ({
+const BENCHMARK_CSV_HEADER = [
+  "submission_id",
+  "submission_name",
+  "problem_slug",
+  "problem_title",
+  "language",
+  "gpu_type",
+  "submitted_at",
+  "overall_avg_runtime_ms",
+  "overall_avg_gflops",
+  "test_id",
+  "test_name",
+  "test_avg_runtime_ms",
+  "test_avg_gflops",
+  "run_count",
+  "gpu_sample_count",
+  "gpu_temp_mean_c",
+  "gpu_temp_min_c",
+  "gpu_temp_max_c",
+  "gpu_sm_clock_mean_mhz",
+  "gpu_sm_clock_min_mhz",
+  "gpu_sm_clock_max_mhz",
+  "gpu_pstate_min",
+  "gpu_pstate_max",
+];
+
+const buildBenchmarkCsvRows = ({
   submission,
   testCases,
-}: {
-  submission: BenchmarkCsvSubmissionMeta;
-  testCases: BenchmarkCsvTestCase[];
-}): string => {
-  const header = [
-    "submission_id",
-    "submission_name",
-    "problem_slug",
-    "problem_title",
-    "language",
-    "gpu_type",
-    "submitted_at",
-    "overall_avg_runtime_ms",
-    "overall_avg_gflops",
-    "test_id",
-    "test_name",
-    "test_avg_runtime_ms",
-    "test_avg_gflops",
-    "run_count",
-    "gpu_sample_count",
-    "gpu_temp_mean_c",
-    "gpu_temp_min_c",
-    "gpu_temp_max_c",
-    "gpu_sm_clock_mean_mhz",
-    "gpu_sm_clock_min_mhz",
-    "gpu_sm_clock_max_mhz",
-    "gpu_pstate_min",
-    "gpu_pstate_max",
-  ];
-
-  const rows = testCases
+}: BenchmarkCsvSubmissionExport): string[] =>
+  testCases
     .slice()
     .sort((a, b) => a.testId - b.testId)
     .map((testCase) => {
@@ -182,8 +184,24 @@ export const buildBenchmarkCsv = ({
         .join(",");
     });
 
-  return [header.join(","), ...rows].join("\n");
-};
+export const buildBenchmarkCsv = ({
+  submission,
+  testCases,
+}: BenchmarkCsvSubmissionExport): string =>
+  [
+    BENCHMARK_CSV_HEADER.join(","),
+    ...buildBenchmarkCsvRows({ submission, testCases }),
+  ].join("\n");
+
+export const buildCombinedBenchmarkCsv = (
+  exports: BenchmarkCsvSubmissionExport[]
+): string =>
+  [
+    BENCHMARK_CSV_HEADER.join(","),
+    ...exports.flatMap((submissionExport) =>
+      buildBenchmarkCsvRows(submissionExport)
+    ),
+  ].join("\n");
 
 const slugifyFilenamePart = (value: string | null | undefined): string =>
   (value ?? "")
@@ -208,6 +226,24 @@ export const buildBenchmarkCsvFilename = (
         : new Date().toISOString().slice(0, 10);
 
   return `${preferredName}-${gpu}-benchmarks-${date}.csv`;
+};
+
+export const buildCombinedBenchmarkCsvFilename = ({
+  problemSlug,
+  createdAt,
+}: {
+  problemSlug?: string | null;
+  createdAt?: string | Date | null;
+}): string => {
+  const slug = slugifyFilenamePart(problemSlug) || "submissions";
+  const date =
+    createdAt instanceof Date
+      ? createdAt.toISOString().slice(0, 10)
+      : typeof createdAt === "string"
+        ? createdAt.slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+
+  return `${slug}-comparison-${date}.csv`;
 };
 
 export const downloadCsv = (filename: string, content: string): void => {
