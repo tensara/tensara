@@ -35,6 +35,19 @@ def _cleanup_solution_temp_dir(language: str, solution_func):
             pass
 
 
+def _reference_outputs_on_cpu(problem, input_tensors):
+    """Compute reference outputs and release temporary GPU tensors promptly."""
+    with utils.ReferenceSolutionContext():
+        ref_return = problem.reference_solution(*input_tensors)
+        gpu_outputs = utils.normalize_outputs(ref_return)
+        cpu_outputs = tuple(t.cpu() if isinstance(t, torch.Tensor) else t for t in gpu_outputs)
+
+    # Drop reference-side GPU tensors before allocating submission outputs.
+    del ref_return, gpu_outputs
+    _cleanup_gpu_memory()
+    return cpu_outputs
+
+
 def run_checker(
     problem_name: str, problem_def: str, solution_func, language: str, param_func=None
 ) -> Iterator[str]:
@@ -79,12 +92,7 @@ def run_checker(
             input_tensors = test_case["create_inputs"]()
 
             # Get the reference solution and normalize to tuple of tensors on CPU
-            with utils.ReferenceSolutionContext():
-                ref_return = problem.reference_solution(*input_tensors)
-                expected_outputs = utils.normalize_outputs(ref_return)
-                expected_outputs = tuple(
-                    t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
-                )
+            expected_outputs = _reference_outputs_on_cpu(problem, input_tensors)
 
             # Create actual_outputs with same shapes as expected_outputs
             actual_outputs = [
@@ -190,11 +198,7 @@ def run_sample_case(
 
         sample = problem.generate_sample()
         input_tensors = sample["create_inputs"]()
-        ref_return = problem.reference_solution(*input_tensors)
-        expected_outputs = utils.normalize_outputs(ref_return)
-        expected_outputs = tuple(
-            t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
-        )
+        expected_outputs = _reference_outputs_on_cpu(problem, input_tensors)
         actual_outputs = [torch.zeros_like(e, device="cuda").contiguous() for e in expected_outputs]
         if param_func is None:
             parameters, _keep_alive = utils.make_parameters(
@@ -288,12 +292,7 @@ def run_sanity_check(
             input_tensors = test_case["create_inputs"]()
 
             # Get the reference solution and normalize to tuple of tensors on CPU
-            with utils.ReferenceSolutionContext():
-                ref_return = problem.reference_solution(*input_tensors)
-                expected_outputs = utils.normalize_outputs(ref_return)
-                expected_outputs = tuple(
-                    t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
-                )
+            expected_outputs = _reference_outputs_on_cpu(problem, input_tensors)
 
             # Create actual_outputs with same shapes as expected_outputs
             actual_outputs = [
@@ -411,11 +410,7 @@ def run_benchmark(
             try:
                 # Create inputs and reference output
                 input_tensors = test_case["create_inputs"]()
-                ref_return = problem.reference_solution(*input_tensors)
-                expected_outputs = utils.normalize_outputs(ref_return)
-                expected_outputs = tuple(
-                    t.cpu() if isinstance(t, torch.Tensor) else t for t in expected_outputs
-                )
+                expected_outputs = _reference_outputs_on_cpu(problem, input_tensors)
                 actual_outputs = [
                     torch.zeros_like(e, device="cuda").contiguous() for e in expected_outputs
                 ]
