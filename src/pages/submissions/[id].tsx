@@ -24,6 +24,7 @@ import {
   Button,
   useDisclosure,
   IconButton,
+  Tooltip,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -47,12 +48,20 @@ import { FiCopy, FiHash } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
 import { FlopsModal } from "~/components/misc/FlopsModal";
+import {
+  buildBenchmarkCsv,
+  buildBenchmarkCsvFilename,
+  downloadCsv,
+  normalizeStoredBenchmarkResults,
+} from "~/utils/benchmarkCsv";
 
 type BenchmarkTestResult = {
   test_id: number;
   runtime_ms: number;
   gflops?: number;
   name: string;
+  avg_runtime_ms?: number;
+  avg_gflops?: number;
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -221,6 +230,55 @@ const SubmissionPage: NextPage<{
     });
   };
 
+  const handleDownloadBenchmarkCsv = () => {
+    if (!Array.isArray(submission.benchmarkResults)) return;
+
+    const results =
+      (submission.benchmarkResults as unknown as BenchmarkTestResult[]) ?? [];
+    const storedTestResults =
+      "testResults" in submission && Array.isArray(submission.testResults)
+        ? submission.testResults.map((testResult) => ({
+            testId: testResult.testId,
+            name: testResult.name,
+            avgRuntimeMs: testResult.avgRuntimeMs,
+            avgGflops: testResult.avgGflops,
+            runs: testResult.runs.map((run) => ({
+              runtimeMs: run.runtimeMs,
+              gflops: run.gflops,
+              gpuMetrics: run.gpuMetrics,
+            })),
+          }))
+        : [];
+
+    const csv = buildBenchmarkCsv({
+      submission: {
+        submissionId: submission.id,
+        submissionName: submission.name,
+        problemSlug: submission.problem.slug,
+        problemTitle: submission.problem.title,
+        language: submission.language,
+        gpuType: submission.gpuType,
+        createdAt: submission.createdAt,
+        overallAvgRuntimeMs: submission.runtime,
+        overallAvgGflops: submission.gflops,
+      },
+      testCases: normalizeStoredBenchmarkResults({
+        benchmarkResults: results,
+        testResults: storedTestResults,
+      }),
+    });
+
+    downloadCsv(
+      buildBenchmarkCsvFilename({
+        submissionName: submission.name,
+        problemSlug: submission.problem.slug,
+        gpuType: submission.gpuType,
+        createdAt: submission.createdAt,
+      }),
+      csv
+    );
+  };
+
   return (
     <Layout
       title={pageTitle}
@@ -263,6 +321,11 @@ const SubmissionPage: NextPage<{
                         {submission.problem.title}
                       </Text>
                     </ChakraLink>
+                    {submission.name ? (
+                      <Text fontSize="lg" color="whiteAlpha.900">
+                        {submission.name}
+                      </Text>
+                    ) : null}
                     <HStack spacing={3}>
                       <Text
                         fontSize="sm"
@@ -578,9 +641,25 @@ const SubmissionPage: NextPage<{
               {/* Benchmark Results */}
               {Array.isArray(submission.benchmarkResults) && (
                 <Box>
-                  <Text color="whiteAlpha.700" fontSize="sm" mb={2}>
-                    Benchmark Results
-                  </Text>
+                  <HStack justify="space-between" mb={2}>
+                    <Text color="whiteAlpha.700" fontSize="sm">
+                      Benchmark Results
+                    </Text>
+                    <Tooltip
+                      label="One row per test case with submission and GPU metadata"
+                      hasArrow
+                    >
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        color="blue.200"
+                        onClick={handleDownloadBenchmarkCsv}
+                        _hover={{ bg: "whiteAlpha.100", color: "blue.100" }}
+                      >
+                        Download CSV
+                      </Button>
+                    </Tooltip>
+                  </HStack>
                   <Box overflowX="auto">
                     {(() => {
                       const results: BenchmarkTestResult[] =
@@ -642,7 +721,8 @@ const SubmissionPage: NextPage<{
                       };
 
                       const hasGflops = results.some(
-                        (r: BenchmarkTestResult) => r.gflops !== undefined
+                        (r: BenchmarkTestResult) =>
+                          r.avg_gflops !== undefined || r.gflops !== undefined
                       );
 
                       const hasGpuMetrics =
@@ -717,12 +797,18 @@ const SubmissionPage: NextPage<{
                                   <tr key={index}>
                                     <td style={tdStyle}>{result.name}</td>
                                     <td style={tdStyle}>
-                                      {formatRuntime(result.runtime_ms)}
+                                      {formatRuntime(
+                                        result.avg_runtime_ms ??
+                                          result.runtime_ms
+                                      )}
                                     </td>
                                     {hasGflops && (
                                       <td style={tdStyle}>
-                                        {result.gflops !== undefined
-                                          ? result.gflops.toFixed(2)
+                                        {(result.avg_gflops ??
+                                          result.gflops) !== undefined
+                                          ? (
+                                              result.avg_gflops ?? result.gflops
+                                            )?.toFixed(2)
                                           : ""}
                                       </td>
                                     )}
