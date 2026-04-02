@@ -27,9 +27,12 @@ import {
   SubmissionStatus,
 } from "~/types/submission";
 import type {
+  BenchmarkedResponse,
   BenchmarkResultResponse,
   BenchmarkRunData,
   CheckedResponse,
+  ErrorResponse,
+  SubmissionResponse,
   SubmissionStatusType,
   SubmissionErrorType,
   TestResult,
@@ -55,11 +58,12 @@ export default async function handler(
     return;
   }
 
-  const { problemSlug, code, language, gpuType } = req.body as {
+  const { problemSlug, code, language, gpuType, submissionName } = req.body as {
     problemSlug: string;
     code: string;
     language: string;
     gpuType: string;
+    submissionName?: string;
   };
 
   const missing = Object.entries({ problemSlug, code, language, gpuType })
@@ -138,12 +142,16 @@ export default async function handler(
 
   const controller = new AbortController();
   req.on("close", () => controller.abort());
+  const trimmedSubmissionName = submissionName?.trim();
+  const normalizedSubmissionName =
+    trimmedSubmissionName === "" ? undefined : trimmedSubmissionName;
 
   const submission = await db.submission.create({
     data: {
       code,
       language,
-      gpuType: gpuType || "T4",
+      gpuType: gpuType ?? "T4",
+      name: normalizedSubmissionName ?? null,
       status: SubmissionStatus.IN_QUEUE,
       problem: { connect: { id: problem.id } },
       user: { connect: { id: session.user.id } },
@@ -155,6 +163,7 @@ export default async function handler(
   res.write(
     `event: ${SubmissionStatus.IN_QUEUE}\ndata: ${JSON.stringify({
       id: submission.id,
+      name: submission.name,
       remainingSubmissions,
     })}\n\n`
   );
@@ -184,7 +193,7 @@ export default async function handler(
     res,
     `${env.MODAL_ENDPOINT}/checker-${submission.gpuType ?? "t4"}`,
     payload,
-    async (evt: import("~/types/submission").SubmissionResponse) => {
+    async (evt: SubmissionResponse) => {
       const s = evt?.status as string | undefined;
       if (!s) return "CONTINUE";
 
@@ -241,7 +250,7 @@ export default async function handler(
 
       if (isSubmissionError(s)) {
         // evt is a SubmissionResponse union — narrow to ErrorResponse-like shape
-        const err = evt as Partial<import("~/types/submission").ErrorResponse>;
+        const err = evt as Partial<ErrorResponse>;
         await db.submission.update({
           where: { id: submission.id },
           data: {
@@ -290,12 +299,12 @@ export default async function handler(
     res,
     `${env.MODAL_ENDPOINT}/benchmark-${submission.gpuType ?? "t4"}`,
     payload,
-    async (evt: import("~/types/submission").SubmissionResponse) => {
+    async (evt: SubmissionResponse) => {
       const s = evt?.status as string | undefined;
       if (!s) return "CONTINUE";
 
       if (s === SubmissionStatus.BENCHMARK_RESULT) {
-        const r = evt as import("~/types/submission").BenchmarkResultResponse;
+        const r = evt as BenchmarkResultResponse;
         if (r.result) {
           benchResults.push(r.result);
           await db.submission.update({
@@ -316,8 +325,9 @@ export default async function handler(
                 submissionId: submission.id,
                 testId: testResult.test_id,
                 name: testResult.name,
-                avgRuntimeMs: testResult.runtime_ms,
-                avgGflops: testResult.gflops ?? null,
+                avgRuntimeMs:
+                  testResult.avg_runtime_ms ?? testResult.runtime_ms,
+                avgGflops: testResult.avg_gflops ?? testResult.gflops ?? null,
                 runs: {
                   create: runs.map((run: BenchmarkRunData) => ({
                     runIndex: run.run_index,
@@ -337,7 +347,7 @@ export default async function handler(
       }
 
       if (s === SubmissionStatus.BENCHMARKED) {
-        const r = evt as import("~/types/submission").BenchmarkedResponse;
+        const r = evt as BenchmarkedResponse;
         // Worker may or may not emit ACCEPTED. Persist final numbers here.
         const updateData: Partial<Record<string, unknown>> & {
           status: SubmissionStatusType;
@@ -386,7 +396,7 @@ export default async function handler(
       }
 
       if (isSubmissionError(s)) {
-        const err = evt as Partial<import("~/types/submission").ErrorResponse>;
+        const err = evt as Partial<ErrorResponse>;
         await db.submission.update({
           where: { id: submission.id },
           data: {

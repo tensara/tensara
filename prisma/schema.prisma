@@ -125,6 +125,7 @@ model Problem {
 
 model Submission {
   id               String               @id @default(cuid())
+  name             String?
   code             String
   language         String
   status           String?

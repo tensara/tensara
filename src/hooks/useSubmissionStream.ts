@@ -65,6 +65,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
   const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
   const [ptxContent, setPtxContent] = useState<string | null>(null);
   const [sassContent, setSassContent] = useState<string | null>(null);
+  const [submissionName, setSubmissionName] = useState<string | null>(null);
 
   // Type-safe accessor for metaResponse based on current metaStatus
   const getTypedResponse = useCallback(
@@ -148,7 +149,12 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
               data as Partial<{ remainingSubmissions: number }>
             ).remainingSubmissions;
             const newSubmissionId = (data as Partial<{ id: string }>).id;
+            const newSubmissionName = (data as Partial<{ name: string | null }>)
+              .name;
             if (newSubmissionId) setSubmissionId(newSubmissionId);
+            if (newSubmissionName !== undefined) {
+              setSubmissionName(newSubmissionName);
+            }
             if (
               remaining === 50 ||
               remaining === 25 ||
@@ -325,6 +331,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
       language: string;
       gpuType: string;
       problemSlug: string;
+      submissionName?: string;
     }) => {
       try {
         const response = await fetch("/api/submissions/direct-submit", {
@@ -388,6 +395,7 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     setBenchmarkResults([]);
     setTotalTests(0);
     setSubmissionId(null);
+    setSubmissionName(null);
   }, []);
 
   return {
@@ -407,5 +415,6 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
     ptxContent,
     sassContent,
     submissionId,
+    submissionName,
   };
 }

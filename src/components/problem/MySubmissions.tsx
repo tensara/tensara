@@ -244,18 +244,28 @@ const MySubmissions = ({
                       as={getStatusIcon(submission.status)}
                       color={`${getStatusColor(submission.status)}.400`}
                     />
-                    <Text fontWeight="semibold">
-                      {formatStatus(submission.status)}
-                    </Text>
-                    <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
-                      {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language]} •{" "}
-                      {
-                        GPU_DISPLAY_ON_PROFILE[
-                          (submission.gpuType ??
-                            "T4") as keyof typeof GPU_DISPLAY_ON_PROFILE
-                        ]
-                      }
-                    </Text>
+                    <VStack align="start" spacing={0}>
+                      <HStack spacing={2}>
+                        <Text fontWeight="semibold">
+                          {submission.name?.trim() ??
+                            formatStatus(submission.status)}
+                        </Text>
+                        {submission.name?.trim() ? (
+                          <Text color="whiteAlpha.500" fontSize="sm">
+                            {formatStatus(submission.status)}
+                          </Text>
+                        ) : null}
+                      </HStack>
+                      <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
+                        {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language]} •{" "}
+                        {
+                          GPU_DISPLAY_ON_PROFILE[
+                            (submission.gpuType ??
+                              "T4") as keyof typeof GPU_DISPLAY_ON_PROFILE
+                          ]
+                        }
+                      </Text>
+                    </VStack>
                   </HStack>
                   <Text color="whiteAlpha.700" fontSize="sm">
                     {new Date(submission.createdAt).toLocaleString("en-US", {
