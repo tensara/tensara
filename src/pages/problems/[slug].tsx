@@ -622,6 +622,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
             submissions={submissionsQuery.data?.submissions}
             isLoading={submissionsQuery.isLoading}
             onBackToProblem={() => setViewType("problem")}
+            problemSlug={problem.slug}
           />
         );
       case "result":
