@@ -171,7 +171,7 @@ def validate_mojo_solution_signature_from_source(source: str, expected_arity: in
 
     import re
 
-    for m in re.finditer(r"\bfn\s+solution\s*\(", cleaned):
+    for m in re.finditer(r"\bdef\s+solution\s*\(", cleaned):
         paren_idx = cleaned.find("(", m.start())
         grp = _extract_paren_group(cleaned, paren_idx)
         if not grp:
@@ -194,7 +194,7 @@ def validate_mojo_solution_signature_from_source(source: str, expected_arity: in
 
     raise SolutionSignatureError(
         "Missing required function `solution`.\n"
-        "Make sure your submission defines `@export fn solution(...) ...:`."
+        "Make sure your submission defines `@export def solution(...) ...:`."
     )
 
 
@@ -1080,7 +1080,7 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
         if not hasattr(mojo_lib, "solution"):
             raise SolutionSignatureError(
                 "Missing required symbol `solution`.\n"
-                "Make sure your submission defines an `@export fn solution(...) ...:`."
+                "Make sure your submission defines an `@export def solution(...) ...:`."
             )
         func_sig = problem.get_function_signature()
         mojo_lib.solution.argtypes = func_sig["argtypes"]

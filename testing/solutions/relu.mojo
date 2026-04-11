@@ -5,7 +5,7 @@ from memory import UnsafePointer
 comptime dtype = DType.float32
 
 
-fn relu_kernel(
+def relu_kernel(
     input: UnsafePointer[Scalar[dtype], MutExternalOrigin],
     output: UnsafePointer[Scalar[dtype], MutExternalOrigin],
     n: Int32,
@@ -23,7 +23,7 @@ fn relu_kernel(
 
 
 @export
-fn solution(input_addr: Int, output_addr: Int, n: Int32, m: Int32) raises:
+def solution(input_addr: Int, output_addr: Int, n: Int32, m: Int32) raises:
     input = UnsafePointer[Scalar[dtype], MutExternalOrigin](unsafe_from_address=input_addr)
     output = UnsafePointer[Scalar[dtype], MutExternalOrigin](unsafe_from_address=output_addr)
 

@@ -8,7 +8,7 @@ comptime dtype = DType.float32
 comptime BLOCK = 256
 
 
-fn matvec_kernel(
+def matvec_kernel(
     input_a: UnsafePointer[Scalar[dtype], MutExternalOrigin],
     input_b: UnsafePointer[Scalar[dtype], MutExternalOrigin],
     output_c: UnsafePointer[Scalar[dtype], MutExternalOrigin],
@@ -56,7 +56,7 @@ fn matvec_kernel(
 
 
 @export
-fn solution(
+def solution(
     input_a_addr: Int,
     input_b_addr: Int,
     output_c_addr: Int,

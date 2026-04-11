@@ -5,7 +5,7 @@ from memory import UnsafePointer
 comptime dtype = DType.float32
 
 
-fn leaky_relu_kernel(
+def leaky_relu_kernel(
     input: UnsafePointer[Scalar[dtype], MutExternalOrigin],
     alpha: Float32,
     output: UnsafePointer[Scalar[dtype], MutExternalOrigin],
@@ -24,7 +24,7 @@ fn leaky_relu_kernel(
 
 
 @export
-fn solution(input_addr: Int, alpha: Float32, output_addr: Int, n: Int32, m: Int32) raises:
+def solution(input_addr: Int, alpha: Float32, output_addr: Int, n: Int32, m: Int32) raises:
     input = UnsafePointer[Scalar[dtype], MutExternalOrigin](unsafe_from_address=input_addr)
     output = UnsafePointer[Scalar[dtype], MutExternalOrigin](unsafe_from_address=output_addr)
 

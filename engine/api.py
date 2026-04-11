@@ -9,7 +9,7 @@ import runner
 DEVEL_IMAGE_NAME = "nvidia/cuda:13.1.0-devel-ubuntu24.04"
 RUNTIME_IMAGE_NAME = "nvidia/cuda:13.1.0-runtime-ubuntu24.04"
 CURR_DIR = Path(__file__).parent
-MODULAR_INDEX = "https://modular.gateway.scarf.sh/simple/modular/modular-26.1.0-py3-none-any.whl"
+MODULAR_INDEX = "https://modular.gateway.scarf.sh/simple/modular/modular-26.2.0-py3-none-any.whl"
 
 PIP_PACKAGES = ["numpy", "fastapi", "triton", "simplejson", "nvidia-cutlass-dsl", "nvidia-ml-py"]
 UV_PREFIX = "uv pip install --system "
