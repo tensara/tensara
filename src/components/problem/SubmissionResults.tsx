@@ -48,6 +48,12 @@ import NextLink from "next/link";
 
 import { getStatusIcon } from "~/constants/problem";
 import { formatRuntime } from "~/utils/format";
+import {
+  buildBenchmarkCsv,
+  buildBenchmarkCsvFilename,
+  downloadCsv,
+  normalizeLiveBenchmarkResults,
+} from "~/utils/benchmarkCsv";
 import { useSplitPanel } from "./SplitPanel";
 import { GPUMetricInfoPopover } from "~/components/misc/GPUMetricInfoPopover";
 import { FiHash } from "react-icons/fi";
@@ -177,8 +183,13 @@ interface SubmissionResultsProps {
   onBackToProblem: () => void;
   onViewSubmissions: () => void;
   submissionId?: string | null;
+  submissionName?: string | null;
   onViewFlops?: () => void;
   hasFlopsCode?: boolean;
+  problemSlug?: string | null;
+  problemTitle?: string | null;
+  language?: string | null;
+  gpuType?: string | null;
 }
 
 const getStatusMessage = (
@@ -229,8 +240,13 @@ const SubmissionResults = ({
   onBackToProblem,
   onViewSubmissions,
   submissionId,
+  submissionName,
   onViewFlops,
   hasFlopsCode,
+  problemSlug,
+  problemTitle,
+  language,
+  gpuType,
 }: SubmissionResultsProps) => {
   const { splitRatio } = useSplitPanel();
   const useCompactLabels = splitRatio < 40;
@@ -248,6 +264,34 @@ const SubmissionResults = ({
     ) ||
     acceptedAvgGflops != null ||
     benchmarkedAvgGflops != null;
+  const canDownloadCsv =
+    metaStatus === SubmissionStatus.ACCEPTED && benchmarkResults.length > 0;
+  const exportCsv = () => {
+    const csv = buildBenchmarkCsv({
+      submission: {
+        submissionId,
+        submissionName,
+        problemSlug,
+        problemTitle,
+        language,
+        gpuType,
+        overallAvgRuntimeMs:
+          getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_runtime_ms ?? null,
+        overallAvgGflops:
+          getTypedResponse(SubmissionStatus.ACCEPTED)?.avg_gflops ?? null,
+      },
+      testCases: normalizeLiveBenchmarkResults(benchmarkResults),
+    });
+
+    downloadCsv(
+      buildBenchmarkCsvFilename({
+        submissionName,
+        problemSlug,
+        gpuType,
+      }),
+      csv
+    );
+  };
 
   return (
     <VStack spacing={4} align="stretch" p={3}>
@@ -315,6 +359,11 @@ const SubmissionResults = ({
             <Text fontSize="lg" fontWeight="semibold">
               {getStatusMessage(metaStatus)}
             </Text>
+            {submissionName ? (
+              <Text fontSize="sm" color="whiteAlpha.700">
+                {submissionName}
+              </Text>
+            ) : null}
           </VStack>
         </HStack>
       </Box>
@@ -416,6 +465,20 @@ const SubmissionResults = ({
                   <HStack spacing={2} width="100%">
                     <HStack spacing={2}>
                       <Text fontWeight="semibold">Benchmark Results</Text>
+                      {canDownloadCsv && (
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          color="blue.200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            exportCsv();
+                          }}
+                          _hover={{ bg: "whiteAlpha.50", color: "blue.100" }}
+                        >
+                          Download CSV
+                        </Button>
+                      )}
                       <IconButton
                         aria-label="Toggle test cases"
                         icon={

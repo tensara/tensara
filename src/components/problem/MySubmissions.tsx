@@ -15,8 +15,9 @@ import {
   MenuList,
   MenuItem,
 } from "@chakra-ui/react";
-import { FiArrowLeft, FiFilter } from "react-icons/fi";
+import { FiArrowLeft, FiBarChart2, FiFilter } from "react-icons/fi";
 import { type Submission } from "@prisma/client";
+import NextLink from "next/link";
 import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
 import {
   formatStatus,
@@ -33,12 +34,14 @@ interface MySubmissionsProps {
   submissions: Submission[] | undefined;
   isLoading: boolean;
   onBackToProblem: () => void;
+  problemSlug: string;
 }
 
 const MySubmissions = ({
   submissions,
   isLoading,
   onBackToProblem,
+  problemSlug,
 }: MySubmissionsProps) => {
   const [statusFilter, setStatusFilter] = useState<string[]>(["all"]);
   const [sortBy, setSortBy] = useState<"time" | "performance">("time");
@@ -87,20 +90,37 @@ const MySubmissions = ({
       <VStack spacing={4} align="stretch">
         <HStack justify="space-between">
           <Heading size="md">My Submissions</Heading>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onBackToProblem}
-            leftIcon={<Icon as={FiArrowLeft} />}
-            borderRadius="lg"
-            color="gray.300"
-            _hover={{
-              bg: "whiteAlpha.50",
-              color: "white",
-            }}
-          >
-            Back to Problem
-          </Button>
+          <HStack spacing={2}>
+            <Button
+              as={NextLink}
+              href={`/problems/${problemSlug}/analyze`}
+              size="sm"
+              variant="ghost"
+              leftIcon={<Icon as={FiBarChart2} />}
+              borderRadius="lg"
+              color="gray.300"
+              _hover={{
+                bg: "whiteAlpha.50",
+                color: "white",
+              }}
+            >
+              Analyze
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onBackToProblem}
+              leftIcon={<Icon as={FiArrowLeft} />}
+              borderRadius="lg"
+              color="gray.300"
+              _hover={{
+                bg: "whiteAlpha.50",
+                color: "white",
+              }}
+            >
+              Back to Problem
+            </Button>
+          </HStack>
         </HStack>
 
         <HStack justify="space-between" align="center">
@@ -244,18 +264,28 @@ const MySubmissions = ({
                       as={getStatusIcon(submission.status)}
                       color={`${getStatusColor(submission.status)}.400`}
                     />
-                    <Text fontWeight="semibold">
-                      {formatStatus(submission.status)}
-                    </Text>
-                    <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
-                      {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language]} •{" "}
-                      {
-                        GPU_DISPLAY_ON_PROFILE[
-                          (submission.gpuType ??
-                            "T4") as keyof typeof GPU_DISPLAY_ON_PROFILE
-                        ]
-                      }
-                    </Text>
+                    <VStack align="start" spacing={0}>
+                      <HStack spacing={2}>
+                        <Text fontWeight="semibold">
+                          {submission.name?.trim() ??
+                            formatStatus(submission.status)}
+                        </Text>
+                        {submission.name?.trim() ? (
+                          <Text color="whiteAlpha.500" fontSize="sm">
+                            {formatStatus(submission.status)}
+                          </Text>
+                        ) : null}
+                      </HStack>
+                      <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
+                        {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language]} •{" "}
+                        {
+                          GPU_DISPLAY_ON_PROFILE[
+                            (submission.gpuType ??
+                              "T4") as keyof typeof GPU_DISPLAY_ON_PROFILE
+                          ]
+                        }
+                      </Text>
+                    </VStack>
                   </HStack>
                   <Text color="whiteAlpha.700" fontSize="sm">
                     {new Date(submission.createdAt).toLocaleString("en-US", {
