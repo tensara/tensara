@@ -11,7 +11,6 @@ import {
   Spinner,
   Text,
   Tooltip,
-  Input,
   VStack,
   HStack,
   Badge,
@@ -241,11 +240,9 @@ export default function ProblemPage({ slug }: { slug: string }) {
     ptxContent: submissionPtxContent,
     sassContent: submissionSassContent,
     submissionId,
-    submissionName,
   } = useSubmissionStream(submissionsQuery.refetch);
   const lastSampleStatusRef = useRef<SampleStatusType>(SampleStatus.IDLE);
   const [wrongSubmissionStreak, setWrongSubmissionStreak] = useState(0);
-  const [pendingSubmissionName, setPendingSubmissionName] = useState("");
 
   const [submissionPtxTimestamp, setSubmissionPtxTimestamp] =
     useState<number>(0);
@@ -489,7 +486,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
       code: code,
       language: selectedLanguage,
       gpuType: selectedGpuType,
-      submissionName: pendingSubmissionName.trim(),
     });
   }, [
     session?.user,
@@ -497,7 +493,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
     code,
     selectedLanguage,
     selectedGpuType,
-    pendingSubmissionName,
     processSubmission,
     startSubmission,
     setViewType,
@@ -622,7 +617,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
             submissions={submissionsQuery.data?.submissions}
             isLoading={submissionsQuery.isLoading}
             onBackToProblem={() => setViewType("problem")}
-            problemSlug={problem.slug}
           />
         );
       case "result":
@@ -640,13 +634,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
             onBackToProblem={() => setViewType("problem")}
             onViewSubmissions={() => setViewType("submissions")}
             submissionId={submissionId}
-            submissionName={submissionName ?? pendingSubmissionName.trim()}
             onViewFlops={onFlopsModalOpen}
             hasFlopsCode={!!(problem as { getFlops?: string | null }).getFlops}
-            problemSlug={problem.slug}
-            problemTitle={problem.title}
-            language={selectedLanguage}
-            gpuType={selectedGpuType}
           />
         ) : null;
       default:
@@ -1000,25 +989,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
   );
 
   const headerToolbar = (
-    <HStack justify="flex-end" spacing={2} w="100%">
-      <Input
-        value={pendingSubmissionName}
-        onChange={(event) => setPendingSubmissionName(event.target.value)}
-        placeholder="Name this submission (optional)"
-        maxLength={80}
-        size="sm"
-        h="32px"
-        maxW={{ base: "220px", md: "280px" }}
-        bg="whiteAlpha.50"
-        borderColor="whiteAlpha.100"
-        color="white"
-        _placeholder={{ color: "whiteAlpha.500" }}
-        _hover={{ borderColor: "whiteAlpha.300" }}
-        _focus={{
-          borderColor: "blue.400",
-          boxShadow: "0 0 0 1px rgba(96, 165, 250, 0.5)",
-        }}
-      />
+    <HStack justify="flex-end" spacing={2}>
       <Tooltip
         label="⌘ + '"
         placement="bottom"

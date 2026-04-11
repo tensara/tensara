@@ -1,6 +1,6 @@
 import { type NextPage } from "next";
 import type { GetServerSideProps } from "next";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -18,7 +18,6 @@ import {
   Spinner,
   Text,
   Tooltip,
-  useToast,
   VStack,
 } from "@chakra-ui/react";
 import {
@@ -60,11 +59,6 @@ type ChartSeries = {
   points: Array<number | null>;
 };
 
-type PlotExportErrorResponse = {
-  error?: string;
-  details?: string;
-};
-
 type BackgroundMode = "grid" | "plain" | "spotlight";
 type AnalysisTab = "compare" | "progress";
 
@@ -86,6 +80,30 @@ const SERIES_COLORS = [
   "#f43f5e",
   "#facc15",
 ];
+
+const downloadSvgFromElement = (
+  svgElement: SVGSVGElement,
+  filename: string
+) => {
+  const serializer = new XMLSerializer();
+  const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
+  clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clonedSvg.setAttribute("width", "1180");
+  clonedSvg.setAttribute("height", "540");
+
+  const svgMarkup = serializer.serializeToString(clonedSvg);
+  const blob = new Blob([svgMarkup], {
+    type: "image/svg+xml;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+};
 
 const LanguageLogo = ({ language }: { language: string | null }) => {
   if (!language) return <Text color={SURFACE_MUTED}>-</Text>;
@@ -263,11 +281,13 @@ const DataLineChart = ({
   series,
   yLabel,
   backgroundMode,
+  svgRef,
 }: {
   categories: string[];
   series: ChartSeries[];
   yLabel: string;
   backgroundMode: BackgroundMode;
+  svgRef?: React.Ref<SVGSVGElement>;
 }) => {
   const width = 1180;
   const height = 540;
@@ -351,6 +371,7 @@ const DataLineChart = ({
       }
     >
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
         height="540"
@@ -358,7 +379,7 @@ const DataLineChart = ({
         aria-label="Submission comparison chart"
         style={{ position: "relative", zIndex: 1 }}
       >
-        <rect x="0" y="0" width={width} height={height} fill="transparent" />
+        <rect x="0" y="0" width={width} height={height} fill={SURFACE_BG} />
 
         {Array.from({ length: yTicks }).map((_, index) => {
           const value =
@@ -534,7 +555,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
-  const toast = useToast();
   const { data: problem } = api.problems.getById.useQuery({ slug });
   const { data: submissions, isLoading } =
     api.problems.getAnalysisSubmissions.useQuery({
@@ -548,10 +568,10 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
     []
   );
   const [activeTab, setActiveTab] = useState<AnalysisTab>("compare");
-  const [isDownloadingPlot, setIsDownloadingPlot] = useState(false);
   const [isSubmissionListOpen, setIsSubmissionListOpen] = useState(false);
   const backgroundMode: BackgroundMode = "grid";
   const seriesColors = SERIES_COLORS;
+  const chartSvgRef = useRef<SVGSVGElement | null>(null);
 
   useEffect(() => {
     if (!submissions?.length) return;
@@ -598,31 +618,6 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
         ? buildTestCaseChart(activeSubmissions, seriesColors)
         : buildProgressChart(activeSubmissions, seriesColors),
     [activeSubmissions, activeTab, seriesColors]
-  );
-
-  const matplotlibPayload = useMemo(
-    () => ({
-      problemSlug: problem?.slug ?? slug,
-      title: `${problem?.title ?? slug} Analysis`,
-      subtitle: `${activeSubmissions.length} accepted submission${activeSubmissions.length === 1 ? "" : "s"} • ${
-        activeTab === "compare" ? "test-case comparison" : "cumulative progress"
-      } • runtime`,
-      xLabel: activeTab === "compare" ? "Test case" : "Submission date",
-      yLabel: chartData.yLabel,
-      metricMode: "runtime" as const,
-      categories: chartData.categories,
-      series: chartData.series,
-    }),
-    [
-      activeSubmissions.length,
-      activeTab,
-      chartData.categories,
-      chartData.series,
-      chartData.yLabel,
-      problem?.slug,
-      problem?.title,
-      slug,
-    ]
   );
 
   const handleToggleSubmission = (submissionId: string) => {
@@ -691,54 +686,13 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
     );
   };
 
-  const handleDownloadSvg = async () => {
-    if (chartData.categories.length === 0 || chartData.series.length === 0) {
-      return;
-    }
+  const handleDownloadSvg = () => {
+    if (!chartSvgRef.current) return;
 
-    setIsDownloadingPlot(true);
-
-    try {
-      const response = await fetch("/api/plots/matplotlib", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(matplotlibPayload),
-      });
-
-      if (!response.ok) {
-        const errorBody = (await response
-          .json()
-          .catch(() => null)) as PlotExportErrorResponse | null;
-        throw new Error(
-          errorBody?.details ?? errorBody?.error ?? "Plot export failed"
-        );
-      }
-
-      const svgBlob = await response.blob();
-      const downloadUrl = URL.createObjectURL(svgBlob);
-      const anchor = document.createElement("a");
-      anchor.href = downloadUrl;
-      anchor.download = `${problem?.slug ?? slug}-analysis-plot.svg`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      toast({
-        title: "Plot export failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Could not generate the matplotlib plot.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsDownloadingPlot(false);
-    }
+    downloadSvgFromElement(
+      chartSvgRef.current,
+      `${problem?.slug ?? slug}-analysis-plot.svg`
+    );
   };
 
   return (
@@ -795,8 +749,6 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
                   bg: "rgba(16, 185, 129, 0.22)",
                 }}
                 isDisabled={activeSubmissions.length === 0}
-                isLoading={isDownloadingPlot}
-                loadingText="Rendering"
               >
                 Download
               </MenuButton>
@@ -1091,6 +1043,7 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
                     series={chartData.series}
                     yLabel={chartData.yLabel}
                     backgroundMode={backgroundMode}
+                    svgRef={chartSvgRef}
                   />
 
                   <Flex wrap="wrap" gap={2}>
