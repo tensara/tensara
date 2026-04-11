@@ -11,7 +11,7 @@ comptime TILE_K = 32
 comptime BLOCK = TILE_M * TILE_N
 
 
-fn matmul_kernel(
+def matmul_kernel(
     input_a: UnsafePointer[Scalar[dtype], MutExternalOrigin],
     input_b: UnsafePointer[Scalar[dtype], MutExternalOrigin],
     output_c: UnsafePointer[Scalar[dtype], MutExternalOrigin],
@@ -125,7 +125,7 @@ fn matmul_kernel(
 
 
 @export
-fn solution(
+def solution(
     input_a_addr: Int,
     input_b_addr: Int,
     output_c_addr: Int,

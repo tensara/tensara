@@ -123,7 +123,7 @@ ${dtypeBlock ? dtypeBlock : ""}
 
 # Note: ${names.join(", ")} are device pointers to ${ptrTypeComment}
 @export
-fn solution(${paramStr}) raises:
+def solution(${paramStr}) raises:
 ${pointerSetup ? pointerSetup + "\n" : ""}    `;
   }
   if (language == "cute") {
