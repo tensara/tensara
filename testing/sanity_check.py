@@ -25,8 +25,8 @@ import requests
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-API_KEY = os.environ.get("CI_KEY", "")
-BASE_URL = "http://localhost:3000"
+API_KEY = os.environ.get("CI_KEY") or os.environ.get("TENSARA_CI_API_KEY", "")
+BASE_URL = os.environ.get("TENSARA_URL", "http://localhost:3000").rstrip("/")
 GPU_TYPE = os.environ.get("CI_GPU_TYPE", "H100")
 LANGUAGE = os.environ.get(
     "CI_LANGUAGE", ""
@@ -227,7 +227,14 @@ def submit(*, slug: str, code: str, language: str) -> dict:
 
     try:
         if resp.status_code == 401:
-            fail("Authentication failed — check CI_KEY secret")
+            reason = "check CI_KEY secret"
+            try:
+                body = resp.json()
+                reason = body.get("error") or body.get("message") or reason
+            except ValueError:
+                if resp.text:
+                    reason = resp.text[:300]
+            fail(f"Authentication failed — {reason}")
             sys.exit(1)
         if resp.status_code == 404:
             raise RuntimeError(f"Problem '{slug}' not found in DB (404)")
