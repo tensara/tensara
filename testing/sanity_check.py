@@ -227,7 +227,7 @@ def submit(*, slug: str, code: str, language: str) -> dict:
 
     try:
         if resp.status_code == 401:
-            fail("Authentication failed — check TENSARA_CI_API_KEY secret")
+            fail("Authentication failed — check CI_KEY secret")
             sys.exit(1)
         if resp.status_code == 404:
             raise RuntimeError(f"Problem '{slug}' not found in DB (404)")
@@ -349,7 +349,7 @@ def run_checks(
 
 def main():
     if not API_KEY:
-        fail("TENSARA_CI_API_KEY is not set")
+        fail("CI_KEY is not set")
         sys.exit(1)
 
     languages = parse_languages()
