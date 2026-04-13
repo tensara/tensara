@@ -25,8 +25,8 @@ import requests
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-API_KEY = os.environ.get("CI_KEY") or os.environ.get("TENSARA_CI_API_KEY", "")
-BASE_URL = os.environ.get("TENSARA_URL", "http://localhost:3000").rstrip("/")
+API_KEY = os.environ.get("TENSARA_CI_API_KEY", "")
+BASE_URL = "http://localhost:3000"
 GPU_TYPE = os.environ.get("CI_GPU_TYPE", "H100")
 LANGUAGE = os.environ.get(
     "CI_LANGUAGE", ""
@@ -227,14 +227,7 @@ def submit(*, slug: str, code: str, language: str) -> dict:
 
     try:
         if resp.status_code == 401:
-            reason = "check CI_KEY secret"
-            try:
-                body = resp.json()
-                reason = body.get("error") or body.get("message") or reason
-            except ValueError:
-                if resp.text:
-                    reason = resp.text[:300]
-            fail(f"Authentication failed — {reason}")
+            fail("Authentication failed — check TENSARA_CI_API_KEY secret")
             sys.exit(1)
         if resp.status_code == 404:
             raise RuntimeError(f"Problem '{slug}' not found in DB (404)")
@@ -356,7 +349,7 @@ def run_checks(
 
 def main():
     if not API_KEY:
-        fail("CI_KEY is not set")
+        fail("TENSARA_CI_API_KEY is not set")
         sys.exit(1)
 
     languages = parse_languages()
