@@ -15,7 +15,7 @@ import {
   MenuList,
   MenuItem,
 } from "@chakra-ui/react";
-import { FiArrowLeft, FiFilter } from "react-icons/fi";
+import { FiArrowLeft, FiBarChart2, FiFilter } from "react-icons/fi";
 import { type Submission } from "@prisma/client";
 import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
 import {
@@ -32,12 +32,14 @@ import { useSplitPanel } from "./SplitPanel";
 interface MySubmissionsProps {
   submissions: Submission[] | undefined;
   isLoading: boolean;
+  problemSlug: string;
   onBackToProblem: () => void;
 }
 
 const MySubmissions = ({
   submissions,
   isLoading,
+  problemSlug,
   onBackToProblem,
 }: MySubmissionsProps) => {
   const [statusFilter, setStatusFilter] = useState<string[]>(["all"]);
@@ -87,20 +89,38 @@ const MySubmissions = ({
       <VStack spacing={4} align="stretch">
         <HStack justify="space-between">
           <Heading size="md">My Submissions</Heading>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onBackToProblem}
-            leftIcon={<Icon as={FiArrowLeft} />}
-            borderRadius="lg"
-            color="gray.300"
-            _hover={{
-              bg: "whiteAlpha.50",
-              color: "white",
-            }}
-          >
-            Back to Problem
-          </Button>
+          <HStack spacing={2}>
+            <Button
+              as={Link}
+              href={`/problems/${problemSlug}/analyze`}
+              size="sm"
+              variant="ghost"
+              leftIcon={<Icon as={FiBarChart2} />}
+              borderRadius="lg"
+              color="green.300"
+              _hover={{
+                bg: "whiteAlpha.50",
+                color: "green.200",
+                textDecoration: "none",
+              }}
+            >
+              Analyze (new)
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onBackToProblem}
+              leftIcon={<Icon as={FiArrowLeft} />}
+              borderRadius="lg"
+              color="gray.300"
+              _hover={{
+                bg: "whiteAlpha.50",
+                color: "white",
+              }}
+            >
+              Back to Problem
+            </Button>
+          </HStack>
         </HStack>
 
         <HStack justify="space-between" align="center">

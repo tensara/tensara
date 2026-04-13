@@ -60,8 +60,6 @@ type BenchmarkTestResult = {
   runtime_ms: number;
   gflops?: number;
   name: string;
-  avg_runtime_ms?: number;
-  avg_gflops?: number;
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -723,8 +721,7 @@ const SubmissionPage: NextPage<{
                       };
 
                       const hasGflops = results.some(
-                        (r: BenchmarkTestResult) =>
-                          r.avg_gflops !== undefined || r.gflops !== undefined
+                        (r: BenchmarkTestResult) => r.gflops !== undefined
                       );
 
                       const hasGpuMetrics =
@@ -799,18 +796,12 @@ const SubmissionPage: NextPage<{
                                   <tr key={index}>
                                     <td style={tdStyle}>{result.name}</td>
                                     <td style={tdStyle}>
-                                      {formatRuntime(
-                                        result.avg_runtime_ms ??
-                                          result.runtime_ms
-                                      )}
+                                      {formatRuntime(result.runtime_ms)}
                                     </td>
                                     {hasGflops && (
                                       <td style={tdStyle}>
-                                        {(result.avg_gflops ??
-                                          result.gflops) !== undefined
-                                          ? (
-                                              result.avg_gflops ?? result.gflops
-                                            )?.toFixed(2)
+                                        {result.gflops !== undefined
+                                          ? result.gflops.toFixed(2)
                                           : ""}
                                       </td>
                                     )}
