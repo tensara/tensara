@@ -10,14 +10,12 @@ import {
   Flex,
   HStack,
   Icon,
-  Image,
   Menu,
   MenuButton,
   MenuItem,
   MenuList,
   Spinner,
   Text,
-  Tooltip,
   VStack,
 } from "@chakra-ui/react";
 import {
@@ -43,10 +41,7 @@ import {
   downloadCsv,
   normalizeStoredBenchmarkResults,
 } from "~/utils/benchmarkCsv";
-import {
-  LANGUAGE_DISPLAY_NAMES,
-  LANGUAGE_PROFILE_DISPLAY_NAMES,
-} from "~/constants/language";
+import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
 
 type AnalysisSubmission =
@@ -58,9 +53,6 @@ type ChartSeries = {
   color: string;
   points: Array<number | null>;
 };
-
-type BackgroundMode = "grid" | "plain" | "spotlight";
-type AnalysisTab = "compare" | "progress";
 
 const SURFACE_BG = "#0f172a";
 const SURFACE_CARD = "#181f2a";
@@ -103,51 +95,6 @@ const downloadSvgFromElement = (
   anchor.click();
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
-};
-
-const LanguageLogo = ({ language }: { language: string | null }) => {
-  if (!language) return <Text color={SURFACE_MUTED}>-</Text>;
-
-  const logoMap: Record<
-    string,
-    { src?: string; emoji?: string; label: string }
-  > = {
-    cuda: { src: "/cuda-icon.svg", label: "CUDA C++" },
-    python: { src: "/triton-logo.png", label: "Triton" },
-    mojo: { emoji: "🔥", label: "Mojo" },
-    cute: { emoji: "🧩", label: "CuTe DSL" },
-    cutile: { emoji: "🧱", label: "CuTile" },
-  };
-
-  const logo = logoMap[language];
-  if (!logo) {
-    return (
-      <Tooltip label={LANGUAGE_DISPLAY_NAMES[language] ?? "Unknown"}>
-        <Text fontSize="sm" color={SURFACE_MUTED}>
-          {language}
-        </Text>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <Tooltip label={logo.label}>
-      <Flex align="center" justify="center">
-        {logo.src ? (
-          <Image
-            src={logo.src}
-            alt={logo.label}
-            boxSize="20px"
-            objectFit="contain"
-          />
-        ) : (
-          <Text fontSize="lg" lineHeight={1}>
-            {logo.emoji}
-          </Text>
-        )}
-      </Flex>
-    </Tooltip>
-  );
 };
 
 const buildSubmissionLabel = (submission: AnalysisSubmission): string => {
@@ -229,69 +176,20 @@ const buildTestCaseChart = (
   };
 };
 
-const buildProgressChart = (
-  submissions: AnalysisSubmission[],
-  seriesColors: string[]
-): {
-  categories: string[];
-  series: ChartSeries[];
-  yLabel: string;
-} => {
-  const ordered = submissions
-    .slice()
-    .sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-
-  let runningBest: number | null = null;
-  const points = ordered.map((submission) => {
-    const currentValue = submission.runtime ?? null;
-
-    if (currentValue == null) return runningBest;
-
-    if (runningBest == null) {
-      runningBest = currentValue;
-      return runningBest;
-    }
-
-    runningBest = Math.min(runningBest, currentValue);
-
-    return runningBest;
-  });
-
-  return {
-    categories: ordered.map((submission) =>
-      format(new Date(submission.createdAt), "MMM d")
-    ),
-    yLabel: "Cumulative Best Runtime (ms)",
-    series: [
-      {
-        id: "progress",
-        label: "Best runtime so far",
-        color: seriesColors[0] ?? SERIES_COLORS[0]!,
-        points,
-      },
-    ],
-  };
-};
-
 const DataLineChart = ({
   categories,
   series,
   yLabel,
-  backgroundMode,
   svgRef,
 }: {
   categories: string[];
   series: ChartSeries[];
   yLabel: string;
-  backgroundMode: BackgroundMode;
   svgRef?: React.Ref<SVGSVGElement>;
 }) => {
   const width = 1180;
   const height = 540;
-  const padding = { top: 30, right: 28, bottom: 102, left: 76 };
+  const padding = { top: 38, right: 40, bottom: 128, left: 128 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
@@ -334,41 +232,13 @@ const DataLineChart = ({
     plotHeight -
     ((value - domainMin) / Math.max(domainMax - domainMin, 1)) * plotHeight;
 
-  const chartBackground =
-    backgroundMode === "plain"
-      ? SURFACE_CARD
-      : backgroundMode === "spotlight"
-        ? "radial-gradient(circle at 50% 40%, rgba(16, 185, 129, 0.10), rgba(15, 23, 42, 0.96) 58%)"
-        : SURFACE_ELEVATED;
-
-  const chartOverlay =
-    backgroundMode === "grid"
-      ? {
-          background:
-            "linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)",
-          backgroundSize: "26px 26px",
-        }
-      : undefined;
-
   return (
     <Box
       borderRadius="24px"
-      bg={chartBackground}
+      bg={SURFACE_ELEVATED}
       p={{ base: 4, md: 6 }}
       overflowX="auto"
       position="relative"
-      _before={
-        chartOverlay
-          ? {
-              content: '""',
-              position: "absolute",
-              inset: 0,
-              pointerEvents: "none",
-              opacity: 1,
-              ...chartOverlay,
-            }
-          : undefined
-      }
     >
       <svg
         ref={svgRef}
@@ -397,7 +267,7 @@ const DataLineChart = ({
                 strokeWidth="1"
               />
               <text
-                x={padding.left - 12}
+                x={padding.left - 18}
                 y={y + 4}
                 textAnchor="end"
                 fontSize="12"
@@ -446,9 +316,9 @@ const DataLineChart = ({
               />
               <text
                 x={x}
-                y={height - 24}
+                y={height - 38}
                 textAnchor="end"
-                transform={`rotate(-24 ${x} ${height - 24})`}
+                transform={`rotate(-24 ${x} ${height - 38})`}
                 fontSize="12"
                 fill={SURFACE_MUTED}
               >
@@ -499,10 +369,10 @@ const DataLineChart = ({
         })}
 
         <text
-          x={padding.left - 52}
+          x={28}
           y={padding.top + plotHeight / 2}
           textAnchor="middle"
-          transform={`rotate(-90 ${padding.left - 52} ${padding.top + plotHeight / 2})`}
+          transform={`rotate(-90 28 ${padding.top + plotHeight / 2})`}
           fontSize="13"
           fill={SURFACE_MUTED}
         >
@@ -564,12 +434,7 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
   const [compareSubmissionIds, setCompareSubmissionIds] = useState<string[]>(
     []
   );
-  const [progressSubmissionIds, setProgressSubmissionIds] = useState<string[]>(
-    []
-  );
-  const [activeTab, setActiveTab] = useState<AnalysisTab>("compare");
   const [isSubmissionListOpen, setIsSubmissionListOpen] = useState(false);
-  const backgroundMode: BackgroundMode = "grid";
   const seriesColors = SERIES_COLORS;
   const chartSvgRef = useRef<SVGSVGElement | null>(null);
 
@@ -579,11 +444,6 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
     setCompareSubmissionIds((current) =>
       current.length > 0 ? current : [submissions[0]!.id]
     );
-    setProgressSubmissionIds((current) =>
-      current.length > 0
-        ? current
-        : submissions.map((submission) => submission.id)
-    );
   }, [submissions]);
 
   const compareSubmissions = useMemo(() => {
@@ -591,46 +451,19 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
     return (submissions ?? []).filter((submission) => idSet.has(submission.id));
   }, [compareSubmissionIds, submissions]);
 
-  const progressSubmissions = useMemo(() => {
-    const idSet = new Set(progressSubmissionIds);
-    return (submissions ?? []).filter((submission) => idSet.has(submission.id));
-  }, [progressSubmissionIds, submissions]);
-
-  const activeSubmissions = useMemo(
-    () => (activeTab === "compare" ? compareSubmissions : progressSubmissions),
-    [activeTab, compareSubmissions, progressSubmissions]
-  );
-  const compareTabTextColor =
-    activeTab === "compare" ? SURFACE_TEXT : SURFACE_MUTED;
-  const progressTabTextColor =
-    activeTab === "progress" ? SURFACE_TEXT : SURFACE_MUTED;
+  const activeSubmissions = compareSubmissions;
   const highlightedSubmissionIds = useMemo(
-    () =>
-      new Set(
-        activeTab === "compare" ? compareSubmissionIds : progressSubmissionIds
-      ),
-    [activeTab, compareSubmissionIds, progressSubmissionIds]
+    () => new Set(compareSubmissionIds),
+    [compareSubmissionIds]
   );
 
   const chartData = useMemo(
-    () =>
-      activeTab === "compare"
-        ? buildTestCaseChart(activeSubmissions, seriesColors)
-        : buildProgressChart(activeSubmissions, seriesColors),
-    [activeSubmissions, activeTab, seriesColors]
+    () => buildTestCaseChart(activeSubmissions, seriesColors),
+    [activeSubmissions, seriesColors]
   );
 
   const handleToggleSubmission = (submissionId: string) => {
-    if (activeTab === "compare") {
-      setCompareSubmissionIds((current) =>
-        current.includes(submissionId)
-          ? current.filter((id) => id !== submissionId)
-          : [...current, submissionId]
-      );
-      return;
-    }
-
-    setProgressSubmissionIds((current) =>
+    setCompareSubmissionIds((current) =>
       current.includes(submissionId)
         ? current.filter((id) => id !== submissionId)
         : [...current, submissionId]
@@ -886,81 +719,87 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
                         </VStack>
                       </Button>
                     )}
-                    <Collapse in={isSubmissionListOpen} animateOpacity>
-                      <VStack
-                        align="stretch"
-                        spacing={3}
-                        pt={3}
-                        maxH={{ base: "none", lg: "calc(100vh - 360px)" }}
-                        overflowY="auto"
-                      >
-                        <Divider borderColor={SURFACE_BORDER} />
+                    {isSubmissionListOpen ? (
+                      <Collapse in={isSubmissionListOpen} animateOpacity>
+                        <VStack
+                          align="stretch"
+                          spacing={3}
+                          pt={3}
+                          maxH={{ base: "none", lg: "calc(100vh - 360px)" }}
+                          overflowY="auto"
+                        >
+                          <Divider borderColor={SURFACE_BORDER} />
 
-                        {(submissions ?? []).length === 0 ? (
-                          <Text fontSize="sm" color={SURFACE_MUTED}>
-                            No accepted submissions yet for this problem.
-                          </Text>
-                        ) : (
-                          submissions?.map((submission) => (
-                            <Box
-                              key={submission.id}
-                              border="1px solid"
-                              borderColor={
-                                highlightedSubmissionIds.has(submission.id)
-                                  ? ACCENT_LINE
-                                  : SURFACE_BORDER
-                              }
-                              borderRadius="12px"
-                              p={3}
-                              bg={
-                                highlightedSubmissionIds.has(submission.id)
-                                  ? "rgba(16, 185, 129, 0.08)"
-                                  : "rgba(255,255,255,0.02)"
-                              }
-                              cursor="pointer"
-                              onClick={() =>
-                                handleToggleSubmission(submission.id)
-                              }
-                              _hover={{
-                                borderColor: "rgba(16, 185, 129, 0.24)",
-                                bg: "rgba(255,255,255,0.04)",
-                              }}
-                            >
-                              <HStack align="start" spacing={3}>
-                                <Checkbox
-                                  isChecked={highlightedSubmissionIds.has(
-                                    submission.id
-                                  )}
-                                  pointerEvents="none"
-                                  colorScheme="green"
-                                  mt={1}
-                                />
-                                <VStack align="start" spacing={0} flex={1}>
-                                  <Text fontWeight="semibold" lineHeight="1.2">
-                                    {buildSubmissionLabel(submission)}
-                                  </Text>
-                                  <HStack spacing={2} color={SURFACE_MUTED}>
-                                    <LanguageLogo
-                                      language={submission.language}
-                                    />
-                                    <Text fontSize="sm">
+                          {(submissions ?? []).length === 0 ? (
+                            <Text fontSize="sm" color={SURFACE_MUTED}>
+                              No accepted submissions yet for this problem.
+                            </Text>
+                          ) : (
+                            submissions?.map((submission) => (
+                              <Box
+                                key={submission.id}
+                                border="1px solid"
+                                borderColor={
+                                  highlightedSubmissionIds.has(submission.id)
+                                    ? ACCENT_LINE
+                                    : SURFACE_BORDER
+                                }
+                                borderRadius="12px"
+                                p={3}
+                                bg={
+                                  highlightedSubmissionIds.has(submission.id)
+                                    ? "rgba(16, 185, 129, 0.08)"
+                                    : "rgba(255,255,255,0.02)"
+                                }
+                                cursor="pointer"
+                                onClick={() =>
+                                  handleToggleSubmission(submission.id)
+                                }
+                                _hover={{
+                                  borderColor: "rgba(16, 185, 129, 0.24)",
+                                  bg: "rgba(255,255,255,0.04)",
+                                }}
+                              >
+                                <HStack align="start" spacing={3}>
+                                  <Checkbox
+                                    isChecked={highlightedSubmissionIds.has(
+                                      submission.id
+                                    )}
+                                    pointerEvents="none"
+                                    colorScheme="green"
+                                    mt={1}
+                                  />
+                                  <VStack align="start" spacing={0} flex={1}>
+                                    <Text
+                                      fontWeight="semibold"
+                                      lineHeight="1.2"
+                                    >
+                                      {buildSubmissionLabel(submission)}
+                                    </Text>
+                                    <Text fontSize="sm" color={SURFACE_MUTED}>
+                                      {
+                                        LANGUAGE_PROFILE_DISPLAY_NAMES[
+                                          submission.language
+                                        ]
+                                      }{" "}
+                                      •{" "}
                                       {
                                         GPU_DISPLAY_NAMES[
                                           submission.gpuType ?? "T4"
                                         ]
                                       }
                                     </Text>
-                                  </HStack>
-                                  <Text fontSize="sm" color={SURFACE_MUTED}>
-                                    {formatRuntime(submission.runtime)}
-                                  </Text>
-                                </VStack>
-                              </HStack>
-                            </Box>
-                          ))
-                        )}
-                      </VStack>
-                    </Collapse>
+                                    <Text fontSize="sm" color={SURFACE_MUTED}>
+                                      {formatRuntime(submission.runtime)}
+                                    </Text>
+                                  </VStack>
+                                </HStack>
+                              </Box>
+                            ))
+                          )}
+                        </VStack>
+                      </Collapse>
+                    ) : null}
                   </VStack>
                 </VStack>
 
@@ -981,68 +820,16 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
                       <HStack spacing={2}>
                         <Icon as={FiTrendingUp} />
                         <Text fontSize="lg" fontWeight="bold">
-                          {activeTab === "compare"
-                            ? "Runtime by test case"
-                            : "Cumulative best runtime"}
+                          Runtime by test case
                         </Text>
                       </HStack>
                     </VStack>
-                    <HStack
-                      bg="rgba(255,255,255,0.04)"
-                      borderRadius="999px"
-                      border="1px solid"
-                      borderColor={SURFACE_BORDER}
-                      p={1}
-                      spacing={1}
-                    >
-                      <Button
-                        size="sm"
-                        borderRadius="999px"
-                        variant={activeTab === "compare" ? "solid" : "ghost"}
-                        bg={
-                          activeTab === "compare"
-                            ? "rgba(255,255,255,0.12)"
-                            : "transparent"
-                        }
-                        color={compareTabTextColor}
-                        _hover={{
-                          bg:
-                            activeTab === "compare"
-                              ? "rgba(255,255,255,0.12)"
-                              : "rgba(255,255,255,0.06)",
-                        }}
-                        onClick={() => setActiveTab("compare")}
-                      >
-                        Compare
-                      </Button>
-                      <Button
-                        size="sm"
-                        borderRadius="999px"
-                        variant={activeTab === "progress" ? "solid" : "ghost"}
-                        bg={
-                          activeTab === "progress"
-                            ? "rgba(255,255,255,0.12)"
-                            : "transparent"
-                        }
-                        color={progressTabTextColor}
-                        _hover={{
-                          bg:
-                            activeTab === "progress"
-                              ? "rgba(255,255,255,0.12)"
-                              : "rgba(255,255,255,0.06)",
-                        }}
-                        onClick={() => setActiveTab("progress")}
-                      >
-                        Progress
-                      </Button>
-                    </HStack>
                   </HStack>
 
                   <DataLineChart
                     categories={chartData.categories}
                     series={chartData.series}
                     yLabel={chartData.yLabel}
-                    backgroundMode={backgroundMode}
                     svgRef={chartSvgRef}
                   />
 
