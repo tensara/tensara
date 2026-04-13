@@ -38,6 +38,7 @@ import {
   FiTrendingUp,
   FiX,
 } from "react-icons/fi";
+import { FaExclamationCircle } from "react-icons/fa";
 import NextLink from "next/link";
 import { format } from "date-fns";
 import superjson from "superjson";
@@ -905,6 +906,29 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
     );
   };
 
+  const mobileWarning = (
+    <Box
+      display={{ base: "block", md: "none" }}
+      w="100%"
+      p={6}
+      bg="whiteAlpha.50"
+      borderRadius="xl"
+      border="1px solid"
+      borderColor={SURFACE_BORDER}
+    >
+      <VStack spacing={4} align="center">
+        <Icon as={FaExclamationCircle} boxSize={10} color="yellow.400" />
+        <Text fontSize="lg" fontWeight="bold" textAlign="center">
+          Desktop Required for Analysis
+        </Text>
+        <Text textAlign="center" color="whiteAlpha.800">
+          For the best analysis experience, please switch to a desktop device to
+          compare submissions, inspect code, and download benchmark data.
+        </Text>
+      </VStack>
+    </Box>
+  );
+
   return (
     <Layout
       title={problem ? `${problem.title} Analysis` : "Submission Analysis"}
@@ -987,7 +1011,10 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
             </Menu>
           </HStack>
 
+          {mobileWarning}
+
           <Box
+            display={{ base: "none", md: "block" }}
             borderRadius="0"
             bg="transparent"
             border="none"
