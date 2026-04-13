@@ -481,9 +481,16 @@ const DataLineChart = ({
               if (point == null) return null;
               const x = pointX(index);
               const y = pointY(point);
-              return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+              return { x, y };
             })
-            .filter((command): command is string => Boolean(command))
+            .filter(
+              (command): command is { x: number; y: number } =>
+                command != null
+            )
+            .map(
+              (point, filteredIndex) =>
+                `${filteredIndex === 0 ? "M" : "L"} ${point.x} ${point.y}`
+            )
             .join(" ");
 
           return (
