@@ -1,6 +1,9 @@
 import { type NextPage } from "next";
 import type { GetServerSideProps } from "next";
 import { useEffect, useMemo, useRef, useState } from "react";
+import hljs from "highlight.js/lib/core";
+import cpp from "highlight.js/lib/languages/cpp";
+import python from "highlight.js/lib/languages/python";
 import {
   Box,
   Button,
@@ -10,6 +13,10 @@ import {
   Flex,
   HStack,
   Icon,
+  IconButton,
+  Input,
+  InputGroup,
+  InputLeftElement,
   Menu,
   MenuButton,
   MenuItem,
@@ -17,13 +24,19 @@ import {
   Spinner,
   Text,
   VStack,
+  useToast,
 } from "@chakra-ui/react";
 import {
   FiArrowLeft,
+  FiCheck,
   FiChevronDown,
   FiChevronLeft,
+  FiCode,
   FiDownload,
+  FiEdit2,
+  FiSearch,
   FiTrendingUp,
+  FiX,
 } from "react-icons/fi";
 import NextLink from "next/link";
 import { format } from "date-fns";
@@ -73,6 +86,9 @@ const SERIES_COLORS = [
   "#facc15",
 ];
 
+hljs.registerLanguage("cpp", cpp);
+hljs.registerLanguage("python", python);
+
 const downloadSvgFromElement = (
   svgElement: SVGSVGElement,
   filename: string
@@ -108,6 +124,34 @@ const buildSubmissionLabel = (submission: AnalysisSubmission): string => {
       "MMM d"
     )}`
   );
+};
+
+const getSubmissionCode = (submission: AnalysisSubmission): string =>
+  "code" in submission && typeof submission.code === "string"
+    ? submission.code
+    : "";
+
+const getHighlightLanguage = (language: string): string => {
+  if (language === "python") return "python";
+  if (language === "cuda" || language === "cute") return "cpp";
+  return "plaintext";
+};
+
+const getHighlightedCode = (code: string, language: string): string => {
+  const highlightLanguage = getHighlightLanguage(language);
+
+  if (highlightLanguage === "plaintext") {
+    return hljs.highlightAuto(code).value;
+  }
+
+  try {
+    return hljs.highlight(code, {
+      language: highlightLanguage,
+      ignoreIllegals: true,
+    }).value;
+  } catch {
+    return hljs.highlightAuto(code).value;
+  }
 };
 
 const buildTestCaseChart = (
@@ -383,6 +427,154 @@ const DataLineChart = ({
   );
 };
 
+const CodePeekPanel = ({
+  submission,
+  rank,
+  onClose,
+}: {
+  submission: AnalysisSubmission | undefined;
+  rank: number | null;
+  onClose: () => void;
+}) => {
+  const code = submission ? getSubmissionCode(submission) : "";
+  const highlightedCode = useMemo(
+    () => (submission ? getHighlightedCode(code, submission.language) : ""),
+    [code, submission]
+  );
+
+  if (!submission) return null;
+
+  return (
+    <Box
+      w={{ base: "100%", xl: "390px" }}
+      flexShrink={0}
+      border="1px solid"
+      borderColor={SURFACE_BORDER}
+      borderRadius="16px"
+      bg={SURFACE_CARD}
+      overflow="hidden"
+      minH={{ base: "520px", xl: "calc(100vh - 260px)" }}
+      maxH={{ base: "none", xl: "calc(100vh - 220px)" }}
+    >
+      <VStack align="stretch" spacing={0} h="100%">
+        <Box
+          position="sticky"
+          top={0}
+          zIndex={2}
+          bg="rgba(24, 31, 42, 0.96)"
+          borderBottom="1px solid"
+          borderColor={SURFACE_BORDER}
+          p={4}
+        >
+          <HStack justify="space-between" align="start" spacing={3}>
+            <VStack align="start" spacing={1} minW={0}>
+              <HStack spacing={2} color={SURFACE_TEXT}>
+                <Icon as={FiCode} color={ACCENT} />
+                <Text fontWeight="bold" noOfLines={1}>
+                  {buildSubmissionLabel(submission)}
+                </Text>
+              </HStack>
+              <Text fontSize="xs" color={SURFACE_MUTED}>
+                {format(new Date(submission.createdAt), "MMM d, h:mm a")}
+              </Text>
+            </VStack>
+            <IconButton
+              aria-label="Close code preview"
+              icon={<FiX />}
+              size="sm"
+              variant="ghost"
+              borderRadius="8px"
+              color={SURFACE_MUTED}
+              _hover={{ bg: "whiteAlpha.100", color: SURFACE_TEXT }}
+              onClick={onClose}
+            />
+          </HStack>
+
+          <Flex wrap="wrap" gap={2} mt={4}>
+            {[
+              ["Runtime", formatRuntime(submission.runtime)],
+              ["GPU", GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]],
+              [
+                "Language",
+                LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language] ??
+                  submission.language,
+              ],
+              ["Rank", rank == null ? "n/a" : `#${rank}`],
+            ].map(([label, value]) => (
+              <Box
+                key={label}
+                px={2.5}
+                py={1.5}
+                border="1px solid"
+                borderColor={SURFACE_BORDER}
+                borderRadius="9px"
+                bg="rgba(2, 6, 23, 0.26)"
+              >
+                <Text
+                  fontSize="10px"
+                  color={SURFACE_MUTED}
+                  textTransform="uppercase"
+                  letterSpacing="0.08em"
+                >
+                  {label}
+                </Text>
+                <Text fontSize="sm" color={SURFACE_TEXT} fontWeight="semibold">
+                  {value}
+                </Text>
+              </Box>
+            ))}
+          </Flex>
+        </Box>
+
+        <Box
+          flex={1}
+          overflow="auto"
+          bg="#0b1020"
+          sx={{
+            "& .hljs-keyword, & .hljs-selector-tag, & .hljs-title.function_": {
+              color: "#c084fc",
+            },
+            "& .hljs-built_in, & .hljs-type, & .hljs-class .hljs-title": {
+              color: "#38bdf8",
+            },
+            "& .hljs-string, & .hljs-attr": {
+              color: "#86efac",
+            },
+            "& .hljs-number, & .hljs-literal": {
+              color: "#fbbf24",
+            },
+            "& .hljs-comment": {
+              color: "#64748b",
+              fontStyle: "italic",
+            },
+            "& .hljs-meta, & .hljs-meta .hljs-keyword": {
+              color: "#f97316",
+            },
+          }}
+        >
+          <Box
+            as="pre"
+            m={0}
+            p={4}
+            minW="max-content"
+            fontSize="12px"
+            lineHeight="1.65"
+            color="#dbeafe"
+            fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+          >
+            <Box
+              as="code"
+              dangerouslySetInnerHTML={{
+                __html: highlightedCode || "// No code available",
+              }}
+            />
+          </Box>
+        </Box>
+      </VStack>
+    </Box>
+  );
+};
+
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await auth(context.req, context.res);
 
@@ -425,6 +617,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
+  const toast = useToast();
+  const utils = api.useUtils();
   const { data: problem } = api.problems.getById.useQuery({ slug });
   const { data: submissions, isLoading } =
     api.problems.getAnalysisSubmissions.useQuery({
@@ -435,8 +629,33 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
     []
   );
   const [isSubmissionListOpen, setIsSubmissionListOpen] = useState(false);
+  const [submissionSearch, setSubmissionSearch] = useState("");
+  const [editingSubmissionId, setEditingSubmissionId] = useState<string | null>(
+    null
+  );
+  const [draftSubmissionName, setDraftSubmissionName] = useState("");
+  const [peekSubmissionId, setPeekSubmissionId] = useState<string | null>(null);
   const seriesColors = SERIES_COLORS;
   const chartSvgRef = useRef<SVGSVGElement | null>(null);
+  const renameSubmission = api.submissions.renameSubmission.useMutation({
+    onSuccess: async () => {
+      await utils.problems.getAnalysisSubmissions.invalidate({
+        problemSlug: slug,
+        limit: 18,
+      });
+      setEditingSubmissionId(null);
+      setDraftSubmissionName("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not rename submission",
+        description: error.message,
+        status: "error",
+        duration: 3500,
+        isClosable: true,
+      });
+    },
+  });
 
   useEffect(() => {
     if (!submissions?.length) return;
@@ -450,6 +669,55 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
     const idSet = new Set(compareSubmissionIds);
     return (submissions ?? []).filter((submission) => idSet.has(submission.id));
   }, [compareSubmissionIds, submissions]);
+
+  const visibleSubmissions = useMemo(() => {
+    const allSubmissions = submissions ?? [];
+    const query = submissionSearch.trim().toLowerCase();
+
+    if (query.length === 0) {
+      return allSubmissions;
+    }
+
+    return allSubmissions.filter((submission) => {
+      const searchableText = [
+        buildSubmissionLabel(submission),
+        submission.id,
+        submission.name,
+        submission.language,
+        LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language],
+        submission.gpuType,
+        GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"],
+        formatRuntime(submission.runtime),
+        format(new Date(submission.createdAt), "MMM d yyyy h:mm a"),
+        getSubmissionCode(submission),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(query);
+    });
+  }, [submissionSearch, submissions]);
+
+  const rankedSubmissionIds = useMemo(() => {
+    return [...(submissions ?? [])]
+      .filter((submission) => submission.runtime != null)
+      .sort((a, b) => (a.runtime ?? Infinity) - (b.runtime ?? Infinity))
+      .map((submission) => submission.id);
+  }, [submissions]);
+
+  const peekSubmission = useMemo(() => {
+    if (!peekSubmissionId) return undefined;
+    return (submissions ?? []).find(
+      (submission) => submission.id === peekSubmissionId
+    );
+  }, [peekSubmissionId, submissions]);
+
+  const peekSubmissionRank = useMemo(() => {
+    if (!peekSubmission) return null;
+    const rankIndex = rankedSubmissionIds.indexOf(peekSubmission.id);
+    return rankIndex === -1 ? null : rankIndex + 1;
+  }, [peekSubmission, rankedSubmissionIds]);
 
   const activeSubmissions = compareSubmissions;
   const highlightedSubmissionIds = useMemo(
@@ -468,6 +736,25 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
         ? current.filter((id) => id !== submissionId)
         : [...current, submissionId]
     );
+  };
+
+  const handleStartRename = (submission: AnalysisSubmission) => {
+    setEditingSubmissionId(submission.id);
+    setDraftSubmissionName(submission.name?.trim() ?? "");
+  };
+
+  const handleCancelRename = () => {
+    setEditingSubmissionId(null);
+    setDraftSubmissionName("");
+  };
+
+  const handleSaveRename = () => {
+    if (!editingSubmissionId || renameSubmission.isPending) return;
+
+    renameSubmission.mutate({
+      submissionId: editingSubmissionId,
+      name: draftSubmissionName,
+    });
   };
 
   const handleDownloadCsv = () => {
@@ -729,73 +1016,243 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
                           overflowY="auto"
                         >
                           <Divider borderColor={SURFACE_BORDER} />
+                          <InputGroup size="sm">
+                            <InputLeftElement pointerEvents="none">
+                              <Icon as={FiSearch} color={SURFACE_MUTED} />
+                            </InputLeftElement>
+                            <Input
+                              value={submissionSearch}
+                              onChange={(event) =>
+                                setSubmissionSearch(event.target.value)
+                              }
+                              placeholder="Search code"
+                              borderRadius="10px"
+                              borderColor={SURFACE_BORDER}
+                              bg="rgba(2, 6, 23, 0.24)"
+                              color={SURFACE_TEXT}
+                              _placeholder={{ color: "whiteAlpha.400" }}
+                              _hover={{ borderColor: ACCENT_LINE }}
+                              _focus={{
+                                borderColor: ACCENT,
+                                boxShadow: `0 0 0 1px ${ACCENT_LINE}`,
+                              }}
+                            />
+                          </InputGroup>
 
                           {(submissions ?? []).length === 0 ? (
                             <Text fontSize="sm" color={SURFACE_MUTED}>
                               No accepted submissions yet for this problem.
                             </Text>
+                          ) : visibleSubmissions.length === 0 ? (
+                            <Text fontSize="sm" color={SURFACE_MUTED}>
+                              No submissions match this search.
+                            </Text>
                           ) : (
-                            submissions?.map((submission) => (
-                              <Box
-                                key={submission.id}
-                                border="1px solid"
-                                borderColor={
-                                  highlightedSubmissionIds.has(submission.id)
-                                    ? ACCENT_LINE
-                                    : SURFACE_BORDER
-                                }
-                                borderRadius="12px"
-                                p={3}
-                                bg={
-                                  highlightedSubmissionIds.has(submission.id)
-                                    ? "rgba(16, 185, 129, 0.08)"
-                                    : "rgba(255,255,255,0.02)"
-                                }
-                                cursor="pointer"
-                                onClick={() =>
-                                  handleToggleSubmission(submission.id)
-                                }
-                                _hover={{
-                                  borderColor: "rgba(16, 185, 129, 0.24)",
-                                  bg: "rgba(255,255,255,0.04)",
-                                }}
-                              >
-                                <HStack align="start" spacing={3}>
-                                  <Checkbox
-                                    isChecked={highlightedSubmissionIds.has(
-                                      submission.id
-                                    )}
-                                    pointerEvents="none"
-                                    colorScheme="green"
-                                    mt={1}
-                                  />
-                                  <VStack align="start" spacing={0} flex={1}>
-                                    <Text
-                                      fontWeight="semibold"
-                                      lineHeight="1.2"
-                                    >
-                                      {buildSubmissionLabel(submission)}
-                                    </Text>
-                                    <Text fontSize="sm" color={SURFACE_MUTED}>
-                                      {
-                                        LANGUAGE_PROFILE_DISPLAY_NAMES[
-                                          submission.language
-                                        ]
-                                      }{" "}
-                                      •{" "}
-                                      {
-                                        GPU_DISPLAY_NAMES[
-                                          submission.gpuType ?? "T4"
-                                        ]
+                            visibleSubmissions.map((submission) => {
+                              const isSelected = highlightedSubmissionIds.has(
+                                submission.id
+                              );
+                              const isEditing =
+                                editingSubmissionId === submission.id;
+                              const isPeeking =
+                                peekSubmissionId === submission.id;
+
+                              return (
+                                <Box
+                                  key={submission.id}
+                                  border="1px solid"
+                                  borderColor={
+                                    isPeeking
+                                      ? "rgba(56, 189, 248, 0.42)"
+                                      : isSelected
+                                        ? ACCENT_LINE
+                                        : SURFACE_BORDER
+                                  }
+                                  borderRadius="12px"
+                                  p={3}
+                                  bg={
+                                    isPeeking
+                                      ? "rgba(56, 189, 248, 0.08)"
+                                      : isSelected
+                                        ? "rgba(16, 185, 129, 0.08)"
+                                        : "rgba(255,255,255,0.02)"
+                                  }
+                                  cursor="pointer"
+                                  onClick={() =>
+                                    setPeekSubmissionId(submission.id)
+                                  }
+                                  _hover={{
+                                    borderColor: "rgba(16, 185, 129, 0.24)",
+                                    bg: "rgba(255,255,255,0.04)",
+                                  }}
+                                >
+                                  <HStack align="start" spacing={3}>
+                                    <Checkbox
+                                      isChecked={isSelected}
+                                      colorScheme="green"
+                                      mt={1}
+                                      onClick={(event) =>
+                                        event.stopPropagation()
                                       }
-                                    </Text>
-                                    <Text fontSize="sm" color={SURFACE_MUTED}>
-                                      {formatRuntime(submission.runtime)}
-                                    </Text>
-                                  </VStack>
-                                </HStack>
-                              </Box>
-                            ))
+                                      onChange={() =>
+                                        handleToggleSubmission(submission.id)
+                                      }
+                                    />
+                                    <VStack align="start" spacing={0} flex={1}>
+                                      <HStack
+                                        w="100%"
+                                        align="center"
+                                        spacing={2}
+                                        onClick={(event) => {
+                                          if (isEditing) {
+                                            event.stopPropagation();
+                                          }
+                                        }}
+                                      >
+                                        {isEditing ? (
+                                          <>
+                                            <Input
+                                              value={draftSubmissionName}
+                                              onChange={(event) =>
+                                                setDraftSubmissionName(
+                                                  event.target.value
+                                                )
+                                              }
+                                              onKeyDown={(event) => {
+                                                if (event.key === "Enter") {
+                                                  event.preventDefault();
+                                                  event.stopPropagation();
+                                                  handleSaveRename();
+                                                }
+
+                                                if (event.key === "Escape") {
+                                                  event.preventDefault();
+                                                  event.stopPropagation();
+                                                  handleCancelRename();
+                                                }
+                                              }}
+                                              autoFocus
+                                              size="sm"
+                                              maxLength={80}
+                                              placeholder={buildSubmissionLabel(
+                                                submission
+                                              )}
+                                              borderRadius="8px"
+                                              borderColor={SURFACE_BORDER}
+                                              bg="rgba(2, 6, 23, 0.34)"
+                                              color={SURFACE_TEXT}
+                                              _placeholder={{
+                                                color: "whiteAlpha.400",
+                                              }}
+                                              _focus={{
+                                                borderColor: ACCENT,
+                                                boxShadow: `0 0 0 1px ${ACCENT_LINE}`,
+                                              }}
+                                            />
+                                            <IconButton
+                                              aria-label="Save submission name"
+                                              icon={<FiCheck />}
+                                              size="sm"
+                                              minW="30px"
+                                              h="30px"
+                                              borderRadius="8px"
+                                              color={ACCENT}
+                                              bg={ACCENT_SOFT}
+                                              border="1px solid"
+                                              borderColor={ACCENT_LINE}
+                                              _hover={{
+                                                bg: "rgba(16, 185, 129, 0.18)",
+                                              }}
+                                              isLoading={
+                                                renameSubmission.isPending
+                                              }
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleSaveRename();
+                                              }}
+                                            />
+                                            <IconButton
+                                              aria-label="Cancel rename"
+                                              icon={<FiX />}
+                                              size="sm"
+                                              minW="30px"
+                                              h="30px"
+                                              borderRadius="8px"
+                                              variant="ghost"
+                                              color={SURFACE_MUTED}
+                                              _hover={{
+                                                bg: "whiteAlpha.100",
+                                                color: SURFACE_TEXT,
+                                              }}
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleCancelRename();
+                                              }}
+                                            />
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Text
+                                              fontWeight="semibold"
+                                              lineHeight="1.2"
+                                              noOfLines={1}
+                                              flex={1}
+                                            >
+                                              {buildSubmissionLabel(submission)}
+                                            </Text>
+                                            <IconButton
+                                              aria-label="Rename submission"
+                                              icon={<FiEdit2 />}
+                                              size="sm"
+                                              minW="28px"
+                                              h="28px"
+                                              borderRadius="8px"
+                                              variant="ghost"
+                                              color={SURFACE_MUTED}
+                                              _hover={{
+                                                bg: "whiteAlpha.100",
+                                                color: SURFACE_TEXT,
+                                              }}
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleStartRename(submission);
+                                              }}
+                                            />
+                                          </>
+                                        )}
+                                      </HStack>
+                                      <Text fontSize="sm" color={SURFACE_MUTED}>
+                                        {
+                                          LANGUAGE_PROFILE_DISPLAY_NAMES[
+                                            submission.language
+                                          ]
+                                        }{" "}
+                                        •{" "}
+                                        {
+                                          GPU_DISPLAY_NAMES[
+                                            submission.gpuType ?? "T4"
+                                          ]
+                                        }
+                                      </Text>
+                                      <HStack
+                                        spacing={2}
+                                        fontSize="sm"
+                                        color={SURFACE_MUTED}
+                                      >
+                                        <Text>
+                                          {formatRuntime(submission.runtime)}
+                                        </Text>
+                                        <Text color="whiteAlpha.300">/</Text>
+                                        <HStack spacing={1}>
+                                          <Icon as={FiCode} boxSize={3} />
+                                          <Text>Code</Text>
+                                        </HStack>
+                                      </HStack>
+                                    </VStack>
+                                  </HStack>
+                                </Box>
+                              );
+                            })
                           )}
                         </VStack>
                       </Collapse>
@@ -858,6 +1315,12 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
                     ))}
                   </Flex>
                 </VStack>
+
+                <CodePeekPanel
+                  submission={peekSubmission}
+                  rank={peekSubmissionRank}
+                  onClose={() => setPeekSubmissionId(null)}
+                />
               </Flex>
             )}
           </Box>
