@@ -302,10 +302,12 @@ export const normalizeStoredBenchmarkResults = ({
     testResults.map((testResult) => [testResult.testId, testResult])
   );
 
-  return benchmarkResults.map((result) => {
+  const normalizedByTestId = new Map<number, BenchmarkCsvTestCase>();
+
+  for (const result of benchmarkResults) {
     const detailed = runsByTestId.get(result.test_id);
 
-    return {
+    normalizedByTestId.set(result.test_id, {
       testId: result.test_id,
       testName: result.name ?? detailed?.name ?? `Test ${result.test_id}`,
       avgRuntimeMs:
@@ -316,6 +318,20 @@ export const normalizeStoredBenchmarkResults = ({
       avgGflops:
         result.avg_gflops ?? result.gflops ?? detailed?.avgGflops ?? null,
       runs: detailed ? normalizeStoredBenchmarkRuns(detailed.runs) : [],
-    };
-  });
+    });
+  }
+
+  for (const testResult of testResults) {
+    if (normalizedByTestId.has(testResult.testId)) continue;
+
+    normalizedByTestId.set(testResult.testId, {
+      testId: testResult.testId,
+      testName: testResult.name,
+      avgRuntimeMs: testResult.avgRuntimeMs,
+      avgGflops: testResult.avgGflops,
+      runs: normalizeStoredBenchmarkRuns(testResult.runs),
+    });
+  }
+
+  return [...normalizedByTestId.values()].sort((a, b) => a.testId - b.testId);
 };

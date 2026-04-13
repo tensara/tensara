@@ -252,7 +252,17 @@ export const problemsRouter = createTRPCRouter({
         },
         take: input.limit,
         orderBy: { createdAt: "desc" },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          language: true,
+          status: true,
+          runtime: true,
+          gflops: true,
+          gpuType: true,
+          createdAt: true,
+          benchmarkResults: true,
           problem: {
             select: {
               title: true,
@@ -260,8 +270,18 @@ export const problemsRouter = createTRPCRouter({
             },
           },
           testResults: {
-            include: {
-              runs: true,
+            select: {
+              testId: true,
+              name: true,
+              avgRuntimeMs: true,
+              avgGflops: true,
+              runs: {
+                select: {
+                  runtimeMs: true,
+                  gflops: true,
+                  gpuMetrics: true,
+                },
+              },
             },
             orderBy: {
               testId: "asc",

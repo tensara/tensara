@@ -14,6 +14,7 @@ import {
   HStack,
   Icon,
   IconButton,
+  Image,
   Input,
   InputGroup,
   InputLeftElement,
@@ -31,7 +32,6 @@ import {
   FiCheck,
   FiChevronDown,
   FiChevronLeft,
-  FiCode,
   FiDownload,
   FiEdit2,
   FiSearch,
@@ -55,7 +55,8 @@ import {
   normalizeStoredBenchmarkResults,
 } from "~/utils/benchmarkCsv";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
-import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
+import { GPU_DISPLAY_NAMES, GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
+import type { GPUMetricsStats } from "~/types/submission";
 
 type AnalysisSubmission =
   RouterOutputs["problems"]["getAnalysisSubmissions"][number];
@@ -132,7 +133,7 @@ const getSubmissionCode = (submission: AnalysisSubmission): string =>
     : "";
 
 const getHighlightLanguage = (language: string): string => {
-  if (language === "python") return "python";
+  if (language === "python" || language === "cutile") return "python";
   if (language === "cuda" || language === "cute") return "cpp";
   return "plaintext";
 };
@@ -153,6 +154,107 @@ const getHighlightedCode = (code: string, language: string): string => {
     return hljs.highlightAuto(code).value;
   }
 };
+
+const LanguageLogo = ({
+  language,
+  boxSize = "22px",
+  showFallbackText = true,
+}: {
+  language: string | null;
+  boxSize?: string;
+  showFallbackText?: boolean;
+}) => {
+  if (!language) {
+    return <Text color={SURFACE_MUTED}>-</Text>;
+  }
+
+  const logoMap: Record<
+    string,
+    { src?: string; emoji?: string; label: string }
+  > = {
+    cuda: {
+      src: "/cuda-icon.svg",
+      label: "CUDA C++",
+    },
+    python: {
+      src: "/triton-logo.png",
+      label: "Triton",
+    },
+    mojo: {
+      emoji: "🔥",
+      label: "Mojo",
+    },
+    cute: {
+      emoji: "🧩",
+      label: "CuTe DSL",
+    },
+    cutile: {
+      emoji: "🧱",
+      label: "CuTile",
+    },
+  };
+
+  const logo = logoMap[language];
+
+  if (!logo) {
+    if (!showFallbackText) {
+      return <Text color={SURFACE_MUTED}>-</Text>;
+    }
+
+    return (
+      <Text fontSize="sm" color={SURFACE_MUTED}>
+        {language}
+      </Text>
+    );
+  }
+
+  if (logo.src) {
+    return (
+      <Image
+        src={logo.src}
+        alt={logo.label}
+        boxSize={boxSize}
+        objectFit="contain"
+      />
+    );
+  }
+
+  return (
+    <Text fontSize={boxSize === "30px" ? "2xl" : "lg"} lineHeight={1}>
+      {logo.emoji}
+    </Text>
+  );
+};
+
+const getSubmissionGpuTemperature = (
+  submission: AnalysisSubmission
+): number | null => {
+  let weightedTemperature = 0;
+  let sampleCount = 0;
+
+  for (const testResult of submission.testResults) {
+    for (const run of testResult.runs) {
+      const metrics = run.gpuMetrics as GPUMetricsStats | null;
+      const samples = metrics?.sample_count ?? 0;
+
+      if (!metrics || samples <= 0) continue;
+
+      weightedTemperature += metrics.temp_c_mean * samples;
+      sampleCount += samples;
+    }
+  }
+
+  return sampleCount > 0 ? weightedTemperature / sampleCount : null;
+};
+
+const getCompactGpuName = (gpuType: string | null): string =>
+  (GPU_DISPLAY_ON_PROFILE as Record<string, string>)[gpuType ?? "T4"] ??
+  GPU_DISPLAY_NAMES[gpuType ?? "T4"] ??
+  gpuType ??
+  "GPU";
+
+const getFormattedGpuTemperature = (temperature: number | null): string =>
+  temperature == null ? "n/a" : `${temperature.toFixed(1)}°C`;
 
 const buildTestCaseChart = (
   submissions: AnalysisSubmission[],
@@ -437,6 +539,9 @@ const CodePeekPanel = ({
   onClose: () => void;
 }) => {
   const code = submission ? getSubmissionCode(submission) : "";
+  const gpuTemperature = submission
+    ? getSubmissionGpuTemperature(submission)
+    : null;
   const highlightedCode = useMemo(
     () => (submission ? getHighlightedCode(code, submission.language) : ""),
     [code, submission]
@@ -464,19 +569,39 @@ const CodePeekPanel = ({
           bg="rgba(24, 31, 42, 0.96)"
           borderBottom="1px solid"
           borderColor={SURFACE_BORDER}
-          p={4}
+          px={4}
+          py={3}
         >
           <HStack justify="space-between" align="start" spacing={3}>
-            <VStack align="start" spacing={1} minW={0}>
-              <HStack spacing={2} color={SURFACE_TEXT}>
-                <Icon as={FiCode} color={ACCENT} />
+            <VStack align="start" spacing={2} minW={0}>
+              <HStack spacing={2.5} color={SURFACE_TEXT}>
+                <Box color={ACCENT} flexShrink={0}>
+                  <LanguageLogo
+                    language={submission.language}
+                    boxSize="20px"
+                    showFallbackText={false}
+                  />
+                </Box>
                 <Text fontWeight="bold" noOfLines={1}>
                   {buildSubmissionLabel(submission)}
                 </Text>
               </HStack>
-              <Text fontSize="xs" color={SURFACE_MUTED}>
-                {format(new Date(submission.createdAt), "MMM d, h:mm a")}
-              </Text>
+              <HStack
+                spacing={2}
+                color={SURFACE_MUTED}
+                fontSize="sm"
+                flexWrap="wrap"
+              >
+                <Text color={SURFACE_TEXT} fontWeight="semibold">
+                  {formatRuntime(submission.runtime)}
+                </Text>
+                <Text color="whiteAlpha.300">/</Text>
+                <Text>{getCompactGpuName(submission.gpuType)}</Text>
+                <Text color="whiteAlpha.300">/</Text>
+                <Text>{getFormattedGpuTemperature(gpuTemperature)}</Text>
+                <Text color="whiteAlpha.300">/</Text>
+                <Text>{rank == null ? "rank n/a" : `rank #${rank}`}</Text>
+              </HStack>
             </VStack>
             <IconButton
               aria-label="Close code preview"
@@ -489,41 +614,6 @@ const CodePeekPanel = ({
               onClick={onClose}
             />
           </HStack>
-
-          <Flex wrap="wrap" gap={2} mt={4}>
-            {[
-              ["Runtime", formatRuntime(submission.runtime)],
-              ["GPU", GPU_DISPLAY_NAMES[submission.gpuType ?? "T4"]],
-              [
-                "Language",
-                LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language] ??
-                  submission.language,
-              ],
-              ["Rank", rank == null ? "n/a" : `#${rank}`],
-            ].map(([label, value]) => (
-              <Box
-                key={label}
-                px={2.5}
-                py={1.5}
-                border="1px solid"
-                borderColor={SURFACE_BORDER}
-                borderRadius="9px"
-                bg="rgba(2, 6, 23, 0.26)"
-              >
-                <Text
-                  fontSize="10px"
-                  color={SURFACE_MUTED}
-                  textTransform="uppercase"
-                  letterSpacing="0.08em"
-                >
-                  {label}
-                </Text>
-                <Text fontSize="sm" color={SURFACE_TEXT} fontWeight="semibold">
-                  {value}
-                </Text>
-              </Box>
-            ))}
-          </Flex>
         </Box>
 
         <Box
@@ -1221,33 +1311,20 @@ const AnalyzePage: NextPage<{ slug: string }> = ({ slug }) => {
                                           </>
                                         )}
                                       </HStack>
-                                      <Text fontSize="sm" color={SURFACE_MUTED}>
-                                        {
-                                          LANGUAGE_PROFILE_DISPLAY_NAMES[
-                                            submission.language
-                                          ]
-                                        }{" "}
-                                        •{" "}
-                                        {
-                                          GPU_DISPLAY_NAMES[
-                                            submission.gpuType ?? "T4"
-                                          ]
-                                        }
-                                      </Text>
-                                      <HStack
-                                        spacing={2}
-                                        fontSize="sm"
-                                        color={SURFACE_MUTED}
-                                      >
-                                        <Text>
-                                          {formatRuntime(submission.runtime)}
+                                      <HStack spacing={2} color={SURFACE_MUTED}>
+                                        <LanguageLogo
+                                          language={submission.language}
+                                          boxSize="18px"
+                                        />
+                                        <Text fontSize="sm">
+                                          {getCompactGpuName(
+                                            submission.gpuType
+                                          )}
                                         </Text>
-                                        <Text color="whiteAlpha.300">/</Text>
-                                        <HStack spacing={1}>
-                                          <Icon as={FiCode} boxSize={3} />
-                                          <Text>Code</Text>
-                                        </HStack>
                                       </HStack>
+                                      <Text fontSize="sm" color={SURFACE_MUTED}>
+                                        {formatRuntime(submission.runtime)}
+                                      </Text>
                                     </VStack>
                                   </HStack>
                                 </Box>
