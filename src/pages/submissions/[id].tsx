@@ -157,6 +157,28 @@ const SubmissionPage: NextPage<{
     },
   });
 
+  const deleteSubmissionMutation = api.problems.deleteSubmission.useMutation({
+    onSuccess: async () => {
+      toast({
+        title: "Submission deleted",
+        description: "The submission has been removed",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      await router.push("/submissions");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error deleting submission",
+        description: error.message,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+  });
+
   // Check if the current user is the submission owner
   const isOwner = session?.user?.id === submission?.userId;
 
@@ -203,6 +225,23 @@ const SubmissionPage: NextPage<{
         isPublic: !submission.isPublic,
       });
     }
+  };
+
+  const handleDeleteSubmission = () => {
+    if (!submission?.id) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Delete this submission? This cannot be undone."
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    deleteSubmissionMutation.mutate({
+      submissionId: submission.id,
+    });
   };
 
   // Check if the submission has code (is public or user is owner)
@@ -879,6 +918,15 @@ ${code}
                 )}
                 {isOwner && (
                   <HStack spacing={2}>
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      variant="outline"
+                      onClick={handleDeleteSubmission}
+                      isLoading={deleteSubmissionMutation.isPending}
+                    >
+                      Delete
+                    </Button>
                     <Text fontSize="sm" color="whiteAlpha.600">
                       Public
                     </Text>

@@ -318,6 +318,46 @@ export const problemsRouter = createTRPCRouter({
       return updatedSubmission;
     }),
 
+  deleteSubmission: protectedProcedure
+    .input(z.object({ submissionId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const submission = await ctx.db.submission.findUnique({
+        where: { id: input.submissionId },
+        select: {
+          userId: true,
+          problem: {
+            select: {
+              slug: true,
+              title: true,
+            },
+          },
+        },
+      });
+
+      if (!submission) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Submission not found",
+        });
+      }
+
+      if (submission.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only delete your own submissions",
+        });
+      }
+
+      await ctx.db.submission.delete({
+        where: { id: input.submissionId },
+      });
+
+      return {
+        id: input.submissionId,
+        problem: submission.problem,
+      };
+    }),
+
   getBaselineBenchmarks: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
