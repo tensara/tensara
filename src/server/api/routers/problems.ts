@@ -236,6 +236,61 @@ export const problemsRouter = createTRPCRouter({
       };
     }),
 
+  getAnalysisSubmissions: protectedProcedure
+    .input(
+      z.object({
+        problemSlug: z.string(),
+        limit: z.number().min(1).max(50).default(12),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      return ctx.db.submission.findMany({
+        where: {
+          userId: ctx.session.user.id,
+          status: SubmissionStatus.ACCEPTED,
+          problem: { slug: input.problemSlug },
+        },
+        take: input.limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          language: true,
+          status: true,
+          runtime: true,
+          gflops: true,
+          gpuType: true,
+          createdAt: true,
+          benchmarkResults: true,
+          problem: {
+            select: {
+              title: true,
+              slug: true,
+            },
+          },
+          testResults: {
+            select: {
+              testId: true,
+              name: true,
+              avgRuntimeMs: true,
+              avgGflops: true,
+              runs: {
+                select: {
+                  runtimeMs: true,
+                  gflops: true,
+                  gpuMetrics: true,
+                },
+              },
+            },
+            orderBy: {
+              testId: "asc",
+            },
+          },
+        },
+      });
+    }),
+
   // Get user's overall submission stats
   getUserStats: protectedProcedure.query(async ({ ctx }) => {
     const stats = await ctx.db.submission.groupBy({

@@ -616,6 +616,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
           <MySubmissions
             submissions={submissionsQuery.data?.submissions}
             isLoading={submissionsQuery.isLoading}
+            problemSlug={slug}
             onBackToProblem={() => setViewType("problem")}
           />
         );

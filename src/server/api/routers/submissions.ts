@@ -77,6 +77,50 @@ export const initializeLeaderboardCache = async () => {
 };
 
 export const submissionsRouter = createTRPCRouter({
+  renameSubmission: protectedProcedure
+    .input(
+      z.object({
+        submissionId: z.string(),
+        name: z.string().max(80).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const submission = await ctx.db.submission.findUnique({
+        where: { id: input.submissionId },
+        select: {
+          id: true,
+          userId: true,
+        },
+      });
+
+      if (!submission) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Submission not found",
+        });
+      }
+
+      if (submission.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only rename your own submissions",
+        });
+      }
+
+      const trimmedName = input.name?.trim() ?? "";
+
+      return ctx.db.submission.update({
+        where: { id: input.submissionId },
+        data: {
+          name: trimmedName.length > 0 ? trimmedName : null,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+    }),
+
   // all submissions (public or not) for the current user
   getAllUserSubmissions: protectedProcedure.query(async ({ ctx }) => {
     const submissions = await ctx.db.submission.findMany({
