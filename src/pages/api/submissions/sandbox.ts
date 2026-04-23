@@ -42,7 +42,7 @@ export default async function handler(
     return;
   }
 
-  const supportedLanguages: ProgrammingLanguage[] = ["cuda", "mojo"];
+  const supportedLanguages: ProgrammingLanguage[] = ["cuda", "mojo", "cute"];
   if (!supportedLanguages.includes(selectedLanguage)) {
     res.status(400).json({
       error: "Unsupported language for sandbox",
@@ -131,7 +131,6 @@ export default async function handler(
       status: SubmissionStatus.IN_QUEUE,
     });
 
-    console.log("Starting sandbox process");
     const upstreamController = new AbortController();
     const sandboxResponse = await fetch(env.MODAL_ENDPOINT + "/sandbox-T4", {
       method: "POST",

@@ -50,8 +50,14 @@ export function FileExplorer({
           objectFit="contain"
         />
       );
-    } else if (fileName.endsWith(".mojo")) {
+    } else if (fileName.endsWith(".mojo") || fileName.endsWith(".🔥")) {
       return <Text>🔥</Text>;
+    } else if (fileName.endsWith(".py")) {
+      return (
+        <Text fontSize="xs" fontWeight="bold" color="yellow.300">
+          Py
+        </Text>
+      );
     }
     return <FiFile />;
   };
