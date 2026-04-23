@@ -66,6 +66,106 @@ def _strip_c_like_comments_and_strings(s: str) -> str:
     return s
 
 
+FRONTEND_FORBIDDEN_PATTERNS = {
+    "cuda": [
+        r"#\s*include\s*<thrust/",
+        r"\bthrust::",
+        r"\bstd::sort\b",
+        r"\bstd::stable_sort\b",
+        r"\bqsort\s*\(",
+    ],
+    "python": [
+        r"\bimport\s+thrust\b",
+        r"\bfrom\s+thrust\b",
+        r"\b(?:tl|torch)\s*\.\s*(?:sort|topk)\b",
+        r"\beval\s*\(",
+        r"\bexec\s*\(",
+        r"\bopen\s*\(",
+        r"__import__",
+        r"\bimportlib\s*\.",
+        r"from\s+[\w\.]*builtin\s+import\s+sort",
+    ],
+    "mojo": [
+        r"from\s+builtin\.sort\s+import\s+sort",
+        r"\bbuiltin\.sort\.sort\b",
+        r"\bsort\s*\(",
+    ],
+}
+
+
+def _map_frontend_submission_language(lang: str) -> str:
+    if not lang:
+        return lang
+    lowered = lang.lower()
+    if lowered in ("triton", "python", "cute", "cutile"):
+        return "python"
+    if lowered in ("cuda", "c++", "cpp"):
+        return "cuda"
+    if lowered == "mojo":
+        return "mojo"
+    return lowered
+
+
+def _strip_frontend_comments_and_strings(s: str, language_key: str) -> str:
+    if not isinstance(s, str) or not s:
+        return s
+
+    import re
+
+    if language_key == "python":
+        s = re.sub(r'"""[\s\S]*?"""', "", s)
+        s = re.sub(r"'''[\s\S]*?'''", "", s)
+        s = re.sub(r'"(?:\\.|[^"\\])*"', "", s)
+        s = re.sub(r"'(?:\\.|[^'\\])*'", "", s)
+        s = re.sub(r"#.*$", "", s, flags=re.MULTILINE)
+        return s
+
+    s = re.sub(r'"(?:\\.|[^"\\])*"', "", s)
+    s = re.sub(r"'(?:\\.|[^'\\])*'", "", s)
+    s = re.sub(r"/\*[\s\S]*?\*/", "", s)
+    s = re.sub(r"//.*$", "", s, flags=re.MULTILINE)
+    return s
+
+
+def _find_frontend_forbidden_match(lang: str, src: str) -> str | None:
+    if not isinstance(src, str) or not src:
+        return None
+
+    import re
+
+    mapped = _map_frontend_submission_language(lang)
+    patterns = FRONTEND_FORBIDDEN_PATTERNS.get(mapped, [])
+    cleaned = _strip_frontend_comments_and_strings(src, mapped)
+
+    for pattern in patterns:
+        if re.search(pattern, cleaned, flags=re.IGNORECASE):
+            return pattern
+
+    return None
+
+
+def _run_frontend_style_validation(language: str, source: str) -> str | None:
+    """Mirror the lightweight starter.ts preflight in the engine hot path."""
+    if not isinstance(source, str):
+        return None
+
+    lowered = (language or "").lower()
+    if lowered in ("python", "triton", "cute", "cutile"):
+        if "torch." in source or "import torch" in source:
+            return "You cannot use PyTorch in the code!"
+
+        import re
+
+        if re.search(r"exec\s*\(\s*[^)]*\)", source):
+            return "You cannot use exec() in the code!"
+
+    matched = _find_frontend_forbidden_match(language, source)
+    if matched:
+        return f"Forbidden usage detected: matched forbidden pattern '{matched}'."
+
+    return None
+
+
 def _extract_paren_group(s: str, open_paren_index: int) -> tuple[str, int] | None:
     """Return (inside, close_index) for the (...) starting at `open_paren_index`."""
     if open_paren_index < 0 or open_paren_index >= len(s) or s[open_paren_index] != "(":
@@ -483,15 +583,20 @@ def _scan_mojo_forbidden(source: str) -> str | None:
     if re.search(r"\bbuiltin\.sort\.sort\b", cleaned):
         return "Forbidden access to 'builtin.sort.sort' detected."
 
-    # bare sort( is ambiguous; only reject if we also see 'Span' nearby in the file (heuristic)
-    if re.search(r"\bsort\s*\(", cleaned) and re.search(r"\bSpan\b", cleaned):
-        return "Forbidden use of bare 'sort(' on Span types detected."
+    if re.search(r"\bsort\s*\(", cleaned):
+        return "Forbidden use of bare 'sort(' detected."
 
     return None
 
 
 def reject_forbidden_patterns(language: str, source: str):
     """Run the appropriate scanner for the language and raise an error if forbidden patterns found."""
+    frontend_msg = _run_frontend_style_validation(language, source)
+    if frontend_msg:
+        if language == "mojo":
+            raise MojoError(frontend_msg)
+        raise NVCCError(frontend_msg)
+
     if language == "cuda" or language == "c++":
         msg = _scan_cuda_forbidden(source)
         if msg:
