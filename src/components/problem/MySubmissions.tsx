@@ -28,6 +28,7 @@ import { FaSortAmountDown } from "react-icons/fa";
 import { useState, useMemo } from "react";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
 import { useSplitPanel } from "./SplitPanel";
+import { ModerationStatusBadge } from "~/components/submission/ModerationStatusBadge";
 
 interface MySubmissionsProps {
   submissions: Submission[] | undefined;
@@ -247,6 +248,9 @@ const MySubmissions = ({
                     <Text fontWeight="semibold">
                       {formatStatus(submission.status)}
                     </Text>
+                    <ModerationStatusBadge
+                      status={submission.moderationStatus}
+                    />
                     <Text color="whiteAlpha.600" fontSize="sm" ml={1}>
                       {LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language]} •{" "}
                       {
