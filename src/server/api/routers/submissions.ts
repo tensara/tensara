@@ -114,6 +114,7 @@ export const submissionsRouter = createTRPCRouter({
     const submissions = await ctx.db.submission.findMany({
       where: {
         status: "ACCEPTED",
+        moderationStatus: null,
       },
       include: {
         user: {
@@ -371,6 +372,7 @@ export const submissionsRouter = createTRPCRouter({
         where: {
           userId: ctx.session.user.id,
           status: "ACCEPTED",
+          moderationStatus: null,
         },
         include: {
           problem: {
@@ -403,6 +405,7 @@ async function computeLeaderboardData(
       submissions: {
         where: {
           status: "ACCEPTED",
+          moderationStatus: null,
           OR: [{ gflops: { not: null } }, { runtime: { not: null } }],
           ...(gpuType !== "all" ? { gpuType } : {}),
         },
@@ -534,6 +537,7 @@ async function computeProblemLeaderboardData(
     where: {
       problem: { slug },
       status: "ACCEPTED",
+      moderationStatus: null,
       OR: [{ gflops: { not: null } }, { runtime: { not: null } }],
       ...(gpuType !== "all" ? { gpuType } : {}),
     },

@@ -45,6 +45,7 @@ import {
   FaAngleDoubleRight,
 } from "react-icons/fa";
 import { formatRuntime } from "~/utils/format";
+import { ModerationStatusBadge } from "~/components/submission/ModerationStatusBadge";
 type SortField =
   | "createdAt"
   | "status"
@@ -508,14 +509,19 @@ const SubmissionsPage: NextPage = () => {
                         cursor: "pointer",
                       }}
                     >
-                      <Badge
-                        colorScheme={getStatusColor(submission.status)}
-                        borderRadius="md"
-                        py={0.5}
-                        px={2}
-                      >
-                        {formatStatus(submission.status)}
-                      </Badge>
+                      <HStack spacing={2}>
+                        <Badge
+                          colorScheme={getStatusColor(submission.status)}
+                          borderRadius="md"
+                          py={0.5}
+                          px={2}
+                        >
+                          {formatStatus(submission.status)}
+                        </Badge>
+                        <ModerationStatusBadge
+                          status={submission.moderationStatus}
+                        />
+                      </HStack>
                     </Link>
                   </Td>
                   <Td borderBottom="1px solid" borderColor="whiteAlpha.100">

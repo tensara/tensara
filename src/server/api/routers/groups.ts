@@ -666,6 +666,7 @@ export const groupsRouter = createTRPCRouter({
           problemId: { in: problemIds },
           userId: { in: memberUserIds },
           status: "ACCEPTED",
+          moderationStatus: null,
         },
         select: { problemId: true, userId: true, createdAt: true },
       });
@@ -738,6 +739,7 @@ export const groupsRouter = createTRPCRouter({
           problemId: { in: problemIds },
           userId: { in: memberUserIds },
           status: "ACCEPTED",
+          moderationStatus: null,
           runtime: { not: null },
           ...(input.gpuType !== "all" ? { gpuType: input.gpuType } : {}),
         },
@@ -848,6 +850,7 @@ export const groupsRouter = createTRPCRouter({
           problemId: problem.id,
           userId: { in: memberUserIds },
           status: "ACCEPTED",
+          moderationStatus: null,
           runtime: { not: null },
           createdAt: { gte: groupProblem.addedAt },
           ...(input.gpuType !== "all" ? { gpuType: input.gpuType } : {}),
