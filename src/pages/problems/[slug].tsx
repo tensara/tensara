@@ -128,6 +128,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
+  const b200DisabledMessage =
+    "Modal is experiencing some issues with B200s right now. We'll get them back very soon.";
   const { data: session } = useSession();
   const toast = useToast();
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -204,11 +206,23 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
   // If problem restricts GPUs and current selection isn't allowed, pick first allowed
   useEffect(() => {
-    if (!allowedGpus?.length) return;
+    const availableGpuOptions = allowedGpus?.length
+      ? allowedGpus.filter((gpu) => gpu !== "B200")
+      : Object.keys(GPU_DISPLAY_NAMES).filter(
+          (gpu) => gpu !== "all" && gpu !== "B200"
+        );
     setSelectedGpuType((current) =>
-      allowedGpus.includes(current) ? current : (allowedGpus[0] ?? "T4")
+      availableGpuOptions.includes(current)
+        ? current
+        : (availableGpuOptions[0] ?? current)
     );
   }, [allowedGpus]);
+
+  useEffect(() => {
+    if (selectedLanguage === "cutile" && selectedGpuType !== "B200") {
+      setSelectedLanguage("cuda");
+    }
+  }, [selectedLanguage, selectedGpuType, setSelectedLanguage]);
 
   useEffect(() => {
     const stored = loadVimModePreference();
@@ -693,7 +707,6 @@ export default function ProblemPage({ slug }: { slug: string }) {
     ([key]) =>
       key !== "all" && (!allowedGpus?.length || allowedGpus.includes(key))
   );
-
   const editorToolbar = (
     <HStack
       h="38px"
@@ -739,27 +752,31 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 minW="186px"
               >
                 {gpuOptions.map(([key, value]) => {
+                  const isB200TemporarilyDisabled = key === "B200";
                   const isDisabledForCutile =
                     selectedLanguage === "cutile" && key !== "B200";
+                  const isDisabled =
+                    isB200TemporarilyDisabled || isDisabledForCutile;
+                  const tooltipLabel = isB200TemporarilyDisabled
+                    ? b200DisabledMessage
+                    : "cuTile requires B200";
                   return (
                     <Tooltip
                       key={key}
-                      label="cuTile requires B200"
-                      isDisabled={!isDisabledForCutile}
+                      label={tooltipLabel}
+                      isDisabled={!isDisabled}
                       placement="right"
                     >
                       <MenuItem
                         onClick={() => setSelectedGpuType(key)}
                         bg="brand.secondary"
                         _hover={{
-                          bg: isDisabledForCutile
-                            ? "brand.secondary"
-                            : "gray.700",
+                          bg: isDisabled ? "brand.secondary" : "gray.700",
                         }}
-                        color={isDisabledForCutile ? "gray.500" : "white"}
+                        color={isDisabled ? "gray.500" : "white"}
                         borderRadius="md"
                         fontSize="sm"
-                        isDisabled={isDisabledForCutile}
+                        isDisabled={isDisabled}
                       >
                         {value}
                       </MenuItem>

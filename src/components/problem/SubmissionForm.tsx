@@ -61,6 +61,8 @@ const SubmissionForm = ({
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
+  const b200DisabledMessage =
+    "Modal is experiencing some issues with B200s right now. We'll get them back very soon.";
 
   const gpuOptions = Object.entries(GPU_DISPLAY_NAMES).filter(
     ([key]) =>
@@ -127,13 +129,19 @@ const SubmissionForm = ({
                 minW="140px"
               >
                 {gpuOptions.map(([key, value]) => {
+                  const isB200TemporarilyDisabled = key === "B200";
                   const isDisabledForCutile =
                     selectedLanguage === "cutile" && key !== "B200";
+                  const isDisabled =
+                    isB200TemporarilyDisabled || isDisabledForCutile;
+                  const tooltipLabel = isB200TemporarilyDisabled
+                    ? b200DisabledMessage
+                    : "cuTile requires B200";
                   return (
                     <Tooltip
                       key={key}
-                      label="cuTile requires B200"
-                      isDisabled={!isDisabledForCutile}
+                      label={tooltipLabel}
+                      isDisabled={!isDisabled}
                       placement="right"
                     >
                       <MenuItem
@@ -142,14 +150,12 @@ const SubmissionForm = ({
                         }}
                         bg="brand.secondary"
                         _hover={{
-                          bg: isDisabledForCutile
-                            ? "brand.secondary"
-                            : "gray.700",
+                          bg: isDisabled ? "brand.secondary" : "gray.700",
                         }}
-                        color={isDisabledForCutile ? "gray.500" : "white"}
+                        color={isDisabled ? "gray.500" : "white"}
                         borderRadius="lg"
                         fontSize="sm"
-                        isDisabled={isDisabledForCutile}
+                        isDisabled={isDisabled}
                       >
                         {value}
                       </MenuItem>
