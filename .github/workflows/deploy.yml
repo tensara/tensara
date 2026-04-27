@@ -18,18 +18,31 @@ jobs:
 #    needs: modal
 
     steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:github-actions
+          hostname: gha-tensara-deploy-${{ github.run_id }}
+
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
-          SSH_HOST: ${{ secrets.AWS_HOST }}
           SSH_USER: ${{ secrets.AWS_USER }}
         run: |
           mkdir -p ~/.ssh/
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          echo -e "Host aws\n\tHostName $SSH_HOST\n\tUser $SSH_USER\n\tIdentityFile ~/.ssh/deploy_key\n\tStrictHostKeyChecking no" > ~/.ssh/config
+          ssh-keyscan -H tensara-prod-aws-main >> ~/.ssh/known_hosts
+          printf '%s\n' \
+            'Host tensara-prod' \
+            '  HostName tensara-prod-aws-main' \
+            "  User ${SSH_USER:-ubuntu}" \
+            '  IdentityFile ~/.ssh/deploy_key' \
+            '  StrictHostKeyChecking yes' \
+            > ~/.ssh/config
 
       - name: Run Deployment Script on AWS
         run: |
-          ssh aws 'cd ~/code/tensara && chmod +x deploy.sh && ./deploy.sh'
-
+          ssh tensara-prod 'cd ~/code/tensara && chmod +x deploy.sh && ./deploy.sh'
