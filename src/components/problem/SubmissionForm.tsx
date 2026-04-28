@@ -22,7 +22,11 @@ import { FaChevronDown, FaInfoCircle } from "react-icons/fa";
 import { FiList } from "react-icons/fi";
 
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
+import {
+  getLanguageGpuSupportError,
+  isLanguageSupportedOnGpu,
+  LANGUAGE_DISPLAY_NAMES,
+} from "~/constants/language";
 
 interface SubmissionFormProps {
   selectedGpuType: string;
@@ -126,13 +130,18 @@ const SubmissionForm = ({
                 minW="140px"
               >
                 {gpuOptions.map(([key, value]) => {
-                  const isDisabledForCutile =
-                    selectedLanguage === "cutile" && key !== "B200";
-                  const isDisabled = isDisabledForCutile;
+                  const isDisabled = !isLanguageSupportedOnGpu(
+                    selectedLanguage,
+                    key
+                  );
+                  const disabledReason = getLanguageGpuSupportError(
+                    selectedLanguage,
+                    key
+                  );
                   return (
                     <Tooltip
                       key={key}
-                      label="cuTile requires B200"
+                      label={disabledReason ?? ""}
                       isDisabled={!isDisabled}
                       placement="right"
                     >
@@ -217,6 +226,39 @@ const SubmissionForm = ({
                 >
                   Triton
                 </MenuItem>
+                <Tooltip
+                  label={
+                    getLanguageGpuSupportError("pyptx", selectedGpuType) ?? ""
+                  }
+                  isDisabled={isLanguageSupportedOnGpu(
+                    "pyptx",
+                    selectedGpuType
+                  )}
+                  placement="right"
+                >
+                  <MenuItem
+                    key="pyptx"
+                    onClick={() => setSelectedLanguage("pyptx")}
+                    bg="brand.secondary"
+                    _hover={{
+                      bg: isLanguageSupportedOnGpu("pyptx", selectedGpuType)
+                        ? "gray.700"
+                        : "brand.secondary",
+                    }}
+                    color={
+                      isLanguageSupportedOnGpu("pyptx", selectedGpuType)
+                        ? "white"
+                        : "gray.500"
+                    }
+                    borderRadius="lg"
+                    fontSize="sm"
+                    isDisabled={
+                      !isLanguageSupportedOnGpu("pyptx", selectedGpuType)
+                    }
+                  >
+                    PyPTX
+                  </MenuItem>
+                </Tooltip>
                 <MenuItem
                   key="mojo"
                   onClick={() => setSelectedLanguage("mojo")}
@@ -240,8 +282,13 @@ const SubmissionForm = ({
                   CuTe DSL
                 </MenuItem>
                 <Tooltip
-                  label="Only available on B200"
-                  isDisabled={selectedGpuType === "B200"}
+                  label={
+                    getLanguageGpuSupportError("cutile", selectedGpuType) ?? ""
+                  }
+                  isDisabled={isLanguageSupportedOnGpu(
+                    "cutile",
+                    selectedGpuType
+                  )}
                   placement="right"
                 >
                   <MenuItem
@@ -249,15 +296,20 @@ const SubmissionForm = ({
                     onClick={() => setSelectedLanguage("cutile")}
                     bg="brand.secondary"
                     _hover={{
-                      bg:
-                        selectedGpuType === "B200"
-                          ? "gray.700"
-                          : "brand.secondary",
+                      bg: isLanguageSupportedOnGpu("cutile", selectedGpuType)
+                        ? "gray.700"
+                        : "brand.secondary",
                     }}
-                    color={selectedGpuType === "B200" ? "white" : "gray.500"}
+                    color={
+                      isLanguageSupportedOnGpu("cutile", selectedGpuType)
+                        ? "white"
+                        : "gray.500"
+                    }
                     borderRadius="lg"
                     fontSize="sm"
-                    isDisabled={selectedGpuType !== "B200"}
+                    isDisabled={
+                      !isLanguageSupportedOnGpu("cutile", selectedGpuType)
+                    }
                   >
                     cuTile Python
                   </MenuItem>

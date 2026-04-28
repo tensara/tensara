@@ -90,17 +90,13 @@ def solution(${paramStr}):
           `${parameter.name}${parameter.pointer === "true" ? "" : `: ${resolvePythonType(parameter.type)}`}`
       )
       .join(", ");
-    return `import torch
-from pyptx import kernel, ptx, reg, Tile
+    return `from pyptx import kernel, ptx, reg, Tile
 from pyptx.types import f32, u32
 
-# PyPTX currently targets Hopper (sm_90a) and Blackwell (sm_100a).
-# Note: ${names.join(", ")} are device tensors.
 
+# Note: ${names.join(", ")} are device tensors.
 def solution(${paramStr}):
-    # Define and cache a pyptx kernel inside solution.
-    # For H100/H200 use arch="sm_90a"; for B200 use arch="sm_100a".
-    raise NotImplementedError("Implement a PyPTX kernel and write outputs in-place.")
+    # for H100/H200 use arch="sm_90a"; for B200 use arch="sm_100a".
     `;
   }
   if (language === "mojo") {
@@ -268,6 +264,7 @@ export function validateCode(
   if (
     language === "python" ||
     language === "triton" ||
+    language === "pyptx" ||
     language === "cute" ||
     language === "cutile"
   ) {
@@ -287,10 +284,6 @@ export function validateCode(
       error: "Forbidden usage detected",
       details: `Matched forbidden pattern: ${matched}`,
     };
-  }
-
-  if (language === "pyptx" && /exec\s*\(\s*[^)]*\)/.test(code)) {
-    return { valid: false, error: "You cannot use exec() in the code!" };
   }
 
   return { valid: true, error: "" };

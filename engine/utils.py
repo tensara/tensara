@@ -150,15 +150,10 @@ def _run_frontend_style_validation(language: str, source: str) -> str | None:
         return None
 
     lowered = (language or "").lower()
-    if lowered in ("python", "triton", "cute", "cutile"):
+    if lowered in ("python", "triton", "pyptx", "cute", "cutile"):
         if "torch." in source or "import torch" in source:
             return "You cannot use PyTorch in the code!"
 
-        import re
-
-        if re.search(r"exec\s*\(\s*[^)]*\)", source):
-            return "You cannot use exec() in the code!"
-    elif lowered == "pyptx":
         import re
 
         if re.search(r"exec\s*\(\s*[^)]*\)", source):
