@@ -42,6 +42,7 @@ import {
   getStatusColor,
   getStatusIcon,
 } from "~/constants/problem";
+import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
 import { formatRuntime } from "~/utils/format";
 import { FiCopy, FiHash } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
@@ -278,7 +279,8 @@ const SubmissionPage: NextPage<{
                         py={1}
                         borderRadius="full"
                       >
-                        {submission.language}
+                        {LANGUAGE_DISPLAY_NAMES[submission.language ?? ""] ??
+                          submission.language}
                       </Text>
                       <Text
                         fontSize="sm"
@@ -803,6 +805,7 @@ const SubmissionPage: NextPage<{
                           const l = (submission.language ?? "").toLowerCase();
                           if (l === "cuda") return "cpp";
                           if (l === "triton") return "python";
+                          if (l === "pyptx") return "python";
                           return l;
                         })();
 

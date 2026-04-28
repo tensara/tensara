@@ -46,6 +46,8 @@ import type { AppRouter } from "~/server/api/root";
 import { keyframes } from "@emotion/react";
 import { type IconType } from "react-icons";
 
+type SandboxLanguage = Extract<ProgrammingLanguage, "cuda" | "mojo">;
+
 const pulseAnimation = keyframes`
   0% { opacity: 0.6; }
   50% { opacity: 0.8; }
@@ -109,7 +111,7 @@ export default function SandboxHome() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newWorkspaceLanguage, setNewWorkspaceLanguage] =
-    useState<ProgrammingLanguage>("cuda");
+    useState<SandboxLanguage>("cuda");
   const newWorkspaceMenuRef = useRef<HTMLButtonElement | null>(null);
 
   const {
@@ -120,7 +122,7 @@ export default function SandboxHome() {
 
   const { data: workspaces, isLoading } = api.workspace.list.useQuery();
 
-  const getLanguageDisplay = (language: ProgrammingLanguage) =>
+  const getLanguageDisplay = (language: SandboxLanguage) =>
     LANGUAGE_DISPLAY_NAMES[language] ?? language.toUpperCase();
 
   useEffect(() => {
@@ -520,14 +522,12 @@ export default function SandboxHome() {
                     color="white"
                     value={newWorkspaceLanguage}
                     onChange={(e) =>
-                      setNewWorkspaceLanguage(
-                        e.target.value as ProgrammingLanguage
-                      )
+                      setNewWorkspaceLanguage(e.target.value as SandboxLanguage)
                     }
                     borderRadius="lg"
                     h="40px"
                   >
-                    {(["cuda", "mojo"] as ProgrammingLanguage[]).map((lang) => (
+                    {(["cuda", "mojo"] as SandboxLanguage[]).map((lang) => (
                       <option key={lang} value={lang}>
                         {getLanguageDisplay(lang)}
                       </option>

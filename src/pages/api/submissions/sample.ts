@@ -12,6 +12,7 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { env } from "~/env";
 import { DateTime } from "luxon";
+import { getLanguageGpuSupportError } from "~/constants/language";
 import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
 import { proxyUpstreamSSE } from "./sseProxy";
@@ -49,6 +50,12 @@ export default async function handler(
     res
       .status(400)
       .json({ error: `Missing required fields: ${missing.join(", ")}` });
+    return;
+  }
+
+  const languageGpuError = getLanguageGpuSupportError(language!, gpuType!);
+  if (languageGpuError) {
+    res.status(400).json({ error: languageGpuError });
     return;
   }
 

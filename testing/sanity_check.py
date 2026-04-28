@@ -73,6 +73,7 @@ def info(msg):
 EXT_TO_LANGUAGE = {
     ".cu": "cuda",
     ".py": "python",
+    ".pyptx": "pyptx",
     ".mojo": "mojo",
     ".cute": "cute",
     ".cutile": "cutile",
@@ -97,7 +98,7 @@ def parse_languages() -> list[str]:
         return langs or ["cuda"]
     if LANGUAGE:
         return [normalize_language(LANGUAGE)]
-    return ["cuda", "mojo", "python"]
+    return ["cuda", "mojo", "python", "pyptx"]
 
 
 def parse_specific_slugs() -> list[str]:

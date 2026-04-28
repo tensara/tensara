@@ -73,7 +73,12 @@ import { FlopsModal } from "~/components/misc/FlopsModal";
 import { GpuInfoModal } from "~/components/misc/GpuInfoModal";
 import { LanguageInfoModal } from "~/components/misc/LanguageInfoModal";
 import { GPU_DISPLAY_NAMES } from "~/constants/gpu";
-import { LANGUAGE_DISPLAY_NAMES } from "~/constants/language";
+import {
+  getLanguageGpuSupportError,
+  getSupportedGpusForLanguage,
+  isLanguageSupportedOnGpu,
+  LANGUAGE_DISPLAY_NAMES,
+} from "~/constants/language";
 
 type ViewType = "submissions" | "problem" | "result";
 
@@ -197,6 +202,24 @@ export default function ProblemPage({ slug }: { slug: string }) {
     return gpus?.length ? gpus : undefined;
   }, [problem]);
 
+  const baseGpuOptions = useMemo(
+    () =>
+      allowedGpus?.length
+        ? allowedGpus
+        : Object.keys(GPU_DISPLAY_NAMES).filter((gpu) => gpu !== "all"),
+    [allowedGpus]
+  );
+
+  const supportedGpuOptions = useMemo(
+    () => getSupportedGpusForLanguage(selectedLanguage, baseGpuOptions),
+    [baseGpuOptions, selectedLanguage]
+  );
+
+  const languageGpuError = useMemo(
+    () => getLanguageGpuSupportError(selectedLanguage, selectedGpuType),
+    [selectedLanguage, selectedGpuType]
+  );
+
   // Update GPU type when saved preferences are loaded
   useEffect(() => {
     if (savedGpuType) {
@@ -206,23 +229,36 @@ export default function ProblemPage({ slug }: { slug: string }) {
 
   // If problem restricts GPUs and current selection isn't allowed, pick first allowed
   useEffect(() => {
-    const availableGpuOptions = allowedGpus?.length
-      ? allowedGpus.filter((gpu) => gpu !== "B200")
-      : Object.keys(GPU_DISPLAY_NAMES).filter(
-          (gpu) => gpu !== "all" && gpu !== "B200"
-        );
+    const availableGpuOptions = supportedGpuOptions.filter(
+      (gpu) => gpu !== "B200"
+    );
     setSelectedGpuType((current) =>
-      availableGpuOptions.includes(current)
+      availableGpuOptions.length === 0 || availableGpuOptions.includes(current)
         ? current
         : (availableGpuOptions[0] ?? current)
     );
-  }, [allowedGpus]);
+  }, [supportedGpuOptions]);
 
   useEffect(() => {
     if (selectedLanguage === "cutile" && selectedGpuType !== "B200") {
       setSelectedLanguage("cuda");
     }
   }, [selectedLanguage, selectedGpuType, setSelectedLanguage]);
+
+  useEffect(() => {
+    if (
+      selectedLanguage === "pyptx" &&
+      !isLanguageSupportedOnGpu(selectedLanguage, selectedGpuType) &&
+      supportedGpuOptions.length > 0
+    ) {
+      setSelectedGpuType(supportedGpuOptions[0] ?? selectedGpuType);
+    }
+  }, [
+    selectedGpuType,
+    selectedLanguage,
+    setSelectedGpuType,
+    supportedGpuOptions,
+  ]);
 
   useEffect(() => {
     const stored = loadVimModePreference();
@@ -480,6 +516,17 @@ export default function ProblemPage({ slug }: { slug: string }) {
       return;
     }
 
+    if (languageGpuError) {
+      toast({
+        title: "Unsupported GPU",
+        description: languageGpuError,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     const { valid, error } = validateCode(code, selectedLanguage);
     if (!valid) {
       toast({
@@ -511,6 +558,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     startSubmission,
     setViewType,
     HORIZONTAL_DEFAULT_RATIO,
+    languageGpuError,
     toast,
   ]);
   const handleRun = useCallback(async () => {
@@ -526,6 +574,17 @@ export default function ProblemPage({ slug }: { slug: string }) {
       toast({
         title: "Not signed in",
         description: "Please sign in to run solutions",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (languageGpuError) {
+      toast({
+        title: "Unsupported GPU",
+        description: languageGpuError,
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -561,6 +620,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
     slug,
     HORIZONTAL_DEFAULT_RATIO,
     LEFT_CONSOLE_DEFAULT_RATIO,
+    languageGpuError,
     toast,
   ]);
 
@@ -755,11 +815,18 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   const isB200TemporarilyDisabled = key === "B200";
                   const isDisabledForCutile =
                     selectedLanguage === "cutile" && key !== "B200";
+                  const isDisabledForPyptx =
+                    selectedLanguage === "pyptx" &&
+                    !isLanguageSupportedOnGpu(selectedLanguage, key);
                   const isDisabled =
-                    isB200TemporarilyDisabled || isDisabledForCutile;
+                    isB200TemporarilyDisabled ||
+                    isDisabledForCutile ||
+                    isDisabledForPyptx;
                   const tooltipLabel = isB200TemporarilyDisabled
                     ? b200DisabledMessage
-                    : "cuTile requires B200";
+                    : isDisabledForCutile
+                      ? "cuTile requires B200"
+                      : "PyPTX requires H100, H200, or B200";
                   return (
                     <Tooltip
                       key={key}
@@ -836,6 +903,16 @@ export default function ProblemPage({ slug }: { slug: string }) {
                   fontSize="sm"
                 >
                   Triton
+                </MenuItem>
+                <MenuItem
+                  onClick={() => setSelectedLanguage("pyptx")}
+                  bg="brand.secondary"
+                  _hover={{ bg: "gray.700" }}
+                  color="white"
+                  borderRadius="md"
+                  fontSize="sm"
+                >
+                  PyPTX
                 </MenuItem>
                 <MenuItem
                   onClick={() => setSelectedLanguage("mojo")}
@@ -1023,7 +1100,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
           isLoading={isRunning}
           loadingText="Run"
           spinner={<></>}
-          disabled={isRunning}
+          disabled={isRunning || !!languageGpuError}
           borderRadius="lg"
           h="32px"
           fontSize="sm"
@@ -1057,7 +1134,7 @@ export default function ProblemPage({ slug }: { slug: string }) {
           isLoading={isSubmitting}
           loadingText="Submit"
           spinner={<></>}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !!languageGpuError}
           borderRadius="lg"
           h="32px"
           fontSize="sm"

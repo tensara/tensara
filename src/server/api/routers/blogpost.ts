@@ -8,6 +8,7 @@ import type {
   Problem,
   TagCategory,
 } from "@prisma/client";
+import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
 
 // Define enums for validation
 const PostTypeEnum = z.enum([
@@ -140,7 +141,9 @@ function generateTitleFromSubmission(
   problem: Problem
 ): string {
   const gflops = submission.gflops ? submission.gflops.toFixed(1) : "N/A";
-  const language = submission.language.toUpperCase();
+  const language =
+    LANGUAGE_PROFILE_DISPLAY_NAMES[submission.language] ??
+    submission.language.toUpperCase();
   return `My ${gflops} GFLOPS ${language} Solution to ${problem.title}`;
 }
 

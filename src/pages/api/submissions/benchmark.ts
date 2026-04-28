@@ -1,5 +1,6 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { env } from "~/env";
+import { getLanguageGpuSupportError } from "~/constants/language";
 import { combinedAuth } from "~/server/auth";
 import { checkRateLimit } from "~/hooks/useRateLimit";
 import {
@@ -52,6 +53,12 @@ export default async function handler(
     res.status(400).json({
       error: `Missing required fields: ${missingFields.map(([key]) => key).join(", ")}`,
     });
+    return;
+  }
+
+  const languageGpuError = getLanguageGpuSupportError(language, gpuType);
+  if (languageGpuError) {
+    res.status(400).json({ error: languageGpuError });
     return;
   }
 
