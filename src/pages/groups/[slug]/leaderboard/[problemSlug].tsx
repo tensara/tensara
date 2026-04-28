@@ -40,7 +40,7 @@ const LanguageLogo = ({ language }: { language: string | null }) => {
   > = {
     cuda: { src: "/cuda-icon.svg", label: "CUDA C++" },
     python: { src: "/triton-logo.png", label: "Triton" },
-    pyptx: { emoji: "⚡", label: "PyPTX" },
+    pyptx: { src: "./pyptx-logo.png", label: "PyPTX" },
     mojo: { emoji: "🔥", label: "Mojo" },
     cute: { emoji: "🧩", label: "CuTe DSL" },
     cutile: { emoji: "🧱", label: "CuTile" },

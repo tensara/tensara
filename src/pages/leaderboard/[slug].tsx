@@ -72,7 +72,7 @@ const LanguageLogo = ({ language }: { language: string | null }) => {
       label: "Triton",
     },
     pyptx: {
-      emoji: "⚡",
+      src: "/pyptx-logo.png",
       label: "PyPTX",
     },
     mojo: {
