@@ -128,8 +128,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function ProblemPage({ slug }: { slug: string }) {
-  const b200DisabledMessage =
-    "Modal is experiencing some issues with B200s right now. We'll get them back very soon.";
   const { data: session } = useSession();
   const toast = useToast();
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -207,10 +205,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
   // If problem restricts GPUs and current selection isn't allowed, pick first allowed
   useEffect(() => {
     const availableGpuOptions = allowedGpus?.length
-      ? allowedGpus.filter((gpu) => gpu !== "B200")
-      : Object.keys(GPU_DISPLAY_NAMES).filter(
-          (gpu) => gpu !== "all" && gpu !== "B200"
-        );
+      ? allowedGpus
+      : Object.keys(GPU_DISPLAY_NAMES).filter((gpu) => gpu !== "all");
     setSelectedGpuType((current) =>
       availableGpuOptions.includes(current)
         ? current
@@ -752,18 +748,13 @@ export default function ProblemPage({ slug }: { slug: string }) {
                 minW="186px"
               >
                 {gpuOptions.map(([key, value]) => {
-                  const isB200TemporarilyDisabled = key === "B200";
                   const isDisabledForCutile =
                     selectedLanguage === "cutile" && key !== "B200";
-                  const isDisabled =
-                    isB200TemporarilyDisabled || isDisabledForCutile;
-                  const tooltipLabel = isB200TemporarilyDisabled
-                    ? b200DisabledMessage
-                    : "cuTile requires B200";
+                  const isDisabled = isDisabledForCutile;
                   return (
                     <Tooltip
                       key={key}
-                      label={tooltipLabel}
+                      label="cuTile requires B200"
                       isDisabled={!isDisabled}
                       placement="right"
                     >

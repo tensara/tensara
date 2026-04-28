@@ -61,9 +61,6 @@ const SubmissionForm = ({
 }: SubmissionFormProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
-  const b200DisabledMessage =
-    "Modal is experiencing some issues with B200s right now. We'll get them back very soon.";
-
   const gpuOptions = Object.entries(GPU_DISPLAY_NAMES).filter(
     ([key]) =>
       key !== "all" && (!allowedGpus?.length || allowedGpus.includes(key))
@@ -129,18 +126,13 @@ const SubmissionForm = ({
                 minW="140px"
               >
                 {gpuOptions.map(([key, value]) => {
-                  const isB200TemporarilyDisabled = key === "B200";
                   const isDisabledForCutile =
                     selectedLanguage === "cutile" && key !== "B200";
-                  const isDisabled =
-                    isB200TemporarilyDisabled || isDisabledForCutile;
-                  const tooltipLabel = isB200TemporarilyDisabled
-                    ? b200DisabledMessage
-                    : "cuTile requires B200";
+                  const isDisabled = isDisabledForCutile;
                   return (
                     <Tooltip
                       key={key}
-                      label={tooltipLabel}
+                      label="cuTile requires B200"
                       isDisabled={!isDisabled}
                       placement="right"
                     >
