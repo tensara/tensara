@@ -27,7 +27,10 @@ export const LANGUAGE_PROFILE_DISPLAY_NAMES: Record<string, string> = {
 
 export const LANGUAGE_RESOURCES: Record<string, LanguageResource[]> = {
   pyptx: [
-    { label: "Tensara blog", href: "https://tensara.org/blog/submitting-kernels-on-tensara-with-pyptx-1623386" },
+    {
+      label: "Tensara blog",
+      href: "https://tensara.org/blog/submitting-kernels-on-tensara-with-pyptx-1623386",
+    },
     {
       label: "PyPTX docs",
       href: "https://pyptx.dev/getting-started/",

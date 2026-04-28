@@ -53,7 +53,7 @@ export default async function handler(
     return;
   }
 
-  const languageGpuError = getLanguageGpuSupportError(language!, gpuType!);
+  const languageGpuError = getLanguageGpuSupportError(language!, gpuType);
   if (languageGpuError) {
     res.status(400).json({ error: languageGpuError });
     return;

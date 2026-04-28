@@ -983,9 +983,7 @@ def run_dynamic_benchmark(
         torch.cuda.synchronize()
 
         prewarm_checksums_after = [t.sum().item() for t in actual_outputs]
-        for i, (before, after) in enumerate(
-            zip(prewarm_checksums_before, prewarm_checksums_after)
-        ):
+        for i, (before, after) in enumerate(zip(prewarm_checksums_before, prewarm_checksums_after)):
             if after == before:
                 return {
                     "name": test_case["name"],
