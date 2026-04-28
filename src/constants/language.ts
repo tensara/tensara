@@ -1,5 +1,11 @@
 import { GPU_DISPLAY_NAMES } from "./gpu";
 
+export type LanguageResource = {
+  label: string;
+  href: string;
+  isExternal?: boolean;
+};
+
 export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
   all: "All Languages",
   cuda: "CUDA C++",
@@ -18,6 +24,46 @@ export const LANGUAGE_PROFILE_DISPLAY_NAMES: Record<string, string> = {
   cute: "CuTe",
   cutile: "cuTile",
 } as const;
+
+export const LANGUAGE_RESOURCES: Record<string, LanguageResource[]> = {
+  pyptx: [
+    { label: "Tensara blog", href: "https://tensara.org/blog/submitting-kernels-on-tensara-with-pyptx-1623386" },
+    {
+      label: "PyPTX docs",
+      href: "https://pyptx.dev/getting-started/",
+      isExternal: true,
+    },
+  ],
+  cute: [
+    {
+      label: "CuTe quickstart",
+      href: "https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/quick_start.html",
+      isExternal: true,
+    },
+    {
+      label: "CuTe docs",
+      href: "https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/cute_dsl.html",
+      isExternal: true,
+    },
+  ],
+  cutile: [
+    {
+      label: "cuTile quickstart",
+      href: "https://docs.nvidia.com/cuda/cutile-python/quickstart.html",
+      isExternal: true,
+    },
+    {
+      label: "cuTile docs",
+      href: "https://docs.nvidia.com/cuda/cutile-python/",
+      isExternal: true,
+    },
+  ],
+} as const;
+
+export function getLanguageResources(language: string): LanguageResource[] {
+  const normalized = (language ?? "").toLowerCase();
+  return LANGUAGE_RESOURCES[normalized] ?? [];
+}
 
 export const PYPTX_SUPPORTED_GPUS = ["H100", "H200", "B200"] as const;
 

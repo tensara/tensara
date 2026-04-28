@@ -38,6 +38,7 @@ import { Layout } from "~/components/layout";
 import MySubmissions from "~/components/problem/MySubmissions";
 import ProblemView from "~/components/problem/ProblemView";
 import CodeEditor from "~/components/problem/CodeEditor";
+import LanguageResources from "~/components/problem/LanguageResources";
 import SubmissionResults from "~/components/problem/SubmissionResults";
 import ResetCodeModal from "~/components/problem/ResetCodeModal";
 import SplitPanel from "~/components/problem/SplitPanel";
@@ -959,6 +960,8 @@ export default function ProblemPage({ slug }: { slug: string }) {
             </Menu>
             <LanguageInfoModal compact />
           </HStack>
+
+          <LanguageResources language={selectedLanguage} />
 
           <Tooltip
             label={
