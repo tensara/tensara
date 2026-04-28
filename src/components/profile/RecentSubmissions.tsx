@@ -1,4 +1,5 @@
 import React from "react";
+import type { SubmissionModerationStatus } from "@prisma/client";
 import {
   Box,
   Flex,
@@ -18,6 +19,7 @@ import { FiList, FiCalendar } from "react-icons/fi";
 
 import { GPU_DISPLAY_ON_PROFILE } from "~/constants/gpu";
 import { LANGUAGE_PROFILE_DISPLAY_NAMES } from "~/constants/language";
+import { ModerationStatusBadge } from "~/components/submission/ModerationStatusBadge";
 
 interface SubmissionData {
   id: string;
@@ -27,6 +29,7 @@ interface SubmissionData {
   date: string | undefined;
   language: string;
   gpuType: string | null;
+  moderationStatus?: SubmissionModerationStatus | null;
   gflops?: string;
   runtime?: string;
 }
@@ -126,6 +129,7 @@ export const RecentSubmissionsList: React.FC<RecentSubmissionsProps> = ({
                   >
                     {submission.status === "accepted" ? "ACCEPTED" : "FAILED"}
                   </Badge>
+                  <ModerationStatusBadge status={submission.moderationStatus} />
                 </Flex>
 
                 <HStack spacing={4}>

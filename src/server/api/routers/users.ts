@@ -39,6 +39,7 @@ async function getUserRating(
     where: {
       userId: userId,
       status: "ACCEPTED",
+      moderationStatus: null,
       runtime: { not: null },
     },
   });
@@ -70,6 +71,7 @@ async function getUserRating(
         problemId: problemId,
         gpuType: gpuType,
         status: "ACCEPTED",
+        moderationStatus: null,
         runtime: { not: null },
       },
       select: {
@@ -223,6 +225,7 @@ export const usersRouter = createTRPCRouter({
             some: {
               userId: user.id,
               status: "ACCEPTED",
+              moderationStatus: null,
             },
           },
         },
@@ -237,6 +240,7 @@ export const usersRouter = createTRPCRouter({
         where: {
           userId: user.id,
           status: "ACCEPTED",
+          moderationStatus: null,
         },
       });
       const totalSolvedProblems = solvedProblemsWithLanguage.reduce(
@@ -267,6 +271,7 @@ export const usersRouter = createTRPCRouter({
           id: true,
           createdAt: true,
           status: true,
+          moderationStatus: true,
           runtime: true,
           gflops: true,
           gpuType: true,
@@ -367,6 +372,7 @@ export const usersRouter = createTRPCRouter({
           gflops: sub.gflops ? `${sub.gflops.toFixed(2)}` : "N/A",
           gpuType: sub.gpuType,
           language: sub.language,
+          moderationStatus: sub.moderationStatus,
         })),
         blogPosts: blogPosts.map((post) => ({
           id: post.id,
@@ -396,6 +402,7 @@ export const usersRouter = createTRPCRouter({
           submissions: {
             some: {
               status: "ACCEPTED",
+              moderationStatus: null,
             },
           },
           rating: {
@@ -414,6 +421,7 @@ export const usersRouter = createTRPCRouter({
               submissions: {
                 where: {
                   status: "ACCEPTED",
+                  moderationStatus: null,
                 },
               },
             },
@@ -432,6 +440,7 @@ export const usersRouter = createTRPCRouter({
                 some: {
                   userId: user.id,
                   status: "ACCEPTED",
+                  moderationStatus: null,
                 },
               },
             },
@@ -442,6 +451,7 @@ export const usersRouter = createTRPCRouter({
               userId: user.id,
               runtime: { not: null },
               status: "ACCEPTED",
+              moderationStatus: null,
             },
             orderBy: {
               runtime: "asc",

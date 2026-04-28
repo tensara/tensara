@@ -128,6 +128,7 @@ model Submission {
   code             String
   language         String
   status           String?
+  moderationStatus SubmissionModerationStatus?
   runtime          Float?
   memory           Int?
   passedTests      Int?
@@ -396,6 +397,11 @@ enum GroupRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum SubmissionModerationStatus {
+  SUSPICIOUS
+  INVALIDATED
 }
 
 model Group {

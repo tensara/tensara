@@ -47,6 +47,7 @@ import { FiCopy, FiHash } from "react-icons/fi";
 import CodeEditor from "~/components/problem/CodeEditor";
 import { type ProgrammingLanguage } from "~/types/misc";
 import { FlopsModal } from "~/components/misc/FlopsModal";
+import { ModerationStatusBadge } from "~/components/submission/ModerationStatusBadge";
 
 type BenchmarkTestResult = {
   test_id: number;
@@ -263,6 +264,9 @@ const SubmissionPage: NextPage<{
                         {submission.problem.title}
                       </Text>
                     </ChakraLink>
+                    <ModerationStatusBadge
+                      status={submission.moderationStatus}
+                    />
                     <HStack spacing={3}>
                       <Text
                         fontSize="sm"
