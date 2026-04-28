@@ -97,7 +97,7 @@ def _map_frontend_submission_language(lang: str) -> str:
     if not lang:
         return lang
     lowered = lang.lower()
-    if lowered in ("triton", "python", "cute", "cutile"):
+    if lowered in ("triton", "python", "pyptx", "cute", "cutile"):
         return "python"
     if lowered in ("cuda", "c++", "cpp"):
         return "cuda"
@@ -150,7 +150,7 @@ def _run_frontend_style_validation(language: str, source: str) -> str | None:
         return None
 
     lowered = (language or "").lower()
-    if lowered in ("python", "triton", "cute", "cutile"):
+    if lowered in ("python", "triton", "pyptx", "cute", "cutile"):
         if "torch." in source or "import torch" in source:
             return "You cannot use PyTorch in the code!"
 
@@ -601,7 +601,13 @@ def reject_forbidden_patterns(language: str, source: str):
         msg = _scan_cuda_forbidden(source)
         if msg:
             raise NVCCError(msg)
-    elif language == "python" or language == "triton" or language == "cutile" or language == "cute":
+    elif (
+        language == "python"
+        or language == "triton"
+        or language == "pyptx"
+        or language == "cutile"
+        or language == "cute"
+    ):
         msg = _scan_triton_python_forbidden(source, language)
         if msg:
             # reuse NVCCError for a consistent error type the runner knows how to handle
@@ -825,7 +831,7 @@ def read_bytes_as_lib(compiled_lib: bytes):
 
 
 COMPILED_LANGUAGES = ("cuda", "mojo")
-SCRIPT_LANGUAGES = ("python", "triton", "cute", "cutile")
+SCRIPT_LANGUAGES = ("python", "triton", "pyptx", "cute", "cutile")
 
 
 def cast_to_ctype(data, argtypes, language="cuda"):
@@ -967,6 +973,26 @@ def run_dynamic_benchmark(
         import cutlass.cute as cute
 
         solution_func = cute.compile(solution_func, *parameters)
+
+    if language == "pyptx":
+        # Exclude first-call tracing/compilation overhead from benchmark timing.
+        for t in actual_outputs:
+            t.fill_(1.0)
+        prewarm_checksums_before = [t.sum().item() for t in actual_outputs]
+        solution_func(*parameters)
+        torch.cuda.synchronize()
+
+        prewarm_checksums_after = [t.sum().item() for t in actual_outputs]
+        for i, (before, after) in enumerate(zip(prewarm_checksums_before, prewarm_checksums_after)):
+            if after == before:
+                return {
+                    "name": test_case["name"],
+                    "test_id": test_id,
+                    "status": "WRONG_ANSWER",
+                    "debug_info": {
+                        "message": f"Mismatched checksum during pyptx prewarm, solution did not modify output {i} ({after} != {before})",
+                    },
+                }
 
     # Calculate FLOPS for this test case
     has_flops = problem.supports_flops()
@@ -1195,12 +1221,19 @@ def make_solution_func(language: str, solution_code: str, compiled: bytes, probl
     elif language in SCRIPT_LANGUAGES:
         # Run Python/Triton AST checks to reject forbidden patterns
         if solution_code:
-            pattern_lang = "cutile" if language == "cutile" else "triton"
+            if language == "cutile":
+                pattern_lang = "cutile"
+            elif language == "pyptx":
+                pattern_lang = "pyptx"
+            else:
+                pattern_lang = "triton"
             reject_forbidden_patterns(pattern_lang, solution_code)
             validate_python_solution_signature_from_source(solution_code, expected_arity)
 
         if language == "cutile":
             filename = "cutile_solution.py"
+        elif language == "pyptx":
+            filename = "pyptx_solution.py"
         elif language == "cute":
             filename = "cute_solution.py"
         else:

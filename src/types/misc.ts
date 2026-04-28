@@ -3,6 +3,7 @@ import { type SandboxStatusType } from "./submission";
 export type ProgrammingLanguage =
   | "cuda"
   | "python"
+  | "pyptx"
   | "mojo"
   | "cute"
   | "cutile";

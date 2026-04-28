@@ -78,6 +78,27 @@ import triton.language as tl
 def solution(${paramStr}):
     `;
   }
+  if (language === "pyptx") {
+    const names = parameters
+      .map((parameter: Parameter) =>
+        parameter.pointer === "true" ? parameter.name : null
+      )
+      .filter(Boolean);
+    const paramStr = parameters
+      .map(
+        (parameter: Parameter) =>
+          `${parameter.name}${parameter.pointer === "true" ? "" : `: ${resolvePythonType(parameter.type)}`}`
+      )
+      .join(", ");
+    return `from pyptx import kernel, ptx, reg, Tile
+from pyptx.types import f32, u32
+
+
+# Note: ${names.join(", ")} are device tensors.
+def solution(${paramStr}):
+    # for H100/H200 use arch="sm_90a"; for B200 use arch="sm_100a".
+    `;
+  }
   if (language === "mojo") {
     const pointerParams = parameters.filter((p) => p.pointer === "true");
     const names = pointerParams.map((p) => p.name).filter(Boolean);
@@ -178,6 +199,7 @@ function mapSubmissionLanguage(lang: string): string {
   const l = lang.toLowerCase();
   if (l === "triton" || l === "python" || l === "cute" || l === "cutile")
     return "python";
+  if (l === "pyptx") return "python";
   if (l === "cuda" || l === "c++" || l === "cpp") return "cuda";
   if (l === "mojo") return "mojo";
   return l;
@@ -242,6 +264,7 @@ export function validateCode(
   if (
     language === "python" ||
     language === "triton" ||
+    language === "pyptx" ||
     language === "cute" ||
     language === "cutile"
   ) {

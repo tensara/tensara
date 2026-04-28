@@ -23,6 +23,7 @@ import {
   CUDA_RUNTIME_VERSION,
   CUDA_DRIVER_VERSION,
   MOJO_CMD,
+  PYPTX_VERSION,
 } from "~/constants/deviceQuery";
 
 interface LanguageInfoModalProps {
@@ -128,6 +129,40 @@ export const LanguageInfoModal = ({
                     </Td>
                     <Td color="white" textAlign="left">
                       {TRITON_VERSION}
+                    </Td>
+                  </Tr>
+                </Tbody>
+              </TableWrapper>
+            </Box>
+
+            <Box mb={6}>
+              <Text fontWeight="semibold" mb={3} color="gray.300">
+                PyPTX
+              </Text>
+              <TableWrapper>
+                <Tbody>
+                  <Tr>
+                    <Td color="gray.400" pl={0}>
+                      Python Version
+                    </Td>
+                    <Td color="white" textAlign="left">
+                      {PYTHON_VERSION}
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td color="gray.400" pl={0}>
+                      PyPTX Version
+                    </Td>
+                    <Td color="white" textAlign="left">
+                      {PYPTX_VERSION}
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td color="gray.400" pl={0}>
+                      Supported GPUs
+                    </Td>
+                    <Td color="white" textAlign="left">
+                      H100, H200, B200
                     </Td>
                   </Tr>
                 </Tbody>

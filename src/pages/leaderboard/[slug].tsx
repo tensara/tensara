@@ -71,6 +71,10 @@ const LanguageLogo = ({ language }: { language: string | null }) => {
       src: "/triton-logo.png",
       label: "Triton",
     },
+    pyptx: {
+      src: "/pyptx-logo.png",
+      label: "PyPTX",
+    },
     mojo: {
       emoji: "🔥",
       label: "Mojo",
