@@ -390,6 +390,64 @@ export const submissionsRouter = createTRPCRouter({
 
       return submissions;
     }),
+
+  invalidateOwnSubmission: protectedProcedure
+    .input(
+      z.object({
+        submissionId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const submission = await ctx.db.submission.findUnique({
+        where: { id: input.submissionId },
+        select: {
+          id: true,
+          userId: true,
+          moderationStatus: true,
+          problem: {
+            select: {
+              slug: true,
+            },
+          },
+        },
+      });
+
+      if (!submission) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Submission not found",
+        });
+      }
+
+      if (submission.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only invalidate your own submissions",
+        });
+      }
+
+      if (submission.moderationStatus === "INVALIDATED") {
+        return submission;
+      }
+
+      const updatedSubmission = await ctx.db.submission.update({
+        where: { id: input.submissionId },
+        data: { moderationStatus: "INVALIDATED" },
+        include: {
+          problem: {
+            select: {
+              title: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      leaderboardCache.flushAll();
+      problemLeaderboardCache.flushAll();
+
+      return updatedSubmission;
+    }),
 });
 
 async function computeLeaderboardData(
