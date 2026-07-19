@@ -17,6 +17,10 @@ import { combinedAuth } from "~/server/auth";
 import { db } from "~/server/db";
 import { proxyUpstreamSSE } from "./sseProxy";
 
+const DAILY_SAMPLE_LIMIT = 200;
+const NEW_ACCOUNT_DAILY_SAMPLE_LIMIT = 10;
+const NEW_ACCOUNT_WINDOW_MS = 48 * 60 * 60 * 1000;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -68,27 +72,40 @@ export default async function handler(
     return;
   }
 
-  // Quota: atomic reset + upfront decrement (Option B)
+  // Quota: atomic reset + upfront decrement, with stricter caps for obvious new-account spam.
   const today = DateTime.now().startOf("day");
   const quotaOk = await db.$transaction(async (tx) => {
     const u = await tx.user.findUnique({
       where: { id: session.user.id },
-      select: { sampleSubmissionCount: true, lastSampleSubmissionReset: true },
+      select: {
+        createdAt: true,
+        sampleSubmissionCount: true,
+        lastSampleSubmissionReset: true,
+      },
     });
     if (!u) return false;
 
+    const dailyLimit = getDailySampleLimit(u);
     const lastReset = DateTime.fromJSDate(u.lastSampleSubmissionReset).startOf(
       "day"
     );
-    if (lastReset < today) {
+    const shouldReset = lastReset < today;
+    const usedToday = DAILY_SAMPLE_LIMIT - u.sampleSubmissionCount;
+    const nextSampleSubmissionCount = shouldReset
+      ? dailyLimit
+      : Math.max(dailyLimit - usedToday, 0);
+
+    if (shouldReset || nextSampleSubmissionCount !== u.sampleSubmissionCount) {
       await tx.user.update({
         where: { id: session.user.id },
         data: {
-          sampleSubmissionCount: 200,
+          sampleSubmissionCount: nextSampleSubmissionCount,
           lastSampleSubmissionReset: today.toJSDate(),
         },
       });
     }
+
+    if (nextSampleSubmissionCount <= 0) return false;
 
     const dec = await tx.user.updateMany({
       where: { id: session.user.id, sampleSubmissionCount: { gt: 0 } },
@@ -150,4 +167,15 @@ export default async function handler(
       res.end();
     } catch {}
   }
+}
+
+function getDailySampleLimit(user: { createdAt: Date }) {
+  const isNewAccount =
+    Date.now() - user.createdAt.getTime() < NEW_ACCOUNT_WINDOW_MS;
+
+  if (isNewAccount) {
+    return NEW_ACCOUNT_DAILY_SAMPLE_LIMIT;
+  }
+
+  return DAILY_SAMPLE_LIMIT;
 }
