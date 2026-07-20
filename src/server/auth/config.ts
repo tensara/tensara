@@ -6,6 +6,8 @@ import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers/oauth";
 import { db } from "~/server/db";
 import { env } from "~/env";
 
+const MIN_GITHUB_ACCOUNT_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
  * object and keep type safety.
@@ -54,7 +56,19 @@ export const authConfig: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === "github" && profile) {
-        const githubProfile = profile as { login: string };
+        const githubProfile = profile as { login: string; created_at?: string };
+        const githubCreatedAt = githubProfile.created_at
+          ? new Date(githubProfile.created_at)
+          : null;
+
+        if (
+          !githubCreatedAt ||
+          Number.isNaN(githubCreatedAt.getTime()) ||
+          Date.now() - githubCreatedAt.getTime() < MIN_GITHUB_ACCOUNT_AGE_MS
+        ) {
+          return false;
+        }
+
         user.username = githubProfile.login;
       }
       return true;

@@ -83,6 +83,11 @@ FRONTEND_FORBIDDEN_PATTERNS = {
         r"\bopen\s*\(",
         r"__import__",
         r"\bimportlib\s*\.",
+        r"\bimport\s+subprocess\b",
+        r"\bfrom\s+subprocess\b",
+        r"\bsubprocess\s*\.",
+        r"\bos\s*\.\s*(?:system|popen|spawn\w*|exec\w*)\b",
+        r"\btailscale\b",
         r"from\s+[\w\.]*builtin\s+import\s+sort",
     ],
     "mojo": [
@@ -447,6 +452,8 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
     # Configuration
     is_cutile = language == "cutile"
     DANGEROUS_BUILTINS = {"eval", "exec", "open", "__import__"}
+    FORBIDDEN_IMPORTS = {"subprocess", "tailscale"}
+    FORBIDDEN_OS_CALLS = {"system", "popen"}
     FORBIDDEN_METHODS = {"sort", "topk"}  # Methods forbidden on tl.* and torch.*
     SORT_MODULES = {"triton.language", "torch"}  # Modules where sort/topk are forbidden
     ALLOWED_CUTILE_CUPY_CALLS = {
@@ -492,6 +499,8 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
                 # Check forbidden imports
                 if alias.name == "thrust":
                     self._set_error("Import of 'thrust' is forbidden.")
+                if alias.name.split(".", 1)[0] in FORBIDDEN_IMPORTS:
+                    self._set_error(f"Import of '{alias.name}' is forbidden.")
                 if alias.name == "cupy" and not is_cutile:
                     self._set_error("Import of 'cupy' is forbidden.")
 
@@ -507,6 +516,9 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
             # Check forbidden imports
             if module == "thrust" or module.endswith(".thrust"):
                 self._set_error("Import of 'thrust' is forbidden.")
+
+            if module.split(".", 1)[0] in FORBIDDEN_IMPORTS:
+                self._set_error(f"Import from '{module}' is forbidden.")
 
             if module.endswith("builtin") and any(a.name == "sort" for a in node.names):
                 self._set_error("Importing builtin sort is forbidden.")
@@ -535,10 +547,38 @@ def _scan_triton_python_forbidden(source: str, language: str = "python") -> str 
             if isinstance(node.func, ast.Name) and node.func.id in DANGEROUS_BUILTINS:
                 self._set_error(f"Forbidden builtin '{node.func.id}' used in Python submission.")
 
+            if isinstance(node.func, ast.Name):
+                resolved_func = self._resolve(node.func.id)
+                if resolved_func == "subprocess" or resolved_func.startswith("subprocess."):
+                    self._set_error("Forbidden use of subprocess detected.")
+                if resolved_func.startswith("os.") and (
+                    resolved_func.rsplit(".", 1)[-1] in FORBIDDEN_OS_CALLS
+                    or resolved_func.rsplit(".", 1)[-1].startswith("spawn")
+                    or resolved_func.rsplit(".", 1)[-1].startswith("exec")
+                ):
+                    self._set_error(f"Forbidden use of {resolved_func} detected.")
+
             # 2. importlib.* calls (handles aliases like `import importlib as il`)
             if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
-                if self._resolve(node.func.value.id) == "importlib":
+                resolved = self._resolve(node.func.value.id)
+                if resolved == "importlib":
                     self._set_error("Forbidden use of importlib detected.")
+                if resolved == "subprocess":
+                    self._set_error("Forbidden use of subprocess detected.")
+                if resolved == "os" and (
+                    node.func.attr in FORBIDDEN_OS_CALLS
+                    or node.func.attr.startswith("spawn")
+                    or node.func.attr.startswith("exec")
+                ):
+                    self._set_error(f"Forbidden use of os.{node.func.attr} detected.")
+
+            if any(
+                isinstance(arg, ast.Constant)
+                and isinstance(arg.value, str)
+                and "tailscale" in arg.value.lower()
+                for arg in node.args
+            ):
+                self._set_error("Forbidden use of tailscale detected.")
 
             # 3. CuTile cupy restrictions: only a small allowlist of cupy calls are permitted
             if is_cutile and isinstance(node.func, ast.Attribute):

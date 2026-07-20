@@ -15,6 +15,11 @@ export const FORBIDDEN_PATTERNS: Record<string, string[]> = {
     "\\bopen\\s*\\(",
     "__import__",
     "\\bimportlib\\s*\\.",
+    "\\bimport\\s+subprocess\\b",
+    "\\bfrom\\s+subprocess\\b",
+    "\\bsubprocess\\s*\\.",
+    "\\bos\\s*\\.\\s*(?:system|popen|spawn\\w*|exec\\w*)\\b",
+    "\\btailscale\\b",
     "from\\s+[\\w\\.]*builtin\\s+import\\s+sort",
   ],
   mojo: [
