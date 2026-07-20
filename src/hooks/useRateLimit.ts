@@ -1,8 +1,12 @@
 import { db } from "~/server/db";
 
 const DAILY_SUBMISSION_LIMIT = 100;
+const NEW_ACCOUNT_WINDOW_MS = 48 * 60 * 60 * 1000;
 
-export async function checkRateLimit(userId: string) {
+export async function checkRateLimit(
+  userId: string,
+  options?: { newAccountDailyLimit?: number }
+) {
   if (!userId) {
     return {
       allowed: false,
@@ -14,6 +18,7 @@ export async function checkRateLimit(userId: string) {
     where: { id: userId },
     select: {
       id: true,
+      createdAt: true,
       lastLimitReset: true,
       currentLimit: true,
     },
@@ -28,6 +33,11 @@ export async function checkRateLimit(userId: string) {
   }
 
   const now = new Date();
+  const dailyLimit =
+    options?.newAccountDailyLimit &&
+    now.getTime() - user.createdAt.getTime() < NEW_ACCOUNT_WINDOW_MS
+      ? options.newAccountDailyLimit
+      : DAILY_SUBMISSION_LIMIT;
 
   if (
     !user.lastLimitReset ||
@@ -39,17 +49,20 @@ export async function checkRateLimit(userId: string) {
       where: { id: userId },
       data: {
         lastLimitReset: now,
-        currentLimit: DAILY_SUBMISSION_LIMIT - 1,
+        currentLimit: dailyLimit - 1,
       },
     });
 
     return {
       allowed: true,
-      remainingSubmissions: DAILY_SUBMISSION_LIMIT - 1,
+      remainingSubmissions: dailyLimit - 1,
     };
   }
 
-  if (user.currentLimit <= 0) {
+  const usedToday = DAILY_SUBMISSION_LIMIT - user.currentLimit;
+  const currentLimit = Math.max(dailyLimit - usedToday, 0);
+
+  if (currentLimit <= 0) {
     const nextReset = new Date(user.lastLimitReset);
     nextReset.setDate(nextReset.getDate() + 1);
     const timeUntilReset = nextReset.getTime() - now.getTime();
@@ -68,13 +81,13 @@ export async function checkRateLimit(userId: string) {
   await db.user.update({
     where: { id: userId },
     data: {
-      currentLimit: user.currentLimit - 1,
+      currentLimit: currentLimit - 1,
     },
   });
 
   return {
     allowed: true,
-    remainingSubmissions: user.currentLimit - 1,
+    remainingSubmissions: currentLimit - 1,
   };
 }
 
