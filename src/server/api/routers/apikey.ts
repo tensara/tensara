@@ -11,6 +11,8 @@ const argon2Options = {
   parallelism: 1,
 };
 
+const API_KEY_CREATION_DISABLED = true;
+
 const generateApiKey = () => {
   const prefix = crypto.randomBytes(6).toString("hex");
   const keyBody = crypto.randomBytes(28).toString("hex");
@@ -54,6 +56,14 @@ export const apiKeysRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      if (API_KEY_CREATION_DISABLED) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "API key creation is temporarily disabled. Please contact us on the Discord for any questions.",
+        });
+      }
+
       try {
         const { fullKey, prefix, keyBody } = generateApiKey();
         const hashedKey = await argon2.hash(keyBody, argon2Options);
