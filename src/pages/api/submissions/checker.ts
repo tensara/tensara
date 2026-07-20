@@ -65,7 +65,9 @@ export default async function handler(
     return;
   }
 
-  const rateLimit = await checkRateLimit(session.user.id);
+  const rateLimit = await checkRateLimit(session.user.id, {
+    newAccountDailyLimit: 5,
+  });
   if (!rateLimit.allowed) {
     res.status(rateLimit.statusCode ?? 429).json({
       status: SubmissionError.RATE_LIMIT_EXCEEDED as SubmissionErrorType,
