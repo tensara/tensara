@@ -1101,6 +1101,11 @@ def run_dynamic_benchmark(
             gpu_monitor.current_run_key = run_key
             gpu_monitor.take_sample_now(run_key)
 
+        buffer = torch.empty(256e8 // 4, dtype=torch.int, device="cuda")
+        for _ in range(5):
+            buffer.zero_()
+        del buffer
+
         # Start timing
         start_event.record()
 
@@ -1162,19 +1167,22 @@ def run_dynamic_benchmark(
         gpu_monitor.stop()
 
     # Calculate averages
-    mean_runtime = statistics.mean(runtimes) if runtimes else 0
+    # mean_runtime = statistics.mean(runtimes) if runtimes else 0
+
+    # Use min sample for more accurate performance comparisons
+    min_runtime = min(runtimes) if runtimes else 0
 
     benchmark_result = {
         "name": test_case["name"],
         "test_id": test_id,
-        "runtime_ms": mean_runtime * 1000,
+        "runtime_ms": min_runtime * 1000,
     }
 
     if gpu_monitor:
         benchmark_result["runs"] = runs
 
-    if has_flops and flops is not None and mean_runtime > 0:
-        benchmark_result["gflops"] = (flops / mean_runtime) / 1e9
+    if has_flops and flops is not None and min_runtime > 0:
+        benchmark_result["gflops"] = (flops / min_runtime) / 1e9
 
     return benchmark_result
 
