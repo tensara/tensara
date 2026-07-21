@@ -18,6 +18,8 @@ import type {
 } from "~/types/submission";
 import { db } from "~/server/db";
 
+const SUBMISSIONS_TEMPORARILY_DISABLED = true;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -25,6 +27,15 @@ export default async function handler(
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
+    return;
+  }
+
+  if (SUBMISSIONS_TEMPORARILY_DISABLED) {
+    res.status(503).json({
+      status: SubmissionError.ERROR,
+      error: "Submissions are temporarily disabled.",
+      details: "Submissions are temporarily disabled.",
+    });
     return;
   }
 
