@@ -340,29 +340,37 @@ export function useSubmissionStream(refetchSubmissions: () => void) {
         });
 
         if (!response.ok) {
-          if (response.status === 429) {
-            const errorMessage = (await response.json()) as ErrorResponse;
-            setIsSubmitting(false);
-            setMetaStatus(SubmissionError.RATE_LIMIT_EXCEEDED);
-            setMetaResponse({
-              status: SubmissionError.RATE_LIMIT_EXCEEDED,
-              message: errorMessage.message || "Rate limit exceeded",
-              details: errorMessage.details || "Rate limit exceeded",
-            });
+          const errorMessage = (await response
+            .json()
+            .catch(() => ({}))) as Partial<ErrorResponse> & {
+            error?: string;
+          };
+          const message =
+            errorMessage.message ??
+            errorMessage.error ??
+            `Direct submit API returned ${response.status}`;
+          const status =
+            response.status === 429
+              ? SubmissionError.RATE_LIMIT_EXCEEDED
+              : SubmissionError.ERROR;
 
-            // Show toast for rate limit error
-            toast({
-              title: "Submission Error",
-              description: errorMessage.message || "Rate limit exceeded",
-              status: "error",
-              duration: 5000,
-              isClosable: true,
-            });
+          setIsSubmitting(false);
+          setMetaStatus(status);
+          setMetaResponse({
+            status,
+            message,
+            details: errorMessage.details ?? message,
+          });
 
-            return;
-          } else {
-            throw new Error(`Direct submit API returned ${response.status}`);
-          }
+          toast({
+            title: "Submission Error",
+            description: message,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+
+          return;
         }
 
         const reader = response.body?.getReader();

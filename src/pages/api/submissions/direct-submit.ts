@@ -39,6 +39,10 @@ import type {
 } from "~/types/submission";
 import { proxyUpstreamSSE } from "./sseProxy";
 
+const SUBMISSIONS_TEMPORARILY_DISABLED = true;
+const SUBMISSIONS_DISABLED_MESSAGE =
+  "Submissions are temporarily disabled. Please contact us on the Discord for any questions.";
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -46,6 +50,15 @@ export default async function handler(
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
+    return;
+  }
+
+  if (SUBMISSIONS_TEMPORARILY_DISABLED) {
+    res.status(503).json({
+      status: SubmissionError.ERROR,
+      error: SUBMISSIONS_DISABLED_MESSAGE,
+      details: SUBMISSIONS_DISABLED_MESSAGE,
+    });
     return;
   }
 
