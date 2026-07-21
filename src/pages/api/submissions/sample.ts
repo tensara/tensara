@@ -21,6 +21,8 @@ const DAILY_SAMPLE_LIMIT = 200;
 const NEW_ACCOUNT_DAILY_SAMPLE_LIMIT = 10;
 const NEW_ACCOUNT_WINDOW_MS = 48 * 60 * 60 * 1000;
 const SUBMISSIONS_TEMPORARILY_DISABLED = true;
+const SUBMISSIONS_DISABLED_MESSAGE =
+  "Submissions are temporarily disabled. Please contact us on the Discord for any questions.";
 
 export default async function handler(
   req: NextApiRequest,
@@ -36,7 +38,7 @@ export default async function handler(
   }
 
   if (SUBMISSIONS_TEMPORARILY_DISABLED) {
-    res.status(503).json({ error: "Submissions are temporarily disabled." });
+    res.status(503).json({ error: SUBMISSIONS_DISABLED_MESSAGE });
     return;
   }
 

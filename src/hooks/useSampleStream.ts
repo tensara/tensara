@@ -91,12 +91,28 @@ export function useSampleStream() {
           body: JSON.stringify(submissionData),
         });
 
-        if (response.status === 429) {
-          setStatus(SampleStatus.TOO_MANY_REQUESTS);
+        if (!response.ok) {
+          const errorResponse = (await response.json().catch(() => ({}))) as {
+            error?: string;
+            message?: string;
+          };
+          const message =
+            errorResponse.error ??
+            errorResponse.message ??
+            (response.status === 429
+              ? "Daily sample limit exceeded."
+              : `Sample run failed with status ${response.status}.`);
+
+          setStatus(
+            response.status === 429
+              ? SampleStatus.TOO_MANY_REQUESTS
+              : SampleStatus.ERROR
+          );
           setIsRunning(false);
           toast({
-            title: "Too Many Requests",
-            description: "Daily sample limit exceeded.",
+            title:
+              response.status === 429 ? "Too Many Requests" : "Sample Error",
+            description: message,
             status: "error",
             duration: 5000,
             isClosable: true,

@@ -19,6 +19,8 @@ import type {
 import { db } from "~/server/db";
 
 const SUBMISSIONS_TEMPORARILY_DISABLED = true;
+const SUBMISSIONS_DISABLED_MESSAGE =
+  "Submissions are temporarily disabled. Please contact us on the Discord for any questions.";
 
 export default async function handler(
   req: NextApiRequest,
@@ -33,8 +35,8 @@ export default async function handler(
   if (SUBMISSIONS_TEMPORARILY_DISABLED) {
     res.status(503).json({
       status: SubmissionError.ERROR,
-      error: "Submissions are temporarily disabled.",
-      details: "Submissions are temporarily disabled.",
+      error: SUBMISSIONS_DISABLED_MESSAGE,
+      details: SUBMISSIONS_DISABLED_MESSAGE,
     });
     return;
   }
